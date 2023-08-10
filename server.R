@@ -230,10 +230,14 @@ server <- function(input, output, session) {
     
     tagID$collectDate<- substr(tagID$collectDate,1,10)
     
-    datafile<-datatable(tagID,options = list(pageLength = 20),
-                        style='bootstrap',
-                        class='compact cell-border hover display',
-                        filter=list(position='top',plain=TRUE))
+    if (nrow(tagID) == 0) {
+      datafile<-datatable(data = data.frame("no tag selected to filter through data",check.names = F),
+                          rownames = F,colnames = 'Select a tagID first'
+      )} else 
+        datafile<-datatable(tagID,options = list(pageLength = 20),
+                            style='bootstrap',
+                            class='compact cell-border hover display',
+                            filter=list(position='top',plain=TRUE))
   })
   
   #---ploting each species HF vs W to look for outliers- prints from current data
@@ -250,12 +254,14 @@ server <- function(input, output, session) {
     tagID_h<- data.raw %>% 
       filter(tagID == ID)
     
-    #All data
-    datafile<-datatable(tagID_h,options = list(pageLength = 20),
-                        style='bootstrap',
-                        class='compact cell-border hover display',
-                        filter=list(position='top',plain=TRUE))
-    
+    if (nrow(tagID_h) == 0) {
+      datafile<-datatable(data = data.frame("no tag selected to filter through data",check.names = F),
+                          rownames = F,colnames = 'Select a tagID first'
+                          )} else
+                            datafile<-datatable(tagID_h,options = list(pageLength = 20),
+                                                style='bootstrap',
+                                                class='compact cell-border hover display',
+                                                filter=list(position='top',plain=TRUE))
   })
   
   ## Measurement Data

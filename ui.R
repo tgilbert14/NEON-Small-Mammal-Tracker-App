@@ -41,7 +41,7 @@ ui <- fluidPage(theme = shinytheme("paper"),collapsable = TRUE,
         format = "yyyy-mm", start = Sys.Date() - (2000),
         end = Sys.Date() - 365, startview = "year"),
       
-      actionButton("action","Process Picks", icon("globe-americas")),
+      #actionButton("action","Process Picks", icon("globe-americas")),
       
         submitButton("Process Picks", icon("globe-americas"),
         width = "100%"),
