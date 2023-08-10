@@ -1,0 +1,14 @@
+name: RatTrapHistory
+title: RatTrapHistory
+username:
+account: t-lama
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5287235
+bundleId: 6412985
+url: https://t-lama.shinyapps.io/RatTrapHistory/
+when: 1666049800.66778
+lastSyncTime: 1666049800.66778
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .vscode/launch.json|README.md
