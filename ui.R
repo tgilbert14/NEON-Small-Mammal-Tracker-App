@@ -9,21 +9,28 @@
 
 #---user interface--------------------------------------------------
 
-ui <- fluidPage(theme = shinytheme("paper"),collapsable = TRUE,
+ui <- fluidPage(theme = shinytheme("united"),collapsable = TRUE,
+ ##Valid themes are: 
+ ##cerulean, cosmo, cyborg, darkly, flatly, journal, lumen, paper,
+ ##readable, sandstone, simplex, slate, spacelab, superhero, united, yeti
+                
   #titlePanel("NEON Mammal History App"),
   tags$head(HTML("<link
                    href='http://fonts.googleapis.com/css?family=Jura'
                    rel='stylesheet' type='text/css'>")),
   
-  h2("NEON Mammal History App", style= "font-family: 'Jura';
-       color: darkturquoise; font-size: 46px;"),
+  h2("NEON Small Mammal Tracker (unofficial)", style= "font-family: 'Jura';
+       color: teal; font-size: 40px; font-weight: bold;"),
   p("Select Site, Date Range and Process - Then select Tag from Top Capture List to Process Ind Species:",
     style= "font-family: 'Jura'; color: dark blue; font-size: 12px;"),
-  p("Data Only Encompasses Mammal Data Published on NEON Data Portal. Last App Update: 2022-07-14",
+  p("Data Only Encompasses Mammal Data Published on NEON Data Portal. Last App Update: 2023-08-10",
     style= "font-family: 'Jura'; color: dark blue; font-size: 12px;"),
   p("Contact tsgilbert@arizona.edu with feedback, errors, or additional app features requests",
-    style= "font-family: 'Jura'; color: turquoise; font-size: 12px;"),
-  
+    style= "font-family: 'Jura'; color: black; font-size: 12px;"),
+ tags$a(class="vgsLink", href="https://github.com/tgilbert14/NEON-Small-Mammal-Tracker",
+        "Check out code on GitHub here"),
+ p(""),
+
   sidebarLayout(
     shinydashboard::box(width = 2, status = "info",
       selectInput("Select", "Please select site(s):"
@@ -55,8 +62,9 @@ ui <- fluidPage(theme = shinytheme("paper"),collapsable = TRUE,
     
     shinydashboard::box(
 
-      width = 10, status = "primary",
-      title = "MAM STATS - NEON Small Mammal Capture History ",
+      width = 9, 
+      #status = "primary",
+      #title = "MAM STATS - NEON Small Mammal Capture History ",
       tabsetPanel(
         footer = 'Select a site, date range... then select an individual tagID and investigate...',
         
