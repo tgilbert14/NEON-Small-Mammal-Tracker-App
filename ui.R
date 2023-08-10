@@ -40,6 +40,9 @@ ui <- fluidPage(theme = shinytheme("paper"),collapsable = TRUE,
         label = "Select Date Range (YYYY-MM)",
         format = "yyyy-mm", start = Sys.Date() - (2000),
         end = Sys.Date() - 365, startview = "year"),
+      
+      actionButton("action","Process Picks", icon("globe-americas")),
+      
         submitButton("Process Picks", icon("globe-americas"),
         width = "100%"),
       # type in tagID looking for and will save as variable
@@ -57,9 +60,11 @@ ui <- fluidPage(theme = shinytheme("paper"),collapsable = TRUE,
       tabsetPanel(
         footer = 'Select a site, date range... then select an individual tagID and investigate...',
         
-        fluidRow(
-          # infoBox(width = 3, "Shiny version", "0.12", icon= icon("desktop")),
-          # infoBoxOutput(width = 3, "total")),
+        # fluidRow(
+        #   infoBox(width = 3, "Shiny version", "0.12", icon= icon("desktop")),
+        #   infoBoxOutput(width = 3, "total")
+        #   ),
+        
 
         # downloadButton('downloadmap', label = "Save Map")),
 
