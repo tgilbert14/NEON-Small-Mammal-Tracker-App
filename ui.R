@@ -58,10 +58,8 @@ ui <- fluidPage(theme = shinytheme("paper"),collapsable = TRUE,
         footer = 'Select a site, date range... then select an individual tagID and investigate...',
         
         fluidRow(
-          infoBox(width = 3, "Shiny version", "0.12", icon= icon("desktop")),
-          infoBoxOutput(width = 3, "total")),
-        
- 
+          # infoBox(width = 3, "Shiny version", "0.12", icon= icon("desktop")),
+          # infoBoxOutput(width = 3, "total")),
 
         # downloadButton('downloadmap', label = "Save Map")),
 
