@@ -14,4 +14,5 @@ library(ggmap)
 library(DT)
 library(shinythemes)
 library(shinydashboard)
+library(shinyjs)
 

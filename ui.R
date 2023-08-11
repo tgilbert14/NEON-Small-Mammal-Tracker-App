@@ -31,6 +31,8 @@ ui <- fluidPage(theme = shinytheme("united"),collapsable = TRUE,
         "Check out code on GitHub here"),
  p(""),
 
+
+ 
   sidebarLayout(
     shinydashboard::box(width = 2, status = "info",
       selectInput("Select", "Please select site(s):"
@@ -44,18 +46,22 @@ ui <- fluidPage(theme = shinytheme("united"),collapsable = TRUE,
       "SOAP", "TEAK", "BARR", "TOOL", "BONA", "DEJU", "HEAL"),
       selected = F, multiple = T),
         dateRangeInput(width = "100%", "dateRange",
-        label = "Select Date Range (YYYY-MM)",
+        label = "Select Date Range",
         format = "yyyy-mm", start = Sys.Date() - (2000),
         end = Sys.Date() - 365, startview = "year"),
-      
-      #actionButton("action","Process Picks", icon("globe-americas")),
-      
+
         submitButton("Process Picks", icon("globe-americas"),
         width = "100%"),
+      useShinyjs(),
+      
+      fluidRow(
+      actionButton("newButton","Search for an animal", icon("down-long"),
+                   width = "100%")),
+      
       # type in tagID looking for and will save as variable
-      textInput("SelectID", "Type in tag of individual species:",
-      value = "", placeholder = "R2094", width = "100%"),
-      submitButton("Process Tag", icon("tag"), width = "100%"),
+      # textInput("SelectID", "Type in tag of individual species:",
+      # value = "", placeholder = "R2094", width = "100%"),
+      # submitButton("Process Tag", icon("tag"), width = "100%"),
     ),
     
    

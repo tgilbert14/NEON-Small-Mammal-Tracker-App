@@ -1,6 +1,8 @@
 #--Server----------------------------------------------------------------
 server <- function(input, output, session) {
   
+  shinyjs::hide("newButton")
+  
   site_select <- reactive({
     site<- input$Select #saving site selection
     #site<- input$Select
@@ -9,6 +11,12 @@ server <- function(input, output, session) {
     
     start_d<-format(input$dateRange[1]) # start date
     end_d<-format(input$dateRange[2])  # end date
+    
+    insertUI(selector = "div:has(> #newButton)",
+             where = "afterEnd",
+             ui = textInput("SelectID", "Type in tag of individual species:",
+                            value = "", placeholder = "R2094", width = "100%"),
+             submitButton("Process Tag", icon("tag"), width = "100%"))
     
     #Downloading NEON portal data since 2016 to present w/ dpID
     raw <- loadByProduct(dpID = "DP1.10072.001", site = site, startdate = start_d, enddate = end_d, package = 'basic', check.size = 'F' )
