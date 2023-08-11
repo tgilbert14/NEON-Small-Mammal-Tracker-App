@@ -14,9 +14,14 @@ server <- function(input, output, session) {
     
     insertUI(selector = "div:has(> #newButton)",
              where = "afterEnd",
+             ui = submitButton("Process Tag", icon("tag"), width = "100%"))
+    
+    insertUI(selector = "div:has(> #newButton)",
+             where = "afterEnd",
              ui = textInput("SelectID", "Type in tag of individual species:",
-                            value = "", placeholder = "R2094", width = "100%"),
-             submitButton("Process Tag", icon("tag"), width = "100%"))
+                            value = "", placeholder = "R2094", width = "100%"))
+
+             
     
     #Downloading NEON portal data since 2016 to present w/ dpID
     raw <- loadByProduct(dpID = "DP1.10072.001", site = site, startdate = start_d, enddate = end_d, package = 'basic', check.size = 'F' )
