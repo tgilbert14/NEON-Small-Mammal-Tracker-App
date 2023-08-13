@@ -1,7 +1,19 @@
 #--Server----------------------------------------------------------------
 server <- function(input, output, session) {
   
+  ##test
+  # cdata<- session$clientData
+  # output$clientdataText <- renderText({
+  #   cnames <- names(cdata)
+  #   allvalues<- lapply(cnames, function(name) {
+  #     paste(name,cdata[[name]], sep = " = ")
+  #   })
+  #   paste(allvalues, collapse = "\n")
+  # })
+  
+  
   shinyjs::hide("newButton")
+
   
   site_select <- reactive({
     site<- input$Select #saving site selection

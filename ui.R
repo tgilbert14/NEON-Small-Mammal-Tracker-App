@@ -60,6 +60,12 @@ ui <- fluidPage(
       submitButton("Process Picks", icon("globe-americas"),
                    width = "100%"
       ),
+      
+      actionButton("showData", "show client data"),
+      
+      bsTooltip(id = "domainShow", "some info here", placement = "right"),
+      
+      
       useShinyjs(),
       fluidRow(
         actionButton("newButton", "Search for an animal", icon("down-long"),
@@ -84,7 +90,6 @@ ui <- fluidPage(
         #   infoBoxOutput(width = 3, "total")
         #   ),
         
-        
         # downloadButton('downloadmap', label = "Save Map")),
         
         tabPanel(
@@ -93,7 +98,9 @@ ui <- fluidPage(
                       proxy.height = "150px",
                       image.height = "150px",
                       image = "rat-72.gif"
-          )
+          ),
+          bsModal(id = "clientData", title = "Client Data", trigger = "showData",
+                  verbatimTextOutput("clientdataText"))
         ),
         tabPanel(
           "Ind. Cap Histroy",
