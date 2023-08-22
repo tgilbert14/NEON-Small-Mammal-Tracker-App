@@ -1,7 +1,9 @@
 #--Server----------------------------------------------------------------
 server <- function(input, output, session) {
   
-  shinyjs::hide("newButton")
+
+  shinyjs::hide("WebLinks")
+
   
   site_select <- reactive({
     site<- input$Select #saving site selection
@@ -12,17 +14,20 @@ server <- function(input, output, session) {
     start_d<-format(input$dateRange[1]) # start date
     end_d<-format(input$dateRange[2])  # end date
     
-    insertUI(selector = "div:has(> #newButton)",
-             where = "afterEnd",
-             ui = submitButton("Process Tag", icon("tag"), width = "100%"))
+    insertUI(selector = "#dateRange",
+             where = "beforeEnd",
+             ui = br())
     
-    insertUI(selector = "div:has(> #newButton)",
-             where = "afterEnd",
+    insertUI(selector = "#dateRange",
+             where = "beforeEnd",
              ui = textInput("SelectID", "Type in tag of individual species:",
                             value = "", placeholder = "R2094", width = "100%"))
-
-             
     
+    # insertUI(selector = "div:has(> #SelectID)",
+    #          where = "afterEnd",
+    #          ui = actionButton("go", "Process Tag", icon("tag"), width = "100%"))
+    
+        
     #Downloading NEON portal data since 2016 to present w/ dpID
     raw <- loadByProduct(dpID = "DP1.10072.001", site = site, startdate = start_d, enddate = end_d, package = 'basic', check.size = 'F' )
     data.raw <- as_tibble(raw$mam_pertrapnight)    #Getting raw data
@@ -36,17 +41,50 @@ server <- function(input, output, session) {
     view_pick<- input$view
   })
   
-  
+
   ID_select <- reactive({
+    req(input$SelectID)
+    
     ID.raw<- input$SelectID #saving tagID selection
     site<- input$Select #saving site selection
     data.raw<- site_select()
     
+    
+    #test<<- data.raw
+    #View(test)
+    
     if (is.null(site))
       return(NULL)
 
-    d<- data.raw %>% 
-      filter(substr(data.raw$tagID,14,length(data.raw$tagID)) == ID.raw)
+    d<- data.raw %>%
+      dplyr::filter(substr(data.raw$tagID,14,length(data.raw$tagID)) == ID.raw)
+    
+    ## pop up for images for selected species
+    pop_up<- unique(d$scientificName)[1]
+    
+    pos<- as.numeric(gregexpr(" ", pop_up)[[1]][1])
+
+    genus<- substr(pop_up, 1, pos-1)
+    epithet<- substr(pop_up, pos+1, nchar(pop_up))
+    
+    url_records<- paste0("https://biorepo.neonscience.org/portal/collections/list.php?usethes=1&taxa=",genus,"+",epithet)
+    url_images<- paste0("https://biorepo.neonscience.org/portal/imagelib/search.php?usethes=1&taxa=",genus,"+",epithet)
+    
+    ## UI updates
+    insertUI(selector = "#WebLinks",
+             where = "afterEnd", 
+             ui = tags$a(href=url_records, paste0("NEON BioRepository - Images for ",genus," ",epithet),
+             target = "_blank"))
+    
+    insertUI(selector = "#WebLinks",
+             where = "afterEnd", 
+             ui = br())
+    
+    insertUI(selector = "#WebLinks",
+             where = "afterEnd", 
+             ui = tags$a(href=url_records, paste0("NEON BioRepository - Samples for ",genus," ",epithet),
+                         target = "_blank"))
+    
 
     ID<- paste0("NEON.MAM.",d$domainID[1],".",ID.raw)
     ID
