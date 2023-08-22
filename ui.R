@@ -10,7 +10,7 @@
 #---user interface--------------------------------------------------
 
 ui <- fluidPage(
-  theme = shinytheme("united"), collapsable = TRUE,
+  theme = shinytheme("cosmo"), collapsable = TRUE,
   ## Valid themes are:
   ## cerulean, cosmo, cyborg, darkly, flatly, journal, lumen, paper,
   ## readable, sandstone, simplex, slate, spacelab, superhero, united, yeti
@@ -53,7 +53,7 @@ ui <- fluidPage(
       ),
       dateRangeInput(
         width = "100%", "dateRange",
-        label = "Select Date Range",
+        label = "Select Date Range:",
         format = "yyyy-mm", start = Sys.Date() - (2000),
         end = Sys.Date() - 365, startview = "year"
       ),
@@ -69,7 +69,7 @@ ui <- fluidPage(
       width = 9,
       # status = "primary",
       # title = "MAM STATS - NEON Small Mammal Capture History ",
-      tabsetPanel(
+      tabsetPanel(id = "inTabset",
         footer = "Select a site, date range... then select an individual tagID and investigate...",
         
         # fluidRow(
@@ -80,7 +80,7 @@ ui <- fluidPage(
         # downloadButton('downloadmap', label = "Save Map")),
         
         tabPanel(
-          "Top Captured Ind.",
+          "Capture Ranks",
           withSpinner(dataTableOutput("FitSelect"),
                       proxy.height = "150px",
                       image.height = "150px",
@@ -90,7 +90,7 @@ ui <- fluidPage(
           #         verbatimTextOutput("clientdataText"))
         ),
         tabPanel(
-          "Ind. Cap Histroy",
+          "Cap History",
           withSpinner(dataTableOutput("NEONDataSet1"),
                       proxy.height = "150px",
                       image.height = "150px",
@@ -98,7 +98,7 @@ ui <- fluidPage(
           )
         ),
         tabPanel(
-          "Raw Cap Data",
+          "Raw",
           withSpinner(dataTableOutput("data1"),
                       proxy.height = "150px",
                       image.height = "150px",
@@ -106,7 +106,7 @@ ui <- fluidPage(
           )
         ),
         tabPanel(
-          "Life History Measurements",
+          "Measurements",
           withSpinner(plotlyOutput("plot1"),
                       proxy.height = "150px",
                       image.height = "150px",
@@ -116,7 +116,7 @@ ui <- fluidPage(
           plotlyOutput("Vplot")
         ),
         tabPanel(
-          "Trap Coord Heat Map",
+          "Heat Map",
           withSpinner(plotlyOutput("plot2"),
                       proxy.height = "150px",
                       image.height = "150px",
@@ -124,7 +124,7 @@ ui <- fluidPage(
           )
         ),
         tabPanel(
-          "Intensity Heat Map",
+          "V2 Heat Map",
           withSpinner(plotlyOutput("plot3"),
                       proxy.height = "150px",
                       image.height = "150px",
@@ -139,7 +139,7 @@ ui <- fluidPage(
                       image = "rat-57.gif"
           )
         ),
-        tabPanel("Map View of All Captured by Species Between Selected Date Range",
+        tabPanel("Capture Map",
                  sliderInput("rad_size", "Adj Capture Radius Size on Map:",
                              min = .1, max = 2,
                              value = 1, step = .1, width = "25%"

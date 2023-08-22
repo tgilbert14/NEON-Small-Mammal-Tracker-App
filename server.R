@@ -3,7 +3,12 @@ server <- function(input, output, session) {
   
 
   shinyjs::hide("WebLinks")
+  
+  ## move to next tab when species selected
 
+  observeEvent(input$SelectID, {
+    updateTabsetPanel(session, "inTabset",selected = "Cap History")
+  })
   
   site_select <- reactive({
     site<- input$Select #saving site selection
@@ -75,7 +80,7 @@ server <- function(input, output, session) {
              ui = br())
     insertUI(selector = "#WebLinks",
              where = "afterEnd", 
-             ui = tags$a(href=url_records, paste0("NEON BioRepository Images for -> ",genus," ",epithet),
+             ui = tags$a(href=url_images, paste0("NEON BioRepository Images for -> ",genus," ",epithet),
              target = "_blank"))
 
     ID<- paste0("NEON.MAM.",d$domainID[1],".",ID.raw)
