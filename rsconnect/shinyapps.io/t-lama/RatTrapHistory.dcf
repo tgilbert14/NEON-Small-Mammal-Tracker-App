@@ -1,0 +1,13 @@
+name: RatTrapHistory
+title: RatTrapHistory
+username: t-lama
+account: t-lama
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 9655857
+bundleId: 7597797
+url: https://t-lama.shinyapps.io/RatTrapHistory/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .vs/NEON-Small-Mammal-Tracker/v17/.wsuo|.vs/VSWorkspaceState.json|.vscode/launch.json
