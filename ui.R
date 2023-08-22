@@ -60,23 +60,10 @@ ui <- fluidPage(
       submitButton("Process Picks", icon("globe-americas"),
                    width = "100%"
       ),
+      useShinyjs(), ## to hide...
+      ## place holder to insert species links to later after selection
+      shiny::actionButton(inputId = "WebLinks", "Welcome!")
       
-      actionButton("showData", "show client data"),
-      
-      bsTooltip(id = "domainShow", "some info here", placement = "right"),
-      
-      
-      useShinyjs(),
-      fluidRow(
-        actionButton("newButton", "Search for an animal", icon("down-long"),
-                     width = "100%"
-        )
-      ),
-      
-      # type in tagID looking for and will save as variable
-      # textInput("SelectID", "Type in tag of individual species:",
-      # value = "", placeholder = "R2094", width = "100%"),
-      # submitButton("Process Tag", icon("tag"), width = "100%"),
     ),
     shinydashboard::box(
       width = 9,
@@ -98,9 +85,9 @@ ui <- fluidPage(
                       proxy.height = "150px",
                       image.height = "150px",
                       image = "rat-72.gif"
-          ),
-          bsModal(id = "clientData", title = "Client Data", trigger = "showData",
-                  verbatimTextOutput("clientdataText"))
+          )#,
+          # bsModal(id = "clientData", title = "Client Data", trigger = "showData",
+          #         verbatimTextOutput("clientdataText"))
         ),
         tabPanel(
           "Ind. Cap Histroy",
