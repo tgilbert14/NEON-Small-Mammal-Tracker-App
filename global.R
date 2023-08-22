@@ -1,9 +1,8 @@
-
-library(neonUtilities)  ##Loading Libraries##
+##Loading Libraries##
+library(neonUtilities)
 library(plotly)
 library(dplyr)
 library(tidyverse)
-
 library(shiny)
 library(shinycssloaders)
 library(reshape)
