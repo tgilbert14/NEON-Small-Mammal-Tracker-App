@@ -73,18 +73,15 @@ server <- function(input, output, session) {
     ## UI updates
     insertUI(selector = "#WebLinks",
              where = "afterEnd", 
-             ui = tags$a(href=url_records, paste0("NEON BioRepository - Images for ",genus," ",epithet),
-             target = "_blank"))
-    
+             ui = tags$a(href=url_records, paste0("NEON BioRepository - Samples for-> ",genus," ",epithet),
+                         target = "_blank"))
     insertUI(selector = "#WebLinks",
              where = "afterEnd", 
              ui = br())
-    
     insertUI(selector = "#WebLinks",
              where = "afterEnd", 
-             ui = tags$a(href=url_records, paste0("NEON BioRepository - Samples for ",genus," ",epithet),
-                         target = "_blank"))
-    
+             ui = tags$a(href=url_records, paste0("NEON BioRepository - Images for-> ",genus," ",epithet),
+             target = "_blank"))
 
     ID<- paste0("NEON.MAM.",d$domainID[1],".",ID.raw)
     ID
