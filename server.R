@@ -209,9 +209,9 @@ server <- function(input, output, session) {
       "Lat: ", new_geo$Latitude, sep="") %>%
       lapply(htmltools::HTML)
     
-    m <- leaflet(new_geo) %>% 
+    m <- leaflet(new_geo, height=2000, width=2000) %>%
       addTiles()  %>% 
-      setView( lat=coord$meanLat[1], lng=coord$meanLon[1], zoom=11) %>%
+      setView(lat=coord$meanLat[1], lng=coord$meanLon[1], zoom=11) %>%
       addProviderTiles(view_pick) %>%
       addCircleMarkers(~Longitude, ~Latitude,
                        fillColor =~pal(new_geo$scientificName), opacity = .6, fillOpacity = .5, radius=~count*r_size,
@@ -219,7 +219,7 @@ server <- function(input, output, session) {
                          lapply(htmltools::HTML),
                        stroke = T, weight = 1,  color = 'white', 
                        label = mytext2,
-                       labelOptions = labelOptions( style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "13px", direction = "auto")
+                       labelOptions = labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "13px", direction = "auto")
       ) %>% 
       addLegend( pal=pal, values=~new_geo$scientificName, opacity=0.9, title = "Species Diversity Per Plot", position = "bottomright" )
       m 
