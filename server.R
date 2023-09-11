@@ -5,14 +5,14 @@ server <- function(input, output, session) {
   shinyjs::hide("WebLinks")
   
   ## move to next tab when species selected
-
   observeEvent(input$SelectID, {
     updateTabsetPanel(session, "inTabset",selected = "Cap History")
   })
   
   site_select <- reactive({
+    req(input$Select)
     site<- input$Select #saving site selection
-    #site<- input$Select
+
     if (is.null(input$Select))
       return(NULL)
     
@@ -27,10 +27,11 @@ server <- function(input, output, session) {
              where = "beforeEnd",
              ui = textInput("SelectID", "Type in tag of individual species:",
                             value = "", placeholder = "R2094", width = "100%"))
-
+    
     #Downloading NEON portal data since 2016 to present w/ dpID
     raw <- loadByProduct(dpID = "DP1.10072.001", site = site, startdate = start_d, enddate = end_d, package = 'basic', check.size = 'F' )
     data.raw <- as_tibble(raw$mam_pertrapnight)    #Getting raw data
+
   })
   
   map_radius_size<- reactive({
@@ -47,8 +48,7 @@ server <- function(input, output, session) {
     
     ID.raw<- input$SelectID #saving tagID selection
     site<- input$Select #saving site selection
-    data.raw<- site_select()
-    
+    data.raw<<- site_select()
     
     #test<<- data.raw
     #View(test)
@@ -66,11 +66,11 @@ server <- function(input, output, session) {
 
     genus<- substr(pop_up, 1, pos-1)
     epithet<- substr(pop_up, pos+1, nchar(pop_up))
-    
+    ## formatting links
     url_records<- paste0("https://biorepo.neonscience.org/portal/collections/list.php?usethes=1&taxa=",genus,"+",epithet)
     url_images<- paste0("https://biorepo.neonscience.org/portal/imagelib/search.php?usethes=1&taxa=",genus,"+",epithet)
     
-    ## UI updates
+    ## UI updates for link pop up
     insertUI(selector = "#WebLinks",
              where = "afterEnd", 
              ui = tags$a(href=url_records, paste0("NEON BioRepository Samples for -> ",genus," ",epithet),
@@ -86,13 +86,35 @@ server <- function(input, output, session) {
     ID<- paste0("NEON.MAM.",d$domainID[1],".",ID.raw)
     ID
   })
+  
+  # observe({
+  #   
+  #   ## info box
+  #   output$data1 <-renderDataTable({
+  #     req(input$Select)
+  #     data.raw<- site_select()
+  #     
+  #     data.raw
+  #   })
+  #   # ## info box
+  #   # output$data2 <-renderValueBox({
+  #   #   valueBox(2,"Species",color='blue') #icon was list
+  #   # })
+  #   # ## info box
+  #   # output$data3 <-renderValueBox({
+  #   #   valueBox(3,"Species",color='blue') #icon was list
+  #   # })
+  # 
+  # 
+  # })
 
+  
   
   output$FitSelect <- renderDataTable({    
     data.raw <- site_select()
     
     if (is.null(data.raw))
-      return(NULL)
+      return("No data")
     
     fit<- data.raw %>%
       group_by(tagID, taxonID, scientificName, plotID) %>% 
@@ -101,7 +123,8 @@ server <- function(input, output, session) {
       arrange(desc(count))
     
     fit$tagID<- substr(fit$tagID,14,50)
-    colnames(fit)[4]<- '# times capture'
+    colnames(fit)[4]<- 'plotID'
+    colnames(fit)[5]<- '# times capture'
     
     datafile<-datatable(fit,options = list(pageLength = 20),
                         style='bootstrap',
@@ -352,30 +375,31 @@ server <- function(input, output, session) {
                                   color=I("Blue"),
                                   alpha = .9,
                                   text=~paste0("Collect Date: ", collectDate, '\n',
-                                               'weight: ', weight), alpha=.5, 
+                                               'weight: ', weight), alpha=.6, 
                                   hoverinfo='text', color=I("Blue")
 
     )%>%
-      layout(title='MesoMeasurements Through Time',yaxis=list(title='Weight (g)'),xaxis=list(title='Collect Date'))
+      layout(title='MesoMeasurements Through Time',yaxis=list(title='Weight (g)', color="blue"),xaxis=list(title='Collect Date'))
     
     # defining another y-axis
     ay <- list(
-      tickfont = list(color = "black"),
+      tickfont = list(color = "red"),
+      color = "red",
       overlaying = "y",
       side = "right",
       title = "HindFootLength (mm)"
     )
     
-    d.plot<- d.plot%>% add_trace(data=tagID, x=~collectDate,y=~hindfootLength,yaxis = 'y2', name=paste0("HindFootLength (mm)"),
+    d.plot<- d.plot%>% add_trace(data=tagID, x=~collectDate,y=~hindfootLength, yaxis = 'y2', name=paste0("HindFootLength (mm)"),
                                  mode='lines+markers', type='scatter', color=I("Red"),
-                                 
                                  text=~paste0("Collect Date: ", collectDate, '\n',
                                               'hindfootLength: ', hindfootLength, '\n'), alpha=.5, 
-                                 hoverinfo='text')
+                                 hoverinfo='text'
+                                 )
     # making look nicer
     d.plot<- d.plot%>% layout(
       title = "Meso Mesurements", yaxis2 = ay,
-      xaxis = list(title="Collect Date"), color=I("Red"))
+      xaxis = list(title="Collect Date", color = "black"))
     
   })
   

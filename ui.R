@@ -10,7 +10,7 @@
 #---user interface--------------------------------------------------
 
 ui <- fluidPage(
-  theme = shinytheme("cosmo"), collapsable = TRUE,
+  theme = shinytheme("sandstone"),
   ## Valid themes are:
   ## cerulean, cosmo, cyborg, darkly, flatly, journal, lumen, paper,
   ## readable, sandstone, simplex, slate, spacelab, superhero, united, yeti
@@ -21,9 +21,9 @@ ui <- fluidPage(
                    rel='stylesheet' type='text/css'>")),
   h2("NEON Small Mammal Tracker (unofficial)", style = "font-family: 'Jura';
        color: teal; font-size: 40px; font-weight: bold;"),
-  p("Select Site, Date Range and Process - Then select Tag from Top Capture List to Process Ind Species:",
-    style = "font-family: 'Jura'; color: dark blue; font-size: 12px;"
-  ),
+  # p("Select Site, Date Range and Process - Then select Tag from Top Capture List to Process Ind Species:",
+  #   style = "font-family: 'Jura'; color: dark blue; font-size: 12px;"
+  # ),
   p("Data Only Encompasses Mammal Data Published on NEON Data Portal. Last App Update: 2023-08-10",
     style = "font-family: 'Jura'; color: dark blue; font-size: 12px;"
   ),
@@ -37,19 +37,19 @@ ui <- fluidPage(
   p(""),
   sidebarLayout(
     shinydashboard::box(
-      width = 2, status = "info",
+      width = 3, status = "info",
       selectInput("Select", "Please select site(s):",
                   width = "100%", choices =
-                    c(
+                    c("",
                       "SRER", "JORN", "BART", "HARV", "BLAN", "SCBI",
                       "SERC", "DSNY", "JERC", "OSBS", "GUAN", "LAJA", "STEI",
                       "TREE", "UNDE", "KONA", "KONZ", "UKFS", "GRSM", "MLBS",
                       "ORNL", "DELA", "LENO", "TALL", "DCFS", "NOGP", "WOOD",
                       "CPER", "RMNP", "STER", "CLBJ", "OAES", "YELL", "MOAB",
-                      "NIWO", "JORN", "SRER", "ONAQ", "ABBY", "WREF", "SJER",
+                      "NIWO", "JORN", "ONAQ", "ABBY", "WREF", "SJER",
                       "SOAP", "TEAK", "BARR", "TOOL", "BONA", "DEJU", "HEAL"
                     ),
-                  selected = F, multiple = T
+                  selected = F, multiple = F
       ),
       dateRangeInput(
         width = "100%", "dateRange",
@@ -70,12 +70,14 @@ ui <- fluidPage(
       # status = "primary",
       # title = "MAM STATS - NEON Small Mammal Capture History ",
       tabsetPanel(id = "inTabset",
-        footer = "Select a site, date range... then select an individual tagID and investigate...",
+        #footer = "Select a site, date range... then select an individual tagID and investigate...",
         
-        # fluidRow(
-        #   infoBox(width = 3, "Shiny version", "0.12", icon= icon("desktop")),
-        #   infoBoxOutput(width = 3, "total")
-        #   ),
+        #fluidRow(
+          #infoBox(width = 3, "data1", icon= icon("desktop")),
+          # valueBox(value = "data1", subtitle = ""),
+          # valueBox(value= "data2", subtitle = ""),
+          # valueBox(value = "data3", subtitle = "")
+        #),
         
         # downloadButton('downloadmap', label = "Save Map")),
         
