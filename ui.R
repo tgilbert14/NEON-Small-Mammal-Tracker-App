@@ -14,27 +14,14 @@ ui <- fluidPage(
   ## Valid themes are:
   ## cerulean, cosmo, cyborg, darkly, flatly, journal, lumen, paper,
   ## readable, sandstone, simplex, slate, spacelab, superhero, united, yeti
-  
-  # titlePanel("NEON Mammal History App"),
+
   tags$head(HTML("<link
                    href='http://fonts.googleapis.com/css?family=Jura'
                    rel='stylesheet' type='text/css'>")),
-  h2("NEON Small Mammal Tracker (unofficial)", style = "font-family: 'Jura';
+  
+  h2( "NEON Small Mammal Tracker (unofficial)", style = "font-family: 'Jura';
        color: teal; font-size: 40px; font-weight: bold;"),
-  # p("Select Site, Date Range and Process - Then select Tag from Top Capture List to Process Ind Species:",
-  #   style = "font-family: 'Jura'; color: dark blue; font-size: 12px;"
-  # ),
-  p("Data Only Encompasses Mammal Data Published on NEON Data Portal. Last App Update: 2023-08-10",
-    style = "font-family: 'Jura'; color: dark blue; font-size: 12px;"
-  ),
-  p("Contact tsgilbert@arizona.edu with feedback, errors, or additional app features requests",
-    style = "font-family: 'Jura'; color: black; font-size: 12px;"
-  ),
-  tags$a(
-    class = "vgsLink", href = "https://github.com/tgilbert14/NEON-Small-Mammal-Tracker",
-    "Check out code on GitHub here"
-  ),
-  p(""),
+  
   sidebarLayout(
     shinydashboard::box(
       width = 3, status = "info",
@@ -63,13 +50,13 @@ ui <- fluidPage(
       useShinyjs(), ## to hide...
       ## place holder to insert species links to later after selection
       shiny::actionButton(inputId = "WebLinks", "Welcome!")
-      
     ),
     shinydashboard::box(
       width = 9,
       # status = "primary",
       # title = "MAM STATS - NEON Small Mammal Capture History ",
       tabsetPanel(id = "inTabset",
+                  
         #footer = "Select a site, date range... then select an individual tagID and investigate...",
         
         #fluidRow(
@@ -87,7 +74,20 @@ ui <- fluidPage(
                       proxy.height = "150px",
                       image.height = "150px",
                       image = "rat-72.gif"
-          )#,
+          ),
+          div(id = "more",
+              p("Data Only Encompasses Mammal Data Published on NEON Data Portal. Last App Update: 2023-08-10",
+                style = "font-family: 'Jura'; color: dark blue; font-size: 12px;"
+              ),
+              p("Contact tsgilbert@arizona.edu with feedback, errors, or additional app features requests",
+                style = "font-family: 'Jura'; color: black; font-size: 12px;"
+              ),
+              tags$a(
+                class = "vgsLink", href = "https://github.com/tgilbert14/NEON-Small-Mammal-Tracker",
+                "Check out code on GitHub here"
+              ),
+              p("")
+          ),
           # bsModal(id = "clientData", title = "Client Data", trigger = "showData",
           #         verbatimTextOutput("clientdataText"))
         ),

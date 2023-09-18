@@ -4,6 +4,12 @@ server <- function(input, output, session) {
 
   shinyjs::hide("WebLinks")
   
+  
+  # observeEvent(input$info, {
+  #   #shinyjs::hide("info")
+  #   shinyjs::toggle(id = "more")
+  # })
+  
   ## move to next tab when species selected
   observeEvent(input$SelectID, {
     updateTabsetPanel(session, "inTabset",selected = "Cap History")
@@ -16,22 +22,21 @@ server <- function(input, output, session) {
     if (is.null(input$Select))
       return(NULL)
     
+    ## hide info after data loads in
+    shinyjs::hide("more")
+    
     start_d<-format(input$dateRange[1]) # start date
     end_d<-format(input$dateRange[2])  # end date
-    
-    insertUI(selector = "#dateRange",
-             where = "beforeEnd",
-             ui = br())
-    
-    insertUI(selector = "#dateRange",
-             where = "beforeEnd",
-             ui = textInput("SelectID", "Type in tag of individual species:",
-                            value = "", placeholder = "R2094", width = "100%"))
     
     #Downloading NEON portal data since 2016 to present w/ dpID
     raw <- loadByProduct(dpID = "DP1.10072.001", site = site, startdate = start_d, enddate = end_d, package = 'basic', check.size = 'F' )
     data.raw <- as_tibble(raw$mam_pertrapnight)    #Getting raw data
 
+    # insertUI(selector = "#dateRange",
+    #          where = "beforeEnd",
+    #          ui = textInput("SelectID", "Type in tag of individual species:",
+    #                         value = "", placeholder = "Type in a tagID", width = "100%"))
+    data.raw
   })
   
   map_radius_size<- reactive({
@@ -125,6 +130,23 @@ server <- function(input, output, session) {
     fit$tagID<- substr(fit$tagID,14,50)
     colnames(fit)[4]<- 'plotID'
     colnames(fit)[5]<- '# times capture'
+    
+    ## spacing
+    insertUI(selector = "#dateRange",
+             where = "beforeEnd",
+             ui = br())
+    
+    sp<- unique(fit$tagID)
+    
+    if (length(sp) > 0) {
+      ## inset tagID selection
+      insertUI(selector = "#dateRange",
+               where = "beforeEnd",
+               ui = selectizeInput("SelectID", "Type in tag of individual species:",
+                                choices = c("",sp),
+                                width = "100%"))
+    }
+
     
     datafile<-datatable(fit,options = list(pageLength = 20),
                         style='bootstrap',
