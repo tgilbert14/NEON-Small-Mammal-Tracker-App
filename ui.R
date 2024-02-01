@@ -10,7 +10,15 @@
 #---user interface--------------------------------------------------
 
 ui <- fluidPage(
-  theme = shinytheme("sandstone"),
+  ## getting js style for www/confirm.js
+  tags$head(
+    tags$script(src = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js"),
+    tags$link(rel = "stylesheet", href = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.min.css"),
+    tags$script(src = "confirm.js")
+  ),
+  br(),
+  theme = shinytheme("slate"),
+  
   ## Valid themes are:
   ## cerulean, cosmo, cyborg, darkly, flatly, journal, lumen, paper,
   ## readable, sandstone, simplex, slate, spacelab, superhero, united, yeti
@@ -22,8 +30,11 @@ ui <- fluidPage(
   h2( "NEON Small Mammal Tracker (unofficial)", style = "font-family: 'Jura';
        color: teal; font-size: 40px; font-weight: bold;"),
   
+  shiny::actionButton(inputId = "help", "What do I do?"),
+
   sidebarLayout(
     shinydashboard::box(
+      br(),
       width = 3, status = "info",
       selectInput("Select", "Please select site(s):",
                   width = "100%", choices =
@@ -44,7 +55,7 @@ ui <- fluidPage(
         format = "yyyy-mm", start = Sys.Date() - (2000),
         end = Sys.Date() - 365, startview = "year"
       ),
-      submitButton("Process Picks", icon("globe-americas"),
+      submitButton("Load...", icon("globe-americas"),
                    width = "100%"
       ),
       useShinyjs(), ## to hide...

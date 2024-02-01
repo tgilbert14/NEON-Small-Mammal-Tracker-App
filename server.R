@@ -1,14 +1,9 @@
 #--Server----------------------------------------------------------------
 server <- function(input, output, session) {
   
-
+  ## hiding elements/tabs until data loaded
   shinyjs::hide("WebLinks")
-  
-  
-  # observeEvent(input$info, {
-  #   #shinyjs::hide("info")
-  #   shinyjs::toggle(id = "more")
-  # })
+  shinyjs::hide("inTabset")
   
   ## move to next tab when species selected
   observeEvent(input$SelectID, {
@@ -55,8 +50,8 @@ server <- function(input, output, session) {
     site<- input$Select #saving site selection
     data.raw<<- site_select()
     
-    #test<<- data.raw
-    #View(test)
+    ## show other tabs after data loaded and species selected
+    shinyjs::show("inTabset")
     
     if (is.null(site))
       return(NULL)
@@ -121,17 +116,40 @@ server <- function(input, output, session) {
     if (is.null(data.raw))
       return("No data")
     
+    ## counting species by tagID and plot
     fit<- data.raw %>%
       group_by(tagID, taxonID, scientificName, plotID) %>% 
-      summarise(count = n()) %>% 
+      summarise("total captures" = n()) %>% 
       filter(!is.na(tagID)) %>% 
-      arrange(desc(count))
+      arrange(desc(`total captures`))
+    ## for hind foot length
+    fit_hf <- data.raw %>%
+      group_by(tagID, taxonID, scientificName, plotID) %>%
+      filter(lifeStage == "adult") %>%
+      filter(!is.na(hindfootLength)) %>% 
+      summarise("avg adult HF length (mm)" = mean(hindfootLength)) %>% 
+      filter(!is.na(tagID))
+    ## for weight
+    fit_w <- data.raw %>%
+      group_by(tagID, taxonID, scientificName, plotID) %>%
+      filter(lifeStage == "adult") %>% 
+      filter(!is.na(weight)) %>% 
+      summarise("avg adult weight (g)" = mean(weight)) %>% 
+      filter(!is.na(tagID))
+
+    ## joining by tagID only
+    fit<- left_join(fit, fit_hf)
+    fit<- left_join(fit, fit_w)
     
+    ## rounding digits
+    fit$`avg adult HF length (mm)` <- round(fit$`avg adult HF length (mm)`, 2)
+    fit$`avg adult weight (g)` <- round(fit$`avg adult weight (g)`, 2)
+
+    ## renaming columns
     fit$tagID<- substr(fit$tagID,14,50)
-    colnames(fit)[4]<- 'plotID'
-    colnames(fit)[5]<- '# times capture'
+    #colnames(fit)[4]<- 'plotID'
     
-    ## spacing
+    ## inserting UI for date range
     insertUI(selector = "#dateRange",
              where = "beforeEnd",
              ui = br())
@@ -145,13 +163,13 @@ server <- function(input, output, session) {
                ui = selectizeInput("SelectID", "Type in tag of individual species:",
                                 choices = c("",sp),
                                 width = "100%"))
-    }
+    } else {fit<- data.frame('No data -> '=double(),'Try again'=integer())}
 
-    
     datafile<-datatable(fit,options = list(pageLength = 20),
                         style='bootstrap',
                         class='compact cell-border hover display',
                         filter=list(position='top',plain=TRUE))
+    
   })
   
   mymap <- reactive({
@@ -194,10 +212,9 @@ server <- function(input, output, session) {
       filter(year == '2020')
     y2021<- all_species %>% 
       filter(year == '2021')
-    # y2022<- all_species %>% 
-    #   filter(year == '2022')
+    y2022<- all_species %>%
+      filter(year == '2022')
     
-    #y2019
     ##Not using as of yet
     per_sp<- data.raw %>% 
       select(scientificName, plotID, collectDate) %>% 
@@ -236,7 +253,7 @@ server <- function(input, output, session) {
       setView(lat=coord$meanLat[1], lng=coord$meanLon[1], zoom=11) %>%
       addProviderTiles(view_pick) %>%
       addCircleMarkers(~Longitude, ~Latitude,
-                       fillColor =~pal(new_geo$scientificName), opacity = .6, fillOpacity = .5, radius=~count*r_size,
+                       fillColor =~pal(new_geo$scientificName), opacity = .6, fillOpacity = .5, radius=~(count/2)*r_size,
                        popup = paste0(new_geo$scientificName) %>%
                          lapply(htmltools::HTML),
                        stroke = T, weight = 1,  color = 'white', 
