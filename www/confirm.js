@@ -3,8 +3,12 @@ $(document).ready(function() {
   $("#help").on("click", async function(event) {
     
       Swal.fire({
-        title:"Select a site and date range!",
-        text:"then a list of species that have been seen here will appear ranked by most captures to least...",
+        title:"🐾 How this works",
+        html:
+          "<b>1.</b> Pick a NEON site <br>" +
+          "<b>2.</b> Pick a date range <br>" +
+          "<b>3.</b> Hit <b>Load</b> &mdash; captures rank by individual (tagID) <br>" +
+          "<b>4.</b> Pick a tagID to unlock measurements, heat maps & more",
         //width: 500,
         //padding: "4em",
         //color: "dark gray",

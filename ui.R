@@ -27,10 +27,19 @@ ui <- fluidPage(
                    href='http://fonts.googleapis.com/css?family=Jura'
                    rel='stylesheet' type='text/css'>")),
   
-  h2( "NEON Small Mammal Tracker (unofficial)", style = "font-family: 'Jura';
-       color: teal; font-size: 40px; font-weight: bold;"),
-  
-  shiny::actionButton(inputId = "help", "What do I do?"),
+  div(
+    style = "padding: 6px 12px 0 12px;",
+    h2(
+      icon("paw"), " NEON Small Mammal Tracker ",
+      tags$span("(unofficial)",
+                style = "font-size: 16px; color: #9aa4ad; font-weight: normal; letter-spacing: 1px;"),
+      style = "font-family: 'Jura'; color: teal; font-size: 40px; font-weight: bold; margin-bottom: 0;"
+    ),
+    p("Chase individual rodents across NEON sites — rank captures, dig into measurements, and map where they showed up.",
+      style = "font-family: 'Jura'; color: #b8c2cc; font-size: 14px; margin-top: 4px;")
+  ),
+
+  shiny::actionButton(inputId = "help", "What do I do?", icon = icon("circle-question")),
 
   sidebarLayout(
     shinydashboard::box(
@@ -80,22 +89,26 @@ ui <- fluidPage(
         # downloadButton('downloadmap', label = "Save Map")),
         
         tabPanel(
-          "Capture Ranks",
+          title = tagList(icon("trophy"), "Capture Ranks"),
           withSpinner(dataTableOutput("FitSelect"),
                       proxy.height = "150px",
                       image.height = "150px",
                       image = "rat-72.gif"
           ),
           div(id = "more",
-              p("Data Only Encompasses Mammal Data Published on NEON Data Portal. Last App Update: 2023-08-10",
-                style = "font-family: 'Jura'; color: dark blue; font-size: 12px;"
+              hr(),
+              p(icon("database"), " Data sourced live from the NEON Data Portal (DP1.10072.001).",
+                style = "font-family: 'Jura'; color: #6fb1d1; font-size: 12px; margin-bottom: 2px;"
               ),
-              p("Contact tsgilbert@arizona.edu with feedback, errors, or additional app features requests",
-                style = "font-family: 'Jura'; color: black; font-size: 12px;"
+              p(icon("envelope"), " Feedback, bugs, or feature requests? ",
+                tags$a(href = "mailto:tsgilbert@arizona.edu", "tsgilbert@arizona.edu"),
+                style = "font-family: 'Jura'; color: #b8c2cc; font-size: 12px; margin-bottom: 2px;"
               ),
               tags$a(
-                class = "vgsLink", href = "https://github.com/tgilbert14/NEON-Small-Mammal-Tracker",
-                "Check out code on GitHub here"
+                class = "vgsLink",
+                href = "https://github.com/tgilbert14/NEON-Small-Mammal-Tracker-App",
+                target = "_blank",
+                icon("github"), " View source on GitHub"
               ),
               p("")
           ),
@@ -103,7 +116,7 @@ ui <- fluidPage(
           #         verbatimTextOutput("clientdataText"))
         ),
         tabPanel(
-          "Cap History",
+          title = tagList(icon("clock-rotate-left"), "Cap History"),
           withSpinner(dataTableOutput("NEONDataSet1"),
                       proxy.height = "150px",
                       image.height = "150px",
@@ -111,7 +124,7 @@ ui <- fluidPage(
           )
         ),
         tabPanel(
-          "Raw",
+          title = tagList(icon("table"), "Raw"),
           withSpinner(dataTableOutput("data1"),
                       proxy.height = "150px",
                       image.height = "150px",
@@ -119,7 +132,7 @@ ui <- fluidPage(
           )
         ),
         tabPanel(
-          "Measurements",
+          title = tagList(icon("ruler"), "Measurements"),
           withSpinner(plotlyOutput("plot1"),
                       proxy.height = "150px",
                       image.height = "150px",
@@ -129,7 +142,7 @@ ui <- fluidPage(
           plotlyOutput("Vplot")
         ),
         tabPanel(
-          "Heat Map",
+          title = tagList(icon("fire"), "Heat Map"),
           withSpinner(plotlyOutput("plot2"),
                       proxy.height = "150px",
                       image.height = "150px",
@@ -137,7 +150,7 @@ ui <- fluidPage(
           )
         ),
         tabPanel(
-          "V2 Heat Map",
+          title = tagList(icon("fire-flame-curved"), "V2 Heat Map"),
           withSpinner(plotlyOutput("plot3"),
                       proxy.height = "150px",
                       image.height = "150px",
@@ -145,14 +158,14 @@ ui <- fluidPage(
           )
         ),
         tabPanel(
-          "Captures Per Plot",
+          title = tagList(icon("chart-line"), "Captures Per Plot"),
           withSpinner(plotlyOutput("DataSet1"),
                       proxy.height = "150px",
                       image.height = "150px",
                       image = "rat-57.gif"
           )
         ),
-        tabPanel("Capture Map",
+        tabPanel(title = tagList(icon("map-location-dot"), "Capture Map"),
                  sliderInput("rad_size", "Adj Capture Radius Size on Map:",
                              min = .1, max = 2,
                              value = 1, step = .1, width = "25%"
