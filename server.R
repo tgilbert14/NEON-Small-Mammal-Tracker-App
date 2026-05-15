@@ -10,29 +10,22 @@ server <- function(input, output, session) {
     updateTabsetPanel(session, "inTabset",selected = "Cap History")
   })
   
-  site_select <- reactive({
+  site_select <- eventReactive(input$loadBtn, {
     req(input$Select)
     site<- input$Select #saving site selection
 
-    if (is.null(input$Select))
-      return(NULL)
-    
     ## hide info after data loads in
     shinyjs::hide("more")
-    
+
     start_d<-format(input$dateRange[1]) # start date
     end_d<-format(input$dateRange[2])  # end date
-    
+
     #Downloading NEON portal data since 2016 to present w/ dpID
     raw <- loadByProduct(dpID = "DP1.10072.001", site = site, startdate = start_d, enddate = end_d, package = 'basic', check.size = 'F' )
     data.raw <- as_tibble(raw$mam_pertrapnight)    #Getting raw data
 
-    # insertUI(selector = "#dateRange",
-    #          where = "beforeEnd",
-    #          ui = textInput("SelectID", "Type in tag of individual species:",
-    #                         value = "", placeholder = "Type in a tagID", width = "100%"))
     data.raw
-  })
+  }, ignoreNULL = TRUE)
   
   map_radius_size<- reactive({
     r_size<- input$rad_size

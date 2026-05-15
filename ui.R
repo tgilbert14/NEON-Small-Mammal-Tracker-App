@@ -64,9 +64,8 @@ ui <- fluidPage(
         format = "yyyy-mm", start = Sys.Date() - (2000),
         end = Sys.Date() - 365, startview = "year"
       ),
-      submitButton("Load...", icon("globe-americas"),
-                   width = "100%"
-      ),
+      shiny::actionButton("loadBtn", "Load...", icon = icon("globe-americas"),
+                          width = "100%", class = "btn-primary"),
       useShinyjs(), ## to hide...
       ## place holder to insert species links to later after selection
       shiny::actionButton(inputId = "WebLinks", "Welcome!")
@@ -176,7 +175,7 @@ ui <- fluidPage(
                                "TomTom.Hybrid", "Stamen.TopOSMRelief"
                              )
                  ),
-                 submitButton("Reload Map..."),
+                 shiny::actionButton("reloadMapBtn", "Reload Map...", icon = icon("rotate")),
                  withSpinner(leafletOutput("map", width = "85%", height = "700px"),
                              proxy.height = "150px",
                              image.height = "150px",
