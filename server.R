@@ -165,12 +165,12 @@ server <- function(input, output, session) {
     
   })
   
-  mymap <- reactive({
+  mymap <- eventReactive(list(site_select(), input$reloadMapBtn), {
     # here I have specified a tile from openstreetmap
     data.raw <- site_select()
     view_pick<- view_select()
     r_size<- map_radius_size()
-    
+
     if (is.null(data.raw))
       return(NULL)
     
@@ -254,9 +254,9 @@ server <- function(input, output, session) {
                        labelOptions = labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "13px", direction = "auto")
       ) %>% 
       addLegend( pal=pal, values=~new_geo$scientificName, opacity=0.9, title = "Species Diversity Per Plot", position = "bottomright" )
-      m 
-    
-  })
+      m
+
+  }, ignoreNULL = FALSE)
   
   output$map <- renderLeaflet({   
     mymap()
