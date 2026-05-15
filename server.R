@@ -10,20 +10,31 @@ server <- function(input, output, session) {
     updateTabsetPanel(session, "inTabset",selected = "Cap History")
   })
   
+  ## cache the downloaded NEON data; only re-fetch when site/date actually changes
+  cache_key  <- reactiveVal(NULL)
+  cache_data <- reactiveVal(NULL)
+
   site_select <- eventReactive(input$loadBtn, {
     req(input$Select)
-    site<- input$Select #saving site selection
+    site   <- input$Select
+    start_d <- format(input$dateRange[1])
+    end_d   <- format(input$dateRange[2])
+    key    <- paste(site, start_d, end_d, sep = "|")
 
-    ## hide info after data loads in
+    ## same site + date range as last download? return cached data, no network call
+    if (identical(cache_key(), key) && !is.null(cache_data())) {
+      shinyjs::hide("more")
+      return(cache_data())
+    }
+
     shinyjs::hide("more")
+    raw <- loadByProduct(dpID = "DP1.10072.001", site = site,
+                         startdate = start_d, enddate = end_d,
+                         package = 'basic', check.size = 'F')
+    data.raw <- as_tibble(raw$mam_pertrapnight)
 
-    start_d<-format(input$dateRange[1]) # start date
-    end_d<-format(input$dateRange[2])  # end date
-
-    #Downloading NEON portal data since 2016 to present w/ dpID
-    raw <- loadByProduct(dpID = "DP1.10072.001", site = site, startdate = start_d, enddate = end_d, package = 'basic', check.size = 'F' )
-    data.raw <- as_tibble(raw$mam_pertrapnight)    #Getting raw data
-
+    cache_key(key)
+    cache_data(data.raw)
     data.raw
   }, ignoreNULL = TRUE)
   
