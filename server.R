@@ -5,10 +5,11 @@ server <- function(input, output, session) {
   shinyjs::hide("WebLinks")
   shinyjs::hide("inTabset")
   
-  ## move to next tab when species selected
+  ## move to next tab when species selected (skip the empty initial value)
   observeEvent(input$SelectID, {
-    updateTabsetPanel(session, "inTabset",selected = "Cap History")
-  })
+    req(input$SelectID, nzchar(input$SelectID))
+    updateTabsetPanel(session, "inTabset", selected = "Cap History")
+  }, ignoreInit = TRUE)
   
   ## cache the downloaded NEON data; only re-fetch when site/date actually changes
   cache_key  <- reactiveVal(NULL)
@@ -152,22 +153,21 @@ server <- function(input, output, session) {
     ## renaming columns
     fit$tagID<- substr(fit$tagID,14,50)
     #colnames(fit)[4]<- 'plotID'
-    
-    ## inserting UI for date range
-    insertUI(selector = "#dateRange",
-             where = "beforeEnd",
-             ui = br())
-    
+
     sp<- unique(fit$tagID)
-    
+
     if (length(sp) > 0) {
-      ## inset tagID selection
-      insertUI(selector = "#dateRange",
-               where = "beforeEnd",
-               ui = selectizeInput("SelectID", "Type in tag of individual species:",
-                                choices = c("",sp),
-                                width = "100%"))
-    } else {fit<- data.frame('No data -> '=double(),'Try again'=integer())}
+      ## populate the (statically-declared) tagID selector — no DOM duplication
+      updateSelectizeInput(session, "SelectID",
+                           label = "Type in tag of individual species:",
+                           choices = c("Select a tagID..." = "", sp),
+                           selected = "")
+    } else {
+      updateSelectizeInput(session, "SelectID",
+                           choices = c("No tags found for this site/date range" = ""),
+                           selected = "")
+      fit<- data.frame('No data -> '=double(),'Try again'=integer())
+    }
 
     datafile<-datatable(fit,options = list(pageLength = 20),
                         style='bootstrap',

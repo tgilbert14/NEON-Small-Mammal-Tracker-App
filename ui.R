@@ -67,6 +67,11 @@ ui <- fluidPage(
       shiny::actionButton("loadBtn", "Load...", icon = icon("globe-americas"),
                           width = "100%", class = "btn-primary"),
       useShinyjs(), ## to hide...
+      br(), br(),
+      selectizeInput("SelectID",
+                     "Type in tag of individual species:",
+                     choices = c("Pick a site and click Load first..." = ""),
+                     width = "100%"),
       ## place holder to insert species links to later after selection
       shiny::actionButton(inputId = "WebLinks", "Welcome!")
     ),
