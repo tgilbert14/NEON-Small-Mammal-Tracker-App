@@ -14,19 +14,20 @@
 
 ## What it does
 
-It opens on a **live demo** (Jornada, NM) so you can explore instantly — then pick any NEON site +
-date window to load real data. The app pulls every small-mammal capture NEON has published and
-reconstructs each animal's **capture career** from its ear-tag ID. Built for two audiences: anyone
-curious about NEON small-mammal sampling, and **new field techs** getting to know the critters at
-their site.
+**Pick a state, then a NEON site** (each with a one-line habitat bio), choose a date window, and the
+app pulls every small-mammal capture NEON has published — then reconstructs each animal's **capture
+career** from its ear-tag ID. In a hurry? One click loads a bundled **Jornada demo** instantly.
+Built for two audiences: anyone curious about NEON small-mammal sampling, and **new field techs**
+getting to know the critters at their site.
 
 ### ✨ The good stuff
 
-- **🧭 Overview (start here)** — a plain-English, auto-written **"story so far"** for the site, the
-  species ranked most-common-first, and **"meet the locals"** cards with a fun fact for each animal.
+- **🧭 Overview (start here)** — quick-jump buttons to the best parts, the species ranked
+  most-common-first, a plain-English auto-written **"story so far,"** and **"meet the locals"** cards
+  with a fun fact for each animal.
 - **👆 Tap-any-stat** — every headline number (captures, individuals, species, recapture rate,
-  trap-nights, legends) is a button that opens a **ranked breakdown** (e.g. Species → every species
-  by abundance, Trap-nights → effort by plot).
+  trap-nights, legends) opens a **ranked breakdown** (e.g. Species → every species by abundance;
+  Individuals/Legends → tap an animal to open its dossier).
 - **🏆 Hall of Fame** — every individual ranked, with medals, **rarity tiers** (Common → Legendary),
   and re-sortable leaderboards: *Most caught · Heaviest · Longest career · Biggest roamer · Chonkiest.*
 - **🐀 Individual Dossier** — a trading-card profile for any animal: species art, career stats,
@@ -72,17 +73,19 @@ install.packages(c(
 shiny::runApp()
 ```
 
-Hit **Try the demo** to explore immediately — it loads the bundled `data-sample/jorn_2017_2021.rds`
-and never touches the network.
+Click **explore the Jornada demo** to start immediately — it loads the bundled
+`data-sample/jorn_2017_2021.rds` and never touches the network.
 
 ## How to use it
 
-1. **Pick a site** — any of the ~47 NEON terrestrial sites (searchable by name).
+1. **Pick a state, then a site** — the picker is grouped by state, and each site shows a one-line
+   habitat bio.
 2. **Pick a date window** — defaults to roughly the last ~6 years minus the most recent year
    (NEON data has a publication lag).
-3. **Hit Load** (or **Try the demo**) — the **Hall of Fame** populates, ranked by total captures.
-4. **Click any individual** (or **Surprise me**) — its dossier, measurements, Chonk Index, home
-   range, and replay all unlock.
+3. **Hit Load this site** (or **explore the Jornada demo**) — the **Overview** opens with the
+   species composition, the auto-written story, and quick-jump buttons to the best parts.
+4. **Open the Hall of Fame and tap any individual** (or **Surprise me**) — its dossier,
+   measurements, Chonk Index, home range, and replay all unlock.
 
 ## How the numbers work
 
@@ -109,7 +112,7 @@ ui.R                      bslib dashboard (sidebar + hero stats + tabs)
 server.R                  data flow + all outputs
 R/helpers.R               the analytical engine (leaderboards, Chonk Index, home range)
 R/site_metadata.R         NEON site code → name / domain / coordinates
-www/styles.css            the light "desert field" theme (Desert Data Labs house style)
+www/styles.css            the light Desert Data Labs / Girth-Index theme (navy · cardinal · gold)
 www/app.js                count-up counters + confetti
 www/confirm.js            the "How it works" help dialog
 data-sample/              bundled JORN demo dataset

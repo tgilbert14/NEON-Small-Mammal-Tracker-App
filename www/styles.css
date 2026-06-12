@@ -5,19 +5,22 @@
    evergreen / terracotta / golden-hour triad, Rubik font.
    ========================================================================= */
 
+/* Variable names kept for low churn; VALUES are the Girth Index house palette:
+   --pine = navy (primary), --terra = cardinal (accent), --gold = gold.       */
 :root {
-  --pine: #18564a;   --pine2: #0f4a3d;
-  --terra: #b8431f;  --gold: #c9881a;  --sky: #2f7fb5;  --green: #2f8a4f;
-  --ink: #18222a;    --muted: #52606a;
-  --bg: #f4f6f2;     --paper: #ffffff; --line: #dde3da;
-  --shadow: rgba(27, 96, 81, 0.10);
+  --pine: #0C234B;   --pine2: #16386e;
+  --terra: #AB0520;  --gold: #FFD200;  --gold-ink: #9a7a00;
+  --sky: #2f7fb5;    --green: #1a7f37;
+  --ink: #1c2733;    --muted: #5a6675;
+  --bg: #eef2f8;     --paper: #ffffff; --line: #d8e0ea;
+  --shadow: rgba(12, 35, 75, 0.10);
 }
 
 body {
   background:
-    radial-gradient(1100px 520px at 10% -8%, rgba(27,96,81,0.06), transparent 60%),
-    radial-gradient(900px 460px at 100% 0%, rgba(224,163,46,0.06), transparent 55%),
-    linear-gradient(180deg, #f6f8f4 0%, var(--bg) 100%);
+    radial-gradient(1100px 520px at 10% -8%, rgba(12,35,75,0.05), transparent 60%),
+    radial-gradient(900px 460px at 100% 0%, rgba(171,5,32,0.04), transparent 55%),
+    linear-gradient(180deg, #eef2f8 0%, #e7edf5 100%);
   background-attachment: fixed;
   color: var(--ink);
   font-weight: 400;
@@ -258,7 +261,7 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .rank-row { display: flex; align-items: center; gap: 12px; padding: 8px 6px; border-bottom: 1px solid #eef1ec; }
 .rank-row:hover { background: #f7f9f6; }
 .rank-num { width: 30px; text-align: center; font-weight: 800; color: var(--muted); flex: none; }
-.rank-num.top { color: var(--gold); }
+.rank-num.top { color: var(--gold-ink); }
 .rank-name { flex: 1; color: var(--ink); font-size: 14px; }
 .rank-name i { color: var(--pine); }
 .rank-metric { font-weight: 800; color: var(--pine); font-size: 15px; }
@@ -270,7 +273,7 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .ddl-footer a { color: var(--terra); font-weight: 700; text-decoration: none; }
 .ddl-footer a:hover { text-decoration: underline; }
 .custom-cta { display: inline-flex; align-items: center; gap: 8px; background: #fffdf6; border: 1.5px solid var(--gold); color: var(--pine); font-weight: 700; font-size: 14px; padding: 9px 16px; border-radius: 10px; text-decoration: none; margin-top: 6px; transition: .15s; }
-.custom-cta:hover { background: var(--gold); color: #fff; }
+.custom-cta:hover { background: var(--gold); color: var(--pine); }
 .custom-cta .hand { font-size: 17px; }
 
 /* ---- about ------------------------------------------------------------ */
@@ -299,12 +302,69 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .local-blurb { font-size: 13px; color: #2c3742; line-height: 1.55; }
 
 .hero-site-hint { color: var(--muted); font-size: 12px; margin-left: auto; }
-.hero-site-hint .bi { color: var(--gold); }
+.hero-site-hint .bi { color: var(--gold-ink); }
 
 .reset-demo { color: var(--muted) !important; text-decoration: none; font-size: 12px; margin-top: 4px; }
 .reset-demo:hover { color: var(--pine) !important; }
 .btn-outline-dark { border-color: var(--line); color: var(--ink); }
 .btn-outline-dark:hover { background: var(--pine); color: #fff; border-color: var(--pine); }
+
+/* ---- sidebar site bio ------------------------------------------------- */
+.site-bio { display: flex; gap: 8px; align-items: flex-start; background: #f3f6fb; border: 1px solid var(--line);
+  border-left: 3px solid var(--navy, var(--pine)); border-radius: 8px; padding: 8px 10px; margin: -4px 0 12px;
+  font-size: 12px; color: #3a4654; line-height: 1.45; }
+.site-bio .bi { color: var(--pine); margin-top: 2px; flex: none; }
+
+/* ---- landing feature row ---------------------------------------------- */
+.land-feats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 22px; text-align: left; }
+@media (max-width: 720px) { .land-feats { grid-template-columns: 1fr; } }
+.land-feat { display: flex; gap: 10px; align-items: flex-start; background: #f5f8fc; border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; }
+.land-feat-ico { font-size: 20px; color: var(--terra); flex: none; }
+.land-feat-t { font-weight: 700; color: var(--ink); font-size: 13.5px; }
+.land-feat-d { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+/* ---- Overview home-nav buttons (Girth-style) -------------------------- */
+.home-nav { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 6px 2px 18px; }
+@media (max-width: 1000px) { .home-nav { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px)  { .home-nav { grid-template-columns: 1fr; } }
+.home-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+  background: var(--paper); border: 1px solid var(--line); border-top: 3px solid var(--terra);
+  border-radius: 10px; padding: 13px 15px; box-shadow: 0 2px 8px var(--shadow); transition: transform .15s, box-shadow .15s; height: 100%; }
+.home-btn:hover { transform: translateY(-3px); box-shadow: 0 12px 24px -10px var(--shadow); background: #fbfcff; }
+.home-btn .bi { font-size: 22px; color: var(--terra); margin-bottom: 4px; }
+.home-btn > div { font-weight: 800; color: var(--pine); font-size: 15px; }
+.home-btn small { color: var(--muted); font-size: 11.5px; font-weight: 400; line-height: 1.3; }
+
+/* ---- clickable modal rows --------------------------------------------- */
+.rank-row.rank-click { cursor: pointer; }
+.rank-row.rank-click:hover { background: #eef3fb; }
+.rank-go { color: var(--terra); margin-left: 6px; font-size: 12px; opacity: 0; transition: .12s; }
+.rank-row.rank-click:hover .rank-go { opacity: 1; }
+
+/* ---- mobile friendliness ---------------------------------------------- */
+@media (max-width: 640px) {
+  .app-hero { padding: 16px 16px; }
+  .app-title { font-size: 23px; }
+  .app-subtitle { font-size: 13px; }
+  .hero-site { font-size: 12.5px; gap: 7px; }
+  .hero-site-hint { display: none; }
+  .stat-value { font-size: 22px; }
+  .stat-card { padding: 11px 12px; gap: 9px; }
+  .dossier-card { flex-direction: column; gap: 14px; padding: 16px 16px; }
+  .ds-left { border-right: none; border-bottom: 1px solid var(--line); padding-right: 0; padding-bottom: 14px; flex-direction: row; min-width: 0; }
+  .ds-emoji { font-size: 46px; }
+  .ds-id { font-size: 26px; }
+  .ds-stats { grid-template-columns: repeat(2, 1fr); }
+  .tab-head { flex-direction: column; align-items: stretch; }
+  .leader-cats .shiny-options-group { justify-content: flex-start; }
+  .rarity-legend { font-size: 11px; }
+  .rank-sub { display: none; }
+  .modal-dialog { margin: 8px; }
+  .nav-tabs .nav-link { padding: 8px 9px; font-size: 13px; }
+  .card-header { font-size: 13px; }
+}
+/* let plots shrink on narrow screens */
+.shiny-plot-output, .plotly, .leaflet-container { max-width: 100%; }
 
 /* counters pop in */
 .count-up { display: inline-block; }

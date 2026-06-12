@@ -59,23 +59,23 @@ fetch_neon_mam <- function(site, start_date, end_date) {
 # with colored top borders + headers, evergreen / terracotta / golden-hour
 # triad, Rubik font (the Girth Index font), three weights.
 #
-# Palette (NEON desert):
-#   pine    #1b6051  primary  (standard card headers, key text)
-#   terra   #c1502e  accent   (featured/alert headers, links)
-#   gold    #e0a32e  highlight(legendary, CTA)
+# Palette (Desert Data Labs / Girth Index house colors):
+#   navy    #0C234B  primary  (card headers, key text, hero)
+#   cardinal#AB0520  accent   (featured/alert, links, CTA)
+#   gold    #FFD200  highlight(legendary, badges, accents)
 #   sky     #2f7fb5  info
-#   ink     #1f2a30  / muted #6b7a85 / bg #f4f6f2
+#   ink     #1c2733  / muted #6b7a89 / bg #eef2f8
 DDL <- list(
-  pine = "#1b6051", pine2 = "#0f4a3d", terra = "#c1502e", gold = "#e0a32e",
-  sky = "#2f7fb5", green = "#3a9d5d", ink = "#1f2a30", muted = "#6b7a85",
-  bg = "#f4f6f2", paper = "#ffffff", line = "#e2e7df"
+  navy = "#0C234B", navy2 = "#16386e", cardinal = "#AB0520", gold = "#FFD200",
+  gold2 = "#c9a300", sky = "#2f7fb5", green = "#1a7f37", ink = "#1c2733",
+  muted = "#6b7a89", bg = "#eef2f8", paper = "#ffffff", line = "#dbe2ec"
 )
 
 app_theme <- bs_theme(
   version = 5,
   bg = "#ffffff", fg = DDL$ink,
-  primary = DDL$pine, secondary = DDL$terra,
-  success = DDL$green, info = DDL$sky, warning = DDL$gold, danger = DDL$terra,
+  primary = DDL$navy, secondary = DDL$cardinal,
+  success = DDL$green, info = DDL$sky, warning = DDL$gold, danger = DDL$cardinal,
   base_font    = font_google("Rubik"),
   heading_font = font_google("Rubik"),
   "border-radius" = "10px"
@@ -83,7 +83,7 @@ app_theme <- bs_theme(
 
 # ---- small UI utilities ---------------------------------------------------
 # A clean tinted pill/badge (rarity & chonk tags) for the light theme.
-glow_badge <- function(label, color = "#1b6051", glow = color) {
+glow_badge <- function(label, color = "#0C234B", glow = color) {
   span(
     class = "glow-badge",
     style = sprintf("color:#fff; background:%s; border-color:%s;", color, color),

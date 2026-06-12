@@ -116,13 +116,13 @@ rarity_tier <- function(captures) {
   )
 }
 
-# Tier colors tuned for a LIGHT background (solid, readable; white text on top).
+# Tier colors for the Girth light theme (solid fills, white text on top).
 rarity_meta <- function(tier) {
   lut <- list(
-    Legendary = list(color = "#d99000", glow = "#d99000", icon = "⭐"),
-    Epic      = list(color = "#7c3aed", glow = "#7c3aed", icon = "\U0001F48E"),
-    Rare      = list(color = "#2563eb", glow = "#2563eb", icon = "\U0001F535"),
-    Uncommon  = list(color = "#16a34a", glow = "#16a34a", icon = "\U0001F7E2"),
+    Legendary = list(color = "#c9a300", glow = "#c9a300", icon = "⭐"),  # deep gold
+    Epic      = list(color = "#AB0520", glow = "#AB0520", icon = "\U0001F48E"),  # cardinal
+    Rare      = list(color = "#16386e", glow = "#16386e", icon = "\U0001F535"),  # navy
+    Uncommon  = list(color = "#1a7f37", glow = "#1a7f37", icon = "\U0001F7E2"),  # green
     Common    = list(color = "#6b7280", glow = "#6b7280", icon = "▫")
   )
   lut[[tier]] %||% lut$Common
@@ -578,12 +578,12 @@ stat_breakdown <- function(d, lb, which) {
   }
   if (which == "individuals") {
     v <- utils::head(lb, 25)
-    rows <- tibble::tibble(rank = v$rank,
+    rows <- tibble::tibble(rank = v$rank, tag = v$tagID,
       name = paste0(v$emoji, "  <b>", v$short, "</b> <span class='dim'>· ", v$scientificName, "</span>"),
       metric = paste0(v$captures, " caps"),
       sub = paste0(ifelse(v$career_days > 0, paste0(v$career_days, "d career"), "single capture")))
-    return(pack("Most-caught individuals", "The regulars — animals that kept turning up",
-      "Click any individual in the Hall of Fame to open its full dossier.", rows, "\U0001F50D"))
+    return(pack("Most-caught individuals", "Tap any animal to open its full dossier",
+      "These are the regulars — the animals that kept turning up in traps.", rows, "\U0001F50D"))
   }
   if (which == "captures") {
     cby <- d %>% dplyr::filter(!is.na(.data$tagID), !is.na(.data$plotID)) %>%
@@ -624,11 +624,11 @@ stat_breakdown <- function(d, lb, which) {
   if (which == "legends") {
     v <- lb[lb$captures >= 10, ]
     if (nrow(v) == 0) v <- utils::head(lb, 10)
-    rows <- tibble::tibble(rank = seq_len(nrow(v)),
+    rows <- tibble::tibble(rank = seq_len(nrow(v)), tag = v$tagID,
       name = paste0(v$emoji, "  <b>", v$short, "</b> <span class='dim'>· ", v$scientificName, "</span>"),
       metric = paste0(v$captures, " caps"),
       sub = paste0(rarity_tier(v$captures)))
-    return(pack("The Legends — caught 10+ times", "Epic & Legendary individuals of this site",
+    return(pack("The Legends — caught 10+ times", "Tap any legend to open its dossier",
       "These animals were exceptionally trap-happy, resident, or both.", rows, "\U0001F3C6"))
   }
   NULL

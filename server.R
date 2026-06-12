@@ -17,6 +17,9 @@ server <- function(input, output, session) {
       plotly::config(displayModeBar = FALSE, responsive = TRUE)
   }
 
+  # shown on individual-only views when nobody is selected yet
+  PICK_MSG <- "Pick an individual first.<br>Open the <b>Hall of Fame</b> and tap a row,<br>or hit \U201CSurprise me\U201D in the sidebar."
+
   # A centered-message placeholder for plots that have nothing to show.
   note_plot <- function(msg, icon = "\U0001F50D") {
     plotly::plot_ly(type = "scatter", mode = "markers") %>%
@@ -38,9 +41,20 @@ server <- function(input, output, session) {
     tag = NULL         # selected full tagID
   )
 
-  # populate the site picker with friendly labels
-  updateSelectizeInput(session, "site", choices = c("Pick a site…" = "", site_choices()),
-                       server = TRUE)
+  # state -> site cascading picker (Arizona default so the demo lines up)
+  updateSelectInput(session, "stateSel", choices = state_choices(), selected = "NM")
+  observeEvent(input$stateSel, {
+    sites <- sites_in_state(input$stateSel)
+    updateSelectInput(session, "site", choices = sites,
+                      selected = if (length(sites)) sites[[1]] else NULL)
+  }, ignoreNULL = TRUE)
+
+  output$siteBio <- renderUI({
+    req(input$site)
+    b <- site_bio(input$site)
+    if (is.null(b)) return(NULL)
+    div(class = "site-bio", bs_icon("info-circle-fill"), span(b))
+  })
 
   shinyjs::hide("mainTabsWrap")
 
@@ -73,14 +87,6 @@ server <- function(input, output, session) {
     session$sendCustomMessage("countUp", list())
     invisible(TRUE)
   }
-
-  # Open on a live demo so the app is immediately explorable (public + first-run).
-  observe({
-    if (is.null(rv$data)) {
-      d <- load_demo()
-      if (!is.null(d)) ingest(d, DEMO_META$label, is_demo = TRUE)
-    }
-  })
 
   observeEvent(input$loadBtn, {
     req(input$site)
@@ -135,20 +141,45 @@ server <- function(input, output, session) {
     pick_individual(sample(pool, 1))
   })
 
-  # ---- splash (idle state) ------------------------------------------------
+  # ensure an individual is selected (for tabs that need one) -> pick the star
+  ensure_individual <- function() {
+    if (!is.null(rv$tag)) return(invisible())
+    lb <- rv$lb; if (is.null(lb) || nrow(lb) == 0) return(invisible())
+    tag <- lb$tagID[1]
+    rv$tag <- tag
+    updateSelectizeInput(session, "indiv", selected = tag)
+  }
+
+  # ---- Overview home-nav buttons (Girth-style quick jumps) ---------------
+  observeEvent(input$goMap,        nav_select("tabs", "map"))
+  observeEvent(input$goCommunity,  nav_select("tabs", "community"))
+  observeEvent(input$goPopulation, nav_select("tabs", "population"))
+  observeEvent(input$goFame,       nav_select("tabs", "fame"))
+  observeEvent(input$goRange, {    # heatmap/replay need an individual — pick the star
+    ensure_individual(); nav_select("tabs", "homerange")
+  })
+
+  # ---- splash / landing (before any site is loaded) ----------------------
   output$splash <- renderUI({
     if (!is.null(rv$data)) return(NULL)
+    feat <- function(icon, title, text) div(class = "land-feat",
+      div(class = "land-feat-ico", bs_icon(icon)),
+      div(div(class = "land-feat-t", title), div(class = "land-feat-d", text)))
     div(class = "splash",
       div(class = "splash-icon", "\U0001F43E"),
-      h3("Pick a site, or take the demo for a spin"),
-      p("This app pulls every small-mammal capture NEON has published for a site and date window, then ranks the individuals that just ", tags$em("keep"), " showing up in traps."),
+      h3("Explore the small mammals of the NEON network"),
+      p("The National Ecological Observatory Network live-traps small mammals at 47 field sites across the U.S. and Puerto Rico. This app turns those captures into maps, charts, and individual ", tags$em("life stories"), " — built for the curious and for new field techs learning their site."),
       div(class = "splash-steps",
-        div(class = "step", span(class = "step-n", "1"), "Choose a NEON site + date window"),
-        div(class = "step", span(class = "step-n", "2"), "Hit ", tags$b("Load"), " (or ", tags$b("Try the demo"), ")"),
-        div(class = "step", span(class = "step-n", "3"), "Click any individual to open its dossier")
+        div(class = "step", span(class = "step-n", "1"), tagList("Pick a ", tags$b("state"), ", then a ", tags$b("site"), " in the sidebar \U2190")),
+        div(class = "step", span(class = "step-n", "2"), tagList("Hit ", tags$b("Load this site"), " (real NEON data downloads live)")),
+        div(class = "step", span(class = "step-n", "3"), "Explore the maps, charts & critters")
       ),
-      actionButton("demoBtn2", tagList(bs_icon("stars"), " Try the demo dataset"),
-                   class = "btn-primary btn-lg")
+      actionButton("demoBtn2", tagList(bs_icon("stars"), " Explore the Jornada demo instantly"),
+                   class = "btn-primary btn-lg"),
+      div(class = "land-feats",
+        feat("map-fill", "Where they live", "Species mapped across each site's trapping grids."),
+        feat("fire", "Home ranges", "Heatmaps & replays of where one animal kept turning up."),
+        feat("graph-up-arrow", "Real science", "Abundance indices, body condition & breeding phenology."))
     )
   })
   observeEvent(input$demoBtn2, {
@@ -179,17 +210,17 @@ server <- function(input, output, session) {
         span(class = "hero-site-range", fmt_range(cs$date_min, cs$date_max)),
         span(class = "hero-site-hint", bs_icon("hand-index"), " tap any stat for the full ranking")),
       div(class = "stat-grid",
-        vb(cs$total_captures, "Captures",      "bullseye",        "#1b6051", "captures",
+        vb(cs$total_captures, "Captures",      "bullseye",        "#0C234B", "captures",
            tip = "Total times an animal was caught & handled — click to see captures by plot."),
         vb(cs$individuals,    "Individuals",   "fingerprint",     "#2f7fb5", "individuals",
            tip = "Distinct animals (unique ear-tag IDs) — click for the most-caught individuals."),
-        vb(cs$species,        "Species",       "diagram-3-fill",  "#3a9d5d", "species",
+        vb(cs$species,        "Species",       "diagram-3-fill",  "#1a7f37", "species",
            tip = "Distinct species identified — click for species ranked by abundance."),
-        vb(cs$recap_rate,     "Recapture rate","arrow-repeat",    "#c1502e", "recapture", pct = TRUE,
+        vb(cs$recap_rate,     "Recapture rate","arrow-repeat",    "#AB0520", "recapture", pct = TRUE,
            tip = "Share of captures that were re-encounters — click for recapture rate by species."),
-        vb(cs$trap_nights,    "Trap-nights",   "moon-stars-fill", "#7c3aed", "trapnights",
+        vb(cs$trap_nights,    "Trap-nights",   "moon-stars-fill", "#5b3a8a", "trapnights",
            tip = "Total trapping effort — click for effort & catch-rate by plot."),
-        vb(cs$legendary,      "Legends (10+)", "trophy-fill",     "#d99000", "legends",
+        vb(cs$legendary,      "Legends (10+)", "trophy-fill",     "#c9a300", "legends",
            tip = "Individuals caught 10+ times — click for the full list of legends.")
       )
     )
@@ -201,12 +232,16 @@ server <- function(input, output, session) {
     bk <- stat_breakdown(d, lb, input$statClick)
     req(!is.null(bk))
     rows <- bk$rows
+    has_tag <- "tag" %in% names(rows)
     rank_items <- lapply(seq_len(nrow(rows)), function(i) {
-      tags$li(class = "rank-row",
+      clickable <- has_tag && !is.na(rows$tag[i])
+      tags$li(class = paste("rank-row", if (clickable) "rank-click" else ""),
+        onclick = if (clickable) sprintf(
+          "Shiny.setInputValue('modalPick','%s',{priority:'event'})", rows$tag[i]),
         span(class = paste("rank-num", if (rows$rank[i] <= 3) "top" else ""),
-             if (rows$rank[i] == 1) "\U0001F947" else if (rows$rank[i] == 2) "\U0001F948"
-             else if (rows$rank[i] == 3) "\U0001F949" else paste0("#", rows$rank[i])),
-        span(class = "rank-name", HTML(rows$name[i])),
+             paste0("#", rows$rank[i])),
+        span(class = "rank-name", HTML(rows$name[i]),
+             if (clickable) span(class = "rank-go", bs_icon("chevron-right"))),
         span(class = "rank-metric", rows$metric[i]),
         span(class = "rank-sub", rows$sub[i]))
     })
@@ -217,6 +252,12 @@ server <- function(input, output, session) {
       if (nzchar(bk$insight %||% "")) div(class = "rank-modal-insight", bs_icon("lightbulb"), " ", HTML(bk$insight)),
       tags$ol(class = "rank-list", rank_items)
     ))
+  })
+
+  # click an animal inside a modal -> open its dossier
+  observeEvent(input$modalPick, {
+    removeModal()
+    pick_individual(input$modalPick)
   })
 
   # ---- overview: narrative insights + "meet the locals" ------------------
@@ -254,10 +295,7 @@ server <- function(input, output, session) {
     v <- rv$lb_view; req(v)
     cat_key <- input$leaderCat %||% "captures"
 
-    medal <- function(rank) ifelse(rank == 1, "\U0001F947",
-                            ifelse(rank == 2, "\U0001F948",
-                            ifelse(rank == 3, "\U0001F949",
-                                   paste0("#", rank))))
+    medal <- function(rank) paste0("#", rank)
     rar_badge <- function(tier) {
       m <- lapply(tier, rarity_meta)
       vapply(seq_along(tier), function(i) sprintf(
@@ -298,7 +336,7 @@ server <- function(input, output, session) {
 
   # ---- bio repository links ----------------------------------------------
   output$bioLinks <- renderUI({
-    tag <- rv$tag; if (is.null(tag)) return(NULL)
+    tag <- rv$tag; if (is.null(tag)) return(note_plot(PICK_MSG, "\U0001F50D"))  # sidebar links stay hidden until a pick
     sp <- rv$lb$scientificName[rv$lb$tagID == tag][1]
     if (is.na(sp)) return(NULL)
     parts <- strsplit(sp, " ")[[1]]
@@ -374,7 +412,7 @@ server <- function(input, output, session) {
 
   # ---- measurements through time -----------------------------------------
   output$measPlot <- renderPlotly({
-    tag <- rv$tag; if (is.null(tag)) return(NULL)
+    tag <- rv$tag; if (is.null(tag)) return(note_plot(PICK_MSG, "\U0001F50D"))
     df <- ind_rows()
     if (!any(is.finite(df$weight)) && !any(is.finite(df$hindfootLength)))
       return(note_plot("No weight or hind-foot<br>measurements recorded for this animal", "\U0001F4CF"))
@@ -400,33 +438,33 @@ server <- function(input, output, session) {
     p <- p %>% add_trace(
       data = df, x = ~date, y = ~weight, name = "Weight (g)",
       type = "scatter", mode = "lines+markers",
-      line = list(color = "#2dd4bf", width = 2), marker = list(color = "#2dd4bf", size = 8),
-      hovertemplate = "%{x|%b %d, %Y}<br><span style='color:#2dd4bf'>●</span> Weight: %{y} g<extra></extra>")
+      line = list(color = "#16386e", width = 2), marker = list(color = "#16386e", size = 8),
+      hovertemplate = "%{x|%b %d, %Y}<br><span style='color:#16386e'>●</span> Weight: %{y} g<extra></extra>")
     p <- p %>% add_trace(
       data = df, x = ~date, y = ~hindfootLength, name = "Hind foot (mm)", yaxis = "y2",
       type = "scatter", mode = "lines+markers",
-      line = list(color = "#f5a524", width = 2, dash = "dot"), marker = list(color = "#f5a524", size = 7),
-      hovertemplate = "%{x|%b %d, %Y}<br><span style='color:#f5a524'>●</span> Hind foot: %{y} mm<extra></extra>")
+      line = list(color = "#AB0520", width = 2, dash = "dot"), marker = list(color = "#AB0520", size = 7),
+      hovertemplate = "%{x|%b %d, %Y}<br><span style='color:#AB0520'>●</span> Hind foot: %{y} mm<extra></extra>")
 
     # call out the heaviest capture
     ann <- list()
     if (any(is.finite(df$weight))) {
       i <- which.max(df$weight)
       ann <- list(list(x = df$date[i], y = df$weight[i],
-        text = sprintf("heaviest ♦ %sg", df$weight[i]), showarrow = TRUE, arrowcolor = "#d99000",
-        ax = 0, ay = -28, font = list(color = "#d99000", size = 11)))
+        text = sprintf("heaviest ♦ %sg", df$weight[i]), showarrow = TRUE, arrowcolor = "#c9a300",
+        ax = 0, ay = -28, font = list(color = "#c9a300", size = 11)))
     }
 
     plotly_theme(p) %>% plotly::layout(
-      yaxis  = list(title = "Weight (g)", color = "#2dd4bf"),
-      yaxis2 = list(title = "Hind foot (mm)", color = "#f5a524", overlaying = "y",
+      yaxis  = list(title = "Weight (g)", color = "#16386e"),
+      yaxis2 = list(title = "Hind foot (mm)", color = "#AB0520", overlaying = "y",
                     side = "right", gridcolor = "rgba(0,0,0,0)"),
       xaxis  = list(title = ""), hovermode = "x unified", annotations = ann)
   })
 
   # ---- chonk gauge --------------------------------------------------------
   output$chonkGauge <- renderPlotly({
-    tag <- rv$tag; if (is.null(tag)) return(NULL)
+    tag <- rv$tag; if (is.null(tag)) return(note_plot(PICK_MSG, "\U0001F50D"))
     row <- rv$lb[rv$lb$tagID == tag, ]
     pct <- row$chonk_pct[1]
     if (is.na(pct))
@@ -435,14 +473,14 @@ server <- function(input, output, session) {
       value = pct,
       number = list(suffix = "", font = list(color = "#1f2a30", size = 46)),
       delta = list(reference = 50, suffix = " vs typical",
-        increasing = list(color = "#3a9d5d"), decreasing = list(color = "#2f7fb5"),
+        increasing = list(color = "#1a7f37"), decreasing = list(color = "#2f7fb5"),
         font = list(size = 13)),
       title = list(text = sprintf("<b>%s</b><br><span style='font-size:12px;color:#6b7a85'>adult weight percentile vs %s</span>",
                                   row$chonk_tier[1], row$scientificName[1]),
                    font = list(color = "#1f2a30", size = 18)),
       gauge = list(
         axis = list(range = list(0, 100), tickcolor = "#6b7a85", tickfont = list(color = "#6b7a85")),
-        bar = list(color = "#1b6051", thickness = 0.28),
+        bar = list(color = "#0C234B", thickness = 0.28),
         bgcolor = "rgba(0,0,0,0)", borderwidth = 0,
         steps = list(
           list(range = c(0, 20),  color = "#e3eef0"),
@@ -450,7 +488,7 @@ server <- function(input, output, session) {
           list(range = c(40, 60), color = "#f0f1ec"),
           list(range = c(60, 80), color = "#faedd6"),
           list(range = c(80, 100),color = "#f6ddd2")),
-        threshold = list(line = list(color = "#c1502e", width = 3), thickness = 0.8, value = 50))
+        threshold = list(line = list(color = "#AB0520", width = 3), thickness = 0.8, value = 50))
     ) %>% plotly::layout(paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)",
                          font = list(color = "#344049", family = "Rubik"),
                          margin = list(t = 70, b = 10, l = 30, r = 30)) %>%
@@ -459,7 +497,7 @@ server <- function(input, output, session) {
 
   # ---- body-size morphospace scatter (the honest "girth index") ----------
   output$morphoPlot <- renderPlotly({
-    tag <- rv$tag; if (is.null(tag)) return(NULL)
+    tag <- rv$tag; if (is.null(tag)) return(note_plot(PICK_MSG, "\U0001F50D"))
     d <- rv$data
     sp <- rv$lb$scientificName[rv$lb$tagID == tag][1]
     meas <- dplyr::filter(d, !is.na(.data$weight), !is.na(.data$hindfootLength),
@@ -481,7 +519,7 @@ server <- function(input, output, session) {
         text = ~scientificName)
     # the focal species cloud, colored by life stage
     if (nrow(focal) > 0) {
-      stage_col <- c(adult = "#2dd4bf", subadult = "#f5a524", juvenile = "#5ce0a0", unknown = "#6c757d")
+      stage_col <- c(adult = "#16386e", subadult = "#AB0520", juvenile = "#4bb87a", unknown = "#6c757d")
       focal$stg <- ifelse(focal$lifeStage %in% names(stage_col), focal$lifeStage, "unknown")
       for (st in intersect(c("adult","subadult","juvenile","unknown"), unique(focal$stg))) {
         sub <- focal[focal$stg == st, ]
@@ -509,7 +547,7 @@ server <- function(input, output, session) {
     if (nrow(ind) > 0)
       p <- p %>% add_trace(data = ind[order(ind$date), ], x = ~hindfootLength, y = ~weight,
         type = "scatter", mode = "markers+lines", name = "★ this animal",
-        marker = list(color = "#d99000", size = 15, symbol = "diamond",
+        marker = list(color = "#c9a300", size = 15, symbol = "diamond",
                       line = list(color = "#ffffff", width = 1.5)),
         line = list(color = "rgba(255,210,74,0.5)", width = 1.5),
         hovertemplate = "this animal<br>%{x} mm · %{y} g<extra></extra>")
@@ -527,7 +565,10 @@ server <- function(input, output, session) {
 
   # ---- capture history table ---------------------------------------------
   output$capHistory <- DT::renderDT({
-    tag <- rv$tag; if (is.null(tag)) return(NULL)
+    tag <- rv$tag
+    if (is.null(tag)) return(DT::datatable(
+      data.frame(` ` = "Pick an individual first — open the Hall of Fame and tap a row.", check.names = FALSE),
+      rownames = FALSE, options = list(dom = "t", ordering = FALSE)))
     df <- ind_rows() %>%
       dplyr::transmute(
         Date = format(.data$date, "%Y-%m-%d"),
@@ -542,7 +583,7 @@ server <- function(input, output, session) {
 
   # ---- trap-grid heatmap --------------------------------------------------
   output$trapHeat <- renderPlotly({
-    tag <- rv$tag; if (is.null(tag)) return(NULL)
+    tag <- rv$tag; if (is.null(tag)) return(note_plot(PICK_MSG, "\U0001F50D"))
     g <- trap_grid_long(rv$data, tag)
     if (sum(g$captures) == 0)
       return(note_plot("No mapped trap coordinates<br>for this animal", "\U0001F5FA️"))
@@ -561,7 +602,7 @@ server <- function(input, output, session) {
     p <- plot_ly(x = LETTERS[1:10], y = 1:10, z = z, type = "heatmap",
       zmin = 0, zmax = max(zmax, 1),
       colorscale = list(c(0, "#f0f3ee"), c(0.001, "#d6e8df"),
-                        c(0.4, "#3a9d5d"), c(0.75, "#e0a32e"), c(1, "#c1502e")),
+                        c(0.4, "#1a7f37"), c(0.75, "#c9a300"), c(1, "#AB0520")),
       hovertemplate = "Trap %{x}%{y}<br>Captures: %{z}<extra></extra>",
       showscale = TRUE, xgap = 2, ygap = 2, colorbar = cbar)
     # overlay actual capture points so single-capture animals still pop
@@ -572,7 +613,7 @@ server <- function(input, output, session) {
       hovertemplate = "%{text}<extra></extra>", inherit = FALSE, showlegend = FALSE)
     if (is.finite(cx) && is.finite(cy))
       p <- p %>% add_trace(x = LETTERS[round(cx)], y = round(cy), type = "scatter",
-        mode = "markers", marker = list(symbol = "x", size = 16, color = "#c1502e",
+        mode = "markers", marker = list(symbol = "x", size = 16, color = "#AB0520",
         line = list(color = "#ffffff", width = 2)), name = "centroid",
         hovertemplate = "home centroid<extra></extra>", inherit = FALSE)
     plotly_theme(p, legend = FALSE) %>% plotly::layout(
@@ -583,7 +624,7 @@ server <- function(input, output, session) {
 
   # ---- capture replay (animated path) ------------------------------------
   output$trapReplay <- renderPlotly({
-    tag <- rv$tag; if (is.null(tag)) return(NULL)
+    tag <- rv$tag; if (is.null(tag)) return(note_plot(PICK_MSG, "\U0001F50D"))
     df <- ind_rows() %>% dplyr::filter(!is.na(.data$tx), !is.na(.data$ty))
     if (nrow(df) == 0) return(note_plot("No mapped trap coordinates<br>to replay", "▶️"))
     df$step <- seq_len(nrow(df))
@@ -603,7 +644,7 @@ server <- function(input, output, session) {
       add_trace(x = ~tx, y = ~ty, frame = ~frame, type = "scatter", mode = "lines+markers",
         line = list(color = "rgba(45,212,191,0.5)", width = 2),
         marker = list(size = ~pmax(8, 18 - age * 2), color = ~age,
-          colorscale = list(c(0, "#d99000"), c(1, "#2dd4bf")), showscale = FALSE,
+          colorscale = list(c(0, "#c9a300"), c(1, "#16386e")), showscale = FALSE,
           line = list(color = "#ffffff", width = 1)),
         text = ~paste0("Trap ", LETTERS[tx], ty, "<br>", lab),
         hovertemplate = "%{text}<extra></extra>")
@@ -615,7 +656,7 @@ server <- function(input, output, session) {
         showlegend = FALSE) %>%
       plotly::animation_opts(frame = 700, transition = 300, redraw = FALSE) %>%
       plotly::animation_slider(currentvalue = list(prefix = "Capture ",
-        font = list(color = "#2dd4bf"))) %>%
+        font = list(color = "#16386e"))) %>%
       plotly::animation_button(label = "▶ Play")
   })
 
@@ -688,7 +729,7 @@ server <- function(input, output, session) {
                        n = dplyr::n(), .groups = "drop")
     if (nrow(hl) == 0) return()
     proxy %>% addCircleMarkers(data = hl, ~lng, ~lat, radius = 22, group = "highlight",
-      fillColor = "transparent", color = "#d99000", weight = 3, opacity = 0.9,
+      fillColor = "transparent", color = "#c9a300", weight = 3, opacity = 0.9,
       label = lapply(sprintf("⭐ selected individual here (%d caps)", hl$n), htmltools::HTML))
   })
 
@@ -703,7 +744,7 @@ server <- function(input, output, session) {
       orientation = "h",
       # color encodes captures-per-individual (something the bar length doesn't show)
       marker = list(color = ~recaps_per,
-        colorscale = list(c(0, "#dcebe4"), c(0.5, "#3a9d5d"), c(1, "#e0a32e")), showscale = FALSE),
+        colorscale = list(c(0, "#dcebe4"), c(0.5, "#1a7f37"), c(1, "#c9a300")), showscale = FALSE),
       customdata = ~scientificName, source = "speciesBar",
       text = ~paste0(individuals, " indiv"), textposition = "outside",
       textfont = list(color = "#6b7a85", size = 11),
@@ -723,7 +764,7 @@ server <- function(input, output, session) {
     names(tab) <- c("key", "n")
     # keep a fixed key->color->label mapping so slices never swap colors
     lab <- c(F = "Female", M = "Male", U = "Unknown")
-    col <- c(F = "#ff5c7c", M = "#4ab8ff", U = "#6c757d")
+    col <- c(F = "#c2255c", M = "#2f7fb5", U = "#6c757d")
     tab$label <- lab[as.character(tab$key)]
     plot_ly(tab, labels = ~label, values = ~n, type = "pie", hole = 0.62, sort = FALSE,
       marker = list(colors = unname(col[as.character(tab$key)]), line = list(color = "#ffffff", width = 2)),
@@ -741,7 +782,7 @@ server <- function(input, output, session) {
     h <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$lifeStage))
     # FIX: pin life-stage order + named colors so a stage always gets the same color
     lvls <- c("juvenile", "subadult", "adult", "unknown")
-    col  <- c(juvenile = "#5ce0a0", subadult = "#f5a524", adult = "#2dd4bf", unknown = "#6c757d")
+    col  <- c(juvenile = "#4bb87a", subadult = "#AB0520", adult = "#16386e", unknown = "#6c757d")
     h$stage <- factor(ifelse(h$lifeStage %in% lvls, h$lifeStage, "unknown"), levels = lvls)
     tab <- as.data.frame(table(h$stage)); names(tab) <- c("stage", "n")
     tab <- tab[tab$n > 0, , drop = FALSE]
@@ -793,7 +834,7 @@ server <- function(input, output, session) {
       }
       p %>% plotly::layout(
         annotations = list(list(text = pl, x = 0.03, y = 0.96, xref = "x domain",
-          yref = "y domain", showarrow = FALSE, font = list(color = "#2dd4bf", size = 12))),
+          yref = "y domain", showarrow = FALSE, font = list(color = "#16386e", size = 12))),
         xaxis = list(gridcolor = "rgba(31,42,48,0.06)"),
         yaxis = list(gridcolor = "rgba(31,42,48,0.06)"))
     }
@@ -823,10 +864,10 @@ server <- function(input, output, session) {
     mlab <- month.abb[by_m$mon]
     p <- plot_ly(x = mlab) %>%
       add_trace(y = by_m$pm, type = "scatter", mode = "lines+markers", name = "breeding males",
-        line = list(color = "#4ab8ff", width = 3), marker = list(size = 8, color = "#4ab8ff"),
+        line = list(color = "#2f7fb5", width = 3), marker = list(size = 8, color = "#2f7fb5"),
         hovertemplate = "%{x}<br>%{y}% of adult males scrotal<extra></extra>") %>%
       add_trace(y = by_m$pf, type = "scatter", mode = "lines+markers", name = "reproductive females",
-        line = list(color = "#ff5c7c", width = 3), marker = list(size = 8, color = "#ff5c7c"),
+        line = list(color = "#c2255c", width = 3), marker = list(size = 8, color = "#c2255c"),
         hovertemplate = "%{x}<br>%{y}% of adult females pregnant/lactating<extra></extra>")
     plotly_theme(p) %>% plotly::layout(
       xaxis = list(title = "", categoryorder = "array", categoryarray = month.abb),
@@ -858,7 +899,7 @@ server <- function(input, output, session) {
       mode = "lines", name = "site CPUE", line = list(color = "rgba(31,42,48,0.55)", width = 2, dash = "dot"),
       hovertemplate = "%{x|%b %Y}<br>%{y} captures / 100 trap-nights<extra></extra>")
     plotly_theme(p) %>% plotly::layout(
-      yaxis  = list(title = "MNKA (individuals known alive)", color = "#2dd4bf"),
+      yaxis  = list(title = "MNKA (individuals known alive)", color = "#16386e"),
       yaxis2 = list(title = "captures / 100 TN", color = "#cccccc", overlaying = "y", side = "right",
                     gridcolor = "rgba(0,0,0,0)"),
       xaxis  = list(title = ""), hovermode = "closest")
@@ -877,12 +918,12 @@ server <- function(input, output, session) {
         fillcolor = "rgba(45,212,191,0.15)", line = list(width = 0),
         name = "±1 SD", hoverinfo = "skip") %>%
       add_trace(x = cv$bouts, y = cv$richness, type = "scatter", mode = "lines+markers",
-        name = "species found", line = list(color = "#2dd4bf", width = 3),
-        marker = list(size = 6, color = "#2dd4bf"),
+        name = "species found", line = list(color = "#16386e", width = 3),
+        marker = list(size = 6, color = "#16386e"),
         hovertemplate = "after %{x} bouts<br>%{y:.1f} species<extra></extra>") %>%
       add_trace(x = range(cv$bouts), y = rep(sa$chao1, 2), type = "scatter", mode = "lines",
         name = sprintf("Chao1 ≈ %s", sa$chao1),
-        line = list(color = "#f5a524", width = 1.5, dash = "dash"), hoverinfo = "skip")
+        line = list(color = "#AB0520", width = 1.5, dash = "dash"), hoverinfo = "skip")
     plotly_theme(p) %>% plotly::layout(
       xaxis = list(title = "trapping bouts (months)"),
       yaxis = list(title = "cumulative species"),

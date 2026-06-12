@@ -12,15 +12,15 @@ $(document).ready(function () {
         "<b>3.</b> The <b>Hall of Fame</b> ranks every individual — click one to open its <b>Dossier</b><br>" +
         "<b>4.</b> Dig into measurements, the <b>Chonk Index</b>, its trap-grid home range &amp; replay" +
         "<hr style='border-color:#e2e7df;margin:14px 0'>" +
-        "<div style='color:#1b6051;font-weight:700;margin-bottom:6px'>RARITY — set by total captures</div>" +
+        "<div style='color:#0C234B;font-weight:700;margin-bottom:6px'>RARITY — set by total captures</div>" +
         "<div style='display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:center'>" +
-        keyRow("#d99000", "⭐ Legendary", "15+ captures") +
-        keyRow("#7c3aed", "💎 Epic", "10–14 captures") +
-        keyRow("#2563eb", "🔵 Rare", "6–9 captures") +
-        keyRow("#16a34a", "🟢 Uncommon", "3–5 captures") +
+        keyRow("#c9a300", "⭐ Legendary", "15+ captures") +
+        keyRow("#AB0520", "💎 Epic", "10–14 captures") +
+        keyRow("#16386e", "🔵 Rare", "6–9 captures") +
+        keyRow("#1a7f37", "🟢 Uncommon", "3–5 captures") +
         keyRow("#6b7280", "▫ Common", "1–2 captures") +
         "</div>" +
-        "<div style='color:#1b6051;font-weight:700;margin:14px 0 6px'>CHONK INDEX</div>" +
+        "<div style='color:#0C234B;font-weight:700;margin:14px 0 6px'>CHONK INDEX</div>" +
         "<div style='color:#344049'>An honest <b>adult weight percentile within species</b> — 50 is a perfectly typical adult, 95+ is a MEGACHONK. The dossier's body-size map shows the real weight-vs-size picture.</div>" +
         "<div style='color:#6b7a85;margin-top:12px;font-size:12px'>📊 Data: live from the NEON <b>Small Mammal Box Trapping</b> product (DP1.10072.001). Metrics reviewed against Peig &amp; Green (2009), Krebs (1966) &amp; Gotelli &amp; Colwell (2001) — see the <b>About</b> tab.</div>" +
         "</div>",
@@ -28,7 +28,7 @@ $(document).ready(function () {
       color: "#1f2a30",
       focusConfirm: false,
       confirmButtonText: "Let's go",
-      confirmButtonColor: "#1b6051"
+      confirmButtonColor: "#0C234B"
     });
   });
 

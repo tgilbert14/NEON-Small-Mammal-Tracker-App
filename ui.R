@@ -63,19 +63,24 @@ ui <- bslib::page_sidebar(
       )
     ),
 
-    selectizeInput("site", label = tagList(bs_icon("geo-alt-fill"), " NEON site"),
-                   choices = NULL, options = list(
-                     placeholder = "Search 47 sites…",
-                     render = I("{option: function(i,e){return '<div>'+e(i.label)+'</div>'}}"))),
+    selectInput("stateSel", label = tagList(bs_icon("geo-alt-fill"), " 1 · Pick a state"),
+                choices = NULL, width = "100%"),
 
-    dateRangeInput("dateRange", label = tagList(bs_icon("calendar3"), " Date window"),
+    selectInput("site", label = tagList(bs_icon("pin-map-fill"), " 2 · Pick a site"),
+                choices = NULL, width = "100%"),
+
+    uiOutput("siteBio"),
+
+    dateRangeInput("dateRange", label = tagList(bs_icon("calendar3"), " 3 · Date window"),
                    format = "yyyy-mm", startview = "year",
                    start = Sys.Date() - 2200, end = Sys.Date() - 365),
 
     actionButton("loadBtn", tagList(bs_icon("globe-americas"), " Load this site"),
                  class = "btn-primary btn-lg w-100 load-btn"),
+    actionButton("demoBtn", tagList(bs_icon("stars"), " or explore the Jornada demo (instant)"),
+                 class = "btn-link btn-sm w-100 reset-demo"),
     div(class = "demo-hint", bs_icon("info-circle"),
-        " The app opens on a live demo (Jornada, NM). Pick any site + window above, then Load to explore real NEON data."),
+        " Real NEON data downloads live (≈ a minute). The demo opens instantly."),
 
     hidden(div(id = "indivPickerWrap",
       hr(class = "deck-hr"),
@@ -89,8 +94,6 @@ ui <- bslib::page_sidebar(
     hr(class = "deck-hr"),
     actionButton("help", tagList(bs_icon("question-circle"), " How it works"),
                  class = "btn-outline-dark btn-sm w-100"),
-    actionButton("demoBtn", tagList(bs_icon("arrow-counterclockwise"), " Reset to demo"),
-                 class = "btn-link btn-sm w-100 reset-demo"),
     div(class = "deck-foot",
       bs_icon("database"), " NEON ", tags$code("DP1.10072.001"),
       br(), tags$a(href = "https://github.com/tgilbert14/NEON-Small-Mammal-Tracker-App",
@@ -119,92 +122,29 @@ ui <- bslib::page_sidebar(
       nav_panel(
         title = tagList(bs_icon("compass"), " Overview"),
         value = "overview",
-        div(class = "tab-head",
-          div(class = "tab-head-text",
-            h4("Meet the mammals of this site"),
-            p("New to NEON small-mammal sampling? Start here. Below is the plain-English story of what crews caught, and the species you're most likely to meet."))),
-        layout_columns(col_widths = c(7, 5),
-          card(full_screen = TRUE,
-            card_head("stars", "The story so far",
-              info_pop("The story so far",
-                p("These takeaways are written automatically from the live data for this site & window — the same numbers the rest of the app is built on."))),
-            uiOutput("siteInsights")),
-          card(full_screen = TRUE,
-            card_head("collection", "Species, most common first",
-              info_pop("Species composition",
-                p("How many ", tags$b("captures"), " (bar length) and ", tags$b("individuals"), " (label) each species contributed."),
-                p("Brighter bars = caught more times per animal (a \"trap-happy\" species."))),
-            spin(plotlyOutput("speciesBar", height = "420px")))
+        # quick-jump buttons to the best parts (Girth-style home navigation)
+        div(class = "home-nav",
+          actionButton("goMap",     tagList(bs_icon("map-fill"),       div("Site map"),       tags$small("species across the site")),  class = "home-btn"),
+          actionButton("goRange",   tagList(bs_icon("fire"),           div("Home range"),     tags$small("heatmap + replay of a star")), class = "home-btn"),
+          actionButton("goCommunity", tagList(bs_icon("bar-chart-line-fill"), div("Community"), tags$small("who's out there & when")),   class = "home-btn"),
+          actionButton("goPopulation", tagList(bs_icon("graph-up-arrow"), div("Population"),  tags$small("abundance & richness")),       class = "home-btn"),
+          actionButton("goFame",    tagList(bs_icon("trophy-fill"),    div("Hall of Fame"),   tags$small("rank every individual")),      class = "home-btn")
         ),
+        # lead with the awesome plot — species composition, most common first
+        card(full_screen = TRUE,
+          card_head("collection", "Species of this site, most common first",
+            info_pop("Species composition",
+              p("How many ", tags$b("captures"), " (bar length) and ", tags$b("individuals"), " (label) each species contributed."),
+              p("Brighter bars = caught more times per animal (a \"trap-happy\" species)."))),
+          spin(plotlyOutput("speciesBar", height = "440px"))),
+        # the plain-English story sits underneath
+        card(
+          card_head("stars", "The story so far",
+            info_pop("The story so far",
+              p("Written automatically from the live data for this site & window — the same numbers the rest of the app is built on."))),
+          uiOutput("siteInsights")),
         h4(class = "section-title", bs_icon("binoculars"), " Who you'll meet"),
         uiOutput("meetLocals")
-      ),
-
-      nav_panel(
-        title = tagList(bs_icon("trophy-fill"), " Hall of Fame"),
-        value = "fame",
-        div(class = "tab-head",
-          div(class = "tab-head-text",
-            h4("Capture leaderboard",
-               info_pop("How the leaderboard works",
-                 p("Every animal NEON caught is ranked by how often it turned up in traps."),
-                 p(tags$b("Click any row"), " to open that individual's dossier."),
-                 p("Switch ", tags$b("category"), " to re-rank by weight, career length, roaming, or weight-for-its-species (chonk)."),
-                 tags$hr(),
-                 p(tags$b("Rarity tiers"), " come from total captures:"),
-                 lapply(rarity_key_items, function(it)
-                   div(class = "pkey", tier_badge(it[1]), tags$span(it[2]))))),
-            p("Every individual ranked. Pick a category, then click a row to open its dossier.")),
-          div(class = "leader-cats",
-            radioButtons("leaderCat", NULL, inline = TRUE,
-              choiceNames = list(
-                HTML("&#127942; Most caught"), HTML("&#127947; Heaviest"),
-                HTML("&#9201; Longest career"), HTML("&#128506; Biggest roamer"),
-                HTML("&#129482; Chonkiest")),
-              choiceValues = c("captures", "weight", "career", "roam", "chonk"),
-              selected = "captures"))
-        ),
-        # always-visible rarity key so "Epic vs Rare" is never a mystery
-        div(class = "rarity-legend",
-          tags$span(class = "rl-label", "Rarity"),
-          tier_badge("Legendary"), tier_badge("Epic"), tier_badge("Rare"),
-          tier_badge("Uncommon"), tier_badge("Common"),
-          tags$span(class = "rl-sep", "·"),
-          tags$span(class = "rl-label", style = "letter-spacing:0;text-transform:none;",
-                    "by total captures (15+ → Legendary)")),
-        spin(DT::DTOutput("leaderboard"))
-      ),
-
-      nav_panel(
-        title = tagList(bs_icon("person-vcard"), " Dossier"),
-        value = "dossier",
-        uiOutput("dossierHero"),
-        layout_columns(col_widths = c(7, 5),
-          card(full_screen = TRUE,
-            card_head("graph-up", "Measurements through time",
-              info_pop("Measurements through time",
-                p("Each capture's ", tags$b("weight"), " (teal) and ", tags$b("hind-foot length"), " (amber) plotted over time."),
-                p("The shaded band is the ", tags$b("middle 50% of weights"), " for this species, so you can see whether the animal runs heavy or light. The ♦ marks its heaviest capture."))),
-            spin(plotlyOutput("measPlot", height = "360px"))),
-          card(full_screen = TRUE,
-            card_head("speedometer2", "Chonk Index — weight rank",
-              info_pop("The Chonk Index",
-                p("An honest ", tags$b("adult weight percentile within species"), " — i.e. \"how heavy is this animal for its kind?\""),
-                p("50 = a perfectly typical adult; the delta shows how far above/below typical it sits."),
-                p(tags$em("Why not a body-condition index? In these desert rodents foot length barely predicts mass, so a fancier index would just rank noise. The body-size map below shows the real relationship.")))),
-            spin(plotlyOutput("chonkGauge", height = "360px")))
-        ),
-        card(full_screen = TRUE,
-             card_head("bullseye", "Body-size map — where it sits among its species",
-               info_pop("Body-size map",
-                 p("Every measured animal plotted by ", tags$b("weight × hind-foot length"), ". The faint grey dots are all other species; the colored cloud is ", tags$b("this animal's species"), " (by life stage)."),
-                 p("The ", tags$b("gold diamonds"), " are this individual's captures — high in the cloud = a big one."),
-                 p("A dashed ", tags$b("size–mass fit line"), " is drawn ", tags$em("only"), " for species where length actually predicts mass (so you're never shown a fake trend.)")),
-               tags$span(class = "card-hint", style = "margin-left:auto", "this animal in gold")),
-             spin(plotlyOutput("morphoPlot", height = "420px"))),
-        card(card_head("clock-history", "Capture history",
-               info_pop("Capture history", p("Every individual capture event for this animal — date, plot, trap cell, measurements, and field notes. Use the search box to filter."))),
-             spin(DT::DTOutput("capHistory")))
       ),
 
       nav_panel(
@@ -303,6 +243,73 @@ ui <- bslib::page_sidebar(
                 p("The amber line is ", tags$b("Chao1"), " — a statistical estimate of true richness, including species not yet caught (Gotelli & Colwell 2001)."))),
             spin(plotlyOutput("accumPlot", height = "440px")))
         )
+      ),
+
+      nav_panel(
+        title = tagList(bs_icon("trophy-fill"), " Hall of Fame"),
+        value = "fame",
+        div(class = "tab-head",
+          div(class = "tab-head-text",
+            h4("Capture leaderboard",
+               info_pop("How the leaderboard works",
+                 p("Every animal NEON caught is ranked by how often it turned up in traps."),
+                 p(tags$b("Click any row"), " to open that individual's dossier."),
+                 p("Switch ", tags$b("category"), " to re-rank by weight, career length, roaming, or weight-for-its-species (chonk)."),
+                 tags$hr(),
+                 p(tags$b("Rarity tiers"), " come from total captures:"),
+                 lapply(rarity_key_items, function(it)
+                   div(class = "pkey", tier_badge(it[1]), tags$span(it[2]))))),
+            p("Every individual ranked. Pick a category, then click a row to open its dossier.")),
+          div(class = "leader-cats",
+            radioButtons("leaderCat", NULL, inline = TRUE,
+              choiceNames = list(
+                HTML("&#127942; Most caught"), HTML("&#127947; Heaviest"),
+                HTML("&#9201; Longest career"), HTML("&#128506; Biggest roamer"),
+                HTML("&#129482; Chonkiest")),
+              choiceValues = c("captures", "weight", "career", "roam", "chonk"),
+              selected = "captures"))
+        ),
+        # always-visible rarity key so "Epic vs Rare" is never a mystery
+        div(class = "rarity-legend",
+          tags$span(class = "rl-label", "Rarity"),
+          tier_badge("Legendary"), tier_badge("Epic"), tier_badge("Rare"),
+          tier_badge("Uncommon"), tier_badge("Common"),
+          tags$span(class = "rl-sep", "·"),
+          tags$span(class = "rl-label", style = "letter-spacing:0;text-transform:none;",
+                    "by total captures (15+ → Legendary)")),
+        spin(DT::DTOutput("leaderboard"))
+      ),
+
+      nav_panel(
+        title = tagList(bs_icon("person-vcard"), " Dossier"),
+        value = "dossier",
+        uiOutput("dossierHero"),
+        layout_columns(col_widths = c(7, 5),
+          card(full_screen = TRUE,
+            card_head("graph-up", "Measurements through time",
+              info_pop("Measurements through time",
+                p("Each capture's ", tags$b("weight"), " (navy) and ", tags$b("hind-foot length"), " (cardinal) plotted over time."),
+                p("The shaded band is the ", tags$b("middle 50% of weights"), " for this species, so you can see whether the animal runs heavy or light. The ♦ marks its heaviest capture."))),
+            spin(plotlyOutput("measPlot", height = "360px"))),
+          card(full_screen = TRUE,
+            card_head("speedometer2", "Chonk Index — weight rank",
+              info_pop("The Chonk Index",
+                p("An honest ", tags$b("adult weight percentile within species"), " — i.e. \"how heavy is this animal for its kind?\""),
+                p("50 = a perfectly typical adult; the delta shows how far above/below typical it sits."),
+                p(tags$em("Why not a body-condition index? In these desert rodents foot length barely predicts mass, so a fancier index would just rank noise. The body-size map below shows the real relationship.")))),
+            spin(plotlyOutput("chonkGauge", height = "360px")))
+        ),
+        card(full_screen = TRUE,
+             card_head("bullseye", "Body-size map — where it sits among its species",
+               info_pop("Body-size map",
+                 p("Every measured animal plotted by ", tags$b("weight × hind-foot length"), ". The faint grey dots are all other species; the colored cloud is ", tags$b("this animal's species"), " (by life stage)."),
+                 p("The ", tags$b("gold diamonds"), " are this individual's captures — high in the cloud = a big one."),
+                 p("A dashed ", tags$b("size–mass fit line"), " is drawn ", tags$em("only"), " for species where length actually predicts mass (so you're never shown a fake trend.)")),
+               tags$span(class = "card-hint", style = "margin-left:auto", "this animal in gold")),
+             spin(plotlyOutput("morphoPlot", height = "420px"))),
+        card(card_head("clock-history", "Capture history",
+               info_pop("Capture history", p("Every individual capture event for this animal — date, plot, trap cell, measurements, and field notes. Use the search box to filter."))),
+             spin(DT::DTOutput("capHistory")))
       ),
 
       nav_panel(
