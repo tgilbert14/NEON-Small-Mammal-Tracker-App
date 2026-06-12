@@ -20,6 +20,15 @@ server <- function(input, output, session) {
   # shown on individual-only views when nobody is selected yet
   PICK_MSG <- "Pick an individual first.<br>Open the <b>Hall of Fame</b> and tap a row,<br>or hit \U201CSurprise me\U201D in the sidebar."
 
+  # Append the current site + year-range as a small top-right caption on a plot
+  # (uses add_annotations so it never clobbers a plot's own annotations).
+  ctx_anno <- function(p) {
+    if (is.null(rv$ctx)) return(p)
+    plotly::add_annotations(p, text = rv$ctx, x = 1, y = 1.07, xref = "paper", yref = "paper",
+      xanchor = "right", yanchor = "bottom", showarrow = FALSE,
+      font = list(color = "#6b7a89", size = 11, family = "Rubik"))
+  }
+
   # A centered-message placeholder for plots that have nothing to show.
   note_plot <- function(msg, icon = "\U0001F50D") {
     plotly::plot_ly(type = "scatter", mode = "markers") %>%
@@ -73,6 +82,9 @@ server <- function(input, output, session) {
     rv$pal   <- make_species_pal(d)
     rv$label <- label
     rv$tag   <- NULL
+    # compact context shown on each plot, e.g. "JORN · 2022–2024"
+    y1 <- format(safe_date_min(d$date), "%Y"); y2 <- format(safe_date_max(d$date), "%Y")
+    rv$ctx <- paste0(mode_chr(d$siteID), " · ", if (is.na(y1)) "" else if (y1 == y2) y1 else paste0(y1, "–", y2))
 
     # reveal UI
     shinyjs::show("mainTabsWrap")
@@ -298,15 +310,17 @@ server <- function(input, output, session) {
     if (nrow(s) == 0) return(div(class = "empty-state", "No species identified yet."))
     div(class = "locals-grid",
       lapply(seq_len(nrow(s)), function(i) {
-        div(class = "local-card",
+        sci <- s$scientificName[i]
+        wiki <- paste0("https://en.wikipedia.org/wiki/", gsub(" ", "_", sub(" sp\\.$", "", sci)))
+        tags$a(class = "local-card", href = wiki, target = "_blank", rel = "noopener",
           div(class = "local-emoji", s$emoji[i]),
           div(class = "local-body",
-            div(class = "local-name", em(s$scientificName[i])),
+            div(class = "local-name", em(sci), span(class = "local-go", bs_icon("box-arrow-up-right"))),
             if (!is.na(s$nickname[i])) div(class = "local-nick", s$nickname[i]),
             div(class = "local-stats",
               span(class = "ls-strong", fmt_int(s$individuals[i])), " individuals · ",
               span(class = "ls-strong", fmt_int(s$captures[i])), " captures"),
-            div(class = "local-blurb", species_blurb(s$scientificName[i]))))
+            div(class = "local-blurb", species_blurb(sci))))
       }))
   })
 
@@ -776,7 +790,8 @@ server <- function(input, output, session) {
       hovertemplate = "%{y}<br>%{x} captures · %{customdata}<br>%{marker.color} caps/individual<extra></extra>")
     plotly_theme(p, legend = FALSE) %>%
       plotly::layout(xaxis = list(title = "captures"), yaxis = list(title = ""),
-                     showlegend = FALSE, margin = list(l = 180))
+                     showlegend = FALSE, margin = list(l = 180, t = 44)) %>%
+      ctx_anno()
   })
 
   donut_center <- function(total, label) list(text = sprintf("<b>%s</b><br><span style='font-size:11px;color:#6b7a85'>%s</span>",
@@ -793,12 +808,14 @@ server <- function(input, output, session) {
     tab$label <- lab[as.character(tab$key)]
     plot_ly(tab, labels = ~label, values = ~n, type = "pie", hole = 0.62, sort = FALSE,
       marker = list(colors = unname(col[as.character(tab$key)]), line = list(color = "#ffffff", width = 2)),
-      pull = c(0.04, 0, 0), textinfo = "label+percent", textfont = list(color = "#1f2a30"),
+      pull = c(0.03, 0, 0), textinfo = "percent", textposition = "inside",
+      insidetextorientation = "horizontal", textfont = list(color = "#ffffff", size = 13),
       hovertemplate = "%{label}<br>%{value} animals · %{percent}<extra></extra>") %>%
       plotly::layout(title = list(text = "Sex", font = list(color = "#344049", size = 14)),
-        paper_bgcolor = "rgba(0,0,0,0)", showlegend = FALSE,
+        paper_bgcolor = "rgba(0,0,0,0)", showlegend = TRUE,
+        legend = list(orientation = "h", y = -0.05, x = 0.5, xanchor = "center", font = list(size = 11)),
         annotations = list(donut_center(sum(tab$n), "handled")),
-        font = list(color = "#344049"), margin = list(t = 40, b = 10)) %>%
+        font = list(color = "#344049"), margin = list(t = 38, b = 30, l = 10, r = 10)) %>%
       plotly::config(displayModeBar = FALSE)
   })
 
@@ -813,12 +830,14 @@ server <- function(input, output, session) {
     tab <- tab[tab$n > 0, , drop = FALSE]
     plot_ly(tab, labels = ~stage, values = ~n, type = "pie", hole = 0.62, sort = FALSE,
       marker = list(colors = unname(col[as.character(tab$stage)]), line = list(color = "#ffffff", width = 2)),
-      textinfo = "label+percent", textfont = list(color = "#1f2a30"),
+      textinfo = "percent", textposition = "inside", insidetextorientation = "horizontal",
+      textfont = list(color = "#ffffff", size = 13),
       hovertemplate = "%{label}<br>%{value} animals · %{percent}<extra></extra>") %>%
       plotly::layout(title = list(text = "Life stage", font = list(color = "#344049", size = 14)),
-        paper_bgcolor = "rgba(0,0,0,0)", showlegend = FALSE,
+        paper_bgcolor = "rgba(0,0,0,0)", showlegend = TRUE,
+        legend = list(orientation = "h", y = -0.05, x = 0.5, xanchor = "center", font = list(size = 11)),
         annotations = list(donut_center(sum(tab$n), "aged")),
-        font = list(color = "#344049"), margin = list(t = 40, b = 10)) %>%
+        font = list(color = "#344049"), margin = list(t = 38, b = 30, l = 10, r = 10)) %>%
       plotly::config(displayModeBar = FALSE)
   })
 
@@ -858,17 +877,20 @@ server <- function(input, output, session) {
           hovertemplate = paste0(pl, "<br>%{x|%b %Y}: %{y}<extra></extra>"))
       }
       p %>% plotly::layout(
-        annotations = list(list(text = pl, x = 0.03, y = 0.96, xref = "x domain",
-          yref = "y domain", showarrow = FALSE, font = list(color = "#16386e", size = 12))),
+        annotations = list(list(text = pl, x = 0.02, y = 1.0, xref = "x domain",
+          yref = "y domain", xanchor = "left", yanchor = "bottom", showarrow = FALSE,
+          font = list(color = "#16386e", size = 11), bgcolor = "rgba(255,255,255,0.78)",
+          borderpad = 2)),
         xaxis = list(gridcolor = "rgba(31,42,48,0.06)"),
         yaxis = list(gridcolor = "rgba(31,42,48,0.06)"))
     }
     sub <- lapply(seq_along(plots), function(i) mk(plots[i], i == 1))
     plotly::subplot(sub, nrows = ceiling(length(plots) / 2), shareX = TRUE, shareY = FALSE,
-                    titleX = FALSE, margin = 0.04) %>%
+                    titleX = FALSE, margin = 0.05) %>%
       plotly::layout(paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)",
-                     font = list(color = "#344049", family = "Rubik"),
+                     font = list(color = "#344049", family = "Rubik"), margin = list(t = 44),
                      legend = list(font = list(size = 10), bgcolor = "rgba(0,0,0,0)")) %>%
+      ctx_anno() %>%
       plotly::config(displayModeBar = FALSE)
   })
 
@@ -897,7 +919,7 @@ server <- function(input, output, session) {
     plotly_theme(p) %>% plotly::layout(
       xaxis = list(title = "", categoryorder = "array", categoryarray = month.abb),
       yaxis = list(title = "% reproductively active", range = c(0, 100)),
-      hovermode = "x unified")
+      hovermode = "x unified", margin = list(t = 44)) %>% ctx_anno()
   })
 
   # ---- body-size profile (violin per species, "Position DNA") ------------
@@ -943,7 +965,7 @@ server <- function(input, output, session) {
       showlegend = FALSE,
       xaxis = list(title = "", categoryorder = "array", categoryarray = ord, tickangle = -35),
       yaxis = list(title = "Weight (g)", type = "log"),
-      margin = list(b = 120))
+      margin = list(b = 120, t = 44)) %>% ctx_anno()
   })
 
   # ---- MNKA + catch-per-effort -------------------------------------------
@@ -971,9 +993,9 @@ server <- function(input, output, session) {
       hovertemplate = "%{x|%b %Y}<br>%{y} captures / 100 trap-nights<extra></extra>")
     plotly_theme(p) %>% plotly::layout(
       yaxis  = list(title = "MNKA (individuals known alive)", color = "#16386e"),
-      yaxis2 = list(title = "captures / 100 TN", color = "#cccccc", overlaying = "y", side = "right",
+      yaxis2 = list(title = "captures / 100 TN", color = "#7a8896", overlaying = "y", side = "right",
                     gridcolor = "rgba(0,0,0,0)"),
-      xaxis  = list(title = ""), hovermode = "closest")
+      xaxis  = list(title = ""), hovermode = "closest", margin = list(t = 44)) %>% ctx_anno()
   })
 
   # ---- species accumulation ----------------------------------------------
@@ -986,7 +1008,7 @@ server <- function(input, output, session) {
       add_trace(x = cv$bouts, y = cv$hi, type = "scatter", mode = "lines",
         line = list(width = 0), showlegend = FALSE, hoverinfo = "skip") %>%
       add_trace(x = cv$bouts, y = cv$lo, type = "scatter", mode = "lines", fill = "tonexty",
-        fillcolor = "rgba(45,212,191,0.15)", line = list(width = 0),
+        fillcolor = "rgba(22,56,110,0.14)", line = list(width = 0),
         name = "±1 SD", hoverinfo = "skip") %>%
       add_trace(x = cv$bouts, y = cv$richness, type = "scatter", mode = "lines+markers",
         name = "species found", line = list(color = "#16386e", width = 3),
@@ -997,10 +1019,10 @@ server <- function(input, output, session) {
         line = list(color = "#AB0520", width = 1.5, dash = "dash"), hoverinfo = "skip")
     plotly_theme(p) %>% plotly::layout(
       xaxis = list(title = "trapping bouts (months)"),
-      yaxis = list(title = "cumulative species"),
+      yaxis = list(title = "cumulative species"), margin = list(t = 44),
       annotations = list(list(text = sprintf("observed %d · estimated ≈ %s species", sa$sobs, sa$chao1),
         x = 0.98, y = 0.05, xref = "paper", yref = "paper", xanchor = "right", showarrow = FALSE,
-        font = list(color = "#6b7a85", size = 12))))
+        font = list(color = "#6b7a85", size = 12)))) %>% ctx_anno()
   })
 
   # ---- about --------------------------------------------------------------
