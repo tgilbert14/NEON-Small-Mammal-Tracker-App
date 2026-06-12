@@ -8,6 +8,12 @@ name: Refresh NEON data bundle
 #   SHINYAPPS_TOKEN   shinyapps.io token            (Account → Tokens)
 #   SHINYAPPS_SECRET  shinyapps.io secret
 # You can also trigger it manually from the Actions tab (workflow_dispatch).
+#
+# FLOW: rebuild bundle → DEPLOY first (so a git issue can never block the
+# deploy) → open/update a PR with the refreshed bundle. `main` is a protected
+# branch (PRs only), so the bot can't push to it directly; it raises a PR you
+# merge at your leisure instead. Merging is optional for the live app — each
+# run already deploys from the freshly-downloaded data on the runner.
 
 on:
   schedule:
@@ -15,7 +21,8 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: write          # allow the job to commit the refreshed bundle
+  contents: write          # commit the refreshed bundle to the PR branch
+  pull-requests: write     # open/update the data-refresh PR
 
 jobs:
   refresh:
@@ -40,14 +47,8 @@ jobs:
           rm -f data/sites/*.rds
           Rscript scripts/refresh_data.R
 
-      - name: Commit refreshed bundle
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/sites
-          git commit -m "data: monthly NEON refresh [skip ci]" || echo "no changes to commit"
-          git push
-
+      # Deploy BEFORE touching git: the runner already holds the fresh .rds
+      # files, so the live app gets current data even if the PR step hiccups.
       - name: Deploy to shinyapps.io
         env:
           SHINYAPPS_NAME:   ${{ secrets.SHINYAPPS_NAME }}
@@ -55,3 +56,21 @@ jobs:
           SHINYAPPS_SECRET: ${{ secrets.SHINYAPPS_SECRET }}
         run: |
           Rscript -e 'rsconnect::setAccountInfo(Sys.getenv("SHINYAPPS_NAME"), Sys.getenv("SHINYAPPS_TOKEN"), Sys.getenv("SHINYAPPS_SECRET")); source("scripts/deploy.R")'
+
+      # Land the refreshed bundle on main via a PR (re-uses one branch/PR each
+      # run, so they don't pile up). Skips cleanly when nothing changed.
+      - name: Open/update data-refresh PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          add-paths: data/sites
+          branch: auto/data-refresh
+          delete-branch: true
+          commit-message: "data: monthly NEON refresh"
+          title: "data: monthly NEON refresh"
+          body: |
+            Automated monthly re-pull of NEON Small Mammal box-trapping data
+            (`DP1.10072.001`) into `data/sites/*.rds`.
+
+            The live app has already been redeployed from this data — merging
+            this PR just keeps the committed bundle (and local runs) in sync.
+          labels: automated, data
