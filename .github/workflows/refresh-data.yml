@@ -9,7 +9,9 @@ name: Refresh NEON data bundle
 #   SHINYAPPS_NAME    your shinyapps account name   (e.g. t-lama)
 #   SHINYAPPS_TOKEN   shinyapps.io token            (Account → Tokens)
 #   SHINYAPPS_SECRET  shinyapps.io secret
-# You can also trigger it manually from the Actions tab (workflow_dispatch).
+# You can also trigger it manually from the Actions tab (workflow_dispatch);
+# tick "skip_download" there to redeploy the already-committed bundle in ~3 min
+# (handy for testing the deploy without a full 57-minute NEON re-pull).
 #
 # FLOW: rebuild bundle → DEPLOY first (so a git issue can never block the
 # deploy) → open/update a PR with the refreshed bundle. `main` is a protected
@@ -23,7 +25,12 @@ on:
     # Cron can't express "first Saturday of the month", so we fire every Saturday
     # night and let the `gate` job below proceed only on the first one.
     - cron: "0 6 * * 0"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      skip_download:
+        description: "Skip the NEON re-pull and deploy the committed bundle (fast test)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write          # commit the refreshed bundle to the PR branch
@@ -70,9 +77,10 @@ jobs:
           packages: >
             neonUtilities, dplyr, tibble, tidyr, stringr, rsconnect,
             shiny, bslib, bsicons, plotly, leaflet, DT, shinyjs,
-            shinycssloaders, RColorBrewer, htmltools
+            shinycssloaders, RColorBrewer, htmltools, cpp11
 
       - name: Rebuild the per-site bundle (full re-pull)
+        if: ${{ github.event.inputs.skip_download != 'true' }}
         run: |
           rm -f data/sites/*.rds
           Rscript scripts/refresh_data.R
