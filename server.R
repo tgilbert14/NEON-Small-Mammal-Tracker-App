@@ -94,15 +94,27 @@ server <- function(input, output, session) {
   observeEvent(input$loadBtn, {
     req(input$site)
     on.exit(session$sendCustomMessage("loadDone", list()), add = TRUE)  # always hide the overlay
-    key <- paste(input$site, input$dateRange[1], input$dateRange[2], sep = "|")
+    site <- input$site; s0 <- input$dateRange[1]; e0 <- input$dateRange[2]
+
+    # 1) bundled site? read from disk instantly and filter to the window
+    bundle <- load_site_bundle(site)
+    if (!is.null(bundle)) {
+      d0 <- filter_window(bundle, s0, e0)
+      if (sum(!is.na(d0$tagID)) > 0) {
+        return(ingest(d0, sprintf("%s · %s", site_label(site), fmt_range(s0, e0))))
+      }
+      # window had no captures in the bundle -> fall through to a live fetch
+    }
+
+    # 2) live fetch (with a session cache so repeats are instant)
+    key <- paste(site, s0, e0, sep = "|")
     res <- if (!is.null(fetch_cache[[key]])) fetch_cache[[key]] else tryCatch(
-      fetch_neon_mam(input$site, input$dateRange[1], input$dateRange[2]),
+      fetch_neon_mam(site, s0, e0),
       error = function(e) { showNotification(paste("NEON fetch failed:", conditionMessage(e)),
                                              type = "error", duration = 8); NULL })
     req(!is.null(res))
     fetch_cache[[key]] <- res
-    ingest(res, sprintf("%s · %s", site_label(input$site),
-                        fmt_range(input$dateRange[1], input$dateRange[2])))
+    ingest(res, sprintf("%s · %s", site_label(site), fmt_range(s0, e0)))
   })
 
   observeEvent(input$demoBtn, {

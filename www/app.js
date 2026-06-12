@@ -49,32 +49,39 @@ function rodentConfetti(big) {
 // The NEON download is one opaque blocking call, so we animate an estimated
 // progress bar client-side (starts instantly on click) and snap to 100% when
 // the server signals it's done.
-var smtLoadTimer = null;
+var smtLoadTimer = null, smtShowTimer = null;
 function smtLoadStart() {
   var ov = document.getElementById("loadOverlay");
   if (!ov) return;
-  var sel = document.getElementById("site");
-  var siteText = "";
-  if (sel && sel.options && sel.selectedIndex >= 0) siteText = sel.options[sel.selectedIndex].text;
-  var siteEl = document.getElementById("loadSite");
-  if (siteEl) siteEl.textContent = siteText;
-  var fill = document.getElementById("loadFill"), pct = document.getElementById("loadPct");
-  var p = 0;
-  if (fill) fill.style.width = "0%";
-  if (pct) pct.textContent = "0%";
-  ov.style.display = "flex";
-  clearInterval(smtLoadTimer);
-  smtLoadTimer = setInterval(function () {
-    var step = Math.max(0.35, (93 - p) * 0.035);   // ease out toward ~93%
-    p = Math.min(93, p + step);
-    if (fill) fill.style.width = p.toFixed(0) + "%";
-    if (pct) pct.textContent = p.toFixed(0) + "%";
-  }, 200);
+  // defer showing ~300ms so INSTANT (bundled-site) loads never flash the overlay;
+  // only a genuinely slow live download will surface it
+  clearTimeout(smtShowTimer);
+  smtShowTimer = setTimeout(function () {
+    var sel = document.getElementById("site");
+    var siteText = "";
+    if (sel && sel.options && sel.selectedIndex >= 0) siteText = sel.options[sel.selectedIndex].text;
+    var siteEl = document.getElementById("loadSite");
+    if (siteEl) siteEl.textContent = siteText;
+    var fill = document.getElementById("loadFill"), pct = document.getElementById("loadPct");
+    var p = 0;
+    if (fill) fill.style.width = "0%";
+    if (pct) pct.textContent = "0%";
+    ov.style.display = "flex";
+    clearInterval(smtLoadTimer);
+    smtLoadTimer = setInterval(function () {
+      var step = Math.max(0.35, (93 - p) * 0.035);   // ease out toward ~93%
+      p = Math.min(93, p + step);
+      if (fill) fill.style.width = p.toFixed(0) + "%";
+      if (pct) pct.textContent = p.toFixed(0) + "%";
+    }, 200);
+  }, 300);
 }
 function smtLoadDone() {
+  clearTimeout(smtShowTimer);
   var ov = document.getElementById("loadOverlay");
   if (!ov) return;
   clearInterval(smtLoadTimer);
+  if (ov.style.display !== "flex") { ov.style.display = "none"; return; }  // never shown -> nothing to do
   var fill = document.getElementById("loadFill"), pct = document.getElementById("loadPct");
   if (fill) fill.style.width = "100%";
   if (pct) pct.textContent = "100%";

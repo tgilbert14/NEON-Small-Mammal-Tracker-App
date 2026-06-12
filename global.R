@@ -28,16 +28,34 @@ source("R/helpers.R", local = FALSE)
 # ---- NEON data product ----------------------------------------------------
 NEON_DPID <- "DP1.10072.001"   # Small mammal box trapping
 
-# ---- bundled demo dataset (JORN 2017–2021) --------------------------------
-# Lets the app open instantly with zero network — and showcases real legends
-# like "club foot" (R2861) and the 20-capture champ R2626.
-DEMO_PATH <- "data-sample/jorn_2017_2021.rds"
-DEMO_META <- list(site = "JORN", start = "2017-01", end = "2021-12",
-                  label = "JORN · Jornada Experimental Range · 2017–2021")
+# ---- bundled per-site data ("the database") -------------------------------
+# scripts/refresh_data.R pre-downloads each site's full record into
+# data/sites/<SITE>.rds (trimmed + xz). When a site is bundled, the app loads
+# it instantly from disk and only goes to NEON live for sites/windows not
+# bundled. Refresh = re-run that script + redeploy.
+SITE_DIR  <- "data/sites"
+DEMO_PATH <- "data-sample/jorn_2017_2021.rds"   # fallback if the bundle isn't built
+DEMO_META <- list(site = "JORN", label = "JORN · Jornada Experimental Range")
 
+# Read a bundled site's full record, or NULL if not bundled.
+load_site_bundle <- function(site) {
+  f <- file.path(SITE_DIR, paste0(site, ".rds"))
+  if (file.exists(f)) tibble::as_tibble(readRDS(f)) else NULL
+}
+
+# Demo = the JORN bundle if present, else the small committed sample.
 load_demo <- function() {
-  if (!file.exists(DEMO_PATH)) return(NULL)
-  tibble::as_tibble(readRDS(DEMO_PATH))
+  b <- load_site_bundle("JORN")
+  if (!is.null(b)) return(b)
+  if (file.exists(DEMO_PATH)) return(tibble::as_tibble(readRDS(DEMO_PATH)))
+  NULL
+}
+
+# Filter a raw mam table to a [start, end] Date window (keeps undated rows out).
+filter_window <- function(d, start_date, end_date) {
+  if (is.null(d) || !"collectDate" %in% names(d)) return(d)
+  dts <- as.Date(substr(as.character(d$collectDate), 1, 10))
+  d[!is.na(dts) & dts >= as.Date(start_date) & dts <= as.Date(end_date), , drop = FALSE]
 }
 
 # ---- live NEON fetch ------------------------------------------------------
