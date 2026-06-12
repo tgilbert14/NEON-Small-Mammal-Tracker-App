@@ -6,6 +6,10 @@
 function animateCount(el) {
   if (el.dataset.animated === "1") return;
   el.dataset.animated = "1";
+  // A freshly-rendered hero counter means a site just finished loading — the
+  // most reliable signal to dismiss the loading overlay (no reliance on a
+  // custom Shiny message, which doesn't always register in time).
+  if (typeof smtLoadDone === "function") smtLoadDone();
   const target = parseFloat(el.getAttribute("data-target")) || 0;
   const isFloat = !Number.isInteger(target);
   const dur = 900;
@@ -45,16 +49,16 @@ function rodentConfetti(big) {
   }
 }
 
-// ---- full-screen loading overlay with a creeping percent bar -------------
-// The NEON download is one opaque blocking call, so we animate an estimated
-// progress bar client-side (starts instantly on click) and snap to 100% when
-// the server signals it's done.
-var smtLoadTimer = null, smtShowTimer = null, smtSafetyTimer = null;
+// ---- loading overlay (opaque, indeterminate) -----------------------------
+// A site load is one synchronous blocking call whose duration we can't know,
+// so we show an INDETERMINATE animated bar (no fake %) on an OPAQUE backdrop —
+// it just spins until the server signals it's done. No number to "stall" at,
+// and you don't see half-rendered data through it.
+var smtShowTimer = null, smtSafetyTimer = null;
 function smtLoadStart() {
   var ov = document.getElementById("loadOverlay");
   if (!ov) return;
-  // defer showing ~300ms so INSTANT (bundled-site) loads never flash the overlay;
-  // only a genuinely slow live download will surface it
+  // defer ~250ms so INSTANT (bundled) loads never even flash the overlay
   clearTimeout(smtShowTimer);
   smtShowTimer = setTimeout(function () {
     var sel = document.getElementById("site");
@@ -62,38 +66,20 @@ function smtLoadStart() {
     if (sel && sel.options && sel.selectedIndex >= 0) siteText = sel.options[sel.selectedIndex].text;
     var siteEl = document.getElementById("loadSite");
     if (siteEl) siteEl.textContent = siteText;
-    var fill = document.getElementById("loadFill"), pct = document.getElementById("loadPct");
-    var p = 0;
-    if (fill) fill.style.width = "0%";
-    if (pct) pct.textContent = "0%";
     ov.style.display = "flex";
-    clearInterval(smtLoadTimer);
-    smtLoadTimer = setInterval(function () {
-      var step = Math.max(0.35, (93 - p) * 0.035);   // ease out toward ~93%
-      p = Math.min(93, p + step);
-      if (fill) fill.style.width = p.toFixed(0) + "%";
-      if (pct) pct.textContent = p.toFixed(0) + "%";
-    }, 200);
-    // safety net: never let the overlay stick forever if a signal is missed
-    smtSafetyTimer = setTimeout(function () {
+    clearTimeout(smtSafetyTimer);
+    smtSafetyTimer = setTimeout(function () {  // safety net so it can never stick
       var note = document.querySelector(".load-note");
-      if (note) note.innerHTML = "This is taking longer than usual — the site may be large, or NEON may be slow. You can close this and try again.";
-      var pe = document.getElementById("loadPct"); if (pe) pe.textContent = "…";
-      setTimeout(smtLoadDone, 4000);
+      if (note) note.textContent = "Still working — a large site or a slow NEON Portal can take a bit. You can close this and try again.";
+      setTimeout(smtLoadDone, 5000);
     }, 90000);
-  }, 300);
+  }, 250);
 }
 function smtLoadDone() {
   clearTimeout(smtShowTimer);
   clearTimeout(smtSafetyTimer);
   var ov = document.getElementById("loadOverlay");
-  if (!ov) return;
-  clearInterval(smtLoadTimer);
-  if (ov.style.display !== "flex") { ov.style.display = "none"; return; }  // never shown -> nothing to do
-  var fill = document.getElementById("loadFill"), pct = document.getElementById("loadPct");
-  if (fill) fill.style.width = "100%";
-  if (pct) pct.textContent = "100%";
-  setTimeout(function () { ov.style.display = "none"; }, 500);
+  if (ov) ov.style.display = "none";
 }
 
 // ---- Shiny custom message handlers ---------------------------------------

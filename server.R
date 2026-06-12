@@ -63,6 +63,7 @@ server <- function(input, output, session) {
     rv$is_demo <- is_demo
     d <- clean_mam(data.raw)
     if (is.null(d) || sum(d$is_capture) == 0) {
+      session$sendCustomMessage("loadDone", list())   # hide the loading overlay
       showNotification("No small-mammal captures found for that site & window.",
                        type = "warning", duration = 6)
       return(invisible(NULL))
@@ -85,6 +86,7 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, "indiv", choices = c("Pick a tagID…" = "", ch), server = TRUE)
     nav_select("tabs", "overview")
     session$sendCustomMessage("countUp", list())
+    session$sendCustomMessage("loadDone", list())   # hide the loading overlay
     invisible(TRUE)
   }
 
@@ -92,10 +94,13 @@ server <- function(input, output, session) {
   fetch_cache <- new.env(parent = emptyenv())
 
   observeEvent(input$loadBtn, {
-    on.exit(session$sendCustomMessage("loadDone", list()), add = TRUE)  # ALWAYS hide the overlay
-    req(input$site)
+    if (is.null(input$site) || input$site == "") {
+      session$sendCustomMessage("loadDone", list()); return()
+    }
     site <- input$site; s0 <- input$dateRange[1]; e0 <- input$dateRange[2]
     prov <- isTRUE(input$provisional)
+    # ingest() sends "loadDone" when it finishes; we send it on the failure
+    # paths below so the loading overlay is ALWAYS dismissed.
 
     # 1) bundled site? read from disk instantly and filter to the window.
     #    (Skip the bundle when the user wants provisional data — the bundle is
@@ -117,7 +122,7 @@ server <- function(input, output, session) {
       fetch_neon_mam(site, s0, e0, provisional = prov),
       error = function(e) { showNotification(paste("NEON fetch failed:", conditionMessage(e)),
                                              type = "error", duration = 8); NULL })
-    req(!is.null(res))
+    if (is.null(res)) { session$sendCustomMessage("loadDone", list()); return() }
     fetch_cache[[key]] <- res
     ingest(res, sprintf("%s · %s%s", site_label(site), fmt_range(s0, e0),
                         if (prov) " · incl. provisional" else ""))
@@ -236,7 +241,7 @@ server <- function(input, output, session) {
            tip = "Distinct animals (unique ear-tag IDs) — click for the most-caught individuals."),
         vb(cs$species,        "Species",       "diagram-3-fill",  "#1a7f37", "species",
            tip = "Distinct species identified — click for species ranked by abundance."),
-        vb(cs$recap_rate,     "Recapture rate","arrow-repeat",    "#AB0520", "recapture", pct = TRUE,
+        vb(cs$recap_rate,     "Recapture rate","arrow-repeat",    "#138086", "recapture", pct = TRUE,
            tip = "Share of captures that were re-encounters — click for recapture rate by species."),
         vb(cs$trap_nights,    "Trap-nights",   "moon-stars-fill", "#5b3a8a", "trapnights",
            tip = "Total trapping effort — click for effort & catch-rate by plot."),

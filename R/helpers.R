@@ -450,7 +450,7 @@ mnka_series <- function(d) {
 
 # Sample-based species accumulation over monthly bouts (Gotelli & Colwell 2001),
 # averaged over permutations, + a Chao1 asymptotic richness estimate.
-species_accum <- function(d, perms = 120) {
+species_accum <- function(d, perms = 40) {
   h <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$scientificName), !is.na(.data$ym))
   if (nrow(h) == 0) return(NULL)
   bouts <- split(h$scientificName, h$ym)
