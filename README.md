@@ -1,7 +1,9 @@
 # 🐀 NEON Small Mammal Tracker
 
-> A Shiny app for chasing rodents (and shrews, and the occasional chipmunk) across the entire
-> [National Ecological Observatory Network](https://data.neonscience.org/).
+> A Shiny app for chasing individual rodents (and shrews, pocket mice, kangaroo rats, and the
+> occasional cottontail) across the entire
+> [National Ecological Observatory Network](https://data.neonscience.org/) — and celebrating the
+> legends that just *keep* showing up in traps.
 
 [![Shiny](https://img.shields.io/badge/built%20with-Shiny-1f9bcf?logo=rstudio)](https://shiny.posit.co/)
 [![R](https://img.shields.io/badge/R-%E2%89%A5%204.0-276DC3?logo=r)](https://www.r-project.org/)
@@ -12,18 +14,45 @@
 
 ## What it does
 
-Pick a NEON site, pick a date range, and the app pulls every small mammal capture record NEON
-has published for that window. Captures are ranked by individual (tagID) so you can spot the
-absolute units — the rodents that just *keep* showing up in traps.
+It opens on a **live demo** (Jornada, NM) so you can explore instantly — then pick any NEON site +
+date window to load real data. The app pulls every small-mammal capture NEON has published and
+reconstructs each animal's **capture career** from its ear-tag ID. Built for two audiences: anyone
+curious about NEON small-mammal sampling, and **new field techs** getting to know the critters at
+their site.
 
-Click into a tag and the app digs deeper:
+### ✨ The good stuff
 
-- 📋 **Capture history** — every event for that individual, side by side
-- 📏 **Meso-measurements** — weight and hind-foot length over time
-- 🔥 **Trap-grid heat maps** — where on the plot this animal liked to hang out
-- 🗺️ **Site map** — species diversity by plot, across the whole site
-- 📈 **Captures per plot** — monthly time series by species
-- 🔗 **NEON BioRepository links** — auto-generated sample + image lookups for the species
+- **🧭 Overview (start here)** — a plain-English, auto-written **"story so far"** for the site, the
+  species ranked most-common-first, and **"meet the locals"** cards with a fun fact for each animal.
+- **👆 Tap-any-stat** — every headline number (captures, individuals, species, recapture rate,
+  trap-nights, legends) is a button that opens a **ranked breakdown** (e.g. Species → every species
+  by abundance, Trap-nights → effort by plot).
+- **🏆 Hall of Fame** — every individual ranked, with medals, **rarity tiers** (Common → Legendary),
+  and re-sortable leaderboards: *Most caught · Heaviest · Longest career · Biggest roamer · Chonkiest.*
+- **🐀 Individual Dossier** — a trading-card profile for any animal: species art, career stats,
+  first/last seen, home plot, and a confetti pop when you open a **Legendary** (10+ captures).
+- **🧊 The Chonk Index** — an honest adult **weight percentile within species** ("heavy for its
+  kind"), as a playful gauge with a vs-typical delta.
+- **🎯 Body-size map** — the dossier's morphospace scatter: weight × hind-foot for the whole
+  species, the selected animal in gold, and a size–mass fit line drawn *only* where the
+  relationship is real (so you can see condition instead of trusting a black box).
+- **📏 Measurements through time** — weight and hind-foot on a dual axis, with the species weight
+  band shaded and the record capture called out.
+- **🔥 Trap-grid home range** — a 10×10 heatmap with capture points overlaid, a hotspot-blur
+  toggle, and a centroid marker.
+- **▶️ Capture replay** — hit play and watch the individual's captures animate across the trap grid,
+  drawing its path.
+- **🗺️ Site map** — species diversity by plot on a satellite Leaflet basemap with plot labels; the
+  selected individual's plots glow gold.
+- **📊 Community Pulse** — species composition, sex ratio, age structure, captures-per-plot through
+  time, and a **breeding-phenology** strip (when males go scrotal, when females cycle).
+- **📈 Population** — defensible abundance signals: **MNKA** (Minimum Number Known Alive) and
+  catch-per-unit-effort by plot, plus a **species-accumulation curve** with a Chao1 richness
+  estimate — so you can tell whether trapping ran long enough.
+- **🚩 Honesty flags** — careers that exceed plausible lifespan (likely reused ear tags) and
+  multi-species tag IDs are badged, not silently trusted.
+- **🎲 Try the demo** — opens instantly on real Jornada (JORN) data, 2017–2021, **no download** —
+  so you can explore (and find "club foot" R2861) without waiting on the NEON API.
 
 ## Try it
 
@@ -33,30 +62,71 @@ Click into a tag and the app digs deeper:
 ## Run it locally
 
 ```r
-# install once
 install.packages(c(
-  "shiny", "shinythemes", "shinydashboard", "shinyjs", "shinyBS",
-  "shinycssloaders", "neonUtilities", "plotly", "dplyr", "tidyverse",
-  "reshape", "RColorBrewer", "grid", "leaflet", "ggmap", "DT"
+  "shiny", "bslib", "bsicons", "shinyjs", "shinycssloaders",
+  "neonUtilities", "plotly", "dplyr", "tidyr", "stringr", "tibble",
+  "RColorBrewer", "reshape2", "leaflet", "DT", "htmltools"
 ))
 
 # then from the project root
 shiny::runApp()
 ```
 
+Hit **Try the demo** to explore immediately — it loads the bundled `data-sample/jorn_2017_2021.rds`
+and never touches the network.
+
 ## How to use it
 
-1. **Pick a site** — any of the ~47 NEON terrestrial sites in the dropdown.
-2. **Pick a date range** — defaults to roughly the last ~5 years minus the most recent year
+1. **Pick a site** — any of the ~47 NEON terrestrial sites (searchable by name).
+2. **Pick a date window** — defaults to roughly the last ~6 years minus the most recent year
    (NEON data has a publication lag).
-3. **Hit Load** — the Capture Ranks table populates, sorted by total captures per individual.
-4. **Pick a tagID** — the rest of the tabs unlock with the detailed view for that animal.
+3. **Hit Load** (or **Try the demo**) — the **Hall of Fame** populates, ranked by total captures.
+4. **Click any individual** (or **Surprise me**) — its dossier, measurements, Chonk Index, home
+   range, and replay all unlock.
+
+## How the numbers work
+
+| Metric | Definition |
+| --- | --- |
+| **Captures** | Times an individual (ear-tag ID) was handled in the window. |
+| **Career span** | Days between an individual's first and last capture (flagged if it exceeds plausible lifespan). |
+| **Roam radius / Max move** | Mean displacement from, and max distance between, capture locations (traps are 10 m apart). A grid-bounded dispersion index, *not* a true home-range area. |
+| **Chonk Index** | Adult **weight percentile within species**. NEON rarely records body length and hind-foot barely scales with mass in these taxa, so a Scaled Mass Index would just rank noise — the body-size map shows the real relationship where it exists. |
+| **MNKA / CPUE** | Minimum Number Known Alive (Krebs 1966) and captures per 100 trap-nights — honest abundance *indices*. |
+| **Rarity** | A playful tier from total captures; tracks trappability & residency, not ecological rarity. |
+| **Recapture rate** | Share of handling events flagged as recaptures. |
+
+> ⚠️ NEON ear-tag numbers can be reused across years (we flag the obvious cases). A trap that
+> caught nothing means "not detected," not "absent." This is a data-exploration toy — but the
+> metrics are built to survive a wildlife-methods review (Peig & Green 2009; Krebs 1966;
+> Gotelli & Colwell 2001).
+
+## Project layout
+
+```
+global.R                  libraries, theme, demo loader, NEON fetch wrapper
+ui.R                      bslib dashboard (sidebar + hero stats + tabs)
+server.R                  data flow + all outputs
+R/helpers.R               the analytical engine (leaderboards, Chonk Index, home range)
+R/site_metadata.R         NEON site code → name / domain / coordinates
+www/styles.css            the light "desert field" theme (Desert Data Labs house style)
+www/app.js                count-up counters + confetti
+www/confirm.js            the "How it works" help dialog
+data-sample/              bundled JORN demo dataset
+docs/girth-index-patterns.md   reusable Desert Data Labs design/viz/interaction playbook
+```
 
 ## Data source
 
 All capture records come from NEON data product
 [**DP1.10072.001 — Small mammal box trapping**](https://data.neonscience.org/data-products/DP1.10072.001),
 fetched live via [`neonUtilities::loadByProduct()`](https://www.neonscience.org/neonUtilities).
+
+## Built by Desert Data Labs
+
+Custom data apps, dashboards, scrapers, and analytics — for science, sports, and beyond.
+Want one for your project? **desertdatalabs@gmail.com** · [desertdatalabs.com](https://desertdatalabs.com)
+· sister app: the [Big 12 Girth Index](https://girthindex.desertdatalab.com).
 
 ## Feedback
 
