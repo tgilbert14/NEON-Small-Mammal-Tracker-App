@@ -61,12 +61,12 @@ filter_window <- function(d, start_date, end_date) {
 # ---- live NEON fetch ------------------------------------------------------
 # Wrapped so the server can call it uniformly; dates are coerced to YYYY-MM,
 # which is what loadByProduct expects.
-fetch_neon_mam <- function(site, start_date, end_date) {
+fetch_neon_mam <- function(site, start_date, end_date, provisional = FALSE) {
   sd <- format(as.Date(start_date), "%Y-%m")
   ed <- format(as.Date(end_date), "%Y-%m")
   raw <- neonUtilities::loadByProduct(
     dpID = NEON_DPID, site = site, startdate = sd, enddate = ed,
-    package = "basic", check.size = "F"
+    package = "basic", check.size = "F", include.provisional = isTRUE(provisional)
   )
   tibble::as_tibble(raw$mam_pertrapnight)
 }

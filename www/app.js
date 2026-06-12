@@ -49,7 +49,7 @@ function rodentConfetti(big) {
 // The NEON download is one opaque blocking call, so we animate an estimated
 // progress bar client-side (starts instantly on click) and snap to 100% when
 // the server signals it's done.
-var smtLoadTimer = null, smtShowTimer = null;
+var smtLoadTimer = null, smtShowTimer = null, smtSafetyTimer = null;
 function smtLoadStart() {
   var ov = document.getElementById("loadOverlay");
   if (!ov) return;
@@ -74,10 +74,18 @@ function smtLoadStart() {
       if (fill) fill.style.width = p.toFixed(0) + "%";
       if (pct) pct.textContent = p.toFixed(0) + "%";
     }, 200);
+    // safety net: never let the overlay stick forever if a signal is missed
+    smtSafetyTimer = setTimeout(function () {
+      var note = document.querySelector(".load-note");
+      if (note) note.innerHTML = "This is taking longer than usual — the site may be large, or NEON may be slow. You can close this and try again.";
+      var pe = document.getElementById("loadPct"); if (pe) pe.textContent = "…";
+      setTimeout(smtLoadDone, 4000);
+    }, 90000);
   }, 300);
 }
 function smtLoadDone() {
   clearTimeout(smtShowTimer);
+  clearTimeout(smtSafetyTimer);
   var ov = document.getElementById("loadOverlay");
   if (!ov) return;
   clearInterval(smtLoadTimer);

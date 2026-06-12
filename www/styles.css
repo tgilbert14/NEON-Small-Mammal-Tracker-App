@@ -40,6 +40,9 @@ body {
 .demo-btn { background: #fdf3e0; border-color: var(--gold); color: #9a6b12; font-weight: 700; }
 .demo-btn:hover { background: var(--gold); color: #fff; }
 .demo-hint { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+.prov-toggle { margin: 2px 0 10px; }
+.prov-toggle .form-check-label, .prov-toggle label { font-size: 12.5px; color: var(--ink); font-weight: 400; }
+.prov-hint { font-size: 11px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
 
 .or-divider { display: flex; align-items: center; text-align: center; color: var(--muted); margin: 12px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; }
 .or-divider::before, .or-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); margin: 0 10px; }

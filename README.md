@@ -15,8 +15,11 @@
 ## What it does
 
 **Pick a state, then a NEON site** (each with a one-line habitat bio), choose a date window, and the
-app pulls every small-mammal capture NEON has published — then reconstructs each animal's **capture
-career** from its ear-tag ID. In a hurry? One click loads a bundled **Jornada demo** instantly.
+app loads every small-mammal capture — instantly, from a **bundled per-site dataset** that ships
+with the app (all 46 sites; live NEON fetch is the fallback). It then reconstructs each animal's
+**capture career** from its ear-tag ID. Tick **Include provisional** for NEON's newest unpublished
+records, or hit the one-click **Jornada demo**. The bundle is rebuilt monthly by a GitHub Action
+(`scripts/refresh_data.R`) — see [docs/data-bundling-pattern.md](docs/data-bundling-pattern.md).
 Built for two audiences: anyone curious about NEON small-mammal sampling, and **new field techs**
 getting to know the critters at their site.
 
@@ -45,8 +48,9 @@ getting to know the critters at their site.
   drawing its path.
 - **🗺️ Site map** — species diversity by plot on a satellite Leaflet basemap with plot labels; the
   selected individual's plots glow gold.
-- **📊 Community Pulse** — species composition, sex ratio, age structure, captures-per-plot through
-  time, and a **breeding-phenology** strip (when males go scrotal, when females cycle).
+- **📊 Community Pulse** — sex ratio, age structure, captures-per-plot through time, a
+  **body-size profile** (a violin of weight per species, lightest → heaviest, with your selected
+  animal marked), and a **breeding-phenology** strip (when males go scrotal, when females cycle).
 - **📈 Population** — defensible abundance signals: **MNKA** (Minimum Number Known Alive) and
   catch-per-unit-effort by plot, plus a **species-accumulation curve** with a Chao1 richness
   estimate — so you can tell whether trapping ran long enough.

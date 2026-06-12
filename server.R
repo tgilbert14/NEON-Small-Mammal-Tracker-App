@@ -92,29 +92,35 @@ server <- function(input, output, session) {
   fetch_cache <- new.env(parent = emptyenv())
 
   observeEvent(input$loadBtn, {
+    on.exit(session$sendCustomMessage("loadDone", list()), add = TRUE)  # ALWAYS hide the overlay
     req(input$site)
-    on.exit(session$sendCustomMessage("loadDone", list()), add = TRUE)  # always hide the overlay
     site <- input$site; s0 <- input$dateRange[1]; e0 <- input$dateRange[2]
+    prov <- isTRUE(input$provisional)
 
-    # 1) bundled site? read from disk instantly and filter to the window
-    bundle <- load_site_bundle(site)
-    if (!is.null(bundle)) {
-      d0 <- filter_window(bundle, s0, e0)
-      if (sum(!is.na(d0$tagID)) > 0) {
-        return(ingest(d0, sprintf("%s · %s", site_label(site), fmt_range(s0, e0))))
+    # 1) bundled site? read from disk instantly and filter to the window.
+    #    (Skip the bundle when the user wants provisional data — the bundle is
+    #    published-only, so provisional must come from a live fetch.)
+    if (!prov) {
+      bundle <- load_site_bundle(site)
+      if (!is.null(bundle)) {
+        d0 <- filter_window(bundle, s0, e0)
+        if (sum(!is.na(d0$tagID)) > 0) {
+          return(ingest(d0, sprintf("%s · %s", site_label(site), fmt_range(s0, e0))))
+        }
+        # window had no captures in the bundle -> fall through to a live fetch
       }
-      # window had no captures in the bundle -> fall through to a live fetch
     }
 
     # 2) live fetch (with a session cache so repeats are instant)
-    key <- paste(site, s0, e0, sep = "|")
+    key <- paste(site, s0, e0, prov, sep = "|")
     res <- if (!is.null(fetch_cache[[key]])) fetch_cache[[key]] else tryCatch(
-      fetch_neon_mam(site, s0, e0),
+      fetch_neon_mam(site, s0, e0, provisional = prov),
       error = function(e) { showNotification(paste("NEON fetch failed:", conditionMessage(e)),
                                              type = "error", duration = 8); NULL })
     req(!is.null(res))
     fetch_cache[[key]] <- res
-    ingest(res, sprintf("%s · %s", site_label(site), fmt_range(s0, e0)))
+    ingest(res, sprintf("%s · %s%s", site_label(site), fmt_range(s0, e0),
+                        if (prov) " · incl. provisional" else ""))
   })
 
   observeEvent(input$demoBtn, {
@@ -887,6 +893,52 @@ server <- function(input, output, session) {
       xaxis = list(title = "", categoryorder = "array", categoryarray = month.abb),
       yaxis = list(title = "% reproductively active", range = c(0, 100)),
       hovermode = "x unified")
+  })
+
+  # ---- body-size profile (violin per species, "Position DNA") ------------
+  output$sizeViolin <- renderPlotly({
+    d <- rv$data; req(d)
+    w <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$weight), .data$weight > 0,
+                       !is.na(.data$scientificName))
+    keep <- w %>% dplyr::count(.data$scientificName) %>% dplyr::filter(.data$n >= 8) %>%
+      dplyr::pull(.data$scientificName)
+    w <- w[w$scientificName %in% keep, ]
+    if (nrow(w) == 0) return(note_plot("Not enough weighed animals<br>for a size profile", "⚖️"))
+    ord <- w %>% dplyr::group_by(.data$scientificName) %>%
+      dplyr::summarise(m = stats::median(.data$weight), .groups = "drop") %>%
+      dplyr::arrange(.data$m) %>% dplyr::pull(.data$scientificName)
+    pal <- rv$pal %||% make_species_pal(d)
+
+    p <- plot_ly()
+    for (s in ord) {
+      sub <- w[w$scientificName == s, ]
+      col <- pal[[s]] %||% "#16386e"
+      p <- p %>% plotly::add_trace(
+        y = sub$weight, x = rep(s, nrow(sub)), type = "violin", name = s,
+        scalemode = "width", spanmode = "hard", points = FALSE,
+        line = list(color = col), fillcolor = paste0(col, "44"),
+        meanline = list(visible = TRUE, color = col),
+        hovertemplate = paste0("<b>", s, "</b><br>%{y} g<extra></extra>"))
+    }
+    # mark the selected individual on its species' violin
+    tag <- rv$tag
+    if (!is.null(tag)) {
+      ir <- dplyr::filter(w, .data$tagID == tag)
+      if (nrow(ir) > 0) {
+        sp <- mode_chr(ir$scientificName)
+        if (sp %in% ord) p <- p %>% plotly::add_trace(
+          x = sp, y = round(mean(ir$weight), 1), type = "scatter", mode = "markers",
+          marker = list(symbol = "diamond", size = 15, color = "#c9a300",
+                        line = list(color = "#ffffff", width = 1.5)),
+          name = "this animal", hovertemplate = paste0("this animal<br>%{y} g<extra></extra>"),
+          showlegend = FALSE)
+      }
+    }
+    plotly_theme(p, legend = FALSE) %>% plotly::layout(
+      showlegend = FALSE,
+      xaxis = list(title = "", categoryorder = "array", categoryarray = ord, tickangle = -35),
+      yaxis = list(title = "Weight (g)", type = "log"),
+      margin = list(b = 120))
   })
 
   # ---- MNKA + catch-per-effort -------------------------------------------
