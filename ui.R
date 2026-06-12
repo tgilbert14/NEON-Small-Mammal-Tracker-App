@@ -112,12 +112,11 @@ ui <- bslib::page_sidebar(
   div(id = "loadOverlay", class = "load-overlay",
     div(class = "load-card",
       div(class = "load-spin", "\U0001F43E"),
-      div(class = "load-title", "Fetching live NEON data"),
+      div(class = "load-title", "Loading site data"),
       div(id = "loadSite", class = "load-site"),
-      div(class = "load-bar", div(id = "loadFill", class = "load-fill")),
-      div(id = "loadPct", class = "load-pct", "0%"),
+      div(class = "load-bar"),
       div(class = "load-note",
-          "Capture records are streaming straight from the NEON Data Portal — this can take up to a minute.")
+          "Building the leaderboard, maps, and charts. Live NEON downloads can take up to a minute.")
     )),
 
   # ---- main: header + hero stats + tabs ----------------------------------

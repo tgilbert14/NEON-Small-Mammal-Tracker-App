@@ -51,11 +51,15 @@ load_demo <- function() {
   NULL
 }
 
-# Filter a raw mam table to a [start, end] Date window (keeps undated rows out).
+# Filter a raw mam table to a [start, end] window. Uses ISO-string comparison
+# (collectDate is "YYYY-MM-DD…", which sorts lexically) so we don't parse
+# 100k+ dates on a full-site bundle — much faster than as.Date() on every row.
 filter_window <- function(d, start_date, end_date) {
   if (is.null(d) || !"collectDate" %in% names(d)) return(d)
-  dts <- as.Date(substr(as.character(d$collectDate), 1, 10))
-  d[!is.na(dts) & dts >= as.Date(start_date) & dts <= as.Date(end_date), , drop = FALSE]
+  ds <- substr(as.character(d$collectDate), 1, 10)
+  lo <- format(as.Date(start_date), "%Y-%m-%d")
+  hi <- format(as.Date(end_date), "%Y-%m-%d")
+  d[!is.na(ds) & ds >= lo & ds <= hi, , drop = FALSE]
 }
 
 # ---- live NEON fetch ------------------------------------------------------
