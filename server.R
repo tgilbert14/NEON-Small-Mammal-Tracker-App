@@ -200,7 +200,7 @@ server <- function(input, output, session) {
         div(class = "step", span(class = "step-n", "3"), "Explore the maps, charts & critters")
       ),
       actionButton("demoBtn2", tagList(bs_icon("stars"), " Explore the Jornada demo instantly"),
-                   class = "btn-primary btn-lg"),
+                   class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')"),
       div(class = "land-feats",
         feat("map-fill", "Where they live", "Species mapped across each site's trapping grids."),
         feat("fire", "Home ranges", "Heatmaps & replays of where one animal kept turning up."),

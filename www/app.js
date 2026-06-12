@@ -55,15 +55,17 @@ function rodentConfetti(big) {
 // it just spins until the server signals it's done. No number to "stall" at,
 // and you don't see half-rendered data through it.
 var smtShowTimer = null, smtSafetyTimer = null;
-function smtLoadStart() {
+function smtLoadStart(label) {
   var ov = document.getElementById("loadOverlay");
   if (!ov) return;
   // defer ~250ms so INSTANT (bundled) loads never even flash the overlay
   clearTimeout(smtShowTimer);
   smtShowTimer = setTimeout(function () {
-    var sel = document.getElementById("site");
-    var siteText = "";
-    if (sel && sel.options && sel.selectedIndex >= 0) siteText = sel.options[sel.selectedIndex].text;
+    var siteText = label || "";
+    if (!siteText) {
+      var sel = document.getElementById("site");
+      if (sel && sel.options && sel.selectedIndex >= 0) siteText = sel.options[sel.selectedIndex].text;
+    }
     var siteEl = document.getElementById("loadSite");
     if (siteEl) siteEl.textContent = siteText;
     ov.style.display = "flex";
@@ -81,6 +83,28 @@ function smtLoadDone() {
   var ov = document.getElementById("loadOverlay");
   if (ov) ov.style.display = "none";
 }
+
+// ---- dismiss any open info popover (click-outside + Esc) -----------------
+// bslib/Bootstrap popovers don't close on an outside click by default, so make
+// every "ⓘ" popover dismissible the way users expect.
+function smtClosePopovers() {
+  document.querySelectorAll(".popover").forEach(function (pop) {
+    var trig = pop.id ? document.querySelector('[aria-describedby="' + pop.id + '"]') : null;
+    if (trig && window.bootstrap && bootstrap.Popover) {
+      var inst = bootstrap.Popover.getInstance(trig);
+      if (inst) { inst.hide(); return; }
+    }
+    pop.remove(); // fallback: just remove the floating popover
+  });
+}
+document.addEventListener("click", function (e) {
+  if (e.target.closest(".popover") || e.target.closest(".info-dot") ||
+      e.target.closest("bslib-popover")) return;        // clicking inside/trigger -> leave it
+  if (document.querySelector(".popover")) smtClosePopovers();
+});
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") smtClosePopovers();
+});
 
 // ---- Shiny custom message handlers ---------------------------------------
 document.addEventListener("DOMContentLoaded", function () {

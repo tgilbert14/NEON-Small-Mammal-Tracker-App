@@ -386,5 +386,16 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 @keyframes loadslide { 0% { left: -45%; } 100% { left: 100%; } }
 .load-note { color: var(--muted); font-size: 12px; margin-top: 14px; line-height: 1.45; }
 
+/* ---- click feedback: every button reacts instantly on press ----------- */
+.btn { transition: transform .08s ease, box-shadow .12s ease, background-color .12s ease, filter .12s ease; }
+.btn:active { transform: translateY(1px) scale(0.985); filter: brightness(0.94); }
+.stat-card:active, .home-btn:active, .local-card:active, .rank-row.rank-click:active { transform: translateY(0) scale(0.99); }
+.reset-demo:active { filter: brightness(0.9); }
+/* leaderboard row tap feedback */
+table.dataTable tbody tr:active { background: #dfe8f4 !important; }
+
+/* page-level busy pulse (bslib useBusyIndicators) tuned to the theme */
+.shiny-busy-indicators-enabled .recalculating { opacity: .55; transition: opacity .2s; }
+
 /* counters pop in */
 .count-up { display: inline-block; }
