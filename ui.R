@@ -1,177 +1,358 @@
-# NEON Mammal History App##
-# Will look into NEON database and find tagID if it exists on the selected site in the app
-# Will print out what tag selected, history of captures on NEON database, and plot when it
-# was caught (collection date) vs where on the plot it was captured (trap coordinate)
-# If MAM history and plot has no info = could not find that tagID at selected site on NEON database
-# Must enter domain # and tagID in correct format, leading w/ domain followed by tag
-# identification number [D##.tagID#] {Ex: 'club foot' at JORN - R2861}
+# ===========================================================================
+# NEON Small Mammal Tracker — ui.R
+# A dark "night-field observatory" dashboard for chasing individual rodents
+# across the National Ecological Observatory Network.
+# ===========================================================================
 
+spin <- function(x, img = "rat-72.gif")
+  shinycssloaders::withSpinner(x, image = img, image.height = "120px",
+                               proxy.height = "300px")
 
-#---user interface--------------------------------------------------
+# a small "ⓘ" that opens an explanatory popover (clarity helpers everywhere)
+info_pop <- function(title, ..., placement = "auto")
+  bslib::popover(tags$span(class = "info-dot", bsicons::bs_icon("info-circle")),
+                 ..., title = title, placement = placement)
 
-ui <- fluidPage(
-  ## getting js style for www/confirm.js
+# a card header with the title on the left and an info popover pushed right
+card_head <- function(icon, title, ...)
+  bslib::card_header(class = "with-info", bsicons::bs_icon(icon), tags$span(" ", title), ...)
+
+# one rarity-tier badge (used in the visible legend + popovers)
+tier_badge <- function(label) {
+  m <- rarity_meta(label)
+  tags$span(class = "tag-badge",
+    style = sprintf("background:%s;border-color:%s;color:#fff", m$color, m$color),
+    paste(m$icon, label))
+}
+
+# the rarity key, reused in the legend strip and the help dialog
+rarity_key_items <- list(
+  c("Legendary", "15+ captures"), c("Epic", "10–14"), c("Rare", "6–9"),
+  c("Uncommon", "3–5"), c("Common", "1–2")
+)
+
+ui <- bslib::page_sidebar(
+  theme = app_theme,
+  title = NULL,
+  window_title = "NEON Small Mammal Tracker",
+  fillable = FALSE,
+
+  # ---- head: fonts, icons, libs, our CSS/JS ------------------------------
   tags$head(
-    tags$script(src = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js"),
+    tags$link(rel = "preconnect", href = "https://fonts.googleapis.com"),
+    tags$link(rel = "preconnect", href = "https://fonts.gstatic.com", crossorigin = NA),
+    tags$link(rel = "stylesheet",
+      href = "https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap"),
     tags$link(rel = "stylesheet", href = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.min.css"),
+    tags$script(src = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js"),
+    tags$script(src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"),
+    tags$link(rel = "stylesheet", href = "styles.css"),
+    tags$script(src = "app.js"),
     tags$script(src = "confirm.js")
   ),
-  br(),
-  theme = shinytheme("slate"),
-  
-  ## Valid themes are:
-  ## cerulean, cosmo, cyborg, darkly, flatly, journal, lumen, paper,
-  ## readable, sandstone, simplex, slate, spacelab, superhero, united, yeti
+  useShinyjs(),
 
-  tags$head(HTML("<link
-                   href='http://fonts.googleapis.com/css?family=Jura'
-                   rel='stylesheet' type='text/css'>")),
-  
-  h2( "NEON Small Mammal Tracker (unofficial)", style = "font-family: 'Jura';
-       color: teal; font-size: 40px; font-weight: bold;"),
-  
-  shiny::actionButton(inputId = "help", "What do I do?"),
-
-  sidebarLayout(
-    shinydashboard::box(
-      br(),
-      width = 3, status = "info",
-      selectInput("Select", "Please select site(s):",
-                  width = "100%", choices =
-                    c("",
-                      "SRER", "JORN", "BART", "HARV", "BLAN", "SCBI",
-                      "SERC", "DSNY", "JERC", "OSBS", "GUAN", "LAJA", "STEI",
-                      "TREE", "UNDE", "KONA", "KONZ", "UKFS", "GRSM", "MLBS",
-                      "ORNL", "DELA", "LENO", "TALL", "DCFS", "NOGP", "WOOD",
-                      "CPER", "RMNP", "STER", "CLBJ", "OAES", "YELL", "MOAB",
-                      "NIWO", "JORN", "ONAQ", "ABBY", "WREF", "SJER",
-                      "SOAP", "TEAK", "BARR", "TOOL", "BONA", "DEJU", "HEAL"
-                    ),
-                  selected = F, multiple = F
-      ),
-      dateRangeInput(
-        width = "100%", "dateRange",
-        label = "Select Date Range:",
-        format = "yyyy-mm", start = Sys.Date() - (2000),
-        end = Sys.Date() - 365, startview = "year"
-      ),
-      submitButton("Load...", icon("globe-americas"),
-                   width = "100%"
-      ),
-      useShinyjs(), ## to hide...
-      ## place holder to insert species links to later after selection
-      shiny::actionButton(inputId = "WebLinks", "Welcome!")
+  # ---- sidebar: the control deck -----------------------------------------
+  sidebar = sidebar(
+    width = 320, class = "control-deck",
+    div(class = "brand",
+      div(class = "brand-mark", "\U0001F43E"),
+      div(
+        div(class = "brand-title", "Small Mammal Tracker"),
+        div(class = "brand-sub", "NEON field observatory")
+      )
     ),
-    shinydashboard::box(
-      width = 9,
-      # status = "primary",
-      # title = "MAM STATS - NEON Small Mammal Capture History ",
-      tabsetPanel(id = "inTabset",
-                  
-        #footer = "Select a site, date range... then select an individual tagID and investigate...",
-        
-        #fluidRow(
-          #infoBox(width = 3, "data1", icon= icon("desktop")),
-          # valueBox(value = "data1", subtitle = ""),
-          # valueBox(value= "data2", subtitle = ""),
-          # valueBox(value = "data3", subtitle = "")
-        #),
-        
-        # downloadButton('downloadmap', label = "Save Map")),
-        
-        tabPanel(
-          "Capture Ranks",
-          withSpinner(dataTableOutput("FitSelect"),
-                      proxy.height = "150px",
-                      image.height = "150px",
-                      image = "rat-72.gif"
-          ),
-          div(id = "more",
-              p("Data Only Encompasses Mammal Data Published on NEON Data Portal. Last App Update: 2023-08-10",
-                style = "font-family: 'Jura'; color: dark blue; font-size: 12px;"
-              ),
-              p("Contact tsgilbert@arizona.edu with feedback, errors, or additional app features requests",
-                style = "font-family: 'Jura'; color: black; font-size: 12px;"
-              ),
-              tags$a(
-                class = "vgsLink", href = "https://github.com/tgilbert14/NEON-Small-Mammal-Tracker",
-                "Check out code on GitHub here"
-              ),
-              p("")
-          ),
-          # bsModal(id = "clientData", title = "Client Data", trigger = "showData",
-          #         verbatimTextOutput("clientdataText"))
+
+    selectInput("stateSel", label = tagList(bs_icon("geo-alt-fill"), " 1 · Pick a state"),
+                choices = NULL, width = "100%"),
+
+    selectInput("site", label = tagList(bs_icon("pin-map-fill"), " 2 · Pick a site"),
+                choices = NULL, width = "100%"),
+
+    uiOutput("siteBio"),
+
+    dateRangeInput("dateRange", label = tagList(bs_icon("calendar3"), " 3 · Date window"),
+                   format = "yyyy-mm", startview = "year",
+                   start = Sys.Date() - 2200, end = Sys.Date() - 365),
+
+    div(class = "prov-toggle",
+      checkboxInput("provisional",
+        tagList("Include ", tags$b("provisional"), " (newest, unpublished) data"), value = FALSE),
+      div(class = "prov-hint", "Off = the curated bundle (instant). On = a live fetch that adds NEON's latest provisional records.")),
+
+    actionButton("loadBtn", tagList(bs_icon("globe-americas"), " Load this site"),
+                 class = "btn-primary btn-lg w-100 load-btn", onclick = "smtLoadStart()"),
+    actionButton("demoBtn", tagList(bs_icon("stars"), " or explore the Jornada demo (instant)"),
+                 class = "btn-link btn-sm w-100 reset-demo"),
+    div(class = "demo-hint", bs_icon("info-circle"),
+        " Real NEON data downloads live (≈ a minute). The demo opens instantly."),
+
+    hidden(div(id = "indivPickerWrap",
+      hr(class = "deck-hr"),
+      selectizeInput("indiv", label = tagList(bs_icon("search"), " Track an individual"),
+                     choices = NULL, options = list(placeholder = "Pick a tagID…")),
+      actionButton("surpriseBtn", tagList(bs_icon("dice-5-fill"), " Surprise me"),
+                   class = "btn-outline-dark btn-sm w-100"),
+      uiOutput("bioLinks")
+    )),
+
+    hr(class = "deck-hr"),
+    actionButton("help", tagList(bs_icon("question-circle"), " How it works"),
+                 class = "btn-outline-dark btn-sm w-100"),
+    div(class = "deck-foot",
+      bs_icon("database"), " NEON ", tags$code("DP1.10072.001"),
+      br(), tags$a(href = "https://github.com/tgilbert14/NEON-Small-Mammal-Tracker-App",
+                   target = "_blank", bs_icon("github"), " source"),
+      br(), tags$a(href = "https://desertdatalabs.com", target = "_blank",
+                   bs_icon("box-arrow-up-right"), " Desert Data Labs")
+    )
+  ),
+
+  # ---- full-screen loading overlay (shown client-side on Load click) -----
+  div(id = "loadOverlay", class = "load-overlay",
+    div(class = "load-card",
+      div(class = "load-spin", "\U0001F43E"),
+      div(class = "load-title", "Fetching live NEON data"),
+      div(id = "loadSite", class = "load-site"),
+      div(class = "load-bar", div(id = "loadFill", class = "load-fill")),
+      div(id = "loadPct", class = "load-pct", "0%"),
+      div(class = "load-note",
+          "Capture records are streaming straight from the NEON Data Portal — this can take up to a minute.")
+    )),
+
+  # ---- main: header + hero stats + tabs ----------------------------------
+  div(class = "app-hero",
+    h1(class = "app-title", "NEON Small Mammal Tracker",
+       span(class = "title-tag", "unofficial")),
+    p(class = "app-subtitle", id = "siteSubtitle",
+      "Meet the small mammals NEON catches across the country — what lives where, who the regulars are, and how field crews track them, one ear-tag at a time.")
+  ),
+
+  uiOutput("heroStats"),
+
+  # idle splash before any data is loaded
+  uiOutput("splash"),
+
+  div(id = "mainTabsWrap", class = "main-tabs-wrap",
+    navset_card_tab(id = "tabs",
+
+      nav_panel(
+        title = tagList(bs_icon("compass"), " Overview"),
+        value = "overview",
+        # quick-jump buttons to the best parts (Girth-style home navigation)
+        div(class = "home-nav",
+          actionButton("goMap",     tagList(bs_icon("map-fill"),       div("Site map"),       tags$small("species across the site")),  class = "home-btn"),
+          actionButton("goRange",   tagList(bs_icon("fire"),           div("Home range"),     tags$small("heatmap + replay of a star")), class = "home-btn"),
+          actionButton("goCommunity", tagList(bs_icon("bar-chart-line-fill"), div("Community"), tags$small("who's out there & when")),   class = "home-btn"),
+          actionButton("goPopulation", tagList(bs_icon("graph-up-arrow"), div("Population"),  tags$small("abundance & richness")),       class = "home-btn"),
+          actionButton("goFame",    tagList(bs_icon("trophy-fill"),    div("Hall of Fame"),   tags$small("rank every individual")),      class = "home-btn")
         ),
-        tabPanel(
-          "Cap History",
-          withSpinner(dataTableOutput("NEONDataSet1"),
-                      proxy.height = "150px",
-                      image.height = "150px",
-                      image = "rat-72.gif"
-          )
+        # lead with the awesome plot — species composition, most common first
+        card(full_screen = TRUE,
+          card_head("collection", "Species of this site, most common first",
+            info_pop("Species composition",
+              p("How many ", tags$b("captures"), " (bar length) and ", tags$b("individuals"), " (label) each species contributed."),
+              p("Brighter bars = caught more times per animal (a \"trap-happy\" species)."))),
+          spin(plotlyOutput("speciesBar", height = "440px"))),
+        # the plain-English story sits underneath
+        card(
+          card_head("stars", "The story so far",
+            info_pop("The story so far",
+              p("Written automatically from the live data for this site & window — the same numbers the rest of the app is built on."))),
+          uiOutput("siteInsights")),
+        h4(class = "section-title", bs_icon("binoculars"), " Who you'll meet"),
+        uiOutput("meetLocals")
+      ),
+
+      nav_panel(
+        title = tagList(bs_icon("fire"), " Home Range"),
+        value = "homerange",
+        div(class = "tab-head",
+          div(class = "tab-head-text",
+            h4("Trap-grid home range",
+               info_pop("Trap-grid home range",
+                 p("NEON plots are a ", tags$b("10×10 grid"), " of traps spaced 10 m apart (columns A–J, rows 1–10)."),
+                 p("The ", tags$b("heatmap"), " colors each cell by how many times this animal was caught there; white dots mark the actual capture cells and the gold ✕ is its centre of activity."),
+                 p("The ", tags$b("replay"), " animates its captures in order — press ▶ to watch it move."),
+                 p(tags$b("Hotspot blur"), " smooths the grid to show its core area."))),
+            p("Where on the 10×10 plot grid this animal kept turning up. Hit play to replay its captures over time.")),
+          div(class = "hr-toggles",
+            checkboxInput("blurMode", "Hotspot blur", value = FALSE))
         ),
-        tabPanel(
-          "Raw",
-          withSpinner(dataTableOutput("data1"),
-                      proxy.height = "150px",
-                      image.height = "150px",
-                      image = "rat-72.gif"
-          )
-        ),
-        tabPanel(
-          "Measurements",
-          withSpinner(plotlyOutput("plot1"),
-                      proxy.height = "150px",
-                      image.height = "150px",
-                      image = "rat-72.gif"
-          ),
-          ## adding violin plot
-          plotlyOutput("Vplot")
-        ),
-        tabPanel(
-          "Heat Map",
-          withSpinner(plotlyOutput("plot2"),
-                      proxy.height = "150px",
-                      image.height = "150px",
-                      image = "rat-72.gif"
-          )
-        ),
-        tabPanel(
-          "V2 Heat Map",
-          withSpinner(plotlyOutput("plot3"),
-                      proxy.height = "150px",
-                      image.height = "150px",
-                      image = "rat-72.gif"
-          )
-        ),
-        tabPanel(
-          "Captures Per Plot",
-          withSpinner(plotlyOutput("DataSet1"),
-                      proxy.height = "150px",
-                      image.height = "150px",
-                      image = "rat-57.gif"
-          )
-        ),
-        tabPanel("Capture Map",
-                 sliderInput("rad_size", "Adj Capture Radius Size on Map:",
-                             min = .1, max = 2,
-                             value = 1, step = .1, width = "25%"
-                 ),
-                 selectInput("view", "Select map view:",
-                             width = "85%", choices = c(
-                               "Esri.WorldImagery",
-                               "TomTom.Hybrid", "Stamen.TopOSMRelief"
-                             )
-                 ),
-                 submitButton("Reload Map..."),
-                 withSpinner(leafletOutput("map", width = "85%", height = "700px"),
-                             proxy.height = "150px",
-                             image.height = "150px",
-                             image = "rat1.gif"
-                 ),
-                 style = "height:500px;overflow-y:scroll"
+        layout_columns(col_widths = c(6, 6),
+          card(full_screen = TRUE, card_head("grid-3x3-gap-fill", "Capture heatmap"),
+               spin(plotlyOutput("trapHeat", height = "460px"), img = "rat1.gif")),
+          card(full_screen = TRUE, card_head("play-circle", "Capture replay"),
+               spin(plotlyOutput("trapReplay", height = "460px"), img = "rat1.gif"))
         )
+      ),
+
+      nav_panel(
+        title = tagList(bs_icon("map-fill"), " Site Map"),
+        value = "map",
+        div(class = "tab-head",
+          div(class = "tab-head-text",
+            h4("Species diversity across the site",
+               info_pop("Site map",
+                 p("Each circle is a NEON trapping ", tags$b("plot"), ", placed at its real coordinates."),
+                 p("Circle ", tags$b("size"), " = total captures there; ", tags$b("color"), " = species (same colors as the charts)."),
+                 p("When an individual is selected, its plots get a pulsing ", tags$span(style="color:#ffd24a", "gold ring"), "."),
+                 p("Hover a circle for its species + counts; switch basemap top-right."))),
+            p("Each marker is a plot, sized by captures and colored by species. The selected individual's plots glow gold.")),
+          div(class = "map-controls",
+            selectInput("view", "Basemap", width = "160px",
+                        choices = c("Satellite" = "Esri.WorldImagery",
+                                    "Terrain" = "Esri.WorldTopoMap",
+                                    "Light" = "CartoDB.Positron",
+                                    "Dark" = "CartoDB.DarkMatter")),
+            sliderInput("rad_size", "Marker scale", min = .3, max = 2.5, value = 1, step = .1, width = "150px"),
+            actionButton("reloadMapBtn", tagList(bs_icon("arrow-clockwise"), " Redraw"),
+                         class = "btn-outline-dark btn-sm"))
+        ),
+        spin(leafletOutput("map", height = "620px"), img = "rat1.gif")
+      ),
+
+      nav_panel(
+        title = tagList(bs_icon("bar-chart-line-fill"), " Community Pulse"),
+        value = "community",
+        div(class = "tab-intro", bs_icon("info-circle"),
+            "The whole community for this site & window — not one animal. Hover any chart for details."),
+        card(card_head("gender-ambiguous", "Who's out there — sex & age structure",
+               info_pop("Sex & age", p("The ", tags$b("sex"), " and ", tags$b("life-stage"), " breakdown of every handled animal. The number in the middle is the total handled."))),
+             layout_columns(col_widths = c(6, 6),
+               plotlyOutput("sexDonut", height = "300px"),
+               plotlyOutput("ageDonut", height = "300px"))),
+        card(full_screen = TRUE,
+          card_head("activity", "Captures per plot, over time",
+            info_pop("Captures per plot",
+              p("One mini time-series per ", tags$b("plot"), ", with a line per species. Lets you spot booms, busts, and which plots a species favours."),
+              p("Only species with a handful of captures are drawn, to keep it readable."))),
+          spin(plotlyOutput("plotTrend", height = "520px"))),
+        card(full_screen = TRUE,
+          card_head("rulers", "Body-size profile — weight distribution by species",
+            info_pop("Body-size profile",
+              p("A ", tags$b("violin"), " for each species shows the full spread of body weights — wide where many animals fall, with a line at the mean."),
+              p("Species are ordered lightest → heaviest (log scale, since a pocket mouse and a woodrat differ ~30×)."),
+              p("If you've opened an individual's dossier, a ", tags$span(style="color:#c9a300;font-weight:700", "gold diamond"), " marks where it sits in its species."))),
+          spin(plotlyOutput("sizeViolin", height = "420px"))),
+        card(full_screen = TRUE,
+          card_head("calendar-heart", "Breeding phenology — when the population reproduces",
+            info_pop("Breeding phenology",
+              p("By calendar month, the share of adults that are ", tags$b("reproductively active"), ":"),
+              p(tags$span(style="color:#2f7fb5", "● breeding males"), " (scrotal) and ",
+                tags$span(style="color:#c2255c", "● reproductive females"), " (pregnant or lactating)."),
+              p("Peaks reveal the breeding season; the dip shows the off-season."))),
+          spin(plotlyOutput("phenoPlot", height = "320px")))
+      ),
+
+      nav_panel(
+        title = tagList(bs_icon("graph-up-arrow"), " Population"),
+        value = "population",
+        div(class = "tab-head",
+          div(class = "tab-head-text",
+            h4("Defensible population signals"),
+            p("Minimum Number Known Alive (MNKA) and catch-per-unit-effort are honest abundance indices; the accumulation curve shows whether trapping ran long enough to find every species."))
+        ),
+        layout_columns(col_widths = c(7, 5),
+          card(full_screen = TRUE,
+            card_head("people-fill", "MNKA & catch-per-effort, by plot",
+              info_pop("MNKA & CPUE",
+                p(tags$b("MNKA"), " (Minimum Number Known Alive) counts how many individuals were ", tags$em("known"), " to be alive each month — caught that month, or before ", tags$em("and"), " after. A transparent abundance index (Krebs 1966)."),
+                p("The dotted white line is ", tags$b("CPUE"), " — captures per 100 trap-nights — which corrects for how much trapping effort happened."))),
+            spin(plotlyOutput("mnkaPlot", height = "440px"))),
+          card(full_screen = TRUE,
+            card_head("graph-up", "Species accumulation",
+              info_pop("Species accumulation",
+                p("As more trapping bouts accumulate, how many ", tags$b("species"), " have been found? When the curve flattens, you've probably found them all."),
+                p("The amber line is ", tags$b("Chao1"), " — a statistical estimate of true richness, including species not yet caught (Gotelli & Colwell 2001)."))),
+            spin(plotlyOutput("accumPlot", height = "440px")))
+        )
+      ),
+
+      nav_panel(
+        title = tagList(bs_icon("trophy-fill"), " Hall of Fame"),
+        value = "fame",
+        div(class = "tab-head",
+          div(class = "tab-head-text",
+            h4("Capture leaderboard",
+               info_pop("How the leaderboard works",
+                 p("Every animal NEON caught is ranked by how often it turned up in traps."),
+                 p(tags$b("Click any row"), " to open that individual's dossier."),
+                 p("Switch ", tags$b("category"), " to re-rank by weight, career length, roaming, or weight-for-its-species (chonk)."),
+                 tags$hr(),
+                 p(tags$b("Rarity tiers"), " come from total captures:"),
+                 lapply(rarity_key_items, function(it)
+                   div(class = "pkey", tier_badge(it[1]), tags$span(it[2]))))),
+            p("Every individual ranked. Pick a category, then click a row to open its dossier.")),
+          div(class = "leader-cats",
+            radioButtons("leaderCat", NULL, inline = TRUE,
+              choiceNames = list(
+                HTML("&#127942; Most caught"), HTML("&#127947; Heaviest"),
+                HTML("&#9201; Longest career"), HTML("&#128506; Biggest roamer"),
+                HTML("&#129482; Chonkiest")),
+              choiceValues = c("captures", "weight", "career", "roam", "chonk"),
+              selected = "captures"))
+        ),
+        # always-visible rarity key so "Epic vs Rare" is never a mystery
+        div(class = "rarity-legend",
+          tags$span(class = "rl-label", "Rarity"),
+          tier_badge("Legendary"), tier_badge("Epic"), tier_badge("Rare"),
+          tier_badge("Uncommon"), tier_badge("Common"),
+          tags$span(class = "rl-sep", "·"),
+          tags$span(class = "rl-label", style = "letter-spacing:0;text-transform:none;",
+                    "by total captures (15+ → Legendary)")),
+        spin(DT::DTOutput("leaderboard"))
+      ),
+
+      nav_panel(
+        title = tagList(bs_icon("person-vcard"), " Dossier"),
+        value = "dossier",
+        uiOutput("dossierHero"),
+        layout_columns(col_widths = c(7, 5),
+          card(full_screen = TRUE,
+            card_head("graph-up", "Measurements through time",
+              info_pop("Measurements through time",
+                p("Each capture's ", tags$b("weight"), " (navy) and ", tags$b("hind-foot length"), " (cardinal) plotted over time."),
+                p("The shaded band is the ", tags$b("middle 50% of weights"), " for this species, so you can see whether the animal runs heavy or light. The ♦ marks its heaviest capture."))),
+            spin(plotlyOutput("measPlot", height = "360px"))),
+          card(full_screen = TRUE,
+            card_head("speedometer2", "Chonk Index — weight rank",
+              info_pop("The Chonk Index",
+                p("An honest ", tags$b("adult weight percentile within species"), " — i.e. \"how heavy is this animal for its kind?\""),
+                p("50 = a perfectly typical adult; the delta shows how far above/below typical it sits."),
+                p(tags$em("Why not a body-condition index? In these desert rodents foot length barely predicts mass, so a fancier index would just rank noise. The body-size map below shows the real relationship.")))),
+            spin(plotlyOutput("chonkGauge", height = "360px")))
+        ),
+        card(full_screen = TRUE,
+             card_head("bullseye", "Body-size map — where it sits among its species",
+               info_pop("Body-size map",
+                 p("Every measured animal plotted by ", tags$b("weight × hind-foot length"), ". The faint grey dots are all other species; the colored cloud is ", tags$b("this animal's species"), " (by life stage)."),
+                 p("The ", tags$b("gold diamonds"), " are this individual's captures — high in the cloud = a big one."),
+                 p("A dashed ", tags$b("size–mass fit line"), " is drawn ", tags$em("only"), " for species where length actually predicts mass (so you're never shown a fake trend.)")),
+               tags$span(class = "card-hint", style = "margin-left:auto", "this animal in gold")),
+             spin(plotlyOutput("morphoPlot", height = "420px"))),
+        card(card_head("clock-history", "Capture history",
+               info_pop("Capture history", p("Every individual capture event for this animal — date, plot, trap cell, measurements, and field notes. Use the search box to filter."))),
+             spin(DT::DTOutput("capHistory")))
+      ),
+
+      nav_panel(
+        title = tagList(bs_icon("info-circle"), " About"),
+        value = "about",
+        uiOutput("aboutPanel")
       )
     )
+  ),
+
+  # ---- Desert Data Labs business footer ----------------------------------
+  div(class = "ddl-footer",
+    div(tags$a(class = "custom-cta",
+      href = "mailto:desertdatalabs@gmail.com?subject=NEON%20Small%20Mammal%20Tracker",
+      span(class = "hand", "\U0001F44B"), "Want a custom data app like this for your project?")),
+    p(style = "margin-top:12px",
+      HTML("Built by <strong>Desert Data Labs</strong> · Tucson, AZ · feedback, bug reports, or custom dashboards & analytics → "),
+      tags$a(href = "mailto:desertdatalabs@gmail.com?subject=NEON%20Small%20Mammal%20Tracker", "desertdatalabs@gmail.com")),
+    p(style = "font-size:12px;opacity:.85",
+      "Data: NEON Small Mammal Box Trapping (DP1.10072.001). Not affiliated with NEON, Battelle, or the NSF. An educational data-exploration tool.")
   )
 )
