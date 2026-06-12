@@ -89,7 +89,9 @@ fetched with [`neonUtilities::loadByProduct()`](https://www.neonscience.org/neon
 
 Each site's full record is pre-downloaded into `data/sites/<SITE>.rds` (trimmed and compressed) so
 the app loads instantly without a network round-trip; a live download is the fallback. The bundle is
-rebuilt monthly by a GitHub Action (`scripts/refresh_data.R`); the approach is documented in
+rebuilt automatically **late on the first Saturday night of each month** (~11 pm Arizona time, an
+off-peak window so the brief redeploy doesn't interrupt active users) by a GitHub Action
+(`scripts/refresh_data.R`); the approach is documented in
 [docs/data-bundling-pattern.md](docs/data-bundling-pattern.md).
 
 ## Run it locally
