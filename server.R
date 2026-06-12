@@ -88,17 +88,19 @@ server <- function(input, output, session) {
     invisible(TRUE)
   }
 
+  # session cache: re-loading a site + window you already fetched is instant
+  fetch_cache <- new.env(parent = emptyenv())
+
   observeEvent(input$loadBtn, {
     req(input$site)
-    id <- showNotification(tagList(bs_icon("hourglass-split"),
-            " Fetching live NEON data… this can take a minute."),
-            duration = NULL, type = "message")
-    on.exit(removeNotification(id), add = TRUE)
-    res <- tryCatch(
+    on.exit(session$sendCustomMessage("loadDone", list()), add = TRUE)  # always hide the overlay
+    key <- paste(input$site, input$dateRange[1], input$dateRange[2], sep = "|")
+    res <- if (!is.null(fetch_cache[[key]])) fetch_cache[[key]] else tryCatch(
       fetch_neon_mam(input$site, input$dateRange[1], input$dateRange[2]),
       error = function(e) { showNotification(paste("NEON fetch failed:", conditionMessage(e)),
                                              type = "error", duration = 8); NULL })
     req(!is.null(res))
+    fetch_cache[[key]] <- res
     ingest(res, sprintf("%s · %s", site_label(input$site),
                         fmt_range(input$dateRange[1], input$dateRange[2])))
   })

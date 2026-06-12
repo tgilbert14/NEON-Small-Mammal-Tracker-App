@@ -76,7 +76,7 @@ ui <- bslib::page_sidebar(
                    start = Sys.Date() - 2200, end = Sys.Date() - 365),
 
     actionButton("loadBtn", tagList(bs_icon("globe-americas"), " Load this site"),
-                 class = "btn-primary btn-lg w-100 load-btn"),
+                 class = "btn-primary btn-lg w-100 load-btn", onclick = "smtLoadStart()"),
     actionButton("demoBtn", tagList(bs_icon("stars"), " or explore the Jornada demo (instant)"),
                  class = "btn-link btn-sm w-100 reset-demo"),
     div(class = "demo-hint", bs_icon("info-circle"),
@@ -102,6 +102,18 @@ ui <- bslib::page_sidebar(
                    bs_icon("box-arrow-up-right"), " Desert Data Labs")
     )
   ),
+
+  # ---- full-screen loading overlay (shown client-side on Load click) -----
+  div(id = "loadOverlay", class = "load-overlay",
+    div(class = "load-card",
+      div(class = "load-spin", "\U0001F43E"),
+      div(class = "load-title", "Fetching live NEON data"),
+      div(id = "loadSite", class = "load-site"),
+      div(class = "load-bar", div(id = "loadFill", class = "load-fill")),
+      div(id = "loadPct", class = "load-pct", "0%"),
+      div(class = "load-note",
+          "Capture records are streaming straight from the NEON Data Portal — this can take up to a minute.")
+    )),
 
   # ---- main: header + hero stats + tabs ----------------------------------
   div(class = "app-hero",
