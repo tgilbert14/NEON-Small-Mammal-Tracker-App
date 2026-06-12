@@ -297,8 +297,10 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .locals-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 @media (max-width: 1000px) { .locals-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px)  { .locals-grid { grid-template-columns: 1fr; } }
-.local-card { display: flex; gap: 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: 0 2px 8px var(--shadow); transition: transform .15s, box-shadow .15s; }
-.local-card:hover { transform: translateY(-3px); box-shadow: 0 10px 22px -10px var(--shadow); }
+.local-card { display: flex; gap: 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: 0 2px 8px var(--shadow); transition: transform .15s, box-shadow .15s; text-decoration: none; color: inherit; cursor: pointer; }
+.local-card:hover { transform: translateY(-3px); box-shadow: 0 10px 22px -10px var(--shadow); border-color: var(--pine); }
+.local-go { color: var(--pine); font-size: 11px; margin-left: 6px; opacity: 0; transition: .12s; }
+.local-card:hover .local-go { opacity: .8; }
 .local-emoji { font-size: 42px; line-height: 1; flex: none; }
 .local-name { font-style: italic; font-weight: 700; color: var(--pine); font-size: 15px; }
 .local-nick { font-size: 12px; color: var(--pine); text-transform: capitalize; font-weight: 600; }
@@ -336,9 +338,11 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
   background: var(--pine); border: 1px solid var(--pine); border-top: 4px solid var(--gold);
   border-radius: 10px; padding: 14px 15px; box-shadow: 0 4px 12px -4px var(--shadow); transition: transform .15s, box-shadow .15s, background .15s; height: 100%; }
 .home-btn:hover { transform: translateY(-3px); box-shadow: 0 14px 26px -10px rgba(12,35,75,.5); background: var(--pine2); }
-.home-btn .bi { font-size: 22px; color: var(--gold); margin-bottom: 4px; }
-.home-btn > div { font-weight: 800; color: #fff; font-size: 15px; }
-.home-btn small { color: #bcccdf; font-size: 11.5px; font-weight: 400; line-height: 1.3; }
+/* !important: Shiny's .btn rules set a cardinal text color that out-specifies us */
+.home-btn, .home-btn > div, .home-btn span { color: #fff !important; }
+.home-btn .bi { font-size: 22px; color: var(--gold) !important; margin-bottom: 4px; }
+.home-btn > div { font-weight: 800; font-size: 15px; }
+.home-btn small { color: #bcccdf !important; font-size: 11.5px; font-weight: 400; line-height: 1.3; }
 
 /* ---- clickable modal rows --------------------------------------------- */
 .rank-row.rank-click { cursor: pointer; }
