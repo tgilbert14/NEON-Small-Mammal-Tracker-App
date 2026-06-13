@@ -17,9 +17,11 @@ suppressPackageStartupMessages({
   library(shinyjs)
   library(shinycssloaders)
   library(RColorBrewer)
-  library(neonUtilities)
   library(htmltools)
 })
+# neonUtilities is loaded LAZILY (only for the optional live-fetch path) — see LIVE_FETCH
+# below. Keeping it out of the startup block lets the app run bundle-only with no heavy
+# dependency (local dev, a lean Connect Cloud build, or a shinylive static export).
 
 # ---- helpers + metadata ---------------------------------------------------
 source("R/site_metadata.R", local = FALSE)
@@ -27,6 +29,13 @@ source("R/helpers.R", local = FALSE)
 
 # ---- NEON data product ----------------------------------------------------
 NEON_DPID <- "DP1.10072.001"   # Small mammal box trapping
+
+# ---- live-fetch toggle ----------------------------------------------------
+# Live NEON downloads are OPTIONAL. They're enabled only when neonUtilities is
+# installed AND not explicitly disabled (set SMT_LIVE=0 to force bundle-only).
+# When off, the app serves entirely from the bundled per-site .rds files.
+LIVE_FETCH <- (Sys.getenv("SMT_LIVE", "1") != "0") &&
+  requireNamespace("neonUtilities", quietly = TRUE)
 
 # ---- bundled per-site data ("the database") -------------------------------
 # scripts/refresh_data.R pre-downloads each site's full record into
@@ -66,6 +75,8 @@ filter_window <- function(d, start_date, end_date) {
 # Wrapped so the server can call it uniformly; dates are coerced to YYYY-MM,
 # which is what loadByProduct expects.
 fetch_neon_mam <- function(site, start_date, end_date, provisional = FALSE) {
+  if (!requireNamespace("neonUtilities", quietly = TRUE))
+    stop("Live NEON download needs the neonUtilities package, which isn't available in this build.")
   sd <- format(as.Date(start_date), "%Y-%m")
   ed <- format(as.Date(end_date), "%Y-%m")
   raw <- neonUtilities::loadByProduct(

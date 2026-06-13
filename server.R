@@ -66,6 +66,8 @@ server <- function(input, output, session) {
   })
 
   shinyjs::hide("mainTabsWrap")
+  # provisional/live data is meaningless in a bundle-only build
+  if (!LIVE_FETCH) shinyjs::hide(selector = ".prov-toggle")
 
   # ---- data ingestion -----------------------------------------------------
   ingest <- function(data.raw, label, is_demo = FALSE) {
@@ -105,14 +107,12 @@ server <- function(input, output, session) {
   # session cache: re-loading a site + window you already fetched is instant
   fetch_cache <- new.env(parent = emptyenv())
 
-  observeEvent(input$loadBtn, {
-    if (is.null(input$site) || input$site == "") {
-      session$sendCustomMessage("loadDone", list()); return()
-    }
-    site <- input$site; s0 <- input$dateRange[1]; e0 <- input$dateRange[2]
-    prov <- isTRUE(input$provisional)
-    # ingest() sends "loadDone" when it finishes; we send it on the failure
-    # paths below so the loading overlay is ALWAYS dismissed.
+  # THE single load path — used by the Load button AND the national site-picker map.
+  # Takes the site explicitly (don't re-read input$site) so a map click can't race the
+  # state->site cascade. ingest() dismisses the loading overlay; we dismiss it on every
+  # early-return path too.
+  load_site <- function(site, s0, e0, prov = FALSE) {
+    if (is.null(site) || site == "") { session$sendCustomMessage("loadDone", list()); return(invisible()) }
 
     # 1) bundled site? read from disk instantly and filter to the window.
     #    (Skip the bundle when the user wants provisional data — the bundle is
@@ -121,24 +121,34 @@ server <- function(input, output, session) {
       bundle <- load_site_bundle(site)
       if (!is.null(bundle)) {
         d0 <- filter_window(bundle, s0, e0)
-        if (sum(!is.na(d0$tagID)) > 0) {
+        if (sum(!is.na(d0$tagID)) > 0)
           return(ingest(d0, sprintf("%s · %s", site_label(site), fmt_range(s0, e0))))
-        }
-        # window had no captures in the bundle -> fall through to a live fetch
+        # window had no captures in the bundle -> fall through to live (if enabled)
       }
     }
 
-    # 2) live fetch (with a session cache so repeats are instant)
+    # 2) live fetch — OPTIONAL. In a bundle-only build, explain instead of failing.
+    if (!LIVE_FETCH) {
+      session$sendCustomMessage("loadDone", list())
+      showNotification(
+        if (prov) "Provisional/live data isn't available in this build — uncheck it to use the offline bundle."
+        else "That site & window isn't in the offline bundle. Try a wider date window.",
+        type = "warning", duration = 7)
+      return(invisible())
+    }
     key <- paste(site, s0, e0, prov, sep = "|")
     res <- if (!is.null(fetch_cache[[key]])) fetch_cache[[key]] else tryCatch(
       fetch_neon_mam(site, s0, e0, provisional = prov),
       error = function(e) { showNotification(paste("NEON fetch failed:", conditionMessage(e)),
                                              type = "error", duration = 8); NULL })
-    if (is.null(res)) { session$sendCustomMessage("loadDone", list()); return() }
+    if (is.null(res)) { session$sendCustomMessage("loadDone", list()); return(invisible()) }
     fetch_cache[[key]] <- res
     ingest(res, sprintf("%s · %s%s", site_label(site), fmt_range(s0, e0),
                         if (prov) " · incl. provisional" else ""))
-  })
+  }
+
+  observeEvent(input$loadBtn,
+    load_site(input$site, input$dateRange[1], input$dateRange[2], isTRUE(input$provisional)))
 
   observeEvent(input$demoBtn, {
     d <- load_demo()
