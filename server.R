@@ -54,8 +54,12 @@ server <- function(input, output, session) {
   updateSelectInput(session, "stateSel", choices = state_choices(), selected = "NM")
   observeEvent(input$stateSel, {
     sites <- sites_in_state(input$stateSel)
-    updateSelectInput(session, "site", choices = sites,
-                      selected = if (length(sites)) sites[[1]] else NULL)
+    # if a picker-map click is mid-flight, keep its site selected through the
+    # cascade instead of snapping to the first site in the state
+    sel <- if (!is.null(rv$pendingSite) && rv$pendingSite %in% sites) rv$pendingSite
+           else if (length(sites)) sites[[1]] else NULL
+    rv$pendingSite <- NULL
+    updateSelectInput(session, "site", choices = sites, selected = sel)
   }, ignoreNULL = TRUE)
 
   output$siteBio <- renderUI({
@@ -66,6 +70,8 @@ server <- function(input, output, session) {
   })
 
   shinyjs::hide("mainTabsWrap")
+  # provisional/live data is meaningless in a bundle-only build
+  if (!LIVE_FETCH) shinyjs::hide(selector = ".prov-toggle")
 
   # ---- data ingestion -----------------------------------------------------
   ingest <- function(data.raw, label, is_demo = FALSE) {
@@ -105,14 +111,12 @@ server <- function(input, output, session) {
   # session cache: re-loading a site + window you already fetched is instant
   fetch_cache <- new.env(parent = emptyenv())
 
-  observeEvent(input$loadBtn, {
-    if (is.null(input$site) || input$site == "") {
-      session$sendCustomMessage("loadDone", list()); return()
-    }
-    site <- input$site; s0 <- input$dateRange[1]; e0 <- input$dateRange[2]
-    prov <- isTRUE(input$provisional)
-    # ingest() sends "loadDone" when it finishes; we send it on the failure
-    # paths below so the loading overlay is ALWAYS dismissed.
+  # THE single load path — used by the Load button AND the national site-picker map.
+  # Takes the site explicitly (don't re-read input$site) so a map click can't race the
+  # state->site cascade. ingest() dismisses the loading overlay; we dismiss it on every
+  # early-return path too.
+  load_site <- function(site, s0, e0, prov = FALSE) {
+    if (is.null(site) || site == "") { session$sendCustomMessage("loadDone", list()); return(invisible()) }
 
     # 1) bundled site? read from disk instantly and filter to the window.
     #    (Skip the bundle when the user wants provisional data — the bundle is
@@ -121,23 +125,61 @@ server <- function(input, output, session) {
       bundle <- load_site_bundle(site)
       if (!is.null(bundle)) {
         d0 <- filter_window(bundle, s0, e0)
-        if (sum(!is.na(d0$tagID)) > 0) {
+        if (sum(!is.na(d0$tagID)) > 0)
           return(ingest(d0, sprintf("%s · %s", site_label(site), fmt_range(s0, e0))))
-        }
-        # window had no captures in the bundle -> fall through to a live fetch
+        # window had no captures in the bundle -> fall through to live (if enabled)
       }
     }
 
-    # 2) live fetch (with a session cache so repeats are instant)
+    # 2) live fetch — OPTIONAL. In a bundle-only build, explain instead of failing.
+    if (!LIVE_FETCH) {
+      session$sendCustomMessage("loadDone", list())
+      showNotification(
+        if (prov) "Provisional/live data isn't available in this build — uncheck it to use the offline bundle."
+        else "That site & window isn't in the offline bundle. Try a wider date window.",
+        type = "warning", duration = 7)
+      return(invisible())
+    }
     key <- paste(site, s0, e0, prov, sep = "|")
     res <- if (!is.null(fetch_cache[[key]])) fetch_cache[[key]] else tryCatch(
       fetch_neon_mam(site, s0, e0, provisional = prov),
       error = function(e) { showNotification(paste("NEON fetch failed:", conditionMessage(e)),
                                              type = "error", duration = 8); NULL })
-    if (is.null(res)) { session$sendCustomMessage("loadDone", list()); return() }
+    if (is.null(res)) { session$sendCustomMessage("loadDone", list()); return(invisible()) }
     fetch_cache[[key]] <- res
     ingest(res, sprintf("%s · %s%s", site_label(site), fmt_range(s0, e0),
                         if (prov) " · incl. provisional" else ""))
+  }
+
+  observeEvent(input$loadBtn,
+    load_site(input$site, input$dateRange[1], input$dateRange[2], isTRUE(input$provisional)))
+
+  # ---- national site-picker map: click a site -> load its full record ------
+  # Loads the whole bundled window for the chosen site (the friendliest default
+  # from the landing map), raises the loading overlay from the server (the map
+  # has no inline onclick), and syncs the sidebar selects through the cascade.
+  load_site_full <- function(code) {
+    if (is.null(code) || code == "") return(invisible())
+    row <- if (!is.null(SITE_INDEX)) SITE_INDEX[SITE_INDEX$site == code, ] else NULL
+    nm  <- if (!is.null(row) && nrow(row)) row$name[1] else code
+    y1  <- if (!is.null(row) && nrow(row) && !is.na(row$year_min[1])) row$year_min[1] else 2013L
+    s0  <- as.Date(sprintf("%d-01-01", y1)); e0 <- Sys.Date()
+    st  <- if (!is.null(row) && nrow(row)) row$state[1] else NULL
+    if (!is.null(st) && !is.na(st)) { rv$pendingSite <- code; updateSelectInput(session, "stateSel", selected = st) }
+    updateDateRangeInput(session, "dateRange", start = s0, end = e0)
+    session$sendCustomMessage("smtLoadStart", list(label = sprintf("%s — %s", code, nm)))
+    load_site(code, s0, e0, FALSE)
+  }
+  observeEvent(input$pickerMap_marker_click, {
+    click <- input$pickerMap_marker_click
+    if (!is.null(click$id)) load_site_full(click$id)
+  })
+  observeEvent(input$pickFromList, load_site_full(input$pickFromList))
+
+  # "Change site" (in the hero band) -> back to the picker-map landing
+  observeEvent(input$changeSite, {
+    rv$data <- NULL; rv$lb <- NULL; rv$lb_view <- NULL; rv$tag <- NULL; rv$label <- NULL
+    shinyjs::hide("mainTabsWrap"); shinyjs::hide("indivPickerWrap"); shinyjs::show("splash")
   })
 
   observeEvent(input$demoBtn, {
@@ -196,31 +238,258 @@ server <- function(input, output, session) {
     ensure_individual(); nav_select("tabs", "homerange")
   })
 
-  # ---- splash / landing (before any site is loaded) ----------------------
+  # ---- splash / landing: the national site-picker map --------------------
+  # "Select your site" — a map of all bundled NEON sites. Tap a dot to load it.
+  # Dot size = total captures (log-scaled); color = the ecological family of the
+  # site's most-caught species. Falls back to a clickable list (a11y / no-JS).
   output$splash <- renderUI({
     if (!is.null(rv$data)) return(NULL)
-    feat <- function(icon, title, text) div(class = "land-feat",
-      div(class = "land-feat-ico", bs_icon(icon)),
-      div(div(class = "land-feat-t", title), div(class = "land-feat-d", text)))
-    div(class = "splash",
+    idx <- SITE_INDEX
+
+    # graceful fallback to a simple prompt if the index wasn't precomputed
+    if (is.null(idx) || nrow(idx) == 0) {
+      return(div(class = "splash",
+        div(class = "splash-icon", "\U0001F43E"),
+        h3("Explore the small mammals of the NEON network"),
+        p("Pick a ", tags$b("state"), " then a ", tags$b("site"), " in the sidebar, or jump into the demo."),
+        actionButton("demoBtn2", tagList(bs_icon("stars"), " Explore the Jornada demo instantly"),
+                     class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')")))
+    }
+
+    # legend — only the groups actually present, in canonical family order
+    g_order <- vapply(GENUS_GROUPS, function(g) g$key, character(1))
+    grps <- unique(idx[, c("group_key", "group_label", "group_color")])
+    grps <- grps[order(match(grps$group_key, g_order)), ]
+    legend <- div(class = "picker-legend",
+      tags$span(class = "pl-label", "Most-caught family:"),
+      lapply(seq_len(nrow(grps)), function(i)
+        tags$span(class = "pl-item",
+          tags$span(class = "pl-dot", style = sprintf("background:%s", grps$group_color[i])),
+          grps$group_label[i])))
+
+    # a11y / no-JS fallback: every site as a clickable link (one shared input)
+    ord <- idx[order(idx$name), ]
+    fallback <- tags$details(class = "picker-list",
+      tags$summary(tagList(bs_icon("list-ul"), " Browse all ", nrow(ord), " sites as a list")),
+      div(class = "picker-list-grid",
+        lapply(seq_len(nrow(ord)), function(i)
+          tags$a(class = "picker-list-link", href = "#",
+            onclick = sprintf("Shiny.setInputValue('pickFromList','%s',{priority:'event'});return false;", ord$site[i]),
+            tags$b(ord$site[i]), sprintf(" — %s ", ord$name[i]),
+            tags$span(class = "pll-meta", sprintf("%s · %s caps", ord$state[i], format(ord$captures[i], big.mark = ",")))))))
+
+    has_species <- !is.null(SPECIES_RANGES) && nrow(SPECIES_RANGES) > 0
+    div(class = "splash splash-map",
       div(class = "splash-icon", "\U0001F43E"),
-      h3("Explore the small mammals of the NEON network"),
-      p("The National Ecological Observatory Network live-traps small mammals at 47 field sites across the U.S. and Puerto Rico. This app turns those captures into maps, charts, and individual ", tags$em("life stories"), " — built for the curious and for new field techs learning their site."),
-      div(class = "splash-steps",
-        div(class = "step", span(class = "step-n", "1"), tagList("Pick a ", tags$b("state"), ", then a ", tags$b("site"), " in the sidebar \U2190")),
-        div(class = "step", span(class = "step-n", "2"), tagList("Hit ", tags$b("Load this site"), " (real NEON data downloads live)")),
-        div(class = "step", span(class = "step-n", "3"), "Explore the maps, charts & critters")
-      ),
-      actionButton("demoBtn2", tagList(bs_icon("stars"), " Explore the Jornada demo instantly"),
-                   class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')"),
-      div(class = "land-feats",
-        feat("map-fill", "Where they live", "Species mapped across each site's trapping grids."),
-        feat("fire", "Home ranges", "Heatmaps & replays of where one animal kept turning up."),
-        feat("graph-up-arrow", "Real science", "Abundance indices, body condition & breeding phenology."))
+      h3("Explore the NEON small-mammal network"),
+      p("NEON live-traps small mammals at ", tags$b(nrow(idx)), " field sites across the U.S. and Puerto Rico. ",
+        "Explore ", tags$b("by site"), " — tap a dot to dive in — or ", tags$b("by species"),
+        ", to see where one animal turns up across the country."),
+
+      # mode toggle: by-site picker  vs  by-species range map
+      if (has_species) div(class = "picker-mode",
+        radioButtons("pickMode", NULL, inline = TRUE,
+          choiceNames = list(tagList(bs_icon("geo-alt-fill"), " By site"),
+                             tagList(bs_icon("bezier2"), " By species")),
+          choiceValues = c("site", "species"), selected = "site")),
+
+      # by-site: the family-color legend
+      conditionalPanel("input.pickMode != 'species'", legend),
+
+      # by-species: a species picker + a live range summary
+      if (has_species) conditionalPanel("input.pickMode == 'species'",
+        div(class = "range-controls",
+          selectizeInput("rangeSpecies", label = NULL, width = "100%",
+            choices = species_choices(),
+            options = list(placeholder = "Pick a species to map its range…")),
+          uiOutput("rangeSummary"))),
+
+      div(class = "picker-map-wrap",
+        spin(leafletOutput("pickerMap", height = "560px"), img = "rat1.gif"),
+        div(class = "picker-map-hint", bs_icon("hand-index-thumb"),
+            " Drag to pan · scroll to zoom · Alaska & Puerto Rico are out there too")),
+      div(class = "picker-actions",
+        actionButton("demoBtn2", tagList(bs_icon("stars"), " Or jump straight into the Jornada demo"),
+                     class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')"),
+        actionButton("compareBtn", tagList(bs_icon("bar-chart-steps"), " Compare two sites"),
+                     class = "btn-outline-dark btn-lg ms-2")),
+      div(class = "picker-tour",
+        tags$a(href = "#", onclick = "smtTour();return false;",
+               bs_icon("signpost-2"), " Take a 30-second tour")),
+      fallback
     )
   })
+
+  # radius helper: 6–24 px on a log scale, self-consistent within whichever set
+  picker_radius <- function(v) {
+    lc <- log1p(pmax(v, 0))
+    6 + 18 * (lc - min(lc)) / (max(lc) - min(lc) + 1e-9)
+  }
+  picker_label_opts <- leaflet::labelOptions(direction = "auto", opacity = 0.97,
+    style = list("border-color" = "rgba(12,35,75,.25)", "border-radius" = "8px",
+                 "box-shadow" = "0 6px 22px rgba(12,35,75,.18)", "padding" = "8px 10px"))
+
+  # add the all-sites markers (by-site mode): size = captures, color = family
+  add_site_markers <- function(map) {
+    idx <- SITE_INDEX
+    labs <- lapply(seq_len(nrow(idx)), function(i) htmltools::HTML(sprintf(
+      "<div class='pm-pop'><div class='pm-pop-t'>%s %s</div>
+       <div class='pm-pop-s'>%s, %s · NEON %s</div>
+       <div class='pm-pop-n'><b>%s</b> captures · <b>%s</b> individuals · <b>%s</b> species</div>
+       <div class='pm-pop-sp'>Most caught: <i>%s</i></div>
+       <div class='pm-pop-go'>Click to explore &rarr;</div></div>",
+      idx$emoji[i], idx$site[i], idx$name[i], idx$state[i], idx$domain[i],
+      format(idx$captures[i], big.mark = ","), format(idx$individuals[i], big.mark = ","),
+      idx$species[i], idx$top_species[i])))
+    leaflet::addCircleMarkers(map, data = idx, lng = ~lng, lat = ~lat, layerId = ~site,
+      radius = picker_radius(idx$captures), stroke = TRUE, color = "#ffffff", weight = 1.5,
+      opacity = 1, fillColor = ~group_color, fillOpacity = 0.85, label = labs,
+      labelOptions = picker_label_opts, options = leaflet::markerOptions(riseOnHover = TRUE))
+  }
+
+  # add one species' range markers (by-species mode): size = that species' local
+  # abundance, all one family color; clicking a site still loads it
+  add_species_markers <- function(map, species) {
+    r <- SPECIES_RANGES[SPECIES_RANGES$scientificName == species, , drop = FALSE]
+    if (nrow(r) == 0) return(map)
+    col <- r$group_color[1]
+    labs <- lapply(seq_len(nrow(r)), function(i) htmltools::HTML(sprintf(
+      "<div class='pm-pop'><div class='pm-pop-t'>%s %s</div>
+       <div class='pm-pop-s'>%s, %s</div>
+       <div class='pm-pop-n'><b>%s</b> individuals · <b>%s</b> captures here</div>
+       <div class='pm-pop-go'>Click to open this site &rarr;</div></div>",
+      r$emoji[i], r$site[i], r$name[i], r$state[i],
+      format(r$individuals[i], big.mark = ","), format(r$captures[i], big.mark = ","))))
+    leaflet::addCircleMarkers(map, data = r, lng = ~lng, lat = ~lat, layerId = ~site,
+      radius = picker_radius(r$individuals), stroke = TRUE, color = "#ffffff", weight = 1.5,
+      opacity = 1, fillColor = col, fillOpacity = 0.85, label = labs,
+      labelOptions = picker_label_opts, options = leaflet::markerOptions(riseOnHover = TRUE))
+  }
+
+  # base map drawn once (tiles + view + initial by-site markers)
+  output$pickerMap <- renderLeaflet({
+    req(SITE_INDEX, nrow(SITE_INDEX) > 0)
+    leaflet(options = leafletOptions(minZoom = 2, worldCopyJump = TRUE)) %>%
+      addProviderTiles("CartoDB.Positron", options = providerTileOptions(noWrap = TRUE)) %>%
+      setView(lng = -96, lat = 41, zoom = 4) %>%
+      add_site_markers()
+  })
+
+  # swap markers when the user toggles mode or picks a species (proxy = no reflow)
+  observeEvent(list(input$pickMode, input$rangeSpecies), {
+    req(SITE_INDEX)
+    map <- leaflet::leafletProxy("pickerMap") %>% leaflet::clearMarkers()
+    if (identical(input$pickMode, "species") && !is.null(input$rangeSpecies) &&
+        nzchar(input$rangeSpecies)) {
+      add_species_markers(map, input$rangeSpecies)
+    } else {
+      add_site_markers(map)
+    }
+  }, ignoreInit = TRUE)
+
+  # live range summary under the species picker
+  output$rangeSummary <- renderUI({
+    sp <- input$rangeSpecies
+    if (is.null(sp) || !nzchar(sp) || is.null(SPECIES_RANGES)) return(NULL)
+    r <- SPECIES_RANGES[SPECIES_RANGES$scientificName == sp, , drop = FALSE]
+    if (nrow(r) == 0) return(NULL)
+    r <- r[order(-r$individuals), ]
+    n_sites_total <- if (!is.null(SITE_INDEX)) nrow(SITE_INDEX) else nrow(r)
+    nick <- r$nickname[1]
+    div(class = "range-summary", style = sprintf("--rc:%s", r$group_color[1]),
+      span(class = "rs-emoji", r$emoji[1]),
+      div(class = "rs-body",
+        div(class = "rs-name", em(sp),
+            if (!is.na(nick)) span(class = "rs-nick", paste0(" · ", nick))),
+        div(class = "rs-stats",
+          HTML(sprintf("found at <b>%d</b> of %d sites · <b>%s</b> individuals · most abundant at <b>%s</b> (%s, %s)",
+            nrow(r), n_sites_total, format(sum(r$individuals), big.mark = ","),
+            r$site[1], r$name[1], r$state[1])))))
+  })
+
   observeEvent(input$demoBtn2, {
     d <- load_demo(); req(!is.null(d)); ingest(d, DEMO_META$label, is_demo = TRUE)
+  })
+
+  # ---- compare two sites (modal) -----------------------------------------
+  compare_site_choices <- function() {
+    idx <- SITE_INDEX
+    if (is.null(idx)) return(setNames(neon_sites$site, neon_sites$site))
+    o <- idx[order(idx$name), ]
+    setNames(o$site, sprintf("%s — %s, %s", o$site, o$name, o$state))
+  }
+  observeEvent(input$compareBtn, {
+    ch <- compare_site_choices()
+    showModal(modalDialog(
+      title = tagList(bs_icon("bar-chart-steps"), " Compare two sites"),
+      easyClose = TRUE, size = "l", footer = modalButton("Close"),
+      div(class = "compare-pickers",
+        selectizeInput("cmpA", "Site A", choices = ch,
+                       selected = if ("JORN" %in% ch) "JORN" else unname(ch)[1], width = "100%"),
+        selectizeInput("cmpB", "Site B", choices = ch,
+                       selected = if ("HARV" %in% ch) "HARV" else unname(ch)[2], width = "100%")),
+      uiOutput("compareOut")
+    ))
+  })
+
+  # build a one-site metric pack from its bundle (instant; bundles are tiny)
+  compare_pack <- function(site) {
+    b <- load_site_bundle(site)
+    if (is.null(b)) return(NULL)
+    d <- clean_mam(b)
+    if (is.null(d) || sum(d$is_capture) == 0) return(NULL)
+    cs <- community_stats(d)
+    hn <- hill_numbers(d)
+    sp <- utils::head(species_summary(d), 5)
+    yrs <- range(d$year[is.finite(d$year)])
+    list(site = site, label = site_label(site), cs = cs, hn = hn, sp = sp,
+         years = if (all(is.finite(yrs))) yrs else c(NA, NA))
+  }
+
+  output$compareOut <- renderUI({
+    a <- input$cmpA; b <- input$cmpB
+    req(a, b)
+    if (identical(a, b)) return(div(class = "compare-hint", bs_icon("info-circle"),
+      " Pick two different sites to compare."))
+    pa <- compare_pack(a); pb <- compare_pack(b)
+    if (is.null(pa) || is.null(pb)) return(div(class = "compare-hint", bs_icon("exclamation-triangle"),
+      " One of those sites isn't in the offline bundle."))
+
+    # winner-aware metric row: higher value gets a subtle highlight
+    row <- function(lab, va, vb, fmt = function(x) format(x, big.mark = ","), higher = TRUE, tip = NULL) {
+      hl <- if (is.na(va) || is.na(vb) || va == vb) c("", "")
+            else if ((va > vb) == higher) c("cmp-win", "") else c("", "cmp-win")
+      tags$tr(
+        tags$td(class = "cmp-lab", lab, if (!is.null(tip)) info_pop(lab, p(tip))),
+        tags$td(class = paste("cmp-val", hl[1]), fmt(va)),
+        tags$td(class = paste("cmp-val", hl[2]), fmt(vb)))
+    }
+    sp_list <- function(p) tags$div(class = "cmp-splist",
+      lapply(seq_len(nrow(p$sp)), function(i)
+        tags$div(class = "cmp-sp", span(p$sp$emoji[i]), em(p$sp$scientificName[i]),
+                 span(class = "cmp-sp-n", paste0(format(p$sp$individuals[i], big.mark = ","), " ind")))))
+
+    tagList(
+      tags$table(class = "compare-table",
+        tags$thead(tags$tr(tags$th(""),
+          tags$th(div(class = "cmp-head", pa$site), div(class = "cmp-head-sub", pa$cs$plots, " plots")),
+          tags$th(div(class = "cmp-head", pb$site), div(class = "cmp-head-sub", pb$cs$plots, " plots")))),
+        tags$tbody(
+          row("Captures", pa$cs$total_captures, pb$cs$total_captures),
+          row("Individuals", pa$cs$individuals, pb$cs$individuals),
+          row("Species (richness)", pa$cs$species, pb$cs$species),
+          row("Effective common species", pa$hn$q1, pb$hn$q1, fmt = function(x) format(x, nsmall = 1),
+              tip = "Hill q1 = exp(Shannon): the effective number of common species. Higher = more diverse."),
+          row("Evenness (0–1)", pa$hn$even, pb$hn$even, fmt = function(x) format(x, nsmall = 2),
+              tip = "How evenly captures spread across species. Near 1 = even; low = a few species dominate."),
+          row("Recapture rate", pa$cs$recap_rate, pb$cs$recap_rate, fmt = function(x) paste0(x, "%")),
+          row("Trap-nights (effort)", pa$cs$trap_nights, pb$cs$trap_nights))),
+      div(class = "compare-species",
+        div(class = "cmp-col", div(class = "cmp-col-h", "Top species — ", pa$site), sp_list(pa)),
+        div(class = "cmp-col", div(class = "cmp-col-h", "Top species — ", pb$site), sp_list(pb))),
+      div(class = "compare-foot", bs_icon("info-circle"),
+        " Higher value highlighted per row. Diversity uses Hill numbers over distinct individuals; richness is the raw species count.")
+    )
   })
 
   # ---- hero stat band -----------------------------------------------------
@@ -245,6 +514,10 @@ server <- function(input, output, session) {
         bs_icon("broadcast-pin"), span(class = "hero-site-label", rv$label),
         if (isTRUE(rv$is_demo)) span(class = "demo-pill", bs_icon("stars"), " DEMO"),
         span(class = "hero-site-range", fmt_range(cs$date_min, cs$date_max)),
+        actionLink("changeSite", tagList(bs_icon("arrow-left-circle"), " change site"),
+                   class = "hero-change"),
+        tags$a(class = "hero-report", href = "#", onclick = "smtPrintReport();return false;",
+               bs_icon("file-earmark-text"), " report card"),
         span(class = "hero-site-hint", bs_icon("hand-index"), " tap any stat for the full ranking")),
       div(class = "stat-grid",
         vb(cs$total_captures, "Captures",      "bullseye",        "#0C234B", "captures",
@@ -447,6 +720,43 @@ server <- function(input, output, session) {
         )
       )
     )
+  })
+
+  # ---- shareable trading card (html-to-image export) ---------------------
+  output$tradingCardWrap <- renderUI({
+    tag <- rv$tag
+    if (is.null(tag)) return(NULL)
+    row <- rv$lb[rv$lb$tagID == tag, ]; req(nrow(row) == 1)
+    rm <- rarity_meta(row$rarity[1])
+    nick <- if (!is.na(row$nickname[1])) row$nickname[1] else "small mammal"
+    chonk <- if (!is.na(row$chonk_pct[1])) paste0(round(row$chonk_pct[1]), "%") else "—"
+    yr <- function(x) if (is.na(x)) "" else format(x, "%Y")
+    span_yr <- paste(na.omit(unique(c(yr(row$first_seen[1]), yr(row$last_seen[1])))), collapse = "–")
+    tcstat <- function(v, l) div(class = "tc-stat", div(class = "tc-stat-v", v), div(class = "tc-stat-l", l))
+
+    div(class = "tradingcard-wrap",
+      div(class = "tc-toolbar",
+        tags$button(class = "tc-save-btn", onclick = "smtSaveCard()",
+                    bsicons::bs_icon("download"), " Save trading card"),
+        span(class = "tc-hint", "a shareable card for this individual")),
+      # the exportable node
+      div(id = "smtCardNode", class = "trade-card", style = sprintf("--rc:%s;", rm$color),
+        div(class = "tc-holo"),
+        div(class = "tc-top",
+          span(class = "tc-tier", paste(rm$icon, row$rarity[1])),
+          span(class = "tc-brand", "NEON \U0001F43E")),
+        div(class = "tc-emoji-wrap", div(class = "tc-emoji", row$emoji[1])),
+        div(class = "tc-id", row$short[1]),
+        div(class = "tc-sci", em(row$scientificName[1])),
+        div(class = "tc-nick", nick),
+        div(class = "tc-stats",
+          tcstat(row$captures[1], "captures"),
+          tcstat(if (row$career_days[1] > 0) paste0(row$career_days[1], "d") else "—", "career"),
+          tcstat(chonk, "chonk %ile"),
+          tcstat(if (is.na(row$max_weight[1])) "—" else paste0(round(row$max_weight[1]), "g"), "heaviest")),
+        div(class = "tc-foot",
+          span(mode_chr(rv$data$siteID), if (nzchar(span_yr)) paste0(" · ", span_yr)),
+          span(class = "tc-foot-app", "Small Mammal Tracker"))))
   })
 
   # ---- measurements through time -----------------------------------------
@@ -841,6 +1151,53 @@ server <- function(input, output, session) {
       plotly::config(displayModeBar = FALSE)
   })
 
+  # ---- Hill numbers: the diversity profile -------------------------------
+  output$hillPlot <- renderPlotly({
+    d <- rv$data; req(d)
+    hn <- hill_numbers(d)
+    if (hn$n_sp == 0) return(note_plot("No identified species to profile", "\U0001F9EE"))
+    df <- data.frame(
+      lab = factor(c("q=2 · dominant", "q=1 · common", "q=0 · richness"),
+                   levels = c("q=2 · dominant", "q=1 · common", "q=0 · richness")),
+      val = c(hn$q2, hn$q1, hn$q0),
+      col = c("#1a7f37", "#2f7fb5", "#0C234B"))
+    plot_ly(df, x = ~val, y = ~lab, type = "bar", orientation = "h",
+      marker = list(color = ~col, line = list(color = "#ffffff", width = 1)),
+      text = ~sprintf("%.1f", val), textposition = "outside",
+      textfont = list(color = "#1f2a30", size = 13),
+      hovertemplate = "%{y}: <b>%{x:.1f}</b> effective species<extra></extra>") %>%
+      plotly::layout(
+        xaxis = list(title = "effective number of species", rangemode = "tozero"),
+        yaxis = list(title = ""), showlegend = FALSE,
+        margin = list(l = 110, r = 40, t = 20, b = 40)) %>%
+      plotly_theme(legend = FALSE) %>% ctx_anno()
+  })
+
+  output$hillNote <- renderUI({
+    d <- rv$data; req(d)
+    hn <- hill_numbers(d)
+    if (hn$n_sp == 0) return(NULL)
+    even_word <- if (is.na(hn$even)) "—"
+      else if (hn$even >= 0.75) "very even — captures are spread across many species"
+      else if (hn$even >= 0.5)  "moderately even"
+      else if (hn$even >= 0.3)  "uneven — a few species dominate the catch"
+      else "highly skewed — one or two species dominate"
+    tile <- function(v, lab, sub, col) div(class = "hill-tile", style = sprintf("--hc:%s", col),
+      div(class = "hill-v", v), div(class = "hill-l", lab), div(class = "hill-s", sub))
+    div(class = "hill-note",
+      div(class = "hill-tiles",
+        tile(hn$q0, "richness", "all species", "#0C234B"),
+        tile(hn$q1, "common", "exp(Shannon)", "#2f7fb5"),
+        tile(hn$q2, "dominant", "inv. Simpson", "#1a7f37")),
+      div(class = "hill-even",
+        bs_icon("bar-chart-steps"),
+        HTML(sprintf(" Evenness <b>%s</b> — %s.",
+                     ifelse(is.na(hn$even), "—", format(hn$even, nsmall = 2)), even_word))),
+      div(class = "hill-foot",
+        sprintf("From %s individuals across %s species.",
+                format(hn$n_ind, big.mark = ","), hn$n_sp)))
+  })
+
   output$plotTrend <- renderPlotly({
     d <- rv$data; req(d)
     ds <- d %>% dplyr::filter(!is.na(.data$tagID), !is.na(.data$scientificName), !is.na(.data$ym)) %>%
@@ -1024,6 +1381,119 @@ server <- function(input, output, session) {
         x = 0.98, y = 0.05, xref = "paper", yref = "paper", xanchor = "right", showarrow = FALSE,
         font = list(color = "#6b7a85", size = 12)))) %>% ctx_anno()
   })
+
+  # ---- detection-corrected abundance (closed-capture per bout) ------------
+  # Memoize per loaded dataset so detectHead/Plot/Note share one computation.
+  detect_cc <- reactive({
+    d <- rv$data; req(d)
+    bouts <- bout_closed_capture(d)
+    closed_capture_series(d, bouts)
+  })
+
+  output$detectHead <- renderUI({
+    cc <- detect_cc()
+    if (is.null(cc) || is.null(cc$series) || nrow(cc$series) == 0) return(NULL)
+    pct <- function(x) if (is.na(x)) "—" else paste0(round(100 * x), "%")
+    chip <- function(v, lab, col) div(class = "detect-chip", style = sprintf("--dc:%s", col),
+      div(class = "detect-v", v), div(class = "detect-l", lab))
+    div(class = "detect-head",
+      chip(pct(cc$mean_p),      "per-night detection (p̂)", "#0C234B"),
+      chip(pct(cc$mean_detect), "of population caught / bout", "#2f7fb5"),
+      chip(cc$n_estimable,      sprintf("estimable bouts (of %d)", cc$n_bouts), "#1a7f37"))
+  })
+
+  output$detectPlot <- renderPlotly({
+    cc <- detect_cc()
+    if (is.null(cc) || is.null(cc$series) || nrow(cc$series) == 0)
+      return(note_plot(paste0("No multi-night recapture data to estimate detection here.<br>",
+                              "<span style='font-size:13px'>This site's grids are single-night, or had too few within-bout recaptures.<br>",
+                              "MNKA & CPUE above are the right index for these.</span>"), "\U0001F50E"))
+    s <- cc$series
+    # cap any infinite upper bound for plotting (shouldn't occur post-roll-up, but be safe)
+    s$hi[!is.finite(s$hi)] <- s$N[!is.finite(s$hi)] * 2
+    p <- plot_ly() %>%
+      add_trace(data = s, x = ~date, y = ~hi, type = "scatter", mode = "lines",
+        line = list(width = 0), showlegend = FALSE, hoverinfo = "skip") %>%
+      add_trace(data = s, x = ~date, y = ~lo, type = "scatter", mode = "lines", fill = "tonexty",
+        fillcolor = "rgba(12,35,75,0.13)", line = list(width = 0),
+        name = "95% interval", hoverinfo = "skip") %>%
+      add_trace(data = s, x = ~date, y = ~mnka, type = "scatter", mode = "lines+markers",
+        name = "MNKA (known alive)", line = list(color = "#8a97a8", width = 2),
+        marker = list(size = 5, color = "#8a97a8"),
+        hovertemplate = "%{x|%b %Y}<br>MNKA %{y}<extra></extra>") %>%
+      add_trace(data = s, x = ~date, y = ~N, type = "scatter", mode = "lines+markers",
+        name = "estimated abundance (N̂)", line = list(color = "#0C234B", width = 3),
+        marker = list(size = 7, color = "#0C234B"),
+        customdata = ~round(100 * p),
+        hovertemplate = "%{x|%b %Y}<br>N̂ %{y} · p̂ %{customdata}%<extra></extra>")
+    plotly_theme(p) %>% plotly::layout(
+      xaxis = list(title = ""), yaxis = list(title = "animals on the grid(s)", rangemode = "tozero"),
+      margin = list(t = 30)) %>% ctx_anno()
+  })
+
+  output$detectNote <- renderUI({
+    cc <- detect_cc()
+    if (is.null(cc) || is.null(cc$series) || nrow(cc$series) == 0) return(NULL)
+    s <- cc$series
+    lift <- if (any(s$mnka > 0)) round(100 * (sum(s$N) / sum(s$mnka) - 1)) else NA
+    div(class = "detect-note", bs_icon("info-circle"),
+      HTML(sprintf(" Across estimable bouts, the corrected estimate runs about <b>%s%%</b> above the raw known-alive count — the animals the traps missed. Estimates are summed across grids per month; months with too few recaptures are omitted.",
+                   ifelse(is.na(lift), "—", lift))))
+  })
+
+  # ---- printable site report card ----------------------------------------
+  # A clean one-pager summarizing the loaded site; the "Report card" button
+  # triggers the browser's print dialog (-> Save as PDF). Hidden on screen,
+  # shown only when printing (see styles.css @media print).
+  output$reportCard <- renderUI({
+    d <- rv$data; req(d)
+    cs <- community_stats(d, rv$lb)
+    hn <- hill_numbers(d)
+    cc <- tryCatch(detect_cc(), error = function(e) NULL)
+    sp <- utils::head(species_summary(d), 8)
+    even_word <- if (is.na(hn$even)) "—"
+      else if (hn$even >= 0.6) "an even community" else if (hn$even >= 0.35) "a moderately uneven community"
+      else "a community dominated by a few species"
+    stat <- function(v, lab) div(class = "rc-stat", div(class = "rc-stat-v", v), div(class = "rc-stat-l", lab))
+    p_txt <- if (!is.null(cc) && !is.null(cc$series) && nrow(cc$series) > 0 && !is.na(cc$mean_p))
+               sprintf("%.0f%% per night (≈%.0f%% of the population caught per bout, across %d estimable bouts)",
+                       100 * cc$mean_p, 100 * cc$mean_detect, cc$n_estimable)
+             else "not estimable here (single-night grids / too few recaptures)"
+    div(class = "report-card",
+      div(class = "rc-head",
+        div(class = "rc-brand", "\U0001F43E NEON Small Mammal Report Card"),
+        div(class = "rc-site", rv$label),
+        div(class = "rc-range", fmt_range(cs$date_min, cs$date_max),
+            if (isTRUE(rv$is_demo)) " · demo dataset")),
+      div(class = "rc-stats",
+        stat(format(cs$total_captures, big.mark = ","), "captures"),
+        stat(format(cs$individuals, big.mark = ","), "individuals"),
+        stat(cs$species, "species"),
+        stat(paste0(cs$recap_rate, "%"), "recapture rate"),
+        stat(format(cs$trap_nights, big.mark = ","), "trap-nights"),
+        stat(cs$legendary, "10+ caught")),
+      div(class = "rc-section",
+        tags$h4("Diversity"),
+        tags$p(sprintf("Species richness %d · effective common species (Hill q1) %.1f · effective dominant (q2) %.1f · evenness %s — %s.",
+          hn$q0, hn$q1, hn$q2, ifelse(is.na(hn$even), "—", format(hn$even, nsmall = 2)), even_word))),
+      div(class = "rc-section",
+        tags$h4("Detection-corrected abundance"),
+        tags$p(sprintf("Estimated per-night detection probability: %s.", p_txt))),
+      div(class = "rc-section",
+        tags$h4("Most-caught species"),
+        tags$table(class = "rc-table",
+          tags$thead(tags$tr(tags$th("Species"), tags$th("Individuals"), tags$th("Captures"))),
+          tags$tbody(lapply(seq_len(nrow(sp)), function(i) tags$tr(
+            tags$td(tagList(sp$emoji[i], " ", tags$em(sp$scientificName[i]),
+                            if (!is.na(sp$nickname[i])) tags$span(class = "rc-nick", paste0(" (", sp$nickname[i], ")")))),
+            tags$td(format(sp$individuals[i], big.mark = ",")),
+            tags$td(format(sp$captures[i], big.mark = ","))))))),
+      div(class = "rc-foot",
+        sprintf("Data: NEON Small Mammal Box Trapping (DP1.10072.001). Generated by the NEON Small Mammal Tracker — Desert Data Labs. An unofficial educational summary; not affiliated with NEON, Battelle, or the NSF.")))
+  })
+  # the report card lives in a display:none wrapper (shown only when printing);
+  # render it anyway so it's ready in the DOM the instant the user prints.
+  outputOptions(output, "reportCard", suspendWhenHidden = FALSE)
 
   # ---- about --------------------------------------------------------------
   output$aboutPanel <- renderUI({

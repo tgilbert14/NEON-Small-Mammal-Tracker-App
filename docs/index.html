@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NEON Small Mammal Tracker</title>
+  <meta name="description"
+    content="Explore real NEON small-mammal box-trapping data across 46 field sites — tap a site on the national map, then dive into home ranges, diversity, detection-corrected abundance, and every individual's capture history. Honest statistics, instant loads." />
+
+  <meta name="theme-color" content="#0C234B" />
+
+  <!-- Open Graph / social card. Absolute URLs = the GitHub Pages domain for this repo. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/" />
+  <meta property="og:title" content="NEON Small Mammal Tracker" />
+  <meta property="og:description"
+    content="Real NEON small-mammal captures across 46 field sites — tap a site on the national map, explore who lives where, diversity, detection-corrected abundance. Honest stats, instant loads." />
+  <meta property="og:image"
+    content="https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="NEON Small Mammal Tracker" />
+  <meta name="twitter:description"
+    content="Real NEON small-mammal data across 46 field sites. Honest stats, instant loads." />
+  <meta name="twitter:image"
+    content="https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/og-image.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <style>
+    :root {
+      --navy: #0C234B;
+      --navy2: #16386e;
+      --cardinal: #AB0520;
+      --gold: #FFD200;
+      --gold-ink: #9a7a00;
+      --sky: #2f7fb5;
+      --green: #1a7f37;
+      --ink: #1c2733;
+      --slate: #5a6675;
+      --bg: #f3f6fb;
+      --card: #ffffff;
+    }
+
+    * { box-sizing: border-box }
+
+    body {
+      margin: 0;
+      font-family: Rubik, system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.55
+    }
+
+    h1, h2, h3 { font-family: Rubik, sans-serif; line-height: 1.15; margin: 0; font-weight: 800 }
+    a { color: var(--sky) }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 0 22px }
+
+    /* Hero */
+    .hero {
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      background: radial-gradient(120% 140% at 18% 0%, var(--navy2) 0%, var(--navy) 46%, #08183a 100%)
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      opacity: .55;
+      pointer-events: none;
+      background:
+        radial-gradient(46px 46px at 12% 30%, rgba(255, 210, 0, .10), transparent 70%),
+        radial-gradient(60px 60px at 84% 22%, rgba(255, 255, 255, .07), transparent 70%),
+        radial-gradient(54px 54px at 66% 80%, rgba(255, 255, 255, .06), transparent 70%)
+    }
+
+    .hero .wrap { position: relative; padding: 70px 22px 64px }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: .76rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--gold);
+      background: rgba(255, 255, 255, .10);
+      padding: 6px 13px;
+      border-radius: 999px
+    }
+
+    .hero h1 {
+      font-size: clamp(2.1rem, 5vw, 3.3rem);
+      margin: 18px 0 10px;
+      letter-spacing: -.02em
+    }
+    .hero h1 .tag {
+      font-size: .42em; font-weight: 700; vertical-align: middle; margin-left: 12px;
+      text-transform: uppercase; letter-spacing: .12em; color: rgba(255,255,255,.62);
+      border: 1px solid rgba(255,255,255,.35); border-radius: 999px; padding: 3px 10px
+    }
+
+    .hero p.lead {
+      font-size: clamp(1.05rem, 2.2vw, 1.26rem);
+      max-width: 62ch;
+      margin: 0 0 28px;
+      color: rgba(255, 255, 255, .92)
+    }
+
+    .cta-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.04rem;
+      padding: 14px 26px;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: transform .12s ease, box-shadow .12s ease
+    }
+
+    .btn-primary { background: var(--gold); color: var(--navy); box-shadow: 0 8px 24px rgba(0, 0, 0, .22) }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0, 0, 0, .3) }
+    .btn-ghost { color: #fff; border: 1.5px solid rgba(255, 255, 255, .6) }
+    .btn-ghost:hover { background: rgba(255, 255, 255, .12) }
+
+    .warm { font-size: .82rem; color: rgba(255, 255, 255, .82); margin-top: 14px; min-height: 1.2em }
+
+    /* Stats strip */
+    .stats {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+      margin: -34px auto 0; position: relative; z-index: 2
+    }
+    .stat { background: var(--card); border-radius: 14px; padding: 18px 16px; box-shadow: 0 6px 22px rgba(12, 35, 75, .10) }
+    .stat .n { font-weight: 800; font-size: 1.7rem; color: var(--navy) }
+    .stat .l { font-size: .82rem; color: var(--slate); font-weight: 500 }
+
+    /* Features */
+    section.body { padding: 54px 0 10px }
+    .sub { color: var(--slate); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: .78rem }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 22px }
+
+    .feat {
+      background: var(--card); border: 1px solid #e7eef6; border-top: 3px solid #d3e0ee;
+      border-radius: 12px; padding: 20px
+    }
+    .feat-star { border-top: 3px solid var(--gold); background: linear-gradient(180deg, rgba(255, 210, 0, .06), #fff 42%) }
+    .feat h3 { font-size: 1.08rem; margin-bottom: 6px; color: var(--navy) }
+    .feat p { margin: 0; color: #42566e; font-size: .95rem }
+
+    .honest {
+      margin: 40px 0; background: rgba(12, 35, 75, .05); border-left: 4px solid var(--gold);
+      border-radius: 10px; padding: 20px 22px
+    }
+    .honest h2 { font-size: 1.25rem; margin-bottom: 10px; color: var(--navy) }
+    .honest ul { margin: 0; padding-left: 18px; color: #3b4f63 }
+    .honest li { margin: 6px 0 }
+
+    footer { border-top: 1px solid #e2eaf2; padding: 26px 0 50px; color: var(--slate); font-size: .9rem }
+    footer a { font-weight: 600; text-decoration: none }
+    .cta-foot { display: inline-block; margin-bottom: 10px; font-weight: 700; color: var(--cardinal) }
+
+    @media(max-width:760px) {
+      .stats { grid-template-columns: repeat(2, 1fr) }
+      .grid { grid-template-columns: 1fr }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="hero">
+    <div class="wrap">
+      <span class="badge"><span aria-hidden="true">🐾</span> NEON · Small Mammal Box Trapping · DP1.10072.001</span>
+      <h1>NEON Small Mammal Tracker <span class="tag">unofficial</span></h1>
+      <p class="lead">Meet the small mammals NEON live-traps across the country. Tap a site on the
+        national map, then explore who lives where, how the community is built, and how field crews
+        track every animal — one ear-tag at a time, on real data with statistics that show their work.</p>
+      <div class="cta-row">
+        <a id="launch" class="btn btn-primary" href="#">Launch the app&nbsp;→</a>
+        <a class="btn btn-ghost" href="https://github.com/tgilbert14/NEON-Small-Mammal-Tracker-App"
+          target="_blank" rel="noopener">View on GitHub</a>
+      </div>
+      <div class="warm" id="warm"></div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat">
+        <div class="n">46</div>
+        <div class="l">field sites</div>
+      </div>
+      <div class="stat">
+        <div class="n">~178k</div>
+        <div class="l">real captures</div>
+      </div>
+      <div class="stat">
+        <div class="n">152</div>
+        <div class="l">species</div>
+      </div>
+      <div class="stat">
+        <div class="n">instant</div>
+        <div class="l">no live API waits</div>
+      </div>
+    </div>
+  </div>
+
+  <section class="body">
+    <div class="wrap">
+      <span class="sub">What you can do</span>
+      <div class="grid">
+        <div class="feat feat-star">
+          <h3>Pick a site on the map</h3>
+          <p>The landing is a national map of every NEON site — dot size is how many animals were
+            caught, color is the dominant mammal family. Tap a dot to dive in.</p>
+        </div>
+        <div class="feat feat-star">
+          <h3>Explore by species</h3>
+          <p>Flip to “by species” and the map redraws to show where one animal turns up across the
+            country — a live range map for any of 150+ species.</p>
+        </div>
+        <div class="feat">
+          <h3>Read the community</h3>
+          <p>Sex &amp; age structure, a Hill-number diversity profile, body-size distributions, and
+            breeding phenology — the whole community for a site &amp; window.</p>
+        </div>
+        <div class="feat">
+          <h3>Detection-corrected abundance</h3>
+          <p>Closed-capture estimates (Schnabel / Chapman) that count the animals the traps missed,
+            shown alongside Minimum-Number-Known-Alive with honest caveats.</p>
+        </div>
+        <div class="feat">
+          <h3>Follow one animal</h3>
+          <p>Every ear-tag becomes a life story — a trap-grid home-range heatmap and replay, a
+            capture history, and a shareable holographic trading card.</p>
+        </div>
+        <div class="feat">
+          <h3>Compare &amp; report</h3>
+          <p>Put two sites head-to-head, take a 30-second guided tour, or print a one-page site
+            report card to PDF.</p>
+        </div>
+      </div>
+
+      <div class="honest">
+        <h2>Honest by design</h2>
+        <ul>
+          <li>Abundance leads with transparent indices — <b>MNKA</b> (minimum known alive) and
+            catch-per-effort — before any model.</li>
+          <li>The <b>detection-corrected</b> estimate is hidden when within-bout recaptures are too
+            few (&lt; 3) to be stable, and clamped to never fall below the count actually handled.</li>
+          <li>Diversity uses <b>Hill numbers</b> over distinct individuals, so a much-recaptured
+            animal isn't counted twice.</li>
+          <li>The “chonk” score is an honest <b>adult weight percentile within species</b> — not a
+            dressed-up condition index that would just rank measurement noise.</li>
+          <li>Rarity tiers track <b>trappability &amp; residency</b>, not ecological rarity — and we
+            say so.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <a class="cta-foot" href="mailto:desertdatalabs@gmail.com?subject=NEON%20Small%20Mammal%20Tracker"><span aria-hidden="true">👋</span> Want a custom data app like this for your project?</a><br>
+      Built on the NEON <a href="https://data.neonscience.org/data-products/DP1.10072.001" target="_blank"
+        rel="noopener">Small Mammal Box Trapping</a> product by <b>Desert Data Labs</b> · Tucson, AZ.
+      Data: National Ecological Observatory Network (operated by Battelle, funded by NSF). An
+      educational data-exploration tool, not affiliated with NEON, Battelle, or the NSF.
+    </div>
+  </footer>
+
+  <script>
+    // ── Set this to your deployed app URL. Today it points at the live shinyapps.io
+    //    build; after migrating to Posit Connect Cloud, paste the new share URL here
+    //    (or "app/" for a shinylive static build) and re-publish Pages. ──
+    const APP_URL = "https://t-lama.shinyapps.io/RatTrapHistory/";
+
+    (function () {
+      const placeholder = APP_URL.indexOf("REPLACE-WITH") !== -1;
+      const launch = document.getElementById("launch");
+      const warm = document.getElementById("warm");
+
+      if (placeholder) {
+        launch.addEventListener("click", function (e) {
+          e.preventDefault();
+          warm.textContent = "⚠ Set APP_URL in docs/index.html to your deployed app URL, then re-publish.";
+        });
+        return;
+      }
+      launch.href = APP_URL;
+
+      // Pre-warm the (possibly sleeping) app while the visitor reads, to soften cold start.
+      // Aborts after 8s so a hung request never leaves "Warming up…" stuck on screen.
+      try {
+        warm.textContent = "Warming up the app…";
+        var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+        var killer = ctrl ? setTimeout(function () { ctrl.abort(); }, 8000) : null;
+        fetch(APP_URL, { mode: "no-cors", cache: "no-store", signal: ctrl ? ctrl.signal : undefined })
+          .then(function () { warm.textContent = "Ready when you are."; })
+          .catch(function () { warm.textContent = ""; })
+          .finally(function () { if (killer) clearTimeout(killer); });
+      } catch (e) { /* ignore */ }
+    })();
+  </script>
+</body>
+
+</html>

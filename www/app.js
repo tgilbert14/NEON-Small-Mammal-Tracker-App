@@ -40,7 +40,8 @@ document.addEventListener("DOMContentLoaded", function () {
 // ---- confetti on legendary / epic finds ----------------------------------
 function rodentConfetti(big) {
   if (typeof confetti !== "function") return;
-  const colors = ["#2dd4bf", "#f5a524", "#ffd24a", "#c879ff", "#4ab8ff"];
+  // Desert Data Labs house palette (navy / cardinal / gold + warm accents).
+  const colors = ["#0C234B", "#AB0520", "#FFD200", "#c9a300", "#2f7fb5"];
   const burst = (opts) => confetti(Object.assign({ colors, disableForReducedMotion: true }, opts));
   burst({ particleCount: big ? 140 : 70, spread: big ? 100 : 70, origin: { y: 0.3 }, startVelocity: 42 });
   if (big) {
@@ -84,6 +85,77 @@ function smtLoadDone() {
   if (ov) ov.style.display = "none";
 }
 
+// ---- print / save the site report card (PDF via the browser) ------------
+function smtPrintReport() {
+  var wrap = document.getElementById("reportCardWrap");
+  if (!wrap || !wrap.querySelector(".report-card")) {
+    if (typeof Swal !== "undefined") Swal.fire({ icon: "info", title: "Load a site first",
+      text: "Pick a site, then generate its report card.", confirmButtonColor: "#0C234B" });
+    return;
+  }
+  document.body.classList.add("printing-report");
+  var done = function () { document.body.classList.remove("printing-report");
+    window.removeEventListener("afterprint", done); };
+  window.addEventListener("afterprint", done);
+  setTimeout(function () { window.print(); }, 60);
+}
+
+// ---- save the dossier trading card as a PNG (html-to-image) --------------
+function smtSaveCard() {
+  var node = document.getElementById("smtCardNode");
+  if (!node || typeof htmlToImage === "undefined") return;
+  var name = (node.querySelector(".tc-id") || {}).textContent || "card";
+  // skipFonts avoids html-to-image scanning cross-origin CDN stylesheets for
+  // @font-face (which throws CORS errors); Rubik is already loaded on the page,
+  // so the same-document canvas render still uses it.
+  htmlToImage.toPng(node, { pixelRatio: 2, cacheBust: true, skipFonts: true })
+    .then(function (dataUrl) {
+      var a = document.createElement("a");
+      a.download = "neon-mammal-" + name.replace(/[^A-Za-z0-9]+/g, "") + ".png";
+      a.href = dataUrl;
+      a.click();
+    })
+    .catch(function () {
+      if (typeof Swal !== "undefined") Swal.fire({ icon: "error", title: "Couldn't save the card",
+        text: "Try again, or screenshot it instead.", confirmButtonColor: "#0C234B" });
+    });
+}
+
+// ---- guided tour (driver.js) ---------------------------------------------
+function smtTour() {
+  if (!window.driver || !window.driver.js) return;
+  var D = window.driver.js.driver;
+  var steps = [
+    { element: ".picker-mode", popover: { title: "Two ways in", side: "bottom",
+        description: "Explore <b>by site</b> — tap a dot to open it — or switch to <b>by species</b> to map where one animal turns up across the country." } },
+    { element: ".picker-map-wrap", popover: { title: "The national map", side: "top",
+        description: "Every NEON site is a dot — <b>bigger</b> = more animals caught, <b>color</b> = the family of the most-common species there. Click any dot to dive in." } },
+    { element: "#compareBtn", popover: { title: "Compare two sites", side: "top",
+        description: "Put two sites head-to-head — species, diversity, and abundance, side by side." } },
+    { element: "#demoBtn2", popover: { title: "In a hurry?", side: "top",
+        description: "Jump straight into the Jornada desert demo — it opens instantly." } }
+  ].filter(function (s) { return document.querySelector(s.element); });
+  if (!steps.length) return;
+  var d = D({ showProgress: true, allowClose: true, steps: steps, popoverClass: "driverjs-theme",
+    nextBtnText: "Next", prevBtnText: "Back", doneBtnText: "Got it" });
+  d.drive();
+}
+
+// auto-run once on a visitor's first time, after the picker map exists
+function smtMaybeAutoTour() {
+  try { if (localStorage.getItem("smtToured") === "1") return; } catch (e) { return; }
+  var tries = 0;
+  var iv = setInterval(function () {
+    tries++;
+    if (document.querySelector(".picker-map-wrap") && window.driver) {
+      clearInterval(iv);
+      try { localStorage.setItem("smtToured", "1"); } catch (e) {}
+      setTimeout(smtTour, 700);
+    } else if (tries > 30) { clearInterval(iv); }
+  }, 400);
+}
+document.addEventListener("DOMContentLoaded", function () { smtMaybeAutoTour(); });
+
 // ---- dismiss any open info popover (click-outside + Esc) -----------------
 // bslib/Bootstrap popovers don't close on an outside click by default, so make
 // every "ⓘ" popover dismissible the way users expect.
@@ -117,5 +189,10 @@ document.addEventListener("DOMContentLoaded", function () {
       rodentConfetti(msg && msg.big);
     });
     Shiny.addCustomMessageHandler("loadDone", function () { smtLoadDone(); });
+    // server-triggered overlay (e.g. a click on the national picker map, which
+    // has no inline onclick to call smtLoadStart directly)
+    Shiny.addCustomMessageHandler("smtLoadStart", function (msg) {
+      smtLoadStart(msg && msg.label);
+    });
   }
 });

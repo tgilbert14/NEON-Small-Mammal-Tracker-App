@@ -4,14 +4,7 @@
 # across the National Ecological Observatory Network.
 # ===========================================================================
 
-spin <- function(x, img = "rat-72.gif")
-  shinycssloaders::withSpinner(x, image = img, image.height = "120px",
-                               proxy.height = "300px")
-
-# a small "ⓘ" that opens an explanatory popover (clarity helpers everywhere)
-info_pop <- function(title, ..., placement = "auto")
-  bslib::popover(tags$span(class = "info-dot", bsicons::bs_icon("info-circle")),
-                 ..., title = title, placement = placement)
+# `spin()` and `info_pop()` now live in global.R so server.R can use them too.
 
 # a card header with the title on the left and an info popover pushed right
 card_head <- function(icon, title, ...)
@@ -46,9 +39,12 @@ ui <- bslib::page_sidebar(
     tags$link(rel = "stylesheet", href = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.min.css"),
     tags$script(src = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js"),
     tags$script(src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"),
-    tags$link(rel = "stylesheet", href = "styles.css"),
-    tags$script(src = "app.js"),
-    tags$script(src = "confirm.js")
+    tags$link(rel = "stylesheet", href = "https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css"),
+    tags$script(src = "https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"),
+    tags$script(src = "https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"),
+    tags$link(rel = "stylesheet", href = asset_url("styles.css")),
+    tags$script(src = asset_url("app.js")),
+    tags$script(src = asset_url("confirm.js"))
   ),
   useShinyjs(),
 
@@ -141,7 +137,7 @@ ui <- bslib::page_sidebar(
         value = "overview",
         # quick-jump buttons to the best parts (Girth-style home navigation)
         div(class = "home-nav",
-          actionButton("goMap",     tagList(bs_icon("map-fill"),       div("Site map"),       tags$small("species across the site")),  class = "home-btn"),
+          actionButton("goMap",     tagList(bs_icon("map-fill"),       div("Plot map"),       tags$small("species across the site")),  class = "home-btn"),
           actionButton("goRange",   tagList(bs_icon("fire"),           div("Home range"),     tags$small("heatmap + replay of a star")), class = "home-btn"),
           actionButton("goCommunity", tagList(bs_icon("bar-chart-line-fill"), div("Community"), tags$small("who's out there & when")),   class = "home-btn"),
           actionButton("goPopulation", tagList(bs_icon("graph-up-arrow"), div("Population"),  tags$small("abundance & richness")),       class = "home-btn"),
@@ -189,7 +185,7 @@ ui <- bslib::page_sidebar(
       ),
 
       nav_panel(
-        title = tagList(bs_icon("map-fill"), " Site Map"),
+        title = tagList(bs_icon("map-fill"), " Plot map"),
         value = "map",
         div(class = "tab-head",
           div(class = "tab-head-text",
@@ -223,6 +219,19 @@ ui <- bslib::page_sidebar(
              layout_columns(col_widths = c(6, 6),
                plotlyOutput("sexDonut", height = "300px"),
                plotlyOutput("ageDonut", height = "300px"))),
+        card(full_screen = TRUE,
+          card_head("diagram-3-fill", "Diversity profile — effective number of species",
+            info_pop("Hill numbers",
+              p("Three views of diversity, all in the same intuitive unit — an ", tags$b("effective number of species"), " — indexed by ", tags$em("q"), ", how much rare species count:"),
+              tags$ul(
+                tags$li(tags$b("q = 0"), " — plain ", tags$b("species richness"), " (every species counts equally)."),
+                tags$li(tags$b("q = 1"), " — ", tags$b("exp(Shannon)"), ": the effective number of ", tags$em("common"), " species."),
+                tags$li(tags$b("q = 2"), " — ", tags$b("inverse Simpson"), ": the effective number of ", tags$em("dominant"), " species.")),
+              p("They always shrink (q0 ≥ q1 ≥ q2). When q1 sits close to q0 the community is ", tags$b("even"), "; when it drops far below, a few species ", tags$b("dominate"), "."),
+              p(tags$em("Abundance = distinct individuals per species, so a much-recaptured animal isn't counted twice. Hill 1973; Jost 2006; Chao et al. 2014.")))),
+          layout_columns(col_widths = c(7, 5),
+            spin(plotlyOutput("hillPlot", height = "260px")),
+            uiOutput("hillNote"))),
         card(full_screen = TRUE,
           card_head("activity", "Captures per plot, over time",
             info_pop("Captures per plot",
@@ -267,7 +276,21 @@ ui <- bslib::page_sidebar(
                 p("As more trapping bouts accumulate, how many ", tags$b("species"), " have been found? When the curve flattens, you've probably found them all."),
                 p("The amber line is ", tags$b("Chao1"), " — a statistical estimate of true richness, including species not yet caught (Gotelli & Colwell 2001)."))),
             spin(plotlyOutput("accumPlot", height = "440px")))
-        )
+        ),
+        card(full_screen = TRUE,
+          card_head("incognito", "Detection-corrected abundance — counting the ones we missed",
+            info_pop("Detection-corrected abundance", placement = "left",
+              p("Traps miss animals. On NEON's ", tags$b("multi-night bouts"), " (pathogen grids run ~3 nights in a row), the ", tags$b("recaptures"), " — animals caught more than once in the same bout — tell us how many we ", tags$em("didn't"), " catch, so we can estimate the true number present."),
+              p("The ", tags$span(style="color:#0C234B;font-weight:700", "navy line + band"), " is the estimated abundance N̂ with a 95% interval; the ", tags$span(style="color:#6b7a89;font-weight:700", "grey line"), " is MNKA (minimum known alive). The gap between them ", tags$em("is"), " the detection correction."),
+              tags$ul(
+                tags$li(tags$b("k ≥ 3 nights"), " → Schnabel estimator; ", tags$b("k = 2"), " → Chapman. Single-night grids can't be estimated (that's what MNKA/CPUE are for)."),
+                tags$li("p̂ is the ", tags$b("per-night detection probability"), " (Model M0): the share of present animals we'd expect to catch on any one night."),
+                tags$li("We hide the estimate when there are ", tags$b("fewer than 3 within-bout recaptures"), " — too few to be stable.")),
+              p(tags$em("The math assumes the population didn't change over the bout and every animal is equally catchable — real animals aren't, so read this as a defensible index, not a census. Schnabel 1938; Chapman 1951; Otis et al. 1978."))),
+            tags$span(class = "card-hint", style = "margin-left:auto", "navy = estimate · grey = known alive")),
+          uiOutput("detectHead"),
+          spin(plotlyOutput("detectPlot", height = "400px")),
+          uiOutput("detectNote"))
       ),
 
       nav_panel(
@@ -309,6 +332,7 @@ ui <- bslib::page_sidebar(
         title = tagList(bs_icon("person-vcard"), " Dossier"),
         value = "dossier",
         uiOutput("dossierHero"),
+        uiOutput("tradingCardWrap"),
         layout_columns(col_widths = c(7, 5),
           card(full_screen = TRUE,
             card_head("graph-up", "Measurements through time",
@@ -344,6 +368,9 @@ ui <- bslib::page_sidebar(
       )
     )
   ),
+
+  # ---- printable report card (hidden on screen; shown only when printing) -
+  div(id = "reportCardWrap", uiOutput("reportCard")),
 
   # ---- Desert Data Labs business footer ----------------------------------
   div(class = "ddl-footer",

@@ -54,7 +54,18 @@ for (s in sites) {
   }
   d <- raw$mam_pertrapnight
   d <- d[, intersect(keep, colnames(d)), drop = FALSE]
-  saveRDS(tibble::as_tibble(d), out, compress = "xz")
+  d <- tibble::as_tibble(d)
+  # Materialize any ALTREP columns (neonUtilities returns arrow-backed strings) to
+  # plain base vectors BEFORE saving — otherwise the .rds carries an arrow ALTVEC
+  # that reads back length-zero anywhere arrow can't unserialize it (older R, no
+  # arrow loaded), silently emptying every character column. See fix_bundles_altrep.R.
+  for (nm in names(d)) {
+    col <- d[[nm]]
+    d[[nm]] <- if (inherits(col, "Date")) structure(as.numeric(col[seq_along(col)]), class = "Date")
+               else if (is.factor(col)) factor(as.character(col[seq_along(col)]))
+               else col[seq_along(col)]
+  }
+  saveRDS(d, out, compress = "xz")
   caps <- sum(!is.na(d$tagID))
   cat(sprintf("    saved %s: %d rows, %d captures, %.2f MB\n", s, nrow(d), caps, file.size(out)/1e6))
   summary_rows[[s]] <- data.frame(site = s, rows = nrow(d), captures = caps,

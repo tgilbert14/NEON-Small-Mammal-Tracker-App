@@ -17,16 +17,34 @@ turning 46 field sites of capture records into maps, charts, and individual prof
 
 ## What it does
 
-Pick a state, then a NEON site (each with a one-line habitat description), choose a date window, and
-the app loads every published small-mammal capture for that window — instantly, from a per-site data
-bundle that ships with the app (a live download is the fallback). It then reconstructs each animal's
-capture history from its ear-tag ID, ranks the regulars, profiles individuals, and maps where they
-were caught.
+The app opens to a **national map of every NEON site** — tap a dot to dive in (dot size = animals
+caught there, color = the dominant mammal family), or flip to **"by species"** to map where a single
+animal turns up across the country. Each site loads instantly from a per-site data bundle that ships
+with the app (no network round-trip). From there it reconstructs each animal's capture history from
+its ear-tag ID, ranks the regulars, profiles individuals, estimates abundance, and maps where they
+were caught. A sidebar with the classic state → site → date picker is still there for power users.
 
 It is built for two audiences: anyone curious about NEON small-mammal sampling, and new field
 technicians getting to know the species at their site.
 
 ## Highlights
+
+**Select-your-site map.** A national Leaflet map of all 46 bundled sites — sized by total captures,
+colored by the most-caught mammal family — with a "by site / by species" toggle, an accessible list
+fallback, and a one-tap load. A 30-second guided tour points out the rest.
+
+**Explore by species.** Pick any of 150+ species and the map redraws to just the sites where it's
+caught, sized by local abundance — a live national range map.
+
+**Detection-corrected abundance.** Closed-capture estimates per trapping bout (Schnabel for ≥3
+nights, Chapman for 2) with a per-night detection probability, shown alongside MNKA, gated when
+recaptures are too few, and clamped to the minimum known alive — defensible, with caveats shown.
+
+**Diversity profile.** Hill numbers (q0 richness, q1 effective-common, q2 effective-dominant) plus
+an evenness read, computed over distinct individuals.
+
+**Shareable trading cards, compare, and report cards.** Export any individual's dossier as a
+holographic PNG trading card, put two sites head-to-head, or print a one-page site report card to PDF.
 
 **Overview — the story of a site.** Species ranked by abundance, an automatically written
 plain-English summary, and quick-jump navigation to every view.
@@ -85,10 +103,13 @@ ear-tag numbers can be reused across years (the obvious cases are flagged), and 
 
 All records come from NEON data product
 [DP1.10072.001 — Small Mammal Box Trapping](https://data.neonscience.org/data-products/DP1.10072.001),
-fetched with [`neonUtilities::loadByProduct()`](https://www.neonscience.org/neonUtilities).
+pre-downloaded with [`neonUtilities::loadByProduct()`](https://www.neonscience.org/neonUtilities).
 
-Each site's full record is pre-downloaded into `data/sites/<SITE>.rds` (trimmed and compressed) so
-the app loads instantly without a network round-trip; a live download is the fallback. The bundle is
+Each site's full record is pre-downloaded into `data/sites/<SITE>.rds` (trimmed and compressed), and
+two national indexes (`data/site_index.rds`, `data/species_ranges.rds`) power the picker and range
+maps — so the app runs **entirely from the bundle, instantly, with no `neonUtilities` dependency at
+runtime.** `neonUtilities` is optional: it's loaded lazily only for the live-fetch toggle, which
+appears only where the package is installed (set `SMT_LIVE=0` to force bundle-only). The bundle is
 rebuilt automatically **late on the first Saturday night of each month** (~11 pm Arizona time, an
 off-peak window so the brief redeploy doesn't interrupt active users) by a GitHub Action
 (`scripts/refresh_data.R`); the approach is documented in
@@ -99,30 +120,45 @@ off-peak window so the brief redeploy doesn't interrupt active users) by a GitHu
 ```r
 install.packages(c(
   "shiny", "bslib", "bsicons", "shinyjs", "shinycssloaders",
-  "neonUtilities", "plotly", "dplyr", "tidyr", "stringr", "tibble",
+  "plotly", "dplyr", "tidyr", "stringr", "tibble",
   "RColorBrewer", "leaflet", "DT", "htmltools"
 ))
+# neonUtilities is OPTIONAL — only needed for the live-fetch toggle:
+# install.packages("neonUtilities")
 
 shiny::runApp()
 ```
 
-The app opens to a site picker; click "explore the Jornada demo" to start immediately from the
-bundled dataset.
+The app opens to the national site-picker map; tap any site, or click "explore the Jornada demo" to
+start immediately from the bundled dataset.
 
 ## Project layout
 
 ```
-global.R                  libraries, theme, data loaders, NEON fetch
+global.R                  libraries, theme, data loaders, lazy NEON fetch
 ui.R                      bslib dashboard (sidebar + hero + tabs)
-server.R                  data flow and all outputs
-R/helpers.R               analytical engine (leaderboards, indices, home range)
+server.R                  data flow and all outputs (incl. picker/range maps)
+R/helpers.R               analytical engine (leaderboards, indices, closed-capture, Hill)
 R/site_metadata.R         site code -> name / state / domain / bio
-www/                      theme CSS and JS (counters, loader, confetti)
+www/                      theme CSS and JS (counters, loader, confetti, tour, card export)
 data/sites/               per-site .rds bundle ("the database")
-scripts/refresh_data.R    rebuild the data bundle
-scripts/deploy.R          deploy to shinyapps.io
-docs/                     design and data-bundling write-ups
+data/site_index.rds       national picker-map index (per-site stats)
+data/species_ranges.rds   per-species national ranges (the "by species" map)
+scripts/refresh_data.R    rebuild the per-site data bundle
+scripts/build_site_index.R  rebuild the picker + species-range indexes
+scripts/make_og_image.R   draw the docs/ social card
+scripts/write_manifest.R  (re)generate manifest.json for Connect Cloud (lean, bundle-only)
+scripts/deploy.R          legacy shinyapps.io push (being retired — see DEPLOY.md)
+docs/                     landing page + og card, design & data-bundling write-ups
+DEPLOY.md                 deploy & migration runbook (Connect Cloud / shinylive / Pages)
 ```
+
+## Deploy
+
+The app is live on shinyapps.io today, but that platform retires at the end of 2026. The migration
+plan — a hosted app (Posit Connect Cloud or shinylive) plus a GitHub-Pages landing page with a social
+card and cold-start pre-warm — is in **[DEPLOY.md](DEPLOY.md)**. The Connect Cloud `manifest.json` is
+generated by `scripts/write_manifest.R` and is intentionally lean (bundle-only, no `neonUtilities`).
 
 ## Built by Desert Data Labs
 
