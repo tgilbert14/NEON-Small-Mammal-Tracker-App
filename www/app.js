@@ -40,7 +40,8 @@ document.addEventListener("DOMContentLoaded", function () {
 // ---- confetti on legendary / epic finds ----------------------------------
 function rodentConfetti(big) {
   if (typeof confetti !== "function") return;
-  const colors = ["#2dd4bf", "#f5a524", "#ffd24a", "#c879ff", "#4ab8ff"];
+  // Desert Data Labs house palette (navy / cardinal / gold + warm accents).
+  const colors = ["#0C234B", "#AB0520", "#FFD200", "#c9a300", "#2f7fb5"];
   const burst = (opts) => confetti(Object.assign({ colors, disableForReducedMotion: true }, opts));
   burst({ particleCount: big ? 140 : 70, spread: big ? 100 : 70, origin: { y: 0.3 }, startVelocity: 42 });
   if (big) {
@@ -117,5 +118,10 @@ document.addEventListener("DOMContentLoaded", function () {
       rodentConfetti(msg && msg.big);
     });
     Shiny.addCustomMessageHandler("loadDone", function () { smtLoadDone(); });
+    // server-triggered overlay (e.g. a click on the national picker map, which
+    // has no inline onclick to call smtLoadStart directly)
+    Shiny.addCustomMessageHandler("smtLoadStart", function (msg) {
+      smtLoadStart(msg && msg.label);
+    });
   }
 });

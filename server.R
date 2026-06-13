@@ -54,8 +54,12 @@ server <- function(input, output, session) {
   updateSelectInput(session, "stateSel", choices = state_choices(), selected = "NM")
   observeEvent(input$stateSel, {
     sites <- sites_in_state(input$stateSel)
-    updateSelectInput(session, "site", choices = sites,
-                      selected = if (length(sites)) sites[[1]] else NULL)
+    # if a picker-map click is mid-flight, keep its site selected through the
+    # cascade instead of snapping to the first site in the state
+    sel <- if (!is.null(rv$pendingSite) && rv$pendingSite %in% sites) rv$pendingSite
+           else if (length(sites)) sites[[1]] else NULL
+    rv$pendingSite <- NULL
+    updateSelectInput(session, "site", choices = sites, selected = sel)
   }, ignoreNULL = TRUE)
 
   output$siteBio <- renderUI({
@@ -150,6 +154,34 @@ server <- function(input, output, session) {
   observeEvent(input$loadBtn,
     load_site(input$site, input$dateRange[1], input$dateRange[2], isTRUE(input$provisional)))
 
+  # ---- national site-picker map: click a site -> load its full record ------
+  # Loads the whole bundled window for the chosen site (the friendliest default
+  # from the landing map), raises the loading overlay from the server (the map
+  # has no inline onclick), and syncs the sidebar selects through the cascade.
+  load_site_full <- function(code) {
+    if (is.null(code) || code == "") return(invisible())
+    row <- if (!is.null(SITE_INDEX)) SITE_INDEX[SITE_INDEX$site == code, ] else NULL
+    nm  <- if (!is.null(row) && nrow(row)) row$name[1] else code
+    y1  <- if (!is.null(row) && nrow(row) && !is.na(row$year_min[1])) row$year_min[1] else 2013L
+    s0  <- as.Date(sprintf("%d-01-01", y1)); e0 <- Sys.Date()
+    st  <- if (!is.null(row) && nrow(row)) row$state[1] else NULL
+    if (!is.null(st) && !is.na(st)) { rv$pendingSite <- code; updateSelectInput(session, "stateSel", selected = st) }
+    updateDateRangeInput(session, "dateRange", start = s0, end = e0)
+    session$sendCustomMessage("smtLoadStart", list(label = sprintf("%s — %s", code, nm)))
+    load_site(code, s0, e0, FALSE)
+  }
+  observeEvent(input$pickerMap_marker_click, {
+    click <- input$pickerMap_marker_click
+    if (!is.null(click$id)) load_site_full(click$id)
+  })
+  observeEvent(input$pickFromList, load_site_full(input$pickFromList))
+
+  # "Change site" (in the hero band) -> back to the picker-map landing
+  observeEvent(input$changeSite, {
+    rv$data <- NULL; rv$lb <- NULL; rv$lb_view <- NULL; rv$tag <- NULL; rv$label <- NULL
+    shinyjs::hide("mainTabsWrap"); shinyjs::hide("indivPickerWrap"); shinyjs::show("splash")
+  })
+
   observeEvent(input$demoBtn, {
     d <- load_demo()
     if (is.null(d)) { showNotification("Demo data not found.", type = "error"); return() }
@@ -206,29 +238,94 @@ server <- function(input, output, session) {
     ensure_individual(); nav_select("tabs", "homerange")
   })
 
-  # ---- splash / landing (before any site is loaded) ----------------------
+  # ---- splash / landing: the national site-picker map --------------------
+  # "Select your site" — a map of all bundled NEON sites. Tap a dot to load it.
+  # Dot size = total captures (log-scaled); color = the ecological family of the
+  # site's most-caught species. Falls back to a clickable list (a11y / no-JS).
   output$splash <- renderUI({
     if (!is.null(rv$data)) return(NULL)
-    feat <- function(icon, title, text) div(class = "land-feat",
-      div(class = "land-feat-ico", bs_icon(icon)),
-      div(div(class = "land-feat-t", title), div(class = "land-feat-d", text)))
-    div(class = "splash",
+    idx <- SITE_INDEX
+
+    # graceful fallback to a simple prompt if the index wasn't precomputed
+    if (is.null(idx) || nrow(idx) == 0) {
+      return(div(class = "splash",
+        div(class = "splash-icon", "\U0001F43E"),
+        h3("Explore the small mammals of the NEON network"),
+        p("Pick a ", tags$b("state"), " then a ", tags$b("site"), " in the sidebar, or jump into the demo."),
+        actionButton("demoBtn2", tagList(bs_icon("stars"), " Explore the Jornada demo instantly"),
+                     class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')")))
+    }
+
+    # legend — only the groups actually present, in canonical family order
+    g_order <- vapply(GENUS_GROUPS, function(g) g$key, character(1))
+    grps <- unique(idx[, c("group_key", "group_label", "group_color")])
+    grps <- grps[order(match(grps$group_key, g_order)), ]
+    legend <- div(class = "picker-legend",
+      tags$span(class = "pl-label", "Most-caught family:"),
+      lapply(seq_len(nrow(grps)), function(i)
+        tags$span(class = "pl-item",
+          tags$span(class = "pl-dot", style = sprintf("background:%s", grps$group_color[i])),
+          grps$group_label[i])))
+
+    # a11y / no-JS fallback: every site as a clickable link (one shared input)
+    ord <- idx[order(idx$name), ]
+    fallback <- tags$details(class = "picker-list",
+      tags$summary(tagList(bs_icon("list-ul"), " Browse all ", nrow(ord), " sites as a list")),
+      div(class = "picker-list-grid",
+        lapply(seq_len(nrow(ord)), function(i)
+          tags$a(class = "picker-list-link", href = "#",
+            onclick = sprintf("Shiny.setInputValue('pickFromList','%s',{priority:'event'});return false;", ord$site[i]),
+            tags$b(ord$site[i]), sprintf(" — %s ", ord$name[i]),
+            tags$span(class = "pll-meta", sprintf("%s · %s caps", ord$state[i], format(ord$captures[i], big.mark = ",")))))))
+
+    div(class = "splash splash-map",
       div(class = "splash-icon", "\U0001F43E"),
-      h3("Explore the small mammals of the NEON network"),
-      p("The National Ecological Observatory Network live-traps small mammals at 47 field sites across the U.S. and Puerto Rico. This app turns those captures into maps, charts, and individual ", tags$em("life stories"), " — built for the curious and for new field techs learning their site."),
-      div(class = "splash-steps",
-        div(class = "step", span(class = "step-n", "1"), tagList("Pick a ", tags$b("state"), ", then a ", tags$b("site"), " in the sidebar \U2190")),
-        div(class = "step", span(class = "step-n", "2"), tagList("Hit ", tags$b("Load this site"), " (real NEON data downloads live)")),
-        div(class = "step", span(class = "step-n", "3"), "Explore the maps, charts & critters")
-      ),
-      actionButton("demoBtn2", tagList(bs_icon("stars"), " Explore the Jornada demo instantly"),
-                   class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')"),
-      div(class = "land-feats",
-        feat("map-fill", "Where they live", "Species mapped across each site's trapping grids."),
-        feat("fire", "Home ranges", "Heatmaps & replays of where one animal kept turning up."),
-        feat("graph-up-arrow", "Real science", "Abundance indices, body condition & breeding phenology."))
+      h3("Pick a site to explore"),
+      p("NEON live-traps small mammals at ", tags$b(nrow(idx)), " field sites across the U.S. and Puerto Rico. ",
+        tags$b("Tap any dot"), " to dive into that site — ", tags$b("bigger dots"), " caught more animals, and the ",
+        tags$b("color"), " is the family of the most-common species there."),
+      legend,
+      div(class = "picker-map-wrap",
+        spin(leafletOutput("pickerMap", height = "560px"), img = "rat1.gif"),
+        div(class = "picker-map-hint", bs_icon("hand-index-thumb"),
+            " Drag to pan · scroll to zoom · Alaska & Puerto Rico are out there too")),
+      div(class = "picker-actions",
+        actionButton("demoBtn2", tagList(bs_icon("stars"), " Or jump straight into the Jornada demo"),
+                     class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')")),
+      fallback
     )
   })
+
+  # the picker map itself — drawn once from the precomputed national index
+  output$pickerMap <- renderLeaflet({
+    idx <- SITE_INDEX
+    req(idx, nrow(idx) > 0)
+    lc  <- log1p(idx$captures)
+    rad <- 6 + 18 * (lc - min(lc)) / (max(lc) - min(lc) + 1e-9)
+    labs <- lapply(seq_len(nrow(idx)), function(i) htmltools::HTML(sprintf(
+      "<div class='pm-pop'><div class='pm-pop-t'>%s %s</div>
+       <div class='pm-pop-s'>%s, %s · NEON %s</div>
+       <div class='pm-pop-n'><b>%s</b> captures · <b>%s</b> individuals · <b>%s</b> species</div>
+       <div class='pm-pop-sp'>Most caught: <i>%s</i></div>
+       <div class='pm-pop-go'>Click to explore &rarr;</div></div>",
+      idx$emoji[i], idx$site[i], idx$name[i], idx$state[i], idx$domain[i],
+      format(idx$captures[i], big.mark = ","), format(idx$individuals[i], big.mark = ","),
+      idx$species[i], idx$top_species[i])))
+
+    leaflet(idx, options = leafletOptions(minZoom = 2, worldCopyJump = TRUE)) |>
+      addProviderTiles("CartoDB.Positron", options = providerTileOptions(noWrap = TRUE)) |>
+      addCircleMarkers(
+        lng = ~lng, lat = ~lat, layerId = ~site, radius = rad,
+        stroke = TRUE, color = "#ffffff", weight = 1.5, opacity = 1,
+        fillColor = ~group_color, fillOpacity = 0.85,
+        label = labs,
+        labelOptions = labelOptions(direction = "auto", opacity = 0.97,
+          style = list("border-color" = "rgba(12,35,75,.25)", "border-radius" = "8px",
+                       "box-shadow" = "0 6px 22px rgba(12,35,75,.18)", "padding" = "8px 10px")),
+        options = markerOptions(riseOnHover = TRUE)) |>
+      setView(lng = -96, lat = 41, zoom = 4)
+  })
+
   observeEvent(input$demoBtn2, {
     d <- load_demo(); req(!is.null(d)); ingest(d, DEMO_META$label, is_demo = TRUE)
   })
@@ -255,6 +352,8 @@ server <- function(input, output, session) {
         bs_icon("broadcast-pin"), span(class = "hero-site-label", rv$label),
         if (isTRUE(rv$is_demo)) span(class = "demo-pill", bs_icon("stars"), " DEMO"),
         span(class = "hero-site-range", fmt_range(cs$date_min, cs$date_max)),
+        actionLink("changeSite", tagList(bs_icon("arrow-left-circle"), " change site"),
+                   class = "hero-change"),
         span(class = "hero-site-hint", bs_icon("hand-index"), " tap any stat for the full ranking")),
       div(class = "stat-grid",
         vb(cs$total_captures, "Captures",      "bullseye",        "#0C234B", "captures",

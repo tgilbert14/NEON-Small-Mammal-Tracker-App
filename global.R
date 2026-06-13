@@ -46,6 +46,15 @@ SITE_DIR  <- "data/sites"
 DEMO_PATH <- "data-sample/jorn_2017_2021.rds"   # fallback if the bundle isn't built
 DEMO_META <- list(site = "JORN", label = "JORN · Jornada Experimental Range")
 
+# ---- national site index (the picker map) ---------------------------------
+# scripts/build_site_index.R precomputes one row per bundled site with the
+# headline numbers the landing map needs (captures, richness, dominant species
+# + its group color/emoji). Loaded once here so the map is instant on boot.
+SITE_INDEX <- local({
+  f <- "data/site_index.rds"
+  if (file.exists(f)) tibble::as_tibble(readRDS(f)) else NULL
+})
+
 # Read a bundled site's full record, or NULL if not bundled.
 load_site_bundle <- function(site) {
   f <- file.path(SITE_DIR, paste0(site, ".rds"))
@@ -114,7 +123,22 @@ app_theme <- bs_theme(
   "border-radius" = "10px"
 )
 
+# ---- static asset cache-busting -------------------------------------------
+# Append a version query (the file's mtime) to www/ assets so browsers always
+# fetch the current styles.css / app.js after a deploy instead of a stale cache.
+asset_url <- function(path) {
+  f <- file.path("www", path)
+  v <- if (file.exists(f)) as.integer(as.numeric(file.mtime(f))) else 0L
+  sprintf("%s?v=%s", path, v)
+}
+
 # ---- small UI utilities ---------------------------------------------------
+# Loading spinner used by BOTH ui.R and server.R (the picker map), so it lives
+# here in global scope rather than in ui.R.
+spin <- function(x, img = "rat-72.gif")
+  shinycssloaders::withSpinner(x, image = img, image.height = "120px",
+                               proxy.height = "300px")
+
 # A clean tinted pill/badge (rarity & chonk tags) for the light theme.
 glow_badge <- function(label, color = "#0C234B", glow = color) {
   span(

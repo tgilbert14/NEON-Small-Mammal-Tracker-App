@@ -73,6 +73,38 @@ species_nickname <- function(scientificName) {
   unname(lut[g]) %||% NA_character_
 }
 
+# Genus -> ecological group (label + color), used to color the national
+# site-picker map and its legend. Grouping ~30 genera into 6 families keeps the
+# map readable: each site is colored by the family of its most-caught species,
+# so the biogeography reads at a glance (desert heteromyids vs. eastern
+# deer-mice vs. prairie voles). Colors are drawn from a CVD-reasonable set.
+GENUS_GROUPS <- list(
+  list(key = "heteromyid", label = "Kangaroo & pocket mice", color = "#E1A100",
+       genera = c("Dipodomys","Chaetodipus","Perognathus","Liomys","Heteromys")),
+  list(key = "deermouse",  label = "Deer & harvest mice", color = "#2f7fb5",
+       genera = c("Peromyscus","Reithrodontomys","Onychomys","Baiomys",
+                  "Ochrotomys","Podomys")),
+  list(key = "woodrat",    label = "Woodrats & cotton rats", color = "#AB0520",
+       genera = c("Neotoma","Sigmodon","Rattus","Mus","Oryzomys","Sigmodontomys")),
+  list(key = "vole",       label = "Voles & lemmings", color = "#1a7f37",
+       genera = c("Microtus","Alexandromys","Myodes","Clethrionomys","Lemmus",
+                  "Synaptomys","Dicrostonyx","Phenacomys","Ondatra")),
+  list(key = "squirrel",   label = "Squirrels & chipmunks", color = "#6a4c93",
+       genera = c("Tamias","Neotamias","Tamiasciurus","Sciurus","Glaucomys",
+                  "Spermophilus","Ammospermophilus","Otospermophilus","Ictidomys",
+                  "Urocitellus","Callospermophilus","Marmota","Sciurotamias")),
+  list(key = "other",      label = "Shrews, jumping mice & kin", color = "#51677a",
+       genera = c("Sorex","Blarina","Cryptotis","Notiosorex","Zapus","Napaeozapus",
+                  "Sylvilagus","Lepus","Mustela","Tamiasciurus"))
+)
+
+# Resolve a scientific name to its group record (defaults to "other").
+genus_group <- function(scientificName) {
+  g <- sub(" .*$", "", scientificName %||% "")
+  for (grp in GENUS_GROUPS) if (g %in% grp$genera) return(grp)
+  GENUS_GROUPS[[length(GENUS_GROUPS)]]  # "other"
+}
+
 # Stable, app-wide species -> color map so the SAME species is the SAME color
 # on the map, the trend chart, the morphospace scatter, etc.
 make_species_pal <- function(d) {

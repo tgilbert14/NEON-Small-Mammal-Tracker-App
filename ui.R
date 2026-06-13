@@ -4,9 +4,7 @@
 # across the National Ecological Observatory Network.
 # ===========================================================================
 
-spin <- function(x, img = "rat-72.gif")
-  shinycssloaders::withSpinner(x, image = img, image.height = "120px",
-                               proxy.height = "300px")
+# `spin()` (loading spinner) now lives in global.R so server.R can use it too.
 
 # a small "ⓘ" that opens an explanatory popover (clarity helpers everywhere)
 info_pop <- function(title, ..., placement = "auto")
@@ -46,9 +44,9 @@ ui <- bslib::page_sidebar(
     tags$link(rel = "stylesheet", href = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.min.css"),
     tags$script(src = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js"),
     tags$script(src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"),
-    tags$link(rel = "stylesheet", href = "styles.css"),
-    tags$script(src = "app.js"),
-    tags$script(src = "confirm.js")
+    tags$link(rel = "stylesheet", href = asset_url("styles.css")),
+    tags$script(src = asset_url("app.js")),
+    tags$script(src = asset_url("confirm.js"))
   ),
   useShinyjs(),
 
@@ -141,7 +139,7 @@ ui <- bslib::page_sidebar(
         value = "overview",
         # quick-jump buttons to the best parts (Girth-style home navigation)
         div(class = "home-nav",
-          actionButton("goMap",     tagList(bs_icon("map-fill"),       div("Site map"),       tags$small("species across the site")),  class = "home-btn"),
+          actionButton("goMap",     tagList(bs_icon("map-fill"),       div("Plot map"),       tags$small("species across the site")),  class = "home-btn"),
           actionButton("goRange",   tagList(bs_icon("fire"),           div("Home range"),     tags$small("heatmap + replay of a star")), class = "home-btn"),
           actionButton("goCommunity", tagList(bs_icon("bar-chart-line-fill"), div("Community"), tags$small("who's out there & when")),   class = "home-btn"),
           actionButton("goPopulation", tagList(bs_icon("graph-up-arrow"), div("Population"),  tags$small("abundance & richness")),       class = "home-btn"),
@@ -189,7 +187,7 @@ ui <- bslib::page_sidebar(
       ),
 
       nav_panel(
-        title = tagList(bs_icon("map-fill"), " Site Map"),
+        title = tagList(bs_icon("map-fill"), " Plot map"),
         value = "map",
         div(class = "tab-head",
           div(class = "tab-head-text",
