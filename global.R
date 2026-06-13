@@ -163,6 +163,12 @@ spin <- function(x, img = "rat-72.gif")
   shinycssloaders::withSpinner(x, image = img, image.height = "120px",
                                proxy.height = "300px")
 
+# a small "ⓘ" that opens an explanatory popover — used in ui.R AND server.R
+# (e.g. the compare-sites modal), so it lives in global scope.
+info_pop <- function(title, ..., placement = "auto")
+  bslib::popover(tags$span(class = "info-dot", bsicons::bs_icon("info-circle")),
+                 ..., title = title, placement = placement)
+
 # A clean tinted pill/badge (rarity & chonk tags) for the light theme.
 glow_badge <- function(label, color = "#0C234B", glow = color) {
   span(

@@ -4,12 +4,7 @@
 # across the National Ecological Observatory Network.
 # ===========================================================================
 
-# `spin()` (loading spinner) now lives in global.R so server.R can use it too.
-
-# a small "ⓘ" that opens an explanatory popover (clarity helpers everywhere)
-info_pop <- function(title, ..., placement = "auto")
-  bslib::popover(tags$span(class = "info-dot", bsicons::bs_icon("info-circle")),
-                 ..., title = title, placement = placement)
+# `spin()` and `info_pop()` now live in global.R so server.R can use them too.
 
 # a card header with the title on the left and an info popover pushed right
 card_head <- function(icon, title, ...)

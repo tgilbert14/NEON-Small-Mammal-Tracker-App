@@ -290,6 +290,32 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
   border-radius: 10px; padding: 9px 12px; margin-top: 12px; }
 .detect-note .bi { color: var(--gold-ink); }
 
+/* ---- compare two sites (modal) ---------------------------------------- */
+.compare-pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 6px; }
+.compare-hint { color: var(--muted); font-size: 13px; padding: 14px 4px; text-align: center; }
+.compare-hint .bi { color: var(--gold-ink); }
+.compare-table { width: 100%; border-collapse: collapse; margin: 6px 0 4px; }
+.compare-table th, .compare-table td { padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.compare-table thead th { text-align: center; background: #f5f8fc; border-bottom: 2px solid var(--line); }
+.cmp-head { font-weight: 800; color: var(--pine); font-size: 16px; }
+.cmp-head-sub { font-size: 11px; color: var(--muted); font-weight: 400; }
+.cmp-lab { color: var(--ink); font-weight: 600; font-size: 13px; white-space: nowrap; }
+.cmp-lab .info-dot { margin-left: 4px; }
+.cmp-val { text-align: center; font-variant-numeric: tabular-nums; font-size: 15px; color: var(--ink); }
+.cmp-val.cmp-win { background: #eaf6ee; color: var(--green); font-weight: 800; border-radius: 6px; }
+.compare-species { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.cmp-col-h { font-weight: 700; color: var(--pine); font-size: 13px; margin-bottom: 6px; }
+.cmp-splist { display: flex; flex-direction: column; gap: 5px; }
+.cmp-sp { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink);
+  background: #f7fafd; border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; }
+.cmp-sp em { flex: 1; color: var(--pine); }
+.cmp-sp-n { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+.compare-foot { font-size: 11.5px; color: var(--muted); margin-top: 12px; }
+.compare-foot .bi { color: var(--gold-ink); }
+@media (max-width: 640px) {
+  .compare-pickers, .compare-species { grid-template-columns: 1fr; }
+}
+
 .empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
 .empty-icon { font-size: 46px; }
 .empty-state h4 { font-weight: 800; color: var(--pine); margin-top: 10px; }

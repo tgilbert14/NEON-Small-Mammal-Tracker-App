@@ -310,7 +310,9 @@ server <- function(input, output, session) {
             " Drag to pan · scroll to zoom · Alaska & Puerto Rico are out there too")),
       div(class = "picker-actions",
         actionButton("demoBtn2", tagList(bs_icon("stars"), " Or jump straight into the Jornada demo"),
-                     class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')")),
+                     class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')"),
+        actionButton("compareBtn", tagList(bs_icon("bar-chart-steps"), " Compare two sites"),
+                     class = "btn-outline-dark btn-lg ms-2")),
       fallback
     )
   })
@@ -404,6 +406,87 @@ server <- function(input, output, session) {
 
   observeEvent(input$demoBtn2, {
     d <- load_demo(); req(!is.null(d)); ingest(d, DEMO_META$label, is_demo = TRUE)
+  })
+
+  # ---- compare two sites (modal) -----------------------------------------
+  compare_site_choices <- function() {
+    idx <- SITE_INDEX
+    if (is.null(idx)) return(setNames(neon_sites$site, neon_sites$site))
+    o <- idx[order(idx$name), ]
+    setNames(o$site, sprintf("%s — %s, %s", o$site, o$name, o$state))
+  }
+  observeEvent(input$compareBtn, {
+    ch <- compare_site_choices()
+    showModal(modalDialog(
+      title = tagList(bs_icon("bar-chart-steps"), " Compare two sites"),
+      easyClose = TRUE, size = "l", footer = modalButton("Close"),
+      div(class = "compare-pickers",
+        selectizeInput("cmpA", "Site A", choices = ch,
+                       selected = if ("JORN" %in% ch) "JORN" else unname(ch)[1], width = "100%"),
+        selectizeInput("cmpB", "Site B", choices = ch,
+                       selected = if ("HARV" %in% ch) "HARV" else unname(ch)[2], width = "100%")),
+      uiOutput("compareOut")
+    ))
+  })
+
+  # build a one-site metric pack from its bundle (instant; bundles are tiny)
+  compare_pack <- function(site) {
+    b <- load_site_bundle(site)
+    if (is.null(b)) return(NULL)
+    d <- clean_mam(b)
+    if (is.null(d) || sum(d$is_capture) == 0) return(NULL)
+    cs <- community_stats(d)
+    hn <- hill_numbers(d)
+    sp <- utils::head(species_summary(d), 5)
+    yrs <- range(d$year[is.finite(d$year)])
+    list(site = site, label = site_label(site), cs = cs, hn = hn, sp = sp,
+         years = if (all(is.finite(yrs))) yrs else c(NA, NA))
+  }
+
+  output$compareOut <- renderUI({
+    a <- input$cmpA; b <- input$cmpB
+    req(a, b)
+    if (identical(a, b)) return(div(class = "compare-hint", bs_icon("info-circle"),
+      " Pick two different sites to compare."))
+    pa <- compare_pack(a); pb <- compare_pack(b)
+    if (is.null(pa) || is.null(pb)) return(div(class = "compare-hint", bs_icon("exclamation-triangle"),
+      " One of those sites isn't in the offline bundle."))
+
+    # winner-aware metric row: higher value gets a subtle highlight
+    row <- function(lab, va, vb, fmt = function(x) format(x, big.mark = ","), higher = TRUE, tip = NULL) {
+      hl <- if (is.na(va) || is.na(vb) || va == vb) c("", "")
+            else if ((va > vb) == higher) c("cmp-win", "") else c("", "cmp-win")
+      tags$tr(
+        tags$td(class = "cmp-lab", lab, if (!is.null(tip)) info_pop(lab, p(tip))),
+        tags$td(class = paste("cmp-val", hl[1]), fmt(va)),
+        tags$td(class = paste("cmp-val", hl[2]), fmt(vb)))
+    }
+    sp_list <- function(p) tags$div(class = "cmp-splist",
+      lapply(seq_len(nrow(p$sp)), function(i)
+        tags$div(class = "cmp-sp", span(p$sp$emoji[i]), em(p$sp$scientificName[i]),
+                 span(class = "cmp-sp-n", paste0(format(p$sp$individuals[i], big.mark = ","), " ind")))))
+
+    tagList(
+      tags$table(class = "compare-table",
+        tags$thead(tags$tr(tags$th(""),
+          tags$th(div(class = "cmp-head", pa$site), div(class = "cmp-head-sub", pa$cs$plots, " plots")),
+          tags$th(div(class = "cmp-head", pb$site), div(class = "cmp-head-sub", pb$cs$plots, " plots")))),
+        tags$tbody(
+          row("Captures", pa$cs$total_captures, pb$cs$total_captures),
+          row("Individuals", pa$cs$individuals, pb$cs$individuals),
+          row("Species (richness)", pa$cs$species, pb$cs$species),
+          row("Effective common species", pa$hn$q1, pb$hn$q1, fmt = function(x) format(x, nsmall = 1),
+              tip = "Hill q1 = exp(Shannon): the effective number of common species. Higher = more diverse."),
+          row("Evenness (0–1)", pa$hn$even, pb$hn$even, fmt = function(x) format(x, nsmall = 2),
+              tip = "How evenly captures spread across species. Near 1 = even; low = a few species dominate."),
+          row("Recapture rate", pa$cs$recap_rate, pb$cs$recap_rate, fmt = function(x) paste0(x, "%")),
+          row("Trap-nights (effort)", pa$cs$trap_nights, pb$cs$trap_nights))),
+      div(class = "compare-species",
+        div(class = "cmp-col", div(class = "cmp-col-h", "Top species — ", pa$site), sp_list(pa)),
+        div(class = "cmp-col", div(class = "cmp-col-h", "Top species — ", pb$site), sp_list(pb))),
+      div(class = "compare-foot", bs_icon("info-circle"),
+        " Higher value highlighted per row. Diversity uses Hill numbers over distinct individuals; richness is the raw species count.")
+    )
   })
 
   # ---- hero stat band -----------------------------------------------------
