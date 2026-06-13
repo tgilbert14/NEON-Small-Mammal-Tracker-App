@@ -722,6 +722,43 @@ server <- function(input, output, session) {
     )
   })
 
+  # ---- shareable trading card (html-to-image export) ---------------------
+  output$tradingCardWrap <- renderUI({
+    tag <- rv$tag
+    if (is.null(tag)) return(NULL)
+    row <- rv$lb[rv$lb$tagID == tag, ]; req(nrow(row) == 1)
+    rm <- rarity_meta(row$rarity[1])
+    nick <- if (!is.na(row$nickname[1])) row$nickname[1] else "small mammal"
+    chonk <- if (!is.na(row$chonk_pct[1])) paste0(round(row$chonk_pct[1]), "%") else "—"
+    yr <- function(x) if (is.na(x)) "" else format(x, "%Y")
+    span_yr <- paste(na.omit(unique(c(yr(row$first_seen[1]), yr(row$last_seen[1])))), collapse = "–")
+    tcstat <- function(v, l) div(class = "tc-stat", div(class = "tc-stat-v", v), div(class = "tc-stat-l", l))
+
+    div(class = "tradingcard-wrap",
+      div(class = "tc-toolbar",
+        tags$button(class = "tc-save-btn", onclick = "smtSaveCard()",
+                    bsicons::bs_icon("download"), " Save trading card"),
+        span(class = "tc-hint", "a shareable card for this individual")),
+      # the exportable node
+      div(id = "smtCardNode", class = "trade-card", style = sprintf("--rc:%s;", rm$color),
+        div(class = "tc-holo"),
+        div(class = "tc-top",
+          span(class = "tc-tier", paste(rm$icon, row$rarity[1])),
+          span(class = "tc-brand", "NEON \U0001F43E")),
+        div(class = "tc-emoji-wrap", div(class = "tc-emoji", row$emoji[1])),
+        div(class = "tc-id", row$short[1]),
+        div(class = "tc-sci", em(row$scientificName[1])),
+        div(class = "tc-nick", nick),
+        div(class = "tc-stats",
+          tcstat(row$captures[1], "captures"),
+          tcstat(if (row$career_days[1] > 0) paste0(row$career_days[1], "d") else "—", "career"),
+          tcstat(chonk, "chonk %ile"),
+          tcstat(if (is.na(row$max_weight[1])) "—" else paste0(round(row$max_weight[1]), "g"), "heaviest")),
+        div(class = "tc-foot",
+          span(mode_chr(rv$data$siteID), if (nzchar(span_yr)) paste0(" · ", span_yr)),
+          span(class = "tc-foot-app", "Small Mammal Tracker"))))
+  })
+
   # ---- measurements through time -----------------------------------------
   output$measPlot <- renderPlotly({
     tag <- rv$tag; if (is.null(tag)) return(note_plot(PICK_MSG, "\U0001F50D"))

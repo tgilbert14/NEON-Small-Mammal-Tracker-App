@@ -41,6 +41,7 @@ ui <- bslib::page_sidebar(
     tags$script(src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"),
     tags$link(rel = "stylesheet", href = "https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css"),
     tags$script(src = "https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"),
+    tags$script(src = "https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"),
     tags$link(rel = "stylesheet", href = asset_url("styles.css")),
     tags$script(src = asset_url("app.js")),
     tags$script(src = asset_url("confirm.js"))
@@ -331,6 +332,7 @@ ui <- bslib::page_sidebar(
         title = tagList(bs_icon("person-vcard"), " Dossier"),
         value = "dossier",
         uiOutput("dossierHero"),
+        uiOutput("tradingCardWrap"),
         layout_columns(col_widths = c(7, 5),
           card(full_screen = TRUE,
             card_head("graph-up", "Measurements through time",

@@ -100,6 +100,27 @@ function smtPrintReport() {
   setTimeout(function () { window.print(); }, 60);
 }
 
+// ---- save the dossier trading card as a PNG (html-to-image) --------------
+function smtSaveCard() {
+  var node = document.getElementById("smtCardNode");
+  if (!node || typeof htmlToImage === "undefined") return;
+  var name = (node.querySelector(".tc-id") || {}).textContent || "card";
+  // skipFonts avoids html-to-image scanning cross-origin CDN stylesheets for
+  // @font-face (which throws CORS errors); Rubik is already loaded on the page,
+  // so the same-document canvas render still uses it.
+  htmlToImage.toPng(node, { pixelRatio: 2, cacheBust: true, skipFonts: true })
+    .then(function (dataUrl) {
+      var a = document.createElement("a");
+      a.download = "neon-mammal-" + name.replace(/[^A-Za-z0-9]+/g, "") + ".png";
+      a.href = dataUrl;
+      a.click();
+    })
+    .catch(function () {
+      if (typeof Swal !== "undefined") Swal.fire({ icon: "error", title: "Couldn't save the card",
+        text: "Try again, or screenshot it instead.", confirmButtonColor: "#0C234B" });
+    });
+}
+
 // ---- guided tour (driver.js) ---------------------------------------------
 function smtTour() {
   if (!window.driver || !window.driver.js) return;
