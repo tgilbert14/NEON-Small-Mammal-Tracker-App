@@ -508,6 +508,168 @@ species_accum <- function(d, perms = 40) {
        sobs = sobs, chao1 = round(chao1, 1))
 }
 
+# ---------------------------------------------------------------------------
+# Hill numbers — the "effective number of species" diversity profile.
+# (Hill 1973; Jost 2006; Chao et al. 2014, Annu. Rev. Ecol. Evol. Syst.)
+# A unified family indexed by q, all in the same intuitive unit (species):
+#   q0 = species richness            (counts every species equally)
+#   q1 = exp(Shannon entropy)        = effective # of "common" species
+#   q2 = inverse Simpson 1/Σpᵢ²      = effective # of "dominant" species
+# Higher q downweights rare species, so q0 ≥ q1 ≥ q2 always. When q1/q0 is near
+# 1 the community is even; when it's small a few species dominate.
+# Abundance = distinct INDIVIDUALS per species (not captures), so a heavily
+# re-trapped animal isn't double-counted.
+# ---------------------------------------------------------------------------
+hill_numbers <- function(d) {
+  h <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$scientificName))
+  ab <- h %>% dplyr::distinct(.data$tagID, .data$scientificName) %>%
+    dplyr::count(.data$scientificName, name = "n")
+  n <- ab$n
+  N <- sum(n)
+  if (N == 0 || length(n) == 0)
+    return(list(q0 = 0, q1 = 0, q2 = 0, even = NA_real_, n_ind = 0, n_sp = 0))
+  p  <- n / N
+  q0 <- length(n)
+  q1 <- exp(-sum(p * log(p)))           # exp Shannon
+  q2 <- 1 / sum(p^2)                    # inverse Simpson
+  list(q0 = q0, q1 = round(q1, 1), q2 = round(q2, 1),
+       even = round(q1 / q0, 2),        # Shannon evenness ratio (Pielou-like, 0–1)
+       n_ind = N, n_sp = q0)
+}
+
+# ---------------------------------------------------------------------------
+# Detection-corrected abundance — closed-capture estimation per trapping bout.
+#
+# NEON traps each grid in multi-night "bouts" (pathogen grids ~3 consecutive
+# nights; diversity grids 1 night). On a closed multi-night bout we can correct
+# the raw count for animals we never caught, using recaptures WITHIN the bout.
+#
+# Tier-1, dependency-free (base R + dplyr). Estimators:
+#   k >= 3 nights : Schnabel (1938)   N = Σ(Cₜ·Mₜ) / Σ Rₜ
+#   k == 2 nights : Chapman (1951)    N = (M+1)(C+1)/(R+1) − 1
+#   k == 1 night  : no estimate (index only — that's what MNKA/CPUE are for)
+# Detection p̂ under Otis et al. (1978) Model M0: p̂ = ΣCₜ / (k·N).
+# Guard (critical): Schnabel → ∞ as ΣR → 0, so require ΣR ≥ 3 to report; clamp
+# N ≥ MNKA (minimum known alive is a hard floor); CI computed in the 1/N domain
+# (the estimate is skewed) then inverted, never ±SE on N directly.
+# Spec: Fauna review (Schnabel 1938; Chapman 1951; Otis et al. 1978; Krebs 2017).
+#
+# Bout grouping: distinct (plotID, collectDate, tagID); within a plot a new bout
+# starts when the gap to the previous trapping night is > 2 days (NEON allows a
+# 1-night slip), keyed off consecutive collectDates (NOT a hardcoded "3 nights",
+# since NEON reduced sampling at some sites). Recapture status is recomputed
+# WITHIN bout (the raw `recapture` column carries cross-bout history).
+# ---------------------------------------------------------------------------
+RECAP_GATE <- 3L   # minimum ΣRₜ to report a point estimate
+RECAP_GOOD <- 7L   # ΣRₜ at/above which precision is "good" (else low-precision)
+
+bout_closed_capture <- function(d) {
+  cap <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$plotID), !is.na(.data$date)) %>%
+    dplyr::distinct(.data$plotID, .data$date, .data$tagID, .data$ym)
+  if (nrow(cap) == 0) return(NULL)
+
+  # assign bouts: consecutive nights within a plot (gap > 2 days -> new bout)
+  cap <- cap %>% dplyr::arrange(.data$plotID, .data$date)
+  cap <- cap %>% dplyr::group_by(.data$plotID) %>%
+    dplyr::mutate(gap = as.integer(.data$date - dplyr::lag(.data$date)),
+                  new_bout = is.na(.data$gap) | .data$gap > 2,
+                  bout = cumsum(.data$new_bout)) %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(boutID = paste0(.data$plotID, "#", .data$bout))
+
+  est_one <- function(g) {
+    nights <- sort(unique(g$date))
+    k <- length(nights)
+    mnka <- dplyr::n_distinct(g$tagID)
+    ym0  <- g$ym[1]; plot0 <- g$plotID[1]
+    base <- tibble::tibble(boutID = g$boutID[1], plotID = plot0, ym = ym0,
+                           start = nights[1], k = k, mnka = mnka,
+                           N = NA_real_, lo = NA_real_, hi = NA_real_,
+                           p = NA_real_, sumR = NA_integer_, varN = NA_real_,
+                           status = NA_character_)
+    if (k < 2) { base$status <- "single-night"; return(base) }
+
+    # first night each individual appeared in this bout
+    first_night <- g %>% dplyr::group_by(.data$tagID) %>%
+      dplyr::summarise(fn = min(.data$date), .groups = "drop")
+    tn <- match(first_night$fn, nights)            # 1..k index of first capture
+    # caught per night (distinct individuals)
+    n_t <- vapply(nights, function(dt) sum(g$date == dt), integer(1))
+    U_t <- vapply(seq_len(k), function(t) sum(tn == t), integer(1))   # new at t
+    R_t <- n_t - U_t                                                  # recaps at t
+    M_t <- c(0, cumsum(U_t)[-k])                                      # marked before t
+    C_t <- n_t
+    sumR <- sum(R_t)
+    base$sumR <- as.integer(sumR)
+
+    if (sumR < RECAP_GATE) { base$status <- "insufficient recaptures"; return(base) }
+
+    if (k >= 3) {                                  # Schnabel
+      num <- sum(C_t * M_t)
+      N   <- num / sumR
+      var_invN <- sumR / (num^2)                   # variance of 1/N
+      invN <- 1 / N
+      ci_inv <- invN + c(1, -1) * 1.96 * sqrt(var_invN)   # lo 1/N -> hi N
+      lo <- if (ci_inv[1] > 0) 1 / ci_inv[1] else NA_real_
+      hi <- if (ci_inv[2] > 0) 1 / ci_inv[2] else Inf
+      varN <- var_invN * N^4                       # delta-method var(N) for roll-up
+    } else {                                       # k == 2: Chapman
+      M <- U_t[1]; C <- n_t[2]; R <- R_t[2]
+      N <- ((M + 1) * (C + 1) / (R + 1)) - 1
+      varN <- ((M + 1) * (C + 1) * (M - R) * (C - R)) / ((R + 1)^2 * (R + 2))
+      se <- sqrt(max(varN, 0))
+      lo <- N - 1.96 * se; hi <- N + 1.96 * se
+    }
+
+    # MNKA is a hard floor on N
+    clamped <- FALSE
+    if (is.finite(N) && N < mnka) { N <- mnka; clamped <- TRUE }
+    lo <- max(lo, mnka, na.rm = TRUE)
+    p  <- sum(C_t) / (k * N)
+    base$N <- round(N, 1); base$lo <- round(lo, 1)
+    base$hi <- if (is.finite(hi)) round(hi, 1) else Inf
+    base$p <- round(min(max(p, 0), 1), 3); base$varN <- varN
+    base$status <- if (clamped) "detection near-complete"
+                   else if (sumR < RECAP_GOOD) "low-precision" else "ok"
+    base
+  }
+
+  splits <- split(cap, cap$boutID)
+  out <- dplyr::bind_rows(lapply(splits, est_one))
+  out[order(out$start), ]
+}
+
+# Roll per-bout estimates up to a per-month site series: SUM N̂ across grids
+# (abundance adds), pool p̂ as ΣC/Σ(k·N̂), MNKA floor per month. Only months with
+# at least one estimable bout get an abundance; others stay index-only.
+closed_capture_series <- function(d, bouts = NULL) {
+  if (is.null(bouts)) bouts <- bout_closed_capture(d)
+  if (is.null(bouts) || nrow(bouts) == 0) return(NULL)
+  est <- dplyr::filter(bouts, .data$status %in% c("ok", "low-precision", "detection near-complete"),
+                       is.finite(.data$N))
+  if (nrow(est) == 0)
+    return(list(series = NULL, n_bouts = nrow(bouts),
+                n_estimable = 0, mean_p = NA_real_, mean_detect = NA_real_))
+  series <- est %>% dplyr::group_by(.data$ym) %>%
+    dplyr::summarise(
+      N = sum(.data$N),
+      mnka = sum(.data$mnka),
+      varN = sum(.data$varN, na.rm = TRUE),
+      ckN = sum(.data$k * .data$N),
+      capt = sum(.data$p * .data$k * .data$N),   # = ΣCₜ recovered from p̂=ΣC/(kN)
+      n_grids = dplyr::n(), .groups = "drop") %>%
+    dplyr::mutate(
+      se = sqrt(pmax(.data$varN, 0)),
+      lo = pmax(.data$mnka, .data$N - 1.96 * .data$se),
+      hi = .data$N + 1.96 * .data$se,
+      p  = round(.data$capt / .data$ckN, 3),
+      date = as.Date(paste0(.data$ym, "-01"))) %>%
+    dplyr::arrange(.data$date)
+  list(series = series, n_bouts = nrow(bouts), n_estimable = nrow(est),
+       mean_p = round(stats::weighted.mean(est$p, est$k * est$N), 3),
+       mean_detect = round(stats::weighted.mean(pmin(est$mnka / est$N, 1), est$N), 3))
+}
+
 # Reproductive activity per row (adults): scrotal males / pregnant-or-lactating
 # females. Returns the input rows with a `repro` factor added.
 flag_repro <- function(d) {

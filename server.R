@@ -950,6 +950,53 @@ server <- function(input, output, session) {
       plotly::config(displayModeBar = FALSE)
   })
 
+  # ---- Hill numbers: the diversity profile -------------------------------
+  output$hillPlot <- renderPlotly({
+    d <- rv$data; req(d)
+    hn <- hill_numbers(d)
+    if (hn$n_sp == 0) return(note_plot("No identified species to profile", "\U0001F9EE"))
+    df <- data.frame(
+      lab = factor(c("q=2 · dominant", "q=1 · common", "q=0 · richness"),
+                   levels = c("q=2 · dominant", "q=1 · common", "q=0 · richness")),
+      val = c(hn$q2, hn$q1, hn$q0),
+      col = c("#1a7f37", "#2f7fb5", "#0C234B"))
+    plot_ly(df, x = ~val, y = ~lab, type = "bar", orientation = "h",
+      marker = list(color = ~col, line = list(color = "#ffffff", width = 1)),
+      text = ~sprintf("%.1f", val), textposition = "outside",
+      textfont = list(color = "#1f2a30", size = 13),
+      hovertemplate = "%{y}: <b>%{x:.1f}</b> effective species<extra></extra>") %>%
+      plotly::layout(
+        xaxis = list(title = "effective number of species", rangemode = "tozero"),
+        yaxis = list(title = ""), showlegend = FALSE,
+        margin = list(l = 110, r = 40, t = 20, b = 40)) %>%
+      plotly_theme(legend = FALSE) %>% ctx_anno()
+  })
+
+  output$hillNote <- renderUI({
+    d <- rv$data; req(d)
+    hn <- hill_numbers(d)
+    if (hn$n_sp == 0) return(NULL)
+    even_word <- if (is.na(hn$even)) "—"
+      else if (hn$even >= 0.75) "very even — captures are spread across many species"
+      else if (hn$even >= 0.5)  "moderately even"
+      else if (hn$even >= 0.3)  "uneven — a few species dominate the catch"
+      else "highly skewed — one or two species dominate"
+    tile <- function(v, lab, sub, col) div(class = "hill-tile", style = sprintf("--hc:%s", col),
+      div(class = "hill-v", v), div(class = "hill-l", lab), div(class = "hill-s", sub))
+    div(class = "hill-note",
+      div(class = "hill-tiles",
+        tile(hn$q0, "richness", "all species", "#0C234B"),
+        tile(hn$q1, "common", "exp(Shannon)", "#2f7fb5"),
+        tile(hn$q2, "dominant", "inv. Simpson", "#1a7f37")),
+      div(class = "hill-even",
+        bs_icon("bar-chart-steps"),
+        HTML(sprintf(" Evenness <b>%s</b> — %s.",
+                     ifelse(is.na(hn$even), "—", format(hn$even, nsmall = 2)), even_word))),
+      div(class = "hill-foot",
+        sprintf("From %s individuals across %s species.",
+                format(hn$n_ind, big.mark = ","), hn$n_sp)))
+  })
+
   output$plotTrend <- renderPlotly({
     d <- rv$data; req(d)
     ds <- d %>% dplyr::filter(!is.na(.data$tagID), !is.na(.data$scientificName), !is.na(.data$ym)) %>%
@@ -1132,6 +1179,65 @@ server <- function(input, output, session) {
       annotations = list(list(text = sprintf("observed %d · estimated ≈ %s species", sa$sobs, sa$chao1),
         x = 0.98, y = 0.05, xref = "paper", yref = "paper", xanchor = "right", showarrow = FALSE,
         font = list(color = "#6b7a85", size = 12)))) %>% ctx_anno()
+  })
+
+  # ---- detection-corrected abundance (closed-capture per bout) ------------
+  # Memoize per loaded dataset so detectHead/Plot/Note share one computation.
+  detect_cc <- reactive({
+    d <- rv$data; req(d)
+    bouts <- bout_closed_capture(d)
+    closed_capture_series(d, bouts)
+  })
+
+  output$detectHead <- renderUI({
+    cc <- detect_cc()
+    if (is.null(cc) || is.null(cc$series) || nrow(cc$series) == 0) return(NULL)
+    pct <- function(x) if (is.na(x)) "—" else paste0(round(100 * x), "%")
+    chip <- function(v, lab, col) div(class = "detect-chip", style = sprintf("--dc:%s", col),
+      div(class = "detect-v", v), div(class = "detect-l", lab))
+    div(class = "detect-head",
+      chip(pct(cc$mean_p),      "per-night detection (p̂)", "#0C234B"),
+      chip(pct(cc$mean_detect), "of population caught / bout", "#2f7fb5"),
+      chip(cc$n_estimable,      sprintf("estimable bouts (of %d)", cc$n_bouts), "#1a7f37"))
+  })
+
+  output$detectPlot <- renderPlotly({
+    cc <- detect_cc()
+    if (is.null(cc) || is.null(cc$series) || nrow(cc$series) == 0)
+      return(note_plot(paste0("No multi-night recapture data to estimate detection here.<br>",
+                              "<span style='font-size:13px'>This site's grids are single-night, or had too few within-bout recaptures.<br>",
+                              "MNKA & CPUE above are the right index for these.</span>"), "\U0001F50E"))
+    s <- cc$series
+    # cap any infinite upper bound for plotting (shouldn't occur post-roll-up, but be safe)
+    s$hi[!is.finite(s$hi)] <- s$N[!is.finite(s$hi)] * 2
+    p <- plot_ly() %>%
+      add_trace(data = s, x = ~date, y = ~hi, type = "scatter", mode = "lines",
+        line = list(width = 0), showlegend = FALSE, hoverinfo = "skip") %>%
+      add_trace(data = s, x = ~date, y = ~lo, type = "scatter", mode = "lines", fill = "tonexty",
+        fillcolor = "rgba(12,35,75,0.13)", line = list(width = 0),
+        name = "95% interval", hoverinfo = "skip") %>%
+      add_trace(data = s, x = ~date, y = ~mnka, type = "scatter", mode = "lines+markers",
+        name = "MNKA (known alive)", line = list(color = "#8a97a8", width = 2),
+        marker = list(size = 5, color = "#8a97a8"),
+        hovertemplate = "%{x|%b %Y}<br>MNKA %{y}<extra></extra>") %>%
+      add_trace(data = s, x = ~date, y = ~N, type = "scatter", mode = "lines+markers",
+        name = "estimated abundance (N̂)", line = list(color = "#0C234B", width = 3),
+        marker = list(size = 7, color = "#0C234B"),
+        customdata = ~round(100 * p),
+        hovertemplate = "%{x|%b %Y}<br>N̂ %{y} · p̂ %{customdata}%<extra></extra>")
+    plotly_theme(p) %>% plotly::layout(
+      xaxis = list(title = ""), yaxis = list(title = "animals on the grid(s)", rangemode = "tozero"),
+      margin = list(t = 30)) %>% ctx_anno()
+  })
+
+  output$detectNote <- renderUI({
+    cc <- detect_cc()
+    if (is.null(cc) || is.null(cc$series) || nrow(cc$series) == 0) return(NULL)
+    s <- cc$series
+    lift <- if (any(s$mnka > 0)) round(100 * (sum(s$N) / sum(s$mnka) - 1)) else NA
+    div(class = "detect-note", bs_icon("info-circle"),
+      HTML(sprintf(" Across estimable bouts, the corrected estimate runs about <b>%s%%</b> above the raw known-alive count — the animals the traps missed. Estimates are summed across grids per month; months with too few recaptures are omitted.",
+                   ifelse(is.na(lift), "—", lift))))
   })
 
   # ---- about --------------------------------------------------------------
