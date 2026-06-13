@@ -313,6 +313,9 @@ server <- function(input, output, session) {
                      class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')"),
         actionButton("compareBtn", tagList(bs_icon("bar-chart-steps"), " Compare two sites"),
                      class = "btn-outline-dark btn-lg ms-2")),
+      div(class = "picker-tour",
+        tags$a(href = "#", onclick = "smtTour();return false;",
+               bs_icon("signpost-2"), " Take a 30-second tour")),
       fallback
     )
   })

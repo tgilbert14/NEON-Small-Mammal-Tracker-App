@@ -100,6 +100,41 @@ function smtPrintReport() {
   setTimeout(function () { window.print(); }, 60);
 }
 
+// ---- guided tour (driver.js) ---------------------------------------------
+function smtTour() {
+  if (!window.driver || !window.driver.js) return;
+  var D = window.driver.js.driver;
+  var steps = [
+    { element: ".picker-mode", popover: { title: "Two ways in", side: "bottom",
+        description: "Explore <b>by site</b> — tap a dot to open it — or switch to <b>by species</b> to map where one animal turns up across the country." } },
+    { element: ".picker-map-wrap", popover: { title: "The national map", side: "top",
+        description: "Every NEON site is a dot — <b>bigger</b> = more animals caught, <b>color</b> = the family of the most-common species there. Click any dot to dive in." } },
+    { element: "#compareBtn", popover: { title: "Compare two sites", side: "top",
+        description: "Put two sites head-to-head — species, diversity, and abundance, side by side." } },
+    { element: "#demoBtn2", popover: { title: "In a hurry?", side: "top",
+        description: "Jump straight into the Jornada desert demo — it opens instantly." } }
+  ].filter(function (s) { return document.querySelector(s.element); });
+  if (!steps.length) return;
+  var d = D({ showProgress: true, allowClose: true, steps: steps, popoverClass: "driverjs-theme",
+    nextBtnText: "Next", prevBtnText: "Back", doneBtnText: "Got it" });
+  d.drive();
+}
+
+// auto-run once on a visitor's first time, after the picker map exists
+function smtMaybeAutoTour() {
+  try { if (localStorage.getItem("smtToured") === "1") return; } catch (e) { return; }
+  var tries = 0;
+  var iv = setInterval(function () {
+    tries++;
+    if (document.querySelector(".picker-map-wrap") && window.driver) {
+      clearInterval(iv);
+      try { localStorage.setItem("smtToured", "1"); } catch (e) {}
+      setTimeout(smtTour, 700);
+    } else if (tries > 30) { clearInterval(iv); }
+  }, 400);
+}
+document.addEventListener("DOMContentLoaded", function () { smtMaybeAutoTour(); });
+
 // ---- dismiss any open info popover (click-outside + Esc) -----------------
 // bslib/Bootstrap popovers don't close on an outside click by default, so make
 // every "ⓘ" popover dismissible the way users expect.
