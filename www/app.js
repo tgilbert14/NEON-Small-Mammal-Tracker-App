@@ -85,6 +85,21 @@ function smtLoadDone() {
   if (ov) ov.style.display = "none";
 }
 
+// ---- print / save the site report card (PDF via the browser) ------------
+function smtPrintReport() {
+  var wrap = document.getElementById("reportCardWrap");
+  if (!wrap || !wrap.querySelector(".report-card")) {
+    if (typeof Swal !== "undefined") Swal.fire({ icon: "info", title: "Load a site first",
+      text: "Pick a site, then generate its report card.", confirmButtonColor: "#0C234B" });
+    return;
+  }
+  document.body.classList.add("printing-report");
+  var done = function () { document.body.classList.remove("printing-report");
+    window.removeEventListener("afterprint", done); };
+  window.addEventListener("afterprint", done);
+  setTimeout(function () { window.print(); }, 60);
+}
+
 // ---- dismiss any open info popover (click-outside + Esc) -----------------
 // bslib/Bootstrap popovers don't close on an outside click by default, so make
 // every "ⓘ" popover dismissible the way users expect.

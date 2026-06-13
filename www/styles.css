@@ -316,6 +316,40 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
   .compare-pickers, .compare-species { grid-template-columns: 1fr; }
 }
 
+/* "report card" link in the hero band */
+.hero-report { font-size: 12.5px; font-weight: 700; color: var(--sky); text-decoration: none;
+  border-left: 1px solid var(--line); padding-left: 10px; cursor: pointer; }
+.hero-report:hover { color: var(--pine); text-decoration: underline; }
+
+/* ---- printable report card -------------------------------------------- */
+#reportCardWrap { display: none; }            /* hidden on screen */
+.report-card { max-width: 760px; margin: 0 auto; color: #111; font-size: 12px; }
+.rc-head { border-bottom: 3px solid var(--pine); padding-bottom: 8px; margin-bottom: 12px; }
+.rc-brand { font-weight: 800; color: var(--pine); font-size: 18px; }
+.rc-site { font-weight: 700; font-size: 14px; margin-top: 2px; }
+.rc-range { color: #555; font-size: 12px; }
+.rc-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 12px; }
+.rc-stat { text-align: center; border: 1px solid #ccc; border-radius: 8px; padding: 8px 4px; }
+.rc-stat-v { font-size: 18px; font-weight: 800; color: var(--pine); }
+.rc-stat-l { font-size: 10px; color: #555; }
+.rc-section { margin: 10px 0; }
+.rc-section h4 { font-size: 13px; color: var(--pine); margin: 0 0 4px; border-bottom: 1px solid #ddd; padding-bottom: 2px; }
+.rc-section p { margin: 0; line-height: 1.5; }
+.rc-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.rc-table th { text-align: left; border-bottom: 1.5px solid #999; padding: 3px 6px; color: #333; }
+.rc-table td { border-bottom: 1px solid #e2e2e2; padding: 3px 6px; }
+.rc-table th:nth-child(n+2), .rc-table td:nth-child(n+2) { text-align: right; width: 90px; }
+.rc-nick { color: #777; font-style: normal; }
+.rc-foot { margin-top: 14px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 9.5px; color: #777; }
+
+@media print {
+  body * { visibility: hidden !important; }
+  #reportCardWrap, #reportCardWrap * { visibility: visible !important; }
+  #reportCardWrap { display: block !important; position: absolute; inset: 0 0 auto 0; margin: 0; padding: 18px; }
+  .report-card { box-shadow: none; }
+  @page { margin: 12mm; }
+}
+
 .empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
 .empty-icon { font-size: 46px; }
 .empty-state h4 { font-weight: 800; color: var(--pine); margin-top: 10px; }

@@ -365,6 +365,9 @@ ui <- bslib::page_sidebar(
     )
   ),
 
+  # ---- printable report card (hidden on screen; shown only when printing) -
+  div(id = "reportCardWrap", uiOutput("reportCard")),
+
   # ---- Desert Data Labs business footer ----------------------------------
   div(class = "ddl-footer",
     div(tags$a(class = "custom-cta",

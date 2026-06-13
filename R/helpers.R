@@ -577,66 +577,81 @@ bout_closed_capture <- function(d) {
     dplyr::ungroup() %>%
     dplyr::mutate(boutID = paste0(.data$plotID, "#", .data$bout))
 
-  est_one <- function(g) {
-    nights <- sort(unique(g$date))
-    k <- length(nights)
-    mnka <- dplyr::n_distinct(g$tagID)
-    ym0  <- g$ym[1]; plot0 <- g$plotID[1]
-    base <- tibble::tibble(boutID = g$boutID[1], plotID = plot0, ym = ym0,
-                           start = nights[1], k = k, mnka = mnka,
-                           N = NA_real_, lo = NA_real_, hi = NA_real_,
-                           p = NA_real_, sumR = NA_integer_, varN = NA_real_,
-                           status = NA_character_)
-    if (k < 2) { base$status <- "single-night"; return(base) }
+  # --- per-bout sufficient statistics, computed with a handful of grouped
+  #     ops over the WHOLE table (not one dplyr call per bout — that was ~100x
+  #     slower). Per night t within a bout: C = caught, U = newly marked,
+  #     R = C-U recaps, M = marked-before-t = cumsum(U)-U.
+  nights <- cap %>% dplyr::distinct(.data$boutID, .data$date) %>%
+    dplyr::arrange(.data$boutID, .data$date) %>%
+    dplyr::group_by(.data$boutID) %>% dplyr::mutate(t = dplyr::row_number()) %>%
+    dplyr::ungroup()
+  Cn <- cap %>% dplyr::count(.data$boutID, .data$date, name = "C")     # caught/night
+  Un <- cap %>% dplyr::group_by(.data$boutID, .data$tagID) %>%
+    dplyr::summarise(first = min(.data$date), .groups = "drop") %>%
+    dplyr::count(.data$boutID, date = .data$first, name = "U")         # new/night
+  per <- nights %>%
+    dplyr::left_join(Cn, by = c("boutID", "date")) %>%
+    dplyr::left_join(Un, by = c("boutID", "date"))
+  per$C[is.na(per$C)] <- 0L; per$U[is.na(per$U)] <- 0L
+  per <- per %>% dplyr::arrange(.data$boutID, .data$t) %>%
+    dplyr::group_by(.data$boutID) %>%
+    dplyr::mutate(M = cumsum(.data$U) - .data$U, R = .data$C - .data$U) %>%
+    dplyr::ungroup()
+  agg <- per %>% dplyr::group_by(.data$boutID) %>%
+    dplyr::summarise(k = max(.data$t), sumC = sum(.data$C), sumR = sum(.data$R),
+                     num = sum(.data$C * .data$M),
+                     U1 = .data$U[.data$t == 1][1],
+                     C2 = .data$C[.data$t == 2][1],
+                     R2 = .data$R[.data$t == 2][1], .groups = "drop")
+  bmeta <- cap %>% dplyr::group_by(.data$boutID) %>%
+    dplyr::summarise(plotID = dplyr::first(.data$plotID), ym = dplyr::first(.data$ym),
+                     start = min(.data$date), mnka = dplyr::n_distinct(.data$tagID),
+                     .groups = "drop")
+  est <- dplyr::left_join(bmeta, agg, by = "boutID")
 
-    # first night each individual appeared in this bout
-    first_night <- g %>% dplyr::group_by(.data$tagID) %>%
-      dplyr::summarise(fn = min(.data$date), .groups = "drop")
-    tn <- match(first_night$fn, nights)            # 1..k index of first capture
-    # caught per night (distinct individuals)
-    n_t <- vapply(nights, function(dt) sum(g$date == dt), integer(1))
-    U_t <- vapply(seq_len(k), function(t) sum(tn == t), integer(1))   # new at t
-    R_t <- n_t - U_t                                                  # recaps at t
-    M_t <- c(0, cumsum(U_t)[-k])                                      # marked before t
-    C_t <- n_t
-    sumR <- sum(R_t)
-    base$sumR <- as.integer(sumR)
-
-    if (sumR < RECAP_GATE) { base$status <- "insufficient recaptures"; return(base) }
-
+  # --- estimator: pure arithmetic per bout (scalars; the loop is microseconds) -
+  estimate_row <- function(k, sumC, sumR, num, U1, C2, R2, mnka) {
+    out <- list(N = NA_real_, lo = NA_real_, hi = NA_real_, p = NA_real_,
+                sumR = as.integer(if (is.na(sumR)) 0L else sumR), varN = NA_real_,
+                status = "single-night")
+    if (is.na(k) || k < 2) return(out)
+    if (is.na(sumR) || sumR < RECAP_GATE) { out$status <- "insufficient recaptures"; return(out) }
     if (k >= 3) {                                  # Schnabel
-      num <- sum(C_t * M_t)
-      N   <- num / sumR
-      var_invN <- sumR / (num^2)                   # variance of 1/N
+      N <- num / sumR
+      var_invN <- sumR / (num^2)
       invN <- 1 / N
       ci_inv <- invN + c(1, -1) * 1.96 * sqrt(var_invN)   # lo 1/N -> hi N
       lo <- if (ci_inv[1] > 0) 1 / ci_inv[1] else NA_real_
       hi <- if (ci_inv[2] > 0) 1 / ci_inv[2] else Inf
       varN <- var_invN * N^4                       # delta-method var(N) for roll-up
-    } else {                                       # k == 2: Chapman
-      M <- U_t[1]; C <- n_t[2]; R <- R_t[2]
+    } else {                                        # k == 2: Chapman
+      M <- U1; C <- C2; R <- R2
       N <- ((M + 1) * (C + 1) / (R + 1)) - 1
       varN <- ((M + 1) * (C + 1) * (M - R) * (C - R)) / ((R + 1)^2 * (R + 2))
-      se <- sqrt(max(varN, 0))
-      lo <- N - 1.96 * se; hi <- N + 1.96 * se
+      se <- sqrt(max(varN, 0)); lo <- N - 1.96 * se; hi <- N + 1.96 * se
     }
-
-    # MNKA is a hard floor on N
     clamped <- FALSE
-    if (is.finite(N) && N < mnka) { N <- mnka; clamped <- TRUE }
+    if (is.finite(N) && N < mnka) { N <- mnka; clamped <- TRUE }   # MNKA is a hard floor
     lo <- max(lo, mnka, na.rm = TRUE)
-    p  <- sum(C_t) / (k * N)
-    base$N <- round(N, 1); base$lo <- round(lo, 1)
-    base$hi <- if (is.finite(hi)) round(hi, 1) else Inf
-    base$p <- round(min(max(p, 0), 1), 3); base$varN <- varN
-    base$status <- if (clamped) "detection near-complete"
-                   else if (sumR < RECAP_GOOD) "low-precision" else "ok"
-    base
+    p  <- sumC / (k * N)
+    out$N <- round(N, 1); out$lo <- round(lo, 1)
+    out$hi <- if (is.finite(hi)) round(hi, 1) else Inf
+    out$p <- round(min(max(p, 0), 1), 3); out$varN <- varN
+    out$status <- if (clamped) "detection near-complete"
+                  else if (sumR < RECAP_GOOD) "low-precision" else "ok"
+    out
   }
-
-  splits <- split(cap, cap$boutID)
-  out <- dplyr::bind_rows(lapply(splits, est_one))
-  out[order(out$start), ]
+  res <- lapply(seq_len(nrow(est)), function(i)
+    estimate_row(est$k[i], est$sumC[i], est$sumR[i], est$num[i],
+                 est$U1[i], est$C2[i], est$R2[i], est$mnka[i]))
+  est$N      <- vapply(res, function(z) z$N, numeric(1))
+  est$lo     <- vapply(res, function(z) z$lo, numeric(1))
+  est$hi     <- vapply(res, function(z) z$hi, numeric(1))
+  est$p      <- vapply(res, function(z) z$p, numeric(1))
+  est$sumR   <- vapply(res, function(z) z$sumR, integer(1))
+  est$varN   <- vapply(res, function(z) z$varN, numeric(1))
+  est$status <- vapply(res, function(z) z$status, character(1))
+  est[order(est$start), ]
 }
 
 # Roll per-bout estimates up to a per-month site series: SUM N̂ across grids
