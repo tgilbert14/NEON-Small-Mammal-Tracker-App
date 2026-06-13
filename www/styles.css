@@ -197,6 +197,36 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .pl-dot { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid #fff;
   box-shadow: 0 0 0 1px var(--line); flex: none; }
 
+/* mode toggle: by site / by species — segmented control from radio buttons.
+   Handles Bootstrap 5 (.form-check, input+label siblings) and older
+   (.radio-inline, label-wraps-input) markup. */
+.picker-mode { display: flex; justify-content: center; margin: 14px 0 6px; }
+.picker-mode .shiny-options-group { display: inline-flex; gap: 4px; background: #eef3f9;
+  border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.picker-mode label.radio-inline, .picker-mode .form-check {
+  margin: 0; padding: 0; min-height: 0; display: inline-flex; }
+.picker-mode input[type=radio], .picker-mode .form-check-input {
+  position: absolute; opacity: 0; pointer-events: none; }
+/* the visible pill is the <span> (classic shiny markup) or the label (BS5) */
+.picker-mode .radio-inline > span, .picker-mode .form-check-label {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 18px; border-radius: 999px;
+  font-weight: 700; font-size: 13px; color: var(--muted); cursor: pointer; transition: .15s; }
+.picker-mode .radio-inline:hover > span, .picker-mode .form-check-label:hover { color: var(--pine); }
+.picker-mode input:checked + span,
+.picker-mode .form-check-input:checked + .form-check-label {
+  background: var(--pine); color: #fff; box-shadow: 0 4px 12px -4px var(--pine); }
+
+/* by-species controls */
+.range-controls { max-width: 640px; margin: 6px auto 10px; }
+.range-summary { display: flex; gap: 12px; align-items: center; text-align: left;
+  background: #f5f8fc; border: 1px solid var(--line); border-left: 4px solid var(--rc);
+  border-radius: 12px; padding: 10px 14px; margin-top: 8px; }
+.rs-emoji { font-size: 30px; flex: none; }
+.rs-name { font-weight: 700; color: var(--ink); font-size: 15px; }
+.rs-nick { color: var(--muted); font-weight: 400; font-size: 13px; }
+.rs-stats { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.rs-stats b { color: var(--pine); }
+
 .picker-map-wrap { position: relative; margin: 4px auto 6px; }
 .picker-map-wrap .leaflet-container {
   border-radius: 16px; border: 1px solid var(--line);

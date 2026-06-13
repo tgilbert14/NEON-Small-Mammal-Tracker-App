@@ -72,3 +72,50 @@ cat(sprintf("Wrote data/site_index.rds: %d sites, %s captures total, %d species 
             nrow(idx), format(sum(idx$captures), big.mark = ","),
             length(unique(idx$group_key))))
 print(idx[, c("site","captures","species","top_species","group_label")], n = nrow(idx))
+
+# ---------------------------------------------------------------------------
+# species_ranges.rds — the national "where does each species live?" map data.
+# One row per (scientificName × site) with captures > 0: site coords + per-site
+# abundance + the species' family group. Tiny (~1k rows); the range explorer on
+# the landing reads it directly.
+# ---------------------------------------------------------------------------
+cat("\nBuilding species ranges...\n")
+rng_rows <- lapply(files, function(f) {
+  code <- sub("\\.rds$", "", basename(f))
+  d <- tryCatch(tibble::as_tibble(readRDS(f)), error = function(e) NULL)
+  if (is.null(d) || !"tagID" %in% names(d)) return(NULL)
+  caps <- d[!is.na(d$tagID) & !is.na(d$scientificName), , drop = FALSE]
+  if (nrow(caps) == 0) return(NULL)
+  meta <- neon_sites[neon_sites$site == code, ]
+  caps %>%
+    dplyr::group_by(scientificName) %>%
+    dplyr::summarise(individuals = dplyr::n_distinct(tagID),
+                     captures = dplyr::n(), .groups = "drop") %>%
+    dplyr::mutate(site = code,
+                  name  = if (nrow(meta)) meta$name[1]  else code,
+                  state = if (nrow(meta)) meta$state[1] else NA_character_,
+                  lat   = if (nrow(meta)) meta$lat[1]   else NA_real_,
+                  lng   = if (nrow(meta)) meta$lng[1]   else NA_real_)
+})
+rng <- dplyr::bind_rows(rng_rows)
+# drop blank/genus-only "sp." rows that aren't a real species pick
+rng <- rng[!is.na(rng$scientificName) & nzchar(rng$scientificName) &
+           !grepl("\\bsp\\.?$", rng$scientificName), , drop = FALSE]
+# attach family group + flair per species
+grp <- lapply(rng$scientificName, genus_group)
+rng$group_key   <- vapply(grp, function(g) g$key,   character(1))
+rng$group_label <- vapply(grp, function(g) g$label, character(1))
+rng$group_color <- vapply(grp, function(g) g$color, character(1))
+rng$emoji       <- genus_emoji(rng$scientificName)
+rng$nickname    <- vapply(rng$scientificName, function(s) species_nickname(s) %||% NA_character_, character(1))
+rng <- rng[order(rng$scientificName, -rng$individuals), ]
+saveRDS(tibble::as_tibble(rng), "data/species_ranges.rds", compress = "xz")
+
+n_sp <- length(unique(rng$scientificName))
+cat(sprintf("Wrote data/species_ranges.rds: %d species × site rows, %d distinct species.\n",
+            nrow(rng), n_sp))
+# show the 10 most widespread species
+top <- rng %>% dplyr::group_by(scientificName) %>%
+  dplyr::summarise(sites = dplyr::n(), inds = sum(individuals), .groups = "drop") %>%
+  dplyr::arrange(-sites, -inds) %>% utils::head(10)
+print(as.data.frame(top))

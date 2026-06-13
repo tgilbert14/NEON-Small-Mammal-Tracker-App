@@ -55,6 +55,30 @@ SITE_INDEX <- local({
   if (file.exists(f)) tibble::as_tibble(readRDS(f)) else NULL
 })
 
+# Per-species national ranges (where each species is caught + per-site abundance)
+# powering the "explore by species" range map on the landing.
+SPECIES_RANGES <- local({
+  f <- "data/species_ranges.rds"
+  if (file.exists(f)) tibble::as_tibble(readRDS(f)) else NULL
+})
+
+# Species choices for the range picker: grouped by family, labeled with emoji +
+# how widespread, sorted by total individuals (most abundant first).
+species_choices <- function() {
+  r <- SPECIES_RANGES
+  if (is.null(r) || nrow(r) == 0) return(NULL)
+  s <- r %>% dplyr::group_by(.data$scientificName, .data$group_label, .data$emoji) %>%
+    dplyr::summarise(sites = dplyr::n(), inds = sum(.data$individuals), .groups = "drop") %>%
+    dplyr::arrange(dplyr::desc(.data$inds))
+  # restrict to species at >= 2 sites so the "range" map is meaningful
+  s <- s[s$sites >= 2, , drop = FALSE]
+  split_lab <- split(
+    stats::setNames(s$scientificName,
+      sprintf("%s %s — %d sites", s$emoji, s$scientificName, s$sites)),
+    s$group_label)
+  lapply(split_lab, as.list)
+}
+
 # Read a bundled site's full record, or NULL if not bundled.
 load_site_bundle <- function(site) {
   f <- file.path(SITE_DIR, paste0(site, ".rds"))

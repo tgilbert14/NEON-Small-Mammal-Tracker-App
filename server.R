@@ -278,13 +278,32 @@ server <- function(input, output, session) {
             tags$b(ord$site[i]), sprintf(" — %s ", ord$name[i]),
             tags$span(class = "pll-meta", sprintf("%s · %s caps", ord$state[i], format(ord$captures[i], big.mark = ",")))))))
 
+    has_species <- !is.null(SPECIES_RANGES) && nrow(SPECIES_RANGES) > 0
     div(class = "splash splash-map",
       div(class = "splash-icon", "\U0001F43E"),
-      h3("Pick a site to explore"),
+      h3("Explore the NEON small-mammal network"),
       p("NEON live-traps small mammals at ", tags$b(nrow(idx)), " field sites across the U.S. and Puerto Rico. ",
-        tags$b("Tap any dot"), " to dive into that site — ", tags$b("bigger dots"), " caught more animals, and the ",
-        tags$b("color"), " is the family of the most-common species there."),
-      legend,
+        "Explore ", tags$b("by site"), " — tap a dot to dive in — or ", tags$b("by species"),
+        ", to see where one animal turns up across the country."),
+
+      # mode toggle: by-site picker  vs  by-species range map
+      if (has_species) div(class = "picker-mode",
+        radioButtons("pickMode", NULL, inline = TRUE,
+          choiceNames = list(tagList(bs_icon("geo-alt-fill"), " By site"),
+                             tagList(bs_icon("bezier2"), " By species")),
+          choiceValues = c("site", "species"), selected = "site")),
+
+      # by-site: the family-color legend
+      conditionalPanel("input.pickMode != 'species'", legend),
+
+      # by-species: a species picker + a live range summary
+      if (has_species) conditionalPanel("input.pickMode == 'species'",
+        div(class = "range-controls",
+          selectizeInput("rangeSpecies", label = NULL, width = "100%",
+            choices = species_choices(),
+            options = list(placeholder = "Pick a species to map its range…")),
+          uiOutput("rangeSummary"))),
+
       div(class = "picker-map-wrap",
         spin(leafletOutput("pickerMap", height = "560px"), img = "rat1.gif"),
         div(class = "picker-map-hint", bs_icon("hand-index-thumb"),
@@ -296,12 +315,18 @@ server <- function(input, output, session) {
     )
   })
 
-  # the picker map itself — drawn once from the precomputed national index
-  output$pickerMap <- renderLeaflet({
+  # radius helper: 6–24 px on a log scale, self-consistent within whichever set
+  picker_radius <- function(v) {
+    lc <- log1p(pmax(v, 0))
+    6 + 18 * (lc - min(lc)) / (max(lc) - min(lc) + 1e-9)
+  }
+  picker_label_opts <- leaflet::labelOptions(direction = "auto", opacity = 0.97,
+    style = list("border-color" = "rgba(12,35,75,.25)", "border-radius" = "8px",
+                 "box-shadow" = "0 6px 22px rgba(12,35,75,.18)", "padding" = "8px 10px"))
+
+  # add the all-sites markers (by-site mode): size = captures, color = family
+  add_site_markers <- function(map) {
     idx <- SITE_INDEX
-    req(idx, nrow(idx) > 0)
-    lc  <- log1p(idx$captures)
-    rad <- 6 + 18 * (lc - min(lc)) / (max(lc) - min(lc) + 1e-9)
     labs <- lapply(seq_len(nrow(idx)), function(i) htmltools::HTML(sprintf(
       "<div class='pm-pop'><div class='pm-pop-t'>%s %s</div>
        <div class='pm-pop-s'>%s, %s · NEON %s</div>
@@ -311,19 +336,70 @@ server <- function(input, output, session) {
       idx$emoji[i], idx$site[i], idx$name[i], idx$state[i], idx$domain[i],
       format(idx$captures[i], big.mark = ","), format(idx$individuals[i], big.mark = ","),
       idx$species[i], idx$top_species[i])))
+    leaflet::addCircleMarkers(map, data = idx, lng = ~lng, lat = ~lat, layerId = ~site,
+      radius = picker_radius(idx$captures), stroke = TRUE, color = "#ffffff", weight = 1.5,
+      opacity = 1, fillColor = ~group_color, fillOpacity = 0.85, label = labs,
+      labelOptions = picker_label_opts, options = leaflet::markerOptions(riseOnHover = TRUE))
+  }
 
-    leaflet(idx, options = leafletOptions(minZoom = 2, worldCopyJump = TRUE)) |>
-      addProviderTiles("CartoDB.Positron", options = providerTileOptions(noWrap = TRUE)) |>
-      addCircleMarkers(
-        lng = ~lng, lat = ~lat, layerId = ~site, radius = rad,
-        stroke = TRUE, color = "#ffffff", weight = 1.5, opacity = 1,
-        fillColor = ~group_color, fillOpacity = 0.85,
-        label = labs,
-        labelOptions = labelOptions(direction = "auto", opacity = 0.97,
-          style = list("border-color" = "rgba(12,35,75,.25)", "border-radius" = "8px",
-                       "box-shadow" = "0 6px 22px rgba(12,35,75,.18)", "padding" = "8px 10px")),
-        options = markerOptions(riseOnHover = TRUE)) |>
-      setView(lng = -96, lat = 41, zoom = 4)
+  # add one species' range markers (by-species mode): size = that species' local
+  # abundance, all one family color; clicking a site still loads it
+  add_species_markers <- function(map, species) {
+    r <- SPECIES_RANGES[SPECIES_RANGES$scientificName == species, , drop = FALSE]
+    if (nrow(r) == 0) return(map)
+    col <- r$group_color[1]
+    labs <- lapply(seq_len(nrow(r)), function(i) htmltools::HTML(sprintf(
+      "<div class='pm-pop'><div class='pm-pop-t'>%s %s</div>
+       <div class='pm-pop-s'>%s, %s</div>
+       <div class='pm-pop-n'><b>%s</b> individuals · <b>%s</b> captures here</div>
+       <div class='pm-pop-go'>Click to open this site &rarr;</div></div>",
+      r$emoji[i], r$site[i], r$name[i], r$state[i],
+      format(r$individuals[i], big.mark = ","), format(r$captures[i], big.mark = ","))))
+    leaflet::addCircleMarkers(map, data = r, lng = ~lng, lat = ~lat, layerId = ~site,
+      radius = picker_radius(r$individuals), stroke = TRUE, color = "#ffffff", weight = 1.5,
+      opacity = 1, fillColor = col, fillOpacity = 0.85, label = labs,
+      labelOptions = picker_label_opts, options = leaflet::markerOptions(riseOnHover = TRUE))
+  }
+
+  # base map drawn once (tiles + view + initial by-site markers)
+  output$pickerMap <- renderLeaflet({
+    req(SITE_INDEX, nrow(SITE_INDEX) > 0)
+    leaflet(options = leafletOptions(minZoom = 2, worldCopyJump = TRUE)) %>%
+      addProviderTiles("CartoDB.Positron", options = providerTileOptions(noWrap = TRUE)) %>%
+      setView(lng = -96, lat = 41, zoom = 4) %>%
+      add_site_markers()
+  })
+
+  # swap markers when the user toggles mode or picks a species (proxy = no reflow)
+  observeEvent(list(input$pickMode, input$rangeSpecies), {
+    req(SITE_INDEX)
+    map <- leaflet::leafletProxy("pickerMap") %>% leaflet::clearMarkers()
+    if (identical(input$pickMode, "species") && !is.null(input$rangeSpecies) &&
+        nzchar(input$rangeSpecies)) {
+      add_species_markers(map, input$rangeSpecies)
+    } else {
+      add_site_markers(map)
+    }
+  }, ignoreInit = TRUE)
+
+  # live range summary under the species picker
+  output$rangeSummary <- renderUI({
+    sp <- input$rangeSpecies
+    if (is.null(sp) || !nzchar(sp) || is.null(SPECIES_RANGES)) return(NULL)
+    r <- SPECIES_RANGES[SPECIES_RANGES$scientificName == sp, , drop = FALSE]
+    if (nrow(r) == 0) return(NULL)
+    r <- r[order(-r$individuals), ]
+    n_sites_total <- if (!is.null(SITE_INDEX)) nrow(SITE_INDEX) else nrow(r)
+    nick <- r$nickname[1]
+    div(class = "range-summary", style = sprintf("--rc:%s", r$group_color[1]),
+      span(class = "rs-emoji", r$emoji[1]),
+      div(class = "rs-body",
+        div(class = "rs-name", em(sp),
+            if (!is.na(nick)) span(class = "rs-nick", paste0(" · ", nick))),
+        div(class = "rs-stats",
+          HTML(sprintf("found at <b>%d</b> of %d sites · <b>%s</b> individuals · most abundant at <b>%s</b> (%s, %s)",
+            nrow(r), n_sites_total, format(sum(r$individuals), big.mark = ","),
+            r$site[1], r$name[1], r$state[1])))))
   })
 
   observeEvent(input$demoBtn2, {
