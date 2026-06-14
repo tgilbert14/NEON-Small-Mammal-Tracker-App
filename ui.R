@@ -323,7 +323,16 @@ ui <- bslib::page_sidebar(
             tags$span(class = "card-hint", style = "margin-left:auto", "navy = estimate · grey = known alive")),
           uiOutput("detectHead"),
           spin(plotlyOutput("detectPlot", height = "400px")),
-          uiOutput("detectNote"))
+          uiOutput("detectNote")),
+        conditionalPanel("input.envLayer && input.envLayer != 'none'",
+          card(full_screen = TRUE,
+            card_head("bullseye", "Environmental response — catch-per-effort vs the driver",
+              info_pop("Response scatter",
+                p("Each point is one month: its ", tags$b("catch per 100 trap-nights"),
+                  " against the value of the selected environmental driver (with your ",
+                  tags$b("lag"), " applied)."),
+                p("A rising cloud means more animals when the driver is high; the dashed line is an OLS fit. This is the same signal as the correlation banner above, shown as a shape so you can spot thresholds or saturation."))),
+            spin(plotlyOutput("envScatter", height = "420px"))))
       ),
 
       nav_panel(

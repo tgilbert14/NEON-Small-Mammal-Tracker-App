@@ -1009,6 +1009,30 @@ env_corr_scan <- function(d, env, layer, max_lag = 12) {
   best
 }
 
+# Month-matched pairs of (catch-per-effort, lagged driver value) for the
+# environmental RESPONSE scatter — the same data the correlation note summarises,
+# but as points so the shape of the relationship (linear? saturating?) is visible.
+env_response_points <- function(d, env, layer, lag = 0) {
+  meta <- ENV_LAYERS[[layer]]
+  if (is.null(meta) || is.null(env) || !(meta$col %in% names(env))) return(NULL)
+  m <- d %>% dplyr::filter(!is.na(.data$ym)) %>%
+    dplyr::group_by(.data$ym) %>%
+    dplyr::summarise(cap = sum(!is.na(.data$tagID)),
+                     tn  = sum(.data$trap_effort, na.rm = TRUE), .groups = "drop")
+  m <- m[m$tn > 0, , drop = FALSE]
+  if (!nrow(m)) return(NULL)
+  m$cpue <- 100 * m$cap / m$tn
+  m$date <- as.Date(paste0(m$ym, "-01"))
+  e <- shift_env(env, lag)
+  e$.v <- suppressWarnings(as.numeric(e[[meta$col]]))
+  e <- e[!is.na(e$.v), c("date", ".v"), drop = FALSE]
+  j <- merge(m[, c("date", "cpue")], e, by = "date")
+  if (nrow(j) < 3) return(NULL)
+  j$year <- as.integer(format(j$date, "%Y"))
+  names(j)[names(j) == ".v"] <- "value"
+  tibble::as_tibble(j[order(j$date), c("date", "year", "value", "cpue")])
+}
+
 # Long trap-grid table (one row per A-J x 1-10 cell) for an individual's heatmap.
 trap_grid_long <- function(d, tag) {
   sub <- dplyr::filter(d, .data$tagID == tag, !is.na(.data$tx), !is.na(.data$ty))

@@ -99,6 +99,35 @@ server <- function(input, output, session) {
         if (es$demo) " <i>(demo overlay — illustrative)</i>" else "")))
   })
 
+  # Response scatter: monthly catch-per-effort vs the (lagged) driver, with fit.
+  output$envScatter <- renderPlotly({
+    es <- env_sel(); d <- rv$data
+    if (is.null(es) || is.null(d)) return(note_plot("Pick an environmental overlay to compare", "\U0001F3AF"))
+    meta <- ENV_LAYERS[[es$layer]]
+    pts <- env_response_points(d, es$env, es$layer, es$lag)
+    if (is.null(pts) || nrow(pts) < 3)
+      return(note_plot("Not enough month-matched data for this overlay", "\U0001F3AF"))
+    p <- plot_ly(data = pts, x = ~value, y = ~cpue, type = "scatter", mode = "markers",
+      color = ~year, colors = "YlGnBu",
+      marker = list(size = 10, line = list(color = "#fff", width = 1)),
+      text = ~format(date, "%b %Y"),
+      hovertemplate = paste0("%{text}<br>", meta$label, ": %{x} ", meta$unit,
+                             "<br>CPUE: %{y:.1f}/100TN<extra></extra>")) %>%
+      plotly::colorbar(title = "year")
+    if (nrow(pts) >= 3 && stats::sd(pts$value) > 0) {
+      fit <- stats::lm(cpue ~ value, data = pts)
+      xs <- range(pts$value, na.rm = TRUE)
+      yh <- stats::predict(fit, newdata = data.frame(value = xs))
+      p <- p %>% plotly::add_trace(x = xs, y = yh, type = "scatter", mode = "lines",
+        inherit = FALSE, showlegend = FALSE, hoverinfo = "skip",
+        line = list(color = meta$color, width = 2, dash = "dash"))
+    }
+    p %>% plotly_theme(legend = FALSE) %>% plotly::layout(
+      xaxis = list(title = sprintf("%s (%s)%s", meta$label, meta$unit,
+                   if (es$lag) sprintf(" · lag %d mo", as.integer(es$lag)) else "")),
+      yaxis = list(title = "catch per 100 trap-nights", rangemode = "tozero"))
+  })
+
   # state -> site cascading picker (Arizona default so the demo lines up)
   updateSelectInput(session, "stateSel", choices = state_choices(), selected = "NM")
   observeEvent(input$stateSel, {
