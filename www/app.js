@@ -136,9 +136,9 @@ function smtTour() {
   var D = window.driver.js.driver;
   var steps = [
     { element: ".picker-mode", popover: { title: "Two ways in", side: "bottom",
-        description: "Explore <b>by site</b> — tap a dot to open it — or switch to <b>by species</b> to map where one animal turns up across the country." } },
+        description: "Explore <b>by site</b> — tap a dot for its card — or switch to <b>by species</b> to map where one animal turns up across the country." } },
     { element: ".picker-map-wrap", popover: { title: "The national map", side: "top",
-        description: "Every NEON site is a dot — <b>bigger</b> = more animals caught, <b>color</b> = the family of the most-common species there. Click any dot to dive in." } },
+        description: "Every NEON site is a dot — <b>bigger</b> = more animals caught, <b>color</b> = the family of the most-common species there. Tap any dot to see its card, then choose <b>Explore</b> or <b>About</b>." } },
     { element: "#compareBtn", popover: { title: "Compare two sites", side: "top",
         description: "Put two sites head-to-head — species, diversity, and abundance, side by side." } },
     { element: "#demoBtn2", popover: { title: "In a hurry?", side: "top",

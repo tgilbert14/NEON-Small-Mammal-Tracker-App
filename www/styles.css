@@ -246,7 +246,43 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .pm-pop-s { color: var(--muted); font-size: 11.5px; margin-top: 1px; }
 .pm-pop-n { font-size: 12px; color: var(--ink); margin-top: 5px; }
 .pm-pop-sp { font-size: 12px; color: var(--pine); margin-top: 2px; }
-.pm-pop-go { font-size: 11.5px; font-weight: 700; color: var(--terra); margin-top: 6px; }
+.pm-pop-hint { font-size: 11px; font-weight: 700; color: var(--sky); margin-top: 6px;
+  text-transform: uppercase; letter-spacing: .4px; }
+
+/* ---- site-choice popup (tap a dot -> Explore | About) ----------------- */
+.pm-pop-card .leaflet-popup-content-wrapper { border-radius: 14px; box-shadow: 0 12px 36px rgba(12,35,75,.24); }
+.pm-pop-card .leaflet-popup-content { margin: 12px 14px; }
+.site-pop { min-width: 210px; }
+.site-pop .sp-code { color: var(--muted); font-weight: 700; }
+.site-pop .sp-years { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+.sp-actions { display: flex; flex-direction: column; gap: 7px; margin-top: 11px; }
+.sp-btn { display: block; width: 100%; min-height: 42px; border-radius: 10px; font-weight: 700;
+  font-size: 13.5px; cursor: pointer; border: 1.5px solid transparent; padding: 8px 12px;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease; }
+.sp-btn:hover { transform: translateY(-1px); }
+.sp-go { background: var(--pine); color: #fff; box-shadow: 0 6px 16px -8px var(--pine); }
+.sp-go:hover { background: var(--pine2); color: #fff; }
+.sp-info { background: #fff; color: var(--pine); border-color: var(--line); }
+.sp-info:hover { background: #f0f5fb; border-color: var(--pine); }
+
+/* ---- "About this site" modal (instant, from SITE_INDEX) --------------- */
+.site-info .si-sec { padding: 10px 0; border-top: 1px solid var(--line); }
+.site-info .si-sec:first-child { border-top: 0; padding-top: 2px; }
+.si-h { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .8px;
+  color: var(--muted); margin-bottom: 5px; }
+.si-row { font-size: 14px; color: var(--ink); }
+.si-bio { color: var(--green); font-weight: 600; margin-top: 2px; }
+.si-coords { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.si-coords .bi { color: var(--terra); }
+.si-code { color: var(--muted); font-weight: 700; }
+.si-stats { display: flex; gap: 10px; margin: 4px 0 8px; }
+.si-stat { flex: 1; background: var(--bg); border-radius: 10px; padding: 9px 8px; text-align: center; }
+.si-stat-n { font-weight: 800; font-size: 18px; color: var(--pine); }
+.si-stat-l { font-size: 11px; color: var(--muted); }
+.si-star i { color: var(--pine); }
+.si-fam { display: flex; align-items: center; gap: 8px; }
+.si-dot { width: 13px; height: 13px; border-radius: 50%; display: inline-block;
+  border: 1.5px solid #fff; box-shadow: 0 0 0 1px var(--line); }
 
 .picker-actions { text-align: center; margin: 14px 0 6px; }
 .picker-tour { text-align: center; margin: 2px 0 4px; }
