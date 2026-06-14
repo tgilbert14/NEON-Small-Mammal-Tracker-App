@@ -152,6 +152,42 @@ seasonality <- function(d, by_species = FALSE, top_n = 6) {
   tibble::as_tibble(m[order(m$scientificName, m$mon), c("mon", "scientificName", "cpn")])
 }
 
+# ---- inter-annual trend ---------------------------------------------------
+# Catch-per-100-trap-nights by year, with a fitted linear trend. This is the
+# "are the beetles disappearing?" view — NEON's standardized long records are
+# exactly the kind of series the global insect-decline literature is built on.
+# Falls back to raw counts when a bundle carries no effort data.
+annual_trend <- function(d) {
+  if (is.null(d) || nrow(d) == 0) return(NULL)
+  yr <- if ("year" %in% names(d)) d$year else as.integer(format(as.Date(d$collectDate), "%Y"))
+  cap <- stats::aggregate(list(individuals = d$individualCount), list(year = yr), sum, na.rm = TRUE)
+  eff <- unique(d[, c("plotID", "collectDate", "trapnights"), drop = FALSE])
+  eff$year <- as.integer(format(as.Date(eff$collectDate), "%Y"))
+  te <- stats::aggregate(list(trapnights = eff$trapnights), list(year = eff$year),
+                         function(x) sum(x, na.rm = TRUE))
+  m <- merge(cap, te, by = "year", all.x = TRUE)
+  m <- m[order(m$year), , drop = FALSE]
+  has_eff <- sum(m$trapnights, na.rm = TRUE) > 0
+  m$cpn <- if (has_eff) ifelse(m$trapnights > 0, 100 * m$individuals / m$trapnights, NA_real_) else NA_real_
+  m$metric <- if (has_eff) m$cpn else as.numeric(m$individuals)
+  m <- m[is.finite(m$metric), , drop = FALSE]
+  if (nrow(m) < 2) return(NULL)
+  out <- tibble::as_tibble(m[, c("year", "individuals", "trapnights", "cpn", "metric")])
+  attr(out, "metric_kind") <- if (has_eff) "cpn" else "count"
+  fit <- tryCatch(stats::lm(metric ~ year, data = m), error = function(e) NULL)
+  if (!is.null(fit) && nrow(m) >= 3) {
+    co <- summary(fit)$coefficients
+    if ("year" %in% rownames(co)) {
+      mu <- mean(m$metric, na.rm = TRUE)
+      attr(out, "slope") <- co["year", "Estimate"]
+      attr(out, "p") <- co["year", "Pr(>|t|)"]
+      attr(out, "pct_per_yr") <- if (is.finite(mu) && mu > 0) 100 * co["year", "Estimate"] / mu else NA_real_
+      attr(out, "pred") <- stats::predict(fit)
+    }
+  }
+  out
+}
+
 # Stable species -> color map so a species is the same color everywhere.
 make_species_pal <- function(d) {
   sp <- sort(unique(d$scientificName[!is.na(d$scientificName)]))

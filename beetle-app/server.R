@@ -219,6 +219,54 @@ function(input, output, session) {
                      yaxis = list(title = "cumulative species"))
   })
 
+  # ---- Trends (inter-annual) ----------------------------------------------
+  trend_data <- reactive({ d <- rv$data; req(d); annual_trend(d) })
+
+  output$trendVerdict <- renderUI({
+    t <- trend_data()
+    if (is.null(t) || nrow(t) < 2) return(NULL)
+    slope <- attr(t, "slope"); p <- attr(t, "p"); pct <- attr(t, "pct_per_yr")
+    if (is.null(slope) || is.null(p) || !is.finite(slope)) {
+      return(div(class = "trend-verdict trend-flat", bs_icon("dash-circle"),
+        HTML(sprintf(" Only %d years of data — too few to fit a trend yet.", nrow(t)))))
+    }
+    sig <- is.finite(p) && p < 0.05
+    dir <- if (!sig) "flat" else if (slope > 0) "up" else "down"
+    word <- switch(dir, up = "rising", down = "declining", flat = "roughly flat")
+    icon <- switch(dir, up = "arrow-up-right-circle-fill",
+                   down = "arrow-down-right-circle-fill", flat = "dash-circle")
+    pcttxt <- if (is.finite(pct)) sprintf(" (~%+.0f%%/yr)", pct) else ""
+    sigtxt <- if (sig) sprintf("statistically clear (p = %.3f)", p)
+              else sprintf("not statistically distinguishable from no change (p = %.2f)",
+                           if (is.finite(p)) p else NA)
+    div(class = paste("trend-verdict", paste0("trend-", dir)), bs_icon(icon),
+      HTML(sprintf(" Over %d years, catch-per-effort is <b>%s</b>%s — %s. %s",
+        nrow(t), word, pcttxt, sigtxt,
+        if (identical(attr(t, "metric_kind"), "count"))
+          "<i>(raw counts — this bundle has no effort data)</i>" else "")))
+  })
+
+  output$trendPlot <- renderPlotly({
+    t <- trend_data()
+    if (is.null(t) || nrow(t) < 2)
+      return(note_plot("Need at least two years of data for a trend"))
+    kind <- attr(t, "metric_kind") %||% "cpn"
+    ytitle <- if (kind == "cpn") "catch per 100 trap-nights" else "individuals caught"
+    p <- plot_ly(x = ~t$year, y = ~t$metric, type = "scatter", mode = "lines+markers",
+      name = "observed", line = list(color = "#13632b", width = 3),
+      marker = list(size = 9, color = "#13632b"),
+      hovertemplate = paste0("%{x}: %{y:.1f} ", ytitle, "<extra></extra>"))
+    pred <- attr(t, "pred")
+    if (!is.null(pred) && length(pred) == nrow(t)) {
+      p <- p %>% add_trace(x = t$year, y = pred, mode = "lines", name = "trend",
+        line = list(color = "#c9a300", width = 2, dash = "dash"),
+        hoverinfo = "skip", inherit = FALSE)
+    }
+    plotly_theme(p) %>% plotly::layout(
+      xaxis = list(title = "", dtick = 1),
+      yaxis = list(title = ytitle, rangemode = "tozero"))
+  })
+
   # ---- Seasonality --------------------------------------------------------
   output$seasonPlot <- renderPlotly({
     d <- rv$data; req(d)

@@ -127,6 +127,19 @@ ui <- bslib::page_sidebar(
       ),
 
       nav_panel(
+        title = tagList(bs_icon("graph-up-arrow"), " Trends"), value = "trends",
+        div(class = "tab-intro", bs_icon("info-circle"),
+            " Are the beetles holding steady, booming, or declining? NEON's standardized effort makes year-to-year catch comparable — the backbone of insect-decline science."),
+        uiOutput("trendVerdict"),
+        card(full_screen = TRUE,
+          card_head("graph-up-arrow", "Catch-per-effort by year, with fitted trend",
+            info_pop("Inter-annual trend",
+              p("Annual ", tags$b("catch per 100 trap-nights"), " (or raw counts when a bundle lacks effort), with an ordinary-least-squares trend line."),
+              p("The slope and its p-value drive the verdict above. Short series (a few years) are noisy — read the direction, not the decimal."))),
+          spin(plotlyOutput("trendPlot", height = "440px")))
+      ),
+
+      nav_panel(
         title = tagList(bs_icon("map-fill"), " Biogeography"), value = "biogeo",
         div(class = "tab-head",
           div(class = "tab-head-text",

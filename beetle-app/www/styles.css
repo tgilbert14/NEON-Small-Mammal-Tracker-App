@@ -64,6 +64,17 @@ body { background: var(--bg); color: var(--ink); }
 .tab-head-text h4 { color: var(--forest); margin: 0; }
 .tab-head-text p { color: var(--muted); font-size: 13px; margin: 4px 0 12px; max-width: 640px; }
 .map-controls { display: flex; gap: 10px; align-items: flex-end; }
+
+/* inter-annual trend verdict banner */
+.trend-verdict { display: flex; gap: 9px; align-items: flex-start; border-radius: 10px;
+  padding: 11px 14px; margin: 0 0 14px; font-size: 14px; line-height: 1.5; border: 1px solid; }
+.trend-verdict .bi { margin-top: 2px; flex: none; font-size: 18px; }
+.trend-up   { background: #eef6f0; border-color: #cfe6d6; color: #21503a; }
+.trend-up .bi   { color: var(--forest, #13632b); }
+.trend-down { background: #fbeef0; border-color: #f0cdd4; color: #7a1020; }
+.trend-down .bi { color: #b3122b; }
+.trend-flat { background: #f7f3e6; border-color: #ece0bd; color: #6a5a1f; }
+.trend-flat .bi { color: #c9a300; }
 .season-toggle { margin-bottom: 4px; }
 .hill-note { font-size: 13px; color: #3a4654; margin-top: 8px; }
 
