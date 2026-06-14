@@ -33,7 +33,7 @@ technicians getting to know the species at their site.
 colored by the most-caught mammal family — with a "by site / by species" toggle, an accessible list
 fallback, and a one-tap load. A 30-second guided tour points out the rest.
 
-**Explore by species.** Pick any of 150+ species and the map redraws to just the sites where it's
+**Explore by species.** Pick any of 140+ species and the map redraws to just the sites where it's
 caught, sized by local abundance — a live national range map.
 
 **Detection-corrected abundance.** Closed-capture estimates per trapping bout (Schnabel for ≥3
@@ -92,8 +92,13 @@ chart, and tap-any-statistic ranked breakdowns.
 | Chonk Index | Adult weight percentile within species. NEON rarely records body length and hind-foot barely scales with mass in these taxa, so a Scaled Mass Index would mostly rank noise — the body-size map shows the real relationship where it exists. |
 | MNKA / CPUE | Minimum Number Known Alive (Krebs 1966) and captures per 100 trap-nights — transparent abundance indices. |
 | Recapture rate | Share of handling events flagged as recaptures. |
+| Detection-corrected abundance | Closed-capture estimate (Schnabel for ≥3-night bouts, Chapman for 2; Otis et al. 1978) with a per-night detection probability — corrects the count for animals never caught. Gated to ≥3 within-bout recaptures and floored at MNKA. |
+| Species richness / Chao1 | Cumulative species vs trapping bouts (Gotelli & Colwell 2001). Chao1 is a **bias-corrected minimum** estimate of total richness, S_obs + f1(f1−1)/(2(f2+1)) (Chao 1987; Chao & Chiu 2016), shown with a 95% CI and flagged as a lower bound when doubletons are scarce. Counts **confirmed species-level IDs only** — genus-only "X sp." and ambiguous "A/B" records are excluded (matching the range map and the diversity profile), so an unidentified catch isn't counted as its own species. |
+| Hill numbers | Effective number of species at q = 0 (richness), 1 (exp-Shannon, common species), 2 (inverse-Simpson, dominant species), over distinct individuals per species (Hill 1973; Jost 2006). |
 
-Methods reviewed against Peig & Green (2009), Krebs (1966), and Gotelli & Colwell (2001). NEON
+Methods reviewed against Peig & Green (2009), Krebs (1966), Gotelli & Colwell (2001), Chao (1987),
+Chao & Chiu (2016), and Otis et al. (1978). Chao1 is a lower-bound estimator, not a prediction of true
+richness; genus-only and ambiguous identifications are excluded from richness and diversity. NEON
 ear-tag numbers can be reused across years (the obvious cases are flagged), and an empty trap means
 "not detected," not "absent."
 

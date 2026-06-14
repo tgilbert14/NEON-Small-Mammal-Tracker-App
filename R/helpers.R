@@ -403,7 +403,10 @@ community_stats <- function(d, lb = NULL) {
   list(
     total_captures = nrow(handled),
     individuals    = dplyr::n_distinct(handled$tagID),
-    species        = dplyr::n_distinct(handled$scientificName[!is.na(handled$scientificName)]),
+    # species-level IDs only (excludes genus-only "X sp." / ambiguous "A/B"),
+    # so this matches the richness used by Hill numbers, Chao1, and the map
+    species        = dplyr::n_distinct(species_level_only(
+                       dplyr::filter(handled, !is.na(.data$scientificName)))$scientificName),
     plots          = dplyr::n_distinct(d$plotID[!is.na(d$plotID)]),
     trap_nights    = sum(d$is_set, na.rm = TRUE),
     recap_rate     = if (nrow(handled) > 0)
@@ -480,10 +483,30 @@ mnka_series <- function(d) {
   out
 }
 
+# Keep only confirmed SPECIES-level identifications — drop genus-only "X sp."
+# and ambiguous "A/B" records so an unidentified "Rodentia sp." isn't counted as
+# its own species. This matters most for Chao1 (which scales with the singleton
+# count, so each phantom "sp." inflates the estimate), but also for plain
+# richness and the Hill profile. Uses NEON's taxonRank when present (the robust
+# discriminator) with a scientific-name regex as a backstop. Mirrors the filter
+# in build_site_index.R so the map, the stat cards, the diversity profile and the
+# accumulation curve all agree on ONE species list. (Quinn review.)
+species_level_only <- function(h) {
+  if (is.null(h) || nrow(h) == 0) return(h)
+  rank <- if ("taxonRank" %in% names(h)) h$taxonRank else rep(NA_character_, nrow(h))
+  rank_ok <- is.na(rank) | rank %in% c("species", "subspecies", "speciesGroup")
+  nm <- ifelse(is.na(h$scientificName), "", as.character(h$scientificName))
+  ambiguous <- grepl("\\bsp\\.?$", nm) | grepl("/", nm, fixed = TRUE)
+  h[rank_ok & !ambiguous, , drop = FALSE]
+}
+
 # Sample-based species accumulation over monthly bouts (Gotelli & Colwell 2001),
-# averaged over permutations, + a Chao1 asymptotic richness estimate.
+# averaged over permutations, + a bias-corrected Chao1 asymptotic richness
+# estimate with a 95% CI (Chao 1987; Chao & Chiu 2016). Counts species-level IDs
+# only; Chao1 is a LOWER BOUND and is flagged unstable when doubletons are scarce.
 species_accum <- function(d, perms = 40) {
   h <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$scientificName), !is.na(.data$ym))
+  h <- species_level_only(h)                       # drop "X sp." / "A/B" so they aren't phantom species
   if (nrow(h) == 0) return(NULL)
   bouts <- split(h$scientificName, h$ym)
   k <- length(bouts)
@@ -497,15 +520,33 @@ species_accum <- function(d, perms = 40) {
   mean_rich <- rowMeans(perm_mat)
   sd_rich   <- apply(perm_mat, 1, stats::sd)
 
-  # Chao1 from per-species individual counts
+  # f1 / f2 = species represented by exactly 1 / 2 distinct individuals
   cnt <- h %>% dplyr::distinct(.data$tagID, .data$scientificName) %>%
     dplyr::count(.data$scientificName)
   f1 <- sum(cnt$n == 1); f2 <- sum(cnt$n == 2); sobs <- nrow(cnt)
-  chao1 <- if (f2 > 0) sobs + f1^2 / (2 * f2) else sobs + f1 * (f1 - 1) / 2
+  # Bias-corrected Chao1 (exact at f2==0, lower-variance than the classic
+  # f1^2/(2 f2) form which is upward-biased & unstable for small f2).
+  chao1 <- sobs + (f1 * (f1 - 1)) / (2 * (f2 + 1))
+  # Chao (1987) log-normal 95% CI on the # of undetected species, + instability flag.
+  T_extra <- chao1 - sobs
+  if (f2 > 0) {
+    r <- f1 / f2
+    varC <- f2 * (0.5 * r^2 + r^3 + 0.25 * r^4)
+  } else {
+    varC <- max(0.25 * f1 * (2 * f1 - 1)^2 / (f2 + 1) - f1^4 / (4 * max(chao1, 1)), 0)
+  }
+  if (T_extra > 0 && varC > 0) {
+    K  <- exp(1.96 * sqrt(log(1 + varC / T_extra^2)))
+    lo <- sobs + T_extra / K
+    hi <- sobs + T_extra * K
+  } else { lo <- sobs; hi <- chao1 }
+  unstable <- f2 < 5   # too few doubletons -> treat the estimate as a soft lower bound
 
   list(curve = tibble::tibble(bouts = seq_len(k), richness = mean_rich,
                               lo = pmax(0, mean_rich - sd_rich), hi = mean_rich + sd_rich),
-       sobs = sobs, chao1 = round(chao1, 1))
+       sobs = sobs, chao1 = round(chao1),
+       chao_lo = round(lo), chao_hi = round(ceiling(hi)),
+       f1 = f1, f2 = f2, unstable = unstable)
 }
 
 # ---------------------------------------------------------------------------
@@ -522,6 +563,7 @@ species_accum <- function(d, perms = 40) {
 # ---------------------------------------------------------------------------
 hill_numbers <- function(d) {
   h <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$scientificName))
+  h <- species_level_only(h)                       # same species list as richness/Chao1
   ab <- h %>% dplyr::distinct(.data$tagID, .data$scientificName) %>%
     dplyr::count(.data$scientificName, name = "n")
   n <- ab$n
