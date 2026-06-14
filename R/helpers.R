@@ -206,6 +206,14 @@ clean_mam <- function(data.raw) {
 
   d$is_capture <- !is.na(d$tagID)
   d$is_set     <- !grepl("^1", d$trapStatus %||% "")  # trapStatus "1 - trap not set"
+  # Effort weight (trap-nights) for catch-per-effort. A trap-night is one trap
+  # AVAILABLE to catch for one night, computed from each site's own data — never
+  # a fixed grid size. A sprung/disturbed trap (codes 2,3) was only available
+  # part of the night, so it counts as HALF a trap-night (Nelson & Clark 1973);
+  # codes 4,5,6 (captured / set-and-empty) = a full trap-night; code 1 (not set)
+  # = 0. (Fauna review.)
+  ts1 <- substr(as.character(d$trapStatus %||% ""), 1, 1); ts1[is.na(ts1)] <- ""
+  d$trap_effort <- ifelse(ts1 == "1", 0, ifelse(ts1 %in% c("2", "3"), 0.5, 1))
   d
 }
 
@@ -408,7 +416,7 @@ community_stats <- function(d, lb = NULL) {
     species        = dplyr::n_distinct(species_level_only(
                        dplyr::filter(handled, !is.na(.data$scientificName)))$scientificName),
     plots          = dplyr::n_distinct(d$plotID[!is.na(d$plotID)]),
-    trap_nights    = sum(d$is_set, na.rm = TRUE),
+    trap_nights    = round(sum(d$trap_effort, na.rm = TRUE)),  # display value (CPUE keeps the precise denominator)
     recap_rate     = if (nrow(handled) > 0)
                        round(100 * mean(handled$recapture %in% c("Y", "y"), na.rm = TRUE), 1) else 0,
     legendary      = if (!is.null(lb)) sum(lb$captures >= 10, na.rm = TRUE) else 0,
@@ -471,7 +479,7 @@ mnka_series <- function(d) {
     dplyr::summarise(first = min(.data$ym), last = max(.data$ym), .groups = "drop")
   eff <- d %>% dplyr::filter(!is.na(.data$ym), !is.na(.data$plotID)) %>%
     dplyr::group_by(.data$plotID, .data$ym) %>%
-    dplyr::summarise(trap_nights = sum(.data$is_set, na.rm = TRUE),
+    dplyr::summarise(trap_nights = sum(.data$trap_effort, na.rm = TRUE),
                      captures = sum(!is.na(.data$tagID)), .groups = "drop")
   out <- eff %>% dplyr::rowwise() %>%
     dplyr::mutate(mnka = sum(span$plotID == .data$plotID &
@@ -862,7 +870,7 @@ stat_breakdown <- function(d, lb, which) {
   }
   if (which == "trapnights") {
     eff <- d %>% dplyr::filter(!is.na(.data$plotID)) %>% dplyr::group_by(.data$plotID) %>%
-      dplyr::summarise(tn = sum(.data$is_set, na.rm = TRUE),
+      dplyr::summarise(tn = sum(.data$trap_effort, na.rm = TRUE),
         caps = sum(!is.na(.data$tagID)), .groups = "drop") %>%
       dplyr::mutate(cpue = ifelse(.data$tn > 0, round(100 * .data$caps / .data$tn, 1), NA)) %>%
       dplyr::arrange(dplyr::desc(.data$tn))
