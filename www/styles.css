@@ -55,6 +55,15 @@ body {
 .env-real { background: #eef6f0; border: 1px solid #cfe6d6; color: #245c39; }
 .env-real .bi { color: var(--pine, #1a7f37); }
 
+/* population<->environment correlation readout (Population tab) */
+.env-corr { display: flex; gap: 9px; align-items: flex-start; border-radius: 10px;
+  padding: 11px 14px; margin: 0 0 14px; font-size: 13.5px; line-height: 1.5; }
+.env-corr .bi { margin-top: 2px; flex: none; font-size: 17px; }
+.env-corr-strong { background: #eef6f0; border: 1px solid #cfe6d6; color: #21503a; }
+.env-corr-strong .bi { color: var(--pine, #1a7f37); }
+.env-corr-mild { background: #f3f6fb; border: 1px solid var(--line); color: #3a4654; }
+.env-corr-mild .bi { color: var(--muted); }
+
 .or-divider { display: flex; align-items: center; text-align: center; color: var(--muted); margin: 12px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; }
 .or-divider::before, .or-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); margin: 0 10px; }
 

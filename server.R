@@ -79,6 +79,26 @@ server <- function(input, output, session) {
           tags$span(" Live from co-located NEON sensors at this site."))
   })
 
+  # Quantify the population<->environment link: best lag + correlation between
+  # this site's monthly catch-per-effort and the selected (lagged) driver.
+  output$envCorrNote <- renderUI({
+    es <- env_sel(); d <- rv$data
+    if (is.null(es) || is.null(d)) return(NULL)
+    sc <- env_corr_scan(d, es$env, es$layer)
+    if (is.null(sc)) return(NULL)
+    strength <- abs(sc$r)
+    word <- if (strength >= 0.6) "a strong" else if (strength >= 0.35) "a moderate"
+            else if (strength >= 0.2) "a weak" else "little"
+    dir <- if (sc$r >= 0) "more" else "fewer"
+    lagtxt <- if (sc$lag == 0) "the same month" else sprintf("%d month%s earlier",
+                sc$lag, if (sc$lag == 1) "" else "s")
+    tone <- if (strength >= 0.35) "env-corr-strong" else "env-corr-mild"
+    div(class = paste("env-corr", tone), bs_icon("graph-up-arrow"),
+      HTML(sprintf(" Across this window, catch-per-effort shows <b>%s</b> relationship with <b>%s</b> (Pearson r = <b>%+.2f</b>, n = %d months) — strongest when %s is read <b>%s</b>. Higher %s tracks <b>%s</b> animals caught.%s",
+        word, tolower(sc$label), sc$r, sc$n, tolower(sc$label), lagtxt, tolower(sc$label), dir,
+        if (es$demo) " <i>(demo overlay — illustrative)</i>" else "")))
+  })
+
   # state -> site cascading picker (Arizona default so the demo lines up)
   updateSelectInput(session, "stateSel", choices = state_choices(), selected = "NM")
   observeEvent(input$stateSel, {

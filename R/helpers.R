@@ -975,6 +975,40 @@ env_climatology <- function(env, layer, lag = 0) {
   clim[, c("mon", "value")]
 }
 
+# Scan lags 0..max_lag for the strongest correlation between this site's monthly
+# catch-per-effort and a (lagged) environmental driver. Returns the best lag and
+# Pearson r — the quantitative backbone of the "rain pulse leads the boom" story.
+# Returns NULL when there's too little overlap to be meaningful.
+env_corr_scan <- function(d, env, layer, max_lag = 12) {
+  meta <- ENV_LAYERS[[layer]]
+  if (is.null(meta) || is.null(env) || !(meta$col %in% names(env))) return(NULL)
+  m <- d %>% dplyr::filter(!is.na(.data$ym)) %>%
+    dplyr::group_by(.data$ym) %>%
+    dplyr::summarise(cap = sum(!is.na(.data$tagID)),
+                     tn  = sum(.data$trap_effort, na.rm = TRUE), .groups = "drop")
+  m <- m[m$tn > 0, , drop = FALSE]
+  if (nrow(m) < 4) return(NULL)
+  m$cpue <- 100 * m$cap / m$tn
+  m$date <- as.Date(paste0(m$ym, "-01"))
+  ev <- env; ev$date <- as.Date(ev$date)
+  ev$.v <- suppressWarnings(as.numeric(ev[[meta$col]]))
+  ev <- ev[!is.na(ev$.v), c("date", ".v"), drop = FALSE]
+  if (!nrow(ev)) return(NULL)
+  best <- list(lag = NA_integer_, r = NA_real_, n = 0L)
+  for (lag in 0:max_lag) {
+    e2 <- ev; lt <- as.POSIXlt(e2$date); lt$mon <- lt$mon + lag; e2$date <- as.Date(lt)
+    j <- merge(m[, c("date", "cpue")], e2, by = "date")
+    if (nrow(j) >= 4) {
+      r <- suppressWarnings(stats::cor(j$cpue, j$.v))
+      if (!is.na(r) && (is.na(best$r) || abs(r) > abs(best$r)))
+        best <- list(lag = lag, r = round(r, 2), n = nrow(j))
+    }
+  }
+  if (is.na(best$r)) return(NULL)
+  best$label <- meta$label; best$unit <- meta$unit
+  best
+}
+
 # Long trap-grid table (one row per A-J x 1-10 cell) for an individual's heatmap.
 trap_grid_long <- function(d, tag) {
   sub <- dplyr::filter(d, .data$tagID == tag, !is.na(.data$tx), !is.na(.data$ty))

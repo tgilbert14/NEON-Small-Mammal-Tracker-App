@@ -294,6 +294,7 @@ ui <- bslib::page_sidebar(
             h4("Defensible population signals"),
             p("Minimum Number Known Alive (MNKA) and catch-per-unit-effort are honest abundance indices; the accumulation curve shows whether trapping ran long enough to find every species."))
         ),
+        uiOutput("envCorrNote"),
         layout_columns(col_widths = c(7, 5),
           card(full_screen = TRUE,
             card_head("people-fill", "MNKA & catch-per-effort, by plot",
