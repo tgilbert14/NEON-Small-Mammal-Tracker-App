@@ -55,6 +55,11 @@ body {
 .env-real { background: #eef6f0; border: 1px solid #cfe6d6; color: #245c39; }
 .env-real .bi { color: var(--pine, #1a7f37); }
 
+/* caveat line inside info popovers */
+.pop-caveat { font-size: 12px; color: #6b5a13; background: #fff8e6; border: 1px solid #f3e0a6;
+  border-radius: 7px; padding: 6px 8px; margin: 6px 0 0; line-height: 1.4; }
+.pop-caveat .bi { color: var(--gold, #c9a300); }
+
 /* population<->environment correlation readout (Population tab) */
 .env-corr { display: flex; gap: 9px; align-items: flex-start; border-radius: 10px;
   padding: 11px 14px; margin: 0 0 14px; font-size: 13.5px; line-height: 1.5; }
