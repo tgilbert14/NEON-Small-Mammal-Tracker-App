@@ -156,6 +156,16 @@ ui <- bslib::page_sidebar(
                 tags$b("Bray–Curtis"), " dissimilarity (PCoA) so similar communities sit close together."),
               p("Points from the same site/biome cluster — the carabid biogeography signal. Computed across all bundled sites."))),
           spin(plotlyOutput("ordPlot", height = "440px"))),
+        card(full_screen = TRUE,
+          card_head("award", "Indicator species — each site's signature beetles",
+            info_pop("Indicator value (IndVal)",
+              p("The ", tags$b("Dufrêne–Legendre IndVal"), " (0–100) flags species that are both ",
+                tags$b("concentrated in"), " and ", tags$b("reliably found at"), " one site."),
+              tags$ul(
+                tags$li(tags$b("Specificity"), " — share of the species' abundance that's at that site"),
+                tags$li(tags$b("Fidelity"), " — share of that site's samples where it turns up")),
+              p("High on both = a genuine signature of that place. Computed across all bundled sites; samples are plot × year."))),
+          spin(DT::DTOutput("indicatorTable"))),
         card(card_head("table", "Site comparison"),
              spin(DT::DTOutput("siteTable")))
       ),

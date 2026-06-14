@@ -330,3 +330,45 @@ species_site_table <- function(d) {
   if (is.null(d) || nrow(d) == 0) return(NULL)
   tibble::as_tibble(stats::aggregate(individualCount ~ scientificName + siteID, d, sum))
 }
+
+# ---------------------------------------------------------------------------
+# Indicator species (Dufrêne-Legendre IndVal), base R only.
+# For each species we find the site it most "belongs" to. IndVal = A x B x 100:
+#   A (specificity) = how concentrated the species' abundance is in that site
+#   B (fidelity)    = the share of that site's samples where it actually shows up
+# A species scores high only when it is both abundant in, AND consistently found
+# at, one site — i.e. a genuine signature of that place. Samples are plot x year.
+# ---------------------------------------------------------------------------
+indicator_species <- function(d, min_total = 5) {
+  if (is.null(d) || nrow(d) == 0) return(NULL)
+  d <- d[!is.na(d$scientificName) & !is.na(d$individualCount), , drop = FALSE]
+  if (!nrow(d)) return(NULL)
+  d$sample <- paste(d$siteID, d$plotID, d$year, sep = "|")
+  n_per_site <- table(unique(d[, c("sample", "siteID")])$siteID)
+  sites <- names(n_per_site)
+  if (length(sites) < 2) return(NULL)
+  ab <- stats::aggregate(individualCount ~ sample + scientificName + siteID, d, sum)
+  tot <- tapply(ab$individualCount, ab$scientificName, sum)
+  keep <- names(tot)[tot >= min_total]
+  ab <- ab[ab$scientificName %in% keep, , drop = FALSE]
+  if (!nrow(ab)) return(NULL)
+  rows <- lapply(unique(ab$scientificName), function(sp) {
+    s <- ab[ab$scientificName == sp, , drop = FALSE]
+    meanab <- vapply(sites, function(g)
+      sum(s$individualCount[s$siteID == g]) / as.numeric(n_per_site[g]), numeric(1))
+    if (sum(meanab) <= 0) return(NULL)
+    A <- meanab / sum(meanab)
+    B <- vapply(sites, function(g)
+      length(unique(s$sample[s$siteID == g & s$individualCount > 0])) /
+        as.numeric(n_per_site[g]), numeric(1))
+    iv <- A * B; g <- which.max(iv)
+    data.frame(scientificName = sp, indicator_site = sites[g],
+               indval = round(100 * iv[g], 1),
+               specificity = round(100 * A[g]), fidelity = round(100 * B[g]),
+               total = as.integer(tot[sp]), stringsAsFactors = FALSE)
+  })
+  rows <- rows[!vapply(rows, is.null, logical(1))]
+  if (!length(rows)) return(NULL)
+  res <- do.call(rbind, rows)
+  tibble::as_tibble(res[order(-res$indval), ])
+}

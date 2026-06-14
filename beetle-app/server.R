@@ -363,6 +363,22 @@ function(input, output, session) {
       DT::formatCurrency("Individuals", currency = "", interval = 3, mark = ",", digits = 0)
   })
 
+  output$indicatorTable <- DT::renderDT({
+    ind <- INDICATORS
+    if (is.null(ind) || !nrow(ind))
+      return(DT::datatable(data.frame(Note = "Need ≥2 sites bundled to rank indicators."),
+                           rownames = FALSE, options = list(dom = "t")))
+    tab <- ind[, c("scientificName", "indicator_site", "indval", "specificity", "fidelity", "total")]
+    names(tab) <- c("Species", "Indicator of", "IndVal", "Specificity %", "Fidelity %", "Total caught")
+    DT::datatable(tab, rownames = FALSE, selection = "none",
+                  options = list(pageLength = 12, dom = "tp", order = list(list(2, "desc")))) %>%
+      DT::formatStyle("Species", fontStyle = "italic") %>%
+      DT::formatStyle("IndVal",
+        background = DT::styleColorBar(c(0, 100), "#cfe6d6"),
+        backgroundSize = "98% 70%", backgroundRepeat = "no-repeat",
+        backgroundPosition = "center")
+  })
+
   # ---- About --------------------------------------------------------------
   output$aboutPanel <- renderUI({
     div(class = "about",
@@ -377,7 +393,8 @@ function(input, output, session) {
         tags$li(tags$b("Community"), " — which species dominate, by abundance and per-trap-night effort."),
         tags$li(tags$b("Diversity"), " — Hill numbers, rarefaction at equal sample size, and species accumulation."),
         tags$li(tags$b("Seasonality"), " — activity-density by month, overall and per species."),
-        tags$li(tags$b("Biogeography"), " — richness across NEON sites on the map.")),
+        tags$li(tags$b("Trends"), " — inter-annual catch-per-effort with a fitted trend and decline/increase verdict."),
+        tags$li(tags$b("Biogeography"), " — a richness/range map, a Bray–Curtis community ordination, and indicator species (IndVal) per site.")),
       h4("Methods"),
       tags$ul(
         tags$li("Abundance is normalised to ", tags$b("catch per 100 trap-nights"),

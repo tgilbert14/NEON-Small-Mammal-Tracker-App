@@ -121,6 +121,9 @@ ALL_DATA <- local({
 # PCoA ordination of every site x plot x year community (precomputed).
 ORDINATION <- if (!is.null(ALL_DATA)) bray_ordination(ALL_DATA) else NULL
 
+# Indicator species (IndVal) — which beetle signs which site (precomputed).
+INDICATORS <- if (!is.null(ALL_DATA)) indicator_species(ALL_DATA) else NULL
+
 # species -> sites with abundance, + the picker's choices (widest-ranging first).
 SPECIES_SITES <- if (!is.null(ALL_DATA)) species_site_table(ALL_DATA) else NULL
 species_choices <- function() {
