@@ -151,6 +151,7 @@ ui <- bslib::page_sidebar(
             info_pop("Species composition",
               p("How many ", tags$b("captures"), " (bar length) and ", tags$b("individuals"), " (label) each species contributed."),
               p("Brighter bars = caught more times per animal (a \"trap-happy\" species)."))),
+          div(class = "chart-hint", bs_icon("hand-index-thumb"), " Tap a bar for that species' full breakdown."),
           spin(plotlyOutput("speciesBar", height = "440px"))),
         # the plain-English story sits underneath
         card(
@@ -219,8 +220,8 @@ ui <- bslib::page_sidebar(
         card(card_head("gender-ambiguous", "Who's out there — sex & age structure",
                info_pop("Sex & age", p("The ", tags$b("sex"), " and ", tags$b("life-stage"), " breakdown of every handled animal. The number in the middle is the total handled."))),
              layout_columns(col_widths = c(6, 6),
-               plotlyOutput("sexDonut", height = "300px"),
-               plotlyOutput("ageDonut", height = "300px"))),
+               spin(plotlyOutput("sexDonut", height = "300px"), img = "rat1.gif"),
+               spin(plotlyOutput("ageDonut", height = "300px"), img = "rat1.gif"))),
         card(full_screen = TRUE,
           card_head("diagram-3-fill", "Diversity profile — effective number of species",
             info_pop("Hill numbers",

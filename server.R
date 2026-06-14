@@ -12,7 +12,10 @@ server <- function(input, output, session) {
       xaxis = list(gridcolor = "rgba(31,42,48,0.08)", zerolinecolor = "rgba(31,42,48,0.15)", linecolor = "#d6ddd4"),
       yaxis = list(gridcolor = "rgba(31,42,48,0.08)", zerolinecolor = "rgba(31,42,48,0.15)", linecolor = "#d6ddd4"),
       legend = list(bgcolor = "rgba(0,0,0,0)", orientation = "h", y = -0.2, font = list(color = "#344049")),
-      margin = list(l = 50, r = 30, t = 30, b = 40)
+      margin = list(l = 50, r = 30, t = 30, b = 40),
+      # navy card + gold edge tooltips, on-theme across every plot
+      hoverlabel = list(bgcolor = "rgba(12,35,75,0.96)", bordercolor = "#FFD200",
+        font = list(color = "#ffffff", family = "Rubik", size = 13))
     ) %>%
       plotly::config(displayModeBar = FALSE, responsive = TRUE)
   }
@@ -76,9 +79,11 @@ server <- function(input, output, session) {
   # ---- data ingestion -----------------------------------------------------
   ingest <- function(data.raw, label, is_demo = FALSE) {
     rv$is_demo <- is_demo
+    if (is_demo) rv$loaded_key <- NULL   # demo isn't a site+window; don't let the guard match it
     d <- clean_mam(data.raw)
     if (is.null(d) || sum(d$is_capture) == 0) {
       session$sendCustomMessage("loadDone", list())   # hide the loading overlay
+      rv$loaded_key <- NULL                            # let a retry re-run this site
       showNotification("No small-mammal captures found for that site & window.",
                        type = "warning", duration = 6)
       return(invisible(NULL))
@@ -105,6 +110,11 @@ server <- function(input, output, session) {
     nav_select("tabs", "overview")
     session$sendCustomMessage("countUp", list())
     session$sendCustomMessage("loadDone", list())   # hide the loading overlay
+    # positive confirmation it worked (the demo path shows its own toast)
+    if (!is_demo)
+      showNotification(tagList(bs_icon("check-circle-fill"),
+        HTML(paste0(" Loaded <b>", htmltools::htmlEscape(label), "</b>"))),
+        type = "message", duration = 4)
     invisible(TRUE)
   }
 
@@ -117,6 +127,15 @@ server <- function(input, output, session) {
   # early-return path too.
   load_site <- function(site, s0, e0, prov = FALSE) {
     if (is.null(site) || site == "") { session$sendCustomMessage("loadDone", list()); return(invisible()) }
+
+    # double-tap / re-select guard: if this exact site+window+prov is already
+    # the loaded dataset, don't re-run the multi-second ingest — just dismiss
+    # the overlay. (Cleared on demo loads and failed loads so retries still run.)
+    key <- paste(site, as.character(s0), as.character(e0), prov, sep = "|")
+    if (!is.null(rv$data) && identical(rv$loaded_key, key)) {
+      session$sendCustomMessage("loadDone", list()); return(invisible())
+    }
+    rv$loaded_key <- key
 
     # 1) bundled site? read from disk instantly and filter to the window.
     #    (Skip the bundle when the user wants provisional data — the bundle is
@@ -193,13 +212,13 @@ server <- function(input, output, session) {
          <div class='pm-pop-n'><b>%s</b> captures &middot; <b>%s</b> individuals &middot; <b>%s</b> species</div>
          %s%s
          <div class='sp-actions'>
-           <button type='button' class='sp-btn sp-go' onclick=\"Shiny.setInputValue('siteExplore','%s',{priority:'event'});\">Explore this site &rarr;</button>
+           <button type='button' class='sp-btn sp-go' onclick=\"smtLoadStart('%s \\u2014 loading\\u2026');Shiny.setInputValue('siteExplore','%s',{priority:'event'});\">Explore this site &rarr;</button>
            <button type='button' class='sp-btn sp-info' onclick=\"Shiny.setInputValue('siteInfo','%s',{priority:'event'});\">About this site</button>
          </div>
        </div>",
       row$emoji[1], row$name[1], code, where,
       format(row$captures[1], big.mark = ","), format(row$individuals[1], big.mark = ","),
-      row$species[1], sp_line, yrs, code, code))
+      row$species[1], sp_line, yrs, row$name[1], code, code))
   }
 
   site_info_modal <- function(code) {
@@ -226,7 +245,8 @@ server <- function(input, output, session) {
       footer = tagList(
         modalButton("Close"),
         tags$button(type = "button", class = "btn btn-primary",
-          onclick = sprintf("Shiny.setInputValue('siteExplore','%s',{priority:'event'});", code),
+          onclick = sprintf("smtLoadStart('%s \\u2014 loading\\u2026');Shiny.setInputValue('siteExplore','%s',{priority:'event'});",
+                            gsub("'", "\\\\'", row$name[1]), code),
           HTML("Explore this site&rsquo;s data &rarr;"))),
       div(class = "site-info",
         div(class = "si-sec",
@@ -382,7 +402,8 @@ server <- function(input, output, session) {
       div(class = "picker-list-grid",
         lapply(seq_len(nrow(ord)), function(i)
           tags$a(class = "picker-list-link", href = "#",
-            onclick = sprintf("Shiny.setInputValue('pickFromList','%s',{priority:'event'});return false;", ord$site[i]),
+            onclick = sprintf("smtLoadStart('%s \\u2014 loading\\u2026');Shiny.setInputValue('pickFromList','%s',{priority:'event'});return false;",
+                              gsub("'", "\\\\'", ord$name[i]), ord$site[i]),
             tags$b(ord$site[i]), sprintf(" — %s ", ord$name[i]),
             tags$span(class = "pll-meta", sprintf("%s · %s caps", ord$state[i], format(ord$captures[i], big.mark = ",")))))))
 
@@ -533,12 +554,17 @@ server <- function(input, output, session) {
                        selected = if ("JORN" %in% ch) "JORN" else unname(ch)[1], width = "100%"),
         selectizeInput("cmpB", "Site B", choices = ch,
                        selected = if ("HARV" %in% ch) "HARV" else unname(ch)[2], width = "100%")),
-      uiOutput("compareOut")
+      actionButton("runCompare", tagList(bs_icon("bar-chart-steps"), " Compare these sites"),
+                   class = "btn-primary w-100 cmp-run"),
+      spin(uiOutput("compareOut"), img = "rat1.gif")
     ))
   })
 
-  # build a one-site metric pack from its bundle (instant; bundles are tiny)
+  # build a one-site metric pack from its bundle (memoized so swapping a site
+  # back in is instant and a repeat compare never re-crunches the heavy sites)
+  cmp_cache <- new.env(parent = emptyenv())
   compare_pack <- function(site) {
+    if (!is.null(cmp_cache[[site]])) return(cmp_cache[[site]])
     b <- load_site_bundle(site)
     if (is.null(b)) return(NULL)
     d <- clean_mam(b)
@@ -547,13 +573,19 @@ server <- function(input, output, session) {
     hn <- hill_numbers(d)
     sp <- utils::head(species_summary(d), 5)
     yrs <- range(d$year[is.finite(d$year)])
-    list(site = site, label = site_label(site), cs = cs, hn = hn, sp = sp,
-         years = if (all(is.finite(yrs))) yrs else c(NA, NA))
+    res <- list(site = site, label = site_label(site), cs = cs, hn = hn, sp = sp,
+                years = if (all(is.finite(yrs))) yrs else c(NA, NA))
+    cmp_cache[[site]] <- res
+    res
   }
 
-  output$compareOut <- renderUI({
+  # Gated on the Compare button (not live-on-keystroke) so it never silently
+  # crunches two heavy sites on modal-open or mid-typing — the user presses
+  # Compare and gets a deliberate, confirmed result.
+  compare_built <- eventReactive(input$runCompare, {
     a <- input$cmpA; b <- input$cmpB
-    req(a, b)
+    if (is.null(a) || is.null(b)) return(div(class = "compare-hint", bs_icon("info-circle"),
+      " Pick two sites to compare."))
     if (identical(a, b)) return(div(class = "compare-hint", bs_icon("info-circle"),
       " Pick two different sites to compare."))
     pa <- compare_pack(a); pb <- compare_pack(b)
@@ -595,6 +627,13 @@ server <- function(input, output, session) {
       div(class = "compare-foot", bs_icon("info-circle"),
         " Higher value highlighted per row. Diversity uses Hill numbers over distinct individuals; richness is the raw species count.")
     )
+  })
+
+  output$compareOut <- renderUI({
+    if (is.null(input$runCompare) || input$runCompare == 0)
+      return(div(class = "compare-hint", bs_icon("hand-index-thumb"),
+        " Pick two sites above, then tap ", tags$b("Compare these sites"), "."))
+    compare_built()
   })
 
   # ---- hero stat band -----------------------------------------------------
@@ -642,9 +681,9 @@ server <- function(input, output, session) {
   })
 
   # ---- clickable stat -> ranked breakdown modal --------------------------
-  observeEvent(input$statClick, {
+  open_stat_modal <- function(key) {
     d <- rv$data; lb <- rv$lb; req(d, lb)
-    bk <- stat_breakdown(d, lb, input$statClick)
+    bk <- stat_breakdown(d, lb, key)
     req(!is.null(bk))
     rows <- bk$rows
     has_tag <- "tag" %in% names(rows)
@@ -667,7 +706,11 @@ server <- function(input, output, session) {
       if (nzchar(bk$insight %||% "")) div(class = "rank-modal-insight", bs_icon("lightbulb"), " ", HTML(bk$insight)),
       tags$ol(class = "rank-list", rank_items)
     ))
-  })
+  }
+  observeEvent(input$statClick, open_stat_modal(input$statClick))
+  # the species bar advertises a click (source = "speciesBar") — wire it to the
+  # same ranked species breakdown so the affordance isn't a dead end
+  observeEvent(event_data("plotly_click", source = "speciesBar"), open_stat_modal("species"))
 
   # click an animal inside a modal -> open its dossier
   observeEvent(input$modalPick, {
@@ -1204,9 +1247,9 @@ server <- function(input, output, session) {
       marker = list(color = ~recaps_per,
         colorscale = list(c(0, "#dcebe4"), c(0.5, "#1a7f37"), c(1, "#c9a300")), showscale = FALSE),
       customdata = ~scientificName, source = "speciesBar",
-      text = ~paste0(individuals, " indiv"), textposition = "outside",
+      text = ~paste0(format(individuals, big.mark = ","), " indiv"), textposition = "outside",
       textfont = list(color = "#6b7a85", size = 11),
-      hovertemplate = "%{y}<br>%{x} captures · %{customdata}<br>%{marker.color} caps/individual<extra></extra>")
+      hovertemplate = "<b>%{y}</b><br>%{x:,} captures · %{text}<br><span style='color:#cfe0f5'>tap for the full species breakdown</span><extra></extra>")
     plotly_theme(p, legend = FALSE) %>%
       plotly::layout(xaxis = list(title = "captures"), yaxis = list(title = ""),
                      showlegend = FALSE, margin = list(l = 180, t = 44)) %>%
@@ -1229,11 +1272,13 @@ server <- function(input, output, session) {
       marker = list(colors = unname(col[as.character(tab$key)]), line = list(color = "#ffffff", width = 2)),
       pull = c(0.03, 0, 0), textinfo = "percent", textposition = "inside",
       insidetextorientation = "horizontal", textfont = list(color = "#ffffff", size = 13),
-      hovertemplate = "%{label}<br>%{value} animals · %{percent}<extra></extra>") %>%
+      hovertemplate = "<b>%{label}</b><br>%{value:,} animals · %{percent:.0%} of handled<extra></extra>") %>%
       plotly::layout(title = list(text = "Sex", font = list(color = "#344049", size = 14)),
         paper_bgcolor = "rgba(0,0,0,0)", showlegend = TRUE,
         legend = list(orientation = "h", y = -0.05, x = 0.5, xanchor = "center", font = list(size = 11)),
         annotations = list(donut_center(sum(tab$n), "handled")),
+        hoverlabel = list(bgcolor = "rgba(12,35,75,0.96)", bordercolor = "#FFD200",
+          font = list(color = "#ffffff", family = "Rubik", size = 13)),
         font = list(color = "#344049"), margin = list(t = 38, b = 30, l = 10, r = 10)) %>%
       plotly::config(displayModeBar = FALSE)
   })
@@ -1251,11 +1296,13 @@ server <- function(input, output, session) {
       marker = list(colors = unname(col[as.character(tab$stage)]), line = list(color = "#ffffff", width = 2)),
       textinfo = "percent", textposition = "inside", insidetextorientation = "horizontal",
       textfont = list(color = "#ffffff", size = 13),
-      hovertemplate = "%{label}<br>%{value} animals · %{percent}<extra></extra>") %>%
+      hovertemplate = "<b>%{label}</b><br>%{value:,} animals · %{percent:.0%} of aged<extra></extra>") %>%
       plotly::layout(title = list(text = "Life stage", font = list(color = "#344049", size = 14)),
         paper_bgcolor = "rgba(0,0,0,0)", showlegend = TRUE,
         legend = list(orientation = "h", y = -0.05, x = 0.5, xanchor = "center", font = list(size = 11)),
         annotations = list(donut_center(sum(tab$n), "aged")),
+        hoverlabel = list(bgcolor = "rgba(12,35,75,0.96)", bordercolor = "#FFD200",
+          font = list(color = "#ffffff", family = "Rubik", size = 13)),
         font = list(color = "#344049"), margin = list(t = 38, b = 30, l = 10, r = 10)) %>%
       plotly::config(displayModeBar = FALSE)
   })
@@ -1355,6 +1402,8 @@ server <- function(input, output, session) {
       plotly::layout(paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)",
                      font = list(color = "#344049", family = "Rubik"),
                      margin = list(t = 44, b = 72), showlegend = TRUE,
+                     hoverlabel = list(bgcolor = "rgba(12,35,75,0.96)", bordercolor = "#FFD200",
+                       font = list(color = "#ffffff", family = "Rubik", size = 13)),
                      legend = list(orientation = "h", x = 0.5, xanchor = "center",
                                    y = -0.08, yanchor = "top", font = list(size = 10),
                                    itemsizing = "constant", bgcolor = "rgba(255,255,255,0.6)")) %>%
@@ -1464,7 +1513,9 @@ server <- function(input, output, session) {
       yaxis  = list(title = "MNKA (individuals known alive)", color = "#16386e"),
       yaxis2 = list(title = "captures per 100 trap-nights (site total)", color = "#7a8896",
                     overlaying = "y", side = "right", gridcolor = "rgba(0,0,0,0)"),
-      xaxis  = list(title = ""), hovermode = "closest", margin = list(t = 44),
+      xaxis  = list(title = "", showspikes = TRUE, spikemode = "across",
+                    spikethickness = 1, spikecolor = "#7a8896", spikedash = "dot"),
+      hovermode = "x", margin = list(t = 44),
       annotations = list(list(text = "⋯ dotted = catch-per-effort (right axis)",
         x = 0, y = 1.08, xref = "paper", yref = "paper", xanchor = "left", yanchor = "bottom",
         showarrow = FALSE, font = list(color = "#7a8896", size = 11, family = "Rubik")))) %>% ctx_anno()
