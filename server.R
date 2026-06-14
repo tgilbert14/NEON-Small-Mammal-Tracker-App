@@ -213,12 +213,14 @@ server <- function(input, output, session) {
     if (length(i) && !is.null(rv$lb_view)) pick_individual(rv$lb_view$tagID[i])
   })
 
-  observeEvent(input$surpriseBtn, {
+  # pick a random standout individual (shared by the sidebar + dossier buttons)
+  surprise_pick <- function() {
     lb <- rv$lb; req(lb)
     pool <- lb$tagID[lb$rarity %in% c("Legendary", "Epic")]
     if (length(pool) == 0) pool <- lb$tagID[seq_len(min(20, nrow(lb)))]
     pick_individual(sample(pool, 1))
-  })
+  }
+  observeEvent(input$surpriseBtn, surprise_pick())
 
   # ensure an individual is selected (for tabs that need one) -> pick the star
   ensure_individual <- function() {
@@ -237,6 +239,12 @@ server <- function(input, output, session) {
   observeEvent(input$goRange, {    # heatmap/replay need an individual — pick the star
     ensure_individual(); nav_select("tabs", "homerange")
   })
+  observeEvent(input$goDossier, {  # "Track an animal" door — open the picker (Hall of Fame)
+    nav_select("tabs", "fame")
+  })
+  # dossier empty-state buttons (surface the picker where users land)
+  observeEvent(input$goFameFromDossier,   nav_select("tabs", "fame"))
+  observeEvent(input$surpriseFromDossier, surprise_pick())
 
   # ---- splash / landing: the national site-picker map --------------------
   # "Select your site" — a map of all bundled NEON sites. Tap a dot to load it.
@@ -674,9 +682,13 @@ server <- function(input, output, session) {
     tag <- rv$tag
     if (is.null(tag)) return(div(class = "empty-state",
       div(class = "empty-icon", "\U0001F50D"),
-      h4("No individual selected"),
-      p("Open the ", tags$b("Hall of Fame"), " and click any rodent — or hit ",
-        tags$b("Surprise me"), " in the sidebar.")))
+      h4("Pick an animal to open its dossier"),
+      p("Every individual NEON tagged at this site has a full profile — measurements, a trap-grid home range, capture history, and a shareable card."),
+      div(class = "empty-actions",
+        actionButton("goFameFromDossier", tagList(bs_icon("trophy-fill"), " Browse the Hall of Fame"),
+                     class = "btn-primary"),
+        actionButton("surpriseFromDossier", tagList(bs_icon("dice-5-fill"), " Surprise me"),
+                     class = "btn-outline-dark"))))
     row <- rv$lb[rv$lb$tagID == tag, ]; req(nrow(row) == 1)
     rm <- rarity_meta(row$rarity[1])
     nick <- if (!is.na(row$nickname[1])) row$nickname[1] else "small mammal"
@@ -1216,20 +1228,19 @@ server <- function(input, output, session) {
     allsp <- sort(unique(ds$scientificName))
     plots <- sort(unique(ds$plotID))
 
-    # facet-like layout, one mini time-series per plot. The legend is built ONCE
-    # from invisible "legend-only" traces covering EVERY species, so it's always
-    # complete and stable regardless of which species each plot happens to hold.
+    # facet-like layout, one mini time-series per plot. The legend is built from
+    # the REAL data traces: each species' FIRST trace (in any panel) carries
+    # showlegend = TRUE, the rest share its legendgroup. (Phantom all-NA legend
+    # traces get silently dropped by plotly/subplot, which is why this is robust.)
+    seen <- new.env(parent = emptyenv())
     mk <- function(pl, first) {
       dd <- ds[ds$plotID == pl, ]
       p <- plot_ly()
-      if (first) for (s in allsp)
-        p <- p %>% add_trace(x = NA, y = NA, type = "scatter", mode = "lines",
-          name = s, legendgroup = s, line = list(color = pal[[s]]),
-          showlegend = TRUE, hoverinfo = "skip")
       for (s in unique(dd$scientificName)) {
         sd <- dd[dd$scientificName == s, ]
+        show <- is.null(seen[[s]]); if (show) assign(s, TRUE, envir = seen)
         p <- p %>% add_trace(data = sd, x = ~date, y = ~count, type = "scatter",
-          mode = "lines+markers", name = s, legendgroup = s, showlegend = FALSE,
+          mode = "lines+markers", name = s, legendgroup = s, showlegend = show,
           marker = list(size = 5, color = pal[[s]]), line = list(width = 1.5, color = pal[[s]]),
           hovertemplate = paste0(pl, "<br>%{x|%b %Y}: %{y}<extra></extra>"))
       }
@@ -1245,8 +1256,11 @@ server <- function(input, output, session) {
     plotly::subplot(sub, nrows = ceiling(length(plots) / 2), shareX = TRUE, shareY = FALSE,
                     titleX = FALSE, margin = 0.05) %>%
       plotly::layout(paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)",
-                     font = list(color = "#344049", family = "Rubik"), margin = list(t = 44),
-                     legend = list(font = list(size = 10), bgcolor = "rgba(0,0,0,0)")) %>%
+                     font = list(color = "#344049", family = "Rubik"),
+                     margin = list(t = 44, b = 72), showlegend = TRUE,
+                     legend = list(orientation = "h", x = 0.5, xanchor = "center",
+                                   y = -0.08, yanchor = "top", font = list(size = 10),
+                                   itemsizing = "constant", bgcolor = "rgba(255,255,255,0.6)")) %>%
       ctx_anno() %>%
       plotly::config(displayModeBar = FALSE)
   })
@@ -1346,13 +1360,17 @@ server <- function(input, output, session) {
       dplyr::summarise(cap = sum(.data$captures), tn = sum(.data$trap_nights), .groups = "drop") %>%
       dplyr::mutate(cpue = round(100 * .data$cap / .data$tn, 1))
     p <- p %>% add_trace(data = site, x = ~date, y = ~cpue, yaxis = "y2", type = "scatter",
-      mode = "lines", name = "site CPUE", line = list(color = "rgba(31,42,48,0.55)", width = 2, dash = "dot"),
-      hovertemplate = "%{x|%b %Y}<br>%{y} captures / 100 trap-nights<extra></extra>")
+      mode = "lines", name = "site total, per 100 trap-nights",
+      line = list(color = "rgba(31,42,48,0.55)", width = 2, dash = "dot"),
+      hovertemplate = "%{x|%b %Y}<br>%{y} captures per 100 trap-nights<extra></extra>")
     plotly_theme(p) %>% plotly::layout(
       yaxis  = list(title = "MNKA (individuals known alive)", color = "#16386e"),
-      yaxis2 = list(title = "captures / 100 TN", color = "#7a8896", overlaying = "y", side = "right",
-                    gridcolor = "rgba(0,0,0,0)"),
-      xaxis  = list(title = ""), hovermode = "closest", margin = list(t = 44)) %>% ctx_anno()
+      yaxis2 = list(title = "captures per 100 trap-nights (site total)", color = "#7a8896",
+                    overlaying = "y", side = "right", gridcolor = "rgba(0,0,0,0)"),
+      xaxis  = list(title = ""), hovermode = "closest", margin = list(t = 44),
+      annotations = list(list(text = "⋯ dotted = catch-per-effort (right axis)",
+        x = 0, y = 1.08, xref = "paper", yref = "paper", xanchor = "left", yanchor = "bottom",
+        showarrow = FALSE, font = list(color = "#7a8896", size = 11, family = "Rubik")))) %>% ctx_anno()
   })
 
   # ---- species accumulation ----------------------------------------------
@@ -1371,15 +1389,28 @@ server <- function(input, output, session) {
         name = "species found", line = list(color = "#16386e", width = 3),
         marker = list(size = 6, color = "#16386e"),
         hovertemplate = "after %{x} bouts<br>%{y:.1f} species<extra></extra>") %>%
+      # Chao1 95% CI band (faint), drawn behind the dashed asymptote
+      add_trace(x = c(range(cv$bouts), rev(range(cv$bouts))),
+        y = c(sa$chao_hi, sa$chao_hi, sa$chao_lo, sa$chao_lo),
+        type = "scatter", mode = "lines", fill = "toself",
+        fillcolor = "rgba(171,5,32,0.08)", line = list(width = 0),
+        hoverinfo = "skip", showlegend = FALSE) %>%
       add_trace(x = range(cv$bouts), y = rep(sa$chao1, 2), type = "scatter", mode = "lines",
-        name = sprintf("Chao1 ≈ %s", sa$chao1),
+        name = if (isTRUE(sa$unstable))
+                 sprintf("Chao1 ≥ %d (few doubletons — lower bound)", sa$chao1)
+               else sprintf("Chao1 ≈ %d (95%% CI %d–%d)", sa$chao1, sa$chao_lo, sa$chao_hi),
         line = list(color = "#AB0520", width = 1.5, dash = "dash"), hoverinfo = "skip")
+    anno_txt <- if (isTRUE(sa$unstable))
+        sprintf("observed %d species · Chao1 ≥ %d — a lower bound (only %d doubleton%s)",
+                sa$sobs, sa$chao1, sa$f2, ifelse(sa$f2 == 1, "", "s"))
+      else sprintf("observed %d species · Chao1 ≈ %d (95%% CI %d–%d)",
+                   sa$sobs, sa$chao1, sa$chao_lo, sa$chao_hi)
     plotly_theme(p) %>% plotly::layout(
       xaxis = list(title = "trapping bouts (months)"),
       yaxis = list(title = "cumulative species"), margin = list(t = 44),
-      annotations = list(list(text = sprintf("observed %d · estimated ≈ %s species", sa$sobs, sa$chao1),
+      annotations = list(list(text = anno_txt,
         x = 0.98, y = 0.05, xref = "paper", yref = "paper", xanchor = "right", showarrow = FALSE,
-        font = list(color = "#6b7a85", size = 12)))) %>% ctx_anno()
+        font = list(color = "#6b7a85", size = 11)))) %>% ctx_anno()
   })
 
   # ---- detection-corrected abundance (closed-capture per bout) ------------
@@ -1450,21 +1481,68 @@ server <- function(input, output, session) {
     cs <- community_stats(d, rv$lb)
     hn <- hill_numbers(d)
     cc <- tryCatch(detect_cc(), error = function(e) NULL)
-    sp <- utils::head(species_summary(d), 8)
+    lb <- rv$lb
+    sp <- species_summary(d)
+    code <- mode_chr(d$siteID)
+    bio  <- tryCatch(site_bio(code), error = function(e) NULL)
+
     even_word <- if (is.na(hn$even)) "—"
-      else if (hn$even >= 0.6) "an even community" else if (hn$even >= 0.35) "a moderately uneven community"
+      else if (hn$even >= 0.6) "an even community"
+      else if (hn$even >= 0.35) "a moderately uneven community"
       else "a community dominated by a few species"
     stat <- function(v, lab) div(class = "rc-stat", div(class = "rc-stat-v", v), div(class = "rc-stat-l", lab))
+
     p_txt <- if (!is.null(cc) && !is.null(cc$series) && nrow(cc$series) > 0 && !is.na(cc$mean_p))
-               sprintf("%.0f%% per night (≈%.0f%% of the population caught per bout, across %d estimable bouts)",
-                       100 * cc$mean_p, 100 * cc$mean_detect, cc$n_estimable)
-             else "not estimable here (single-night grids / too few recaptures)"
+               sprintf("%.0f%% per night (≈%.0f%% of the population caught per bout, across %d of %d estimable bouts)",
+                       100 * cc$mean_p, 100 * cc$mean_detect, cc$n_estimable, cc$n_bouts)
+             else "not estimable here (single-night grids / too few within-bout recaptures — MNKA & CPUE are the right index for these)"
+
+    # --- population structure (handled animals) ---
+    h <- dplyr::filter(d, !is.na(.data$tagID))
+    n_handled <- nrow(h)
+    sex_ratio <- if (cs$n_male > 0) sprintf("%.2f F per M", cs$n_female / cs$n_male) else "—"
+    stage_tbl <- if (n_handled > 0)
+        sort(table(factor(ifelse(is.na(h$lifeStage) | h$lifeStage == "", "unknown", h$lifeStage))), decreasing = TRUE) else NULL
+    stage_txt <- if (!is.null(stage_tbl))
+        paste(sprintf("%s %s", format(as.integer(stage_tbl), big.mark = ","), names(stage_tbl)), collapse = " · ") else "—"
+
+    # --- breeding / phenology (distinct individuals ever recorded in each state) ---
+    fr <- tryCatch(flag_repro(d), error = function(e) NULL)
+    repro_txt <- "—"
+    if (!is.null(fr)) {
+      fh <- fr[!is.na(fr$tagID), ]
+      nd <- function(lvl) dplyr::n_distinct(fh$tagID[fh$repro == lvl])
+      repro_txt <- sprintf("%s breeding males · %s pregnant · %s lactating/receptive (distinct individuals)",
+        fmt_int(nd("breeding male")), fmt_int(nd("pregnant female")), fmt_int(nd("lactating/receptive female")))
+    }
+
+    # --- notable individuals from the leaderboard ---
+    notable_rows <- NULL
+    if (!is.null(lb) && nrow(lb) > 0) {
+      mc <- lb[which.max(lb$captures), ]
+      hv <- if (any(is.finite(lb$max_weight))) lb[which.max(replace(lb$max_weight, !is.finite(lb$max_weight), -Inf)), ] else NULL
+      career_pool <- lb[!lb$tag_suspect & !is.na(lb$career_days), ]
+      cr <- if (nrow(career_pool) > 0) career_pool[which.max(career_pool$career_days), ] else NULL
+      mk <- function(tg, lab, val) tags$tr(tags$td(tags$b(lab)),
+        tags$td(tagList(tg$emoji, " ", tags$em(tg$scientificName))),
+        tags$td(tg$short), tags$td(val))
+      notable_rows <- tagList(
+        mk(mc, "Most caught", paste0(fmt_int(mc$captures), " captures")),
+        if (!is.null(hv)) mk(hv, "Heaviest", paste0(hv$max_weight, " g")),
+        if (!is.null(cr)) mk(cr, "Longest career", paste0(fmt_int(cr$career_days), " d")))
+    }
+
+    sp_show <- utils::head(sp, 14); more_n <- nrow(sp) - nrow(sp_show)
+
     div(class = "report-card",
       div(class = "rc-head",
         div(class = "rc-brand", "\U0001F43E NEON Small Mammal Report Card"),
         div(class = "rc-site", rv$label),
         div(class = "rc-range", fmt_range(cs$date_min, cs$date_max),
             if (isTRUE(rv$is_demo)) " · demo dataset")),
+
+      if (!is.null(bio)) div(class = "rc-bio", bio),
+
       div(class = "rc-stats",
         stat(format(cs$total_captures, big.mark = ","), "captures"),
         stat(format(cs$individuals, big.mark = ","), "individuals"),
@@ -1472,24 +1550,56 @@ server <- function(input, output, session) {
         stat(paste0(cs$recap_rate, "%"), "recapture rate"),
         stat(format(cs$trap_nights, big.mark = ","), "trap-nights"),
         stat(cs$legendary, "10+ caught")),
+      div(class = "rc-stats rc-stats-4",
+        stat(hn$q0, "richness (q0)"),
+        stat(ifelse(is.na(hn$q1), "—", format(hn$q1, nsmall = 1)), "common spp (q1)"),
+        stat(ifelse(is.na(hn$q2), "—", format(hn$q2, nsmall = 1)), "dominant spp (q2)"),
+        stat(ifelse(is.na(hn$even), "—", format(hn$even, nsmall = 2)), "evenness")),
+
+      div(class = "rc-section",
+        tags$h4("Site at a glance"),
+        tags$p(sprintf("Roughly %s trap-nights across %s plots over %s produced this record.",
+          format(cs$trap_nights, big.mark = ","), cs$plots, fmt_range(cs$date_min, cs$date_max)))),
+
       div(class = "rc-section",
         tags$h4("Diversity"),
-        tags$p(sprintf("Species richness %d · effective common species (Hill q1) %.1f · effective dominant (q2) %.1f · evenness %s — %s.",
-          hn$q0, hn$q1, hn$q2, ifelse(is.na(hn$even), "—", format(hn$even, nsmall = 2)), even_word))),
+        tags$p(sprintf("Species richness %d · effective common species (Hill q1) %s · effective dominant (q2) %s · evenness %s — %s. Abundances are distinct individuals per species (genus-only IDs excluded), so a heavily re-trapped animal isn't double-counted.",
+          hn$q0, ifelse(is.na(hn$q1),"—",format(hn$q1,nsmall=1)), ifelse(is.na(hn$q2),"—",format(hn$q2,nsmall=1)),
+          ifelse(is.na(hn$even), "—", format(hn$even, nsmall = 2)), even_word))),
+
       div(class = "rc-section",
         tags$h4("Detection-corrected abundance"),
-        tags$p(sprintf("Estimated per-night detection probability: %s.", p_txt))),
-      div(class = "rc-section",
-        tags$h4("Most-caught species"),
-        tags$table(class = "rc-table",
-          tags$thead(tags$tr(tags$th("Species"), tags$th("Individuals"), tags$th("Captures"))),
-          tags$tbody(lapply(seq_len(nrow(sp)), function(i) tags$tr(
-            tags$td(tagList(sp$emoji[i], " ", tags$em(sp$scientificName[i]),
-                            if (!is.na(sp$nickname[i])) tags$span(class = "rc-nick", paste0(" (", sp$nickname[i], ")")))),
-            tags$td(format(sp$individuals[i], big.mark = ",")),
-            tags$td(format(sp$captures[i], big.mark = ","))))))),
+        tags$p(sprintf("Estimated per-night detection probability: %s. Closed-capture models (Schnabel/Chapman) on multi-night bouts; months with too few recaptures are shown as the MNKA index only.", p_txt))),
+
+      div(class = "rc-cols",
+        div(class = "rc-section",
+          tags$h4("Species recorded"),
+          tags$table(class = "rc-table",
+            tags$thead(tags$tr(tags$th("Species"), tags$th("Indiv."), tags$th("Caps"), tags$th("Avg g"))),
+            tags$tbody(lapply(seq_len(nrow(sp_show)), function(i) tags$tr(
+              tags$td(tagList(sp_show$emoji[i], " ", tags$em(sp_show$scientificName[i]),
+                              if (!is.na(sp_show$nickname[i])) tags$span(class = "rc-nick", paste0(" (", sp_show$nickname[i], ")")))),
+              tags$td(format(sp_show$individuals[i], big.mark = ",")),
+              tags$td(format(sp_show$captures[i], big.mark = ",")),
+              tags$td(ifelse(is.na(sp_show$avg_weight[i]), "—", sp_show$avg_weight[i])))))),
+          if (more_n > 0) tags$p(class = "rc-nick", sprintf("+ %d more taxa recorded", more_n))),
+
+        div(class = "rc-colstack",
+          div(class = "rc-section",
+            tags$h4("Population structure"),
+            tags$p(HTML(sprintf("Sex ratio: <b>%s</b> (%s F, %s M of %s handled).<br>Life stage: %s.",
+              sex_ratio, fmt_int(cs$n_female), fmt_int(cs$n_male), fmt_int(n_handled), stage_txt)))),
+          div(class = "rc-section",
+            tags$h4("Breeding & phenology"),
+            tags$p(repro_txt),
+            tags$p(class = "rc-caveat", "Reproductive condition is scored from field-collected fields and is most reliable for adults.")),
+          if (!is.null(notable_rows)) div(class = "rc-section",
+            tags$h4("Notable individuals"),
+            tags$table(class = "rc-table rc-table-notable", tags$tbody(notable_rows)),
+            tags$p(class = "rc-caveat", "Career length excludes likely reused ear-tags (career > 550 d or a > 300 d gap)."))) ),
+
       div(class = "rc-foot",
-        sprintf("Data: NEON Small Mammal Box Trapping (DP1.10072.001). Generated by the NEON Small Mammal Tracker — Desert Data Labs. An unofficial educational summary; not affiliated with NEON, Battelle, or the NSF.")))
+        "Data: NEON Small Mammal Box Trapping (DP1.10072.001). Generated by the NEON Small Mammal Tracker — Desert Data Labs. An unofficial educational summary; not affiliated with NEON, Battelle, or the NSF. MNKA = Minimum Number Known Alive (Krebs 1966); Hill numbers (Jost 2006); closed-capture estimators (Schnabel 1938; Chapman 1951; Otis et al. 1978)."))
   })
   # the report card lives in a display:none wrapper (shown only when printing);
   # render it anyway so it's ready in the DOM the instant the user prints.

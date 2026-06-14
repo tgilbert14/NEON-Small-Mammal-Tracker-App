@@ -78,16 +78,17 @@ body {
 .hero-site-range { color: var(--muted); font-size: 13px; border-left: 1px solid var(--line); padding-left: 10px; }
 
 /* ---- hero stat band (clickable) --------------------------------------- */
-.stat-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin: 4px 0 18px; }
-@media (max-width: 1200px) { .stat-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 640px)  { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+/* auto-fit wraps to the available CONTAINER width (so the open sidebar can't
+   clip the cards) — viewport media queries couldn't see the container. */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 4px 0 18px; }
 
 .stat-card {
-  position: relative; display: flex; align-items: center; gap: 12px; cursor: pointer;
+  position: relative; display: flex; align-items: center; gap: 12px; cursor: pointer; min-width: 0;
   background: var(--paper); border: 1px solid var(--line); border-top: 3px solid var(--accent);
   border-radius: 10px; padding: 14px 16px; overflow: hidden;
   box-shadow: 0 2px 8px var(--shadow); transition: transform .16s, box-shadow .16s;
 }
+.stat-body { min-width: 0; }
 .stat-card:hover { transform: translateY(-3px); box-shadow: 0 12px 24px -10px var(--shadow); }
 .stat-icon { font-size: 18px; color: #fff; background: var(--accent); width: 42px; height: 42px;
   border-radius: 12px; display: flex; align-items: center; justify-content: center; flex: none;
@@ -110,8 +111,12 @@ body {
   border-bottom: none !important; font-size: 14px; letter-spacing: .2px;
 }
 .card-header .bi { color: #fff; }
-.card-header.with-info { display: flex; align-items: center; gap: 6px; }
-.card-hint { font-size: 11px; color: rgba(255,255,255,.85); font-weight: 400; }
+.card-header.with-info { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* let the title take the room and WRAP instead of clipping; the hint drops to
+   its own line on a tight card rather than stealing the title's width */
+.card-header.with-info > .ch-title { flex: 1 1 auto; min-width: 0; white-space: normal;
+  overflow-wrap: anywhere; line-height: 1.25; }
+.card-hint { font-size: 11px; color: rgba(255,255,255,.85); font-weight: 400; flex: 0 0 auto; }
 
 /* ---- tab heads -------------------------------------------------------- */
 .main-tabs-wrap { margin-top: 4px; }
@@ -396,13 +401,36 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .rc-table th:nth-child(n+2), .rc-table td:nth-child(n+2) { text-align: right; width: 90px; }
 .rc-nick { color: #777; font-style: normal; }
 .rc-foot { margin-top: 14px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 9.5px; color: #777; }
+/* expanded full-rundown report card */
+.rc-bio { font-style: italic; color: #444; font-size: 11.5px; margin: 0 0 10px; }
+.rc-stats-4 { grid-template-columns: repeat(4, 1fr); margin-top: -4px; }
+.rc-cols { display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; align-items: start; }
+.rc-colstack > .rc-section:first-child { margin-top: 0; }
+.rc-caveat { font-size: 9.5px; color: #888; margin-top: 3px; line-height: 1.35; }
+.rc-table-notable td { padding: 3px 6px; text-align: left; width: auto; }
+.rc-table-notable td:nth-child(1) { width: 92px; color: #333; font-weight: 700; }
+.rc-table-notable td:last-child { text-align: right; font-weight: 700; color: var(--pine); white-space: nowrap; }
 
+/* Print: collapse the whole app OUT of flow (display:none, not visibility:hidden)
+   so the printer doesn't emit trailing blank pages for the hidden app height.
+   Scoped to the body.printing-report class the Report-card button toggles, and
+   smtPrintReport() moves #reportCardWrap to be a direct body child first so this
+   sibling selector is reliable regardless of bslib's wrapper nesting. */
 @media print {
-  body * { visibility: hidden !important; }
-  #reportCardWrap, #reportCardWrap * { visibility: visible !important; }
-  #reportCardWrap { display: block !important; position: absolute; inset: 0 0 auto 0; margin: 0; padding: 18px; }
-  .report-card { box-shadow: none; }
-  @page { margin: 12mm; }
+  body.printing-report > *:not(#reportCardWrap) { display: none !important; }
+  body.printing-report #reportCardWrap {
+    display: block !important; position: static !important;
+    margin: 0 !important; padding: 0 !important; width: 100%; background: #fff;
+  }
+  body.printing-report { background: #fff !important; }
+  body.printing-report .report-card { box-shadow: none !important; max-width: none; margin: 0; }
+  body.printing-report .report-card, body.printing-report .report-card * {
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+  }
+  body.printing-report .rc-section, body.printing-report .rc-stats,
+  body.printing-report .rc-table tr { break-inside: avoid; page-break-inside: avoid; }
+  body.printing-report .rc-head { break-after: avoid; }
+  @page { margin: 14mm; size: letter; }
 }
 
 .empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
@@ -554,9 +582,13 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .land-feat-d { font-size: 12px; color: var(--muted); line-height: 1.4; }
 
 /* ---- Overview home-nav buttons (Girth-style) -------------------------- */
-.home-nav { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 6px 2px 18px; }
-@media (max-width: 1000px) { .home-nav { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 520px)  { .home-nav { grid-template-columns: 1fr; } }
+.home-nav { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin: 6px 2px 18px; }
+@media (max-width: 1100px) { .home-nav { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 620px)  { .home-nav { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 400px)  { .home-nav { grid-template-columns: 1fr; } }
+/* the signature "Track an animal" door gets the gold-accent emphasis */
+.home-btn-star { border-top-color: var(--gold); box-shadow: 0 8px 18px -8px var(--gold-ink); }
+.empty-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
 .home-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
   background: var(--pine); border: 1px solid var(--pine); border-top: 4px solid var(--gold);
   border-radius: 10px; padding: 14px 15px; box-shadow: 0 4px 12px -4px var(--shadow); transition: transform .15s, box-shadow .15s, background .15s; height: 100%; }

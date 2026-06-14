@@ -33,7 +33,10 @@ rows <- lapply(files, function(f) {
   n_cap <- nrow(caps)
   if (n_cap == 0) return(NULL)
 
-  sp_tab   <- sort(table(caps$scientificName[!is.na(caps$scientificName)]), decreasing = TRUE)
+  # species-level only (drop genus-only "X sp." / ambiguous "A/B") so richness
+  # and the dominant-species color match the rest of the app (helpers.R)
+  caps_sp  <- species_level_only(caps[!is.na(caps$scientificName), , drop = FALSE])
+  sp_tab   <- sort(table(caps_sp$scientificName), decreasing = TRUE)
   top_sp   <- if (length(sp_tab)) names(sp_tab)[1] else NA_character_
   grp      <- genus_group(top_sp)
   yrs      <- suppressWarnings(as.integer(format(
@@ -51,7 +54,7 @@ rows <- lapply(files, function(f) {
     bio         = if (nrow(meta)) meta$bio[1]    else NA_character_,
     captures    = n_cap,
     individuals = length(unique(caps$tagID)),
-    species     = length(unique(caps$scientificName[!is.na(caps$scientificName)])),
+    species     = length(unique(caps_sp$scientificName)),
     top_species = top_sp %||% NA_character_,
     top_caps    = if (length(sp_tab)) as.integer(sp_tab[1]) else NA_integer_,
     nickname    = species_nickname(top_sp) %||% NA_character_,
@@ -85,6 +88,7 @@ rng_rows <- lapply(files, function(f) {
   d <- tryCatch(tibble::as_tibble(readRDS(f)), error = function(e) NULL)
   if (is.null(d) || !"tagID" %in% names(d)) return(NULL)
   caps <- d[!is.na(d$tagID) & !is.na(d$scientificName), , drop = FALSE]
+  caps <- species_level_only(caps)               # species-level IDs only (shared helper)
   if (nrow(caps) == 0) return(NULL)
   meta <- neon_sites[neon_sites$site == code, ]
   caps %>%

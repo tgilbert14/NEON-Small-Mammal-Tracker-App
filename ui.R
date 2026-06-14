@@ -8,7 +8,8 @@
 
 # a card header with the title on the left and an info popover pushed right
 card_head <- function(icon, title, ...)
-  bslib::card_header(class = "with-info", bsicons::bs_icon(icon), tags$span(" ", title), ...)
+  bslib::card_header(class = "with-info", bsicons::bs_icon(icon),
+                     tags$span(class = "ch-title", " ", title), ...)
 
 # one rarity-tier badge (used in the visible legend + popovers)
 tier_badge <- function(label) {
@@ -121,7 +122,7 @@ ui <- bslib::page_sidebar(
     h1(class = "app-title", "NEON Small Mammal Tracker",
        span(class = "title-tag", "unofficial")),
     p(class = "app-subtitle", id = "siteSubtitle",
-      "Meet the small mammals NEON catches across the country — what lives where, who the regulars are, and how field crews track them, one ear-tag at a time.")
+      "Meet the small mammals NEON catches across the country — what lives where, who the regulars are, and what eight years of capture records reveal.")
   ),
 
   uiOutput("heroStats"),
@@ -141,7 +142,8 @@ ui <- bslib::page_sidebar(
           actionButton("goRange",   tagList(bs_icon("fire"),           div("Home range"),     tags$small("heatmap + replay of a star")), class = "home-btn"),
           actionButton("goCommunity", tagList(bs_icon("bar-chart-line-fill"), div("Community"), tags$small("who's out there & when")),   class = "home-btn"),
           actionButton("goPopulation", tagList(bs_icon("graph-up-arrow"), div("Population"),  tags$small("abundance & richness")),       class = "home-btn"),
-          actionButton("goFame",    tagList(bs_icon("trophy-fill"),    div("Hall of Fame"),   tags$small("rank every individual")),      class = "home-btn")
+          actionButton("goFame",    tagList(bs_icon("trophy-fill"),    div("Hall of Fame"),   tags$small("rank every individual")),      class = "home-btn"),
+          actionButton("goDossier", tagList(bs_icon("person-vcard"),   div("Track an animal"), tags$small("open any one's dossier")),    class = "home-btn home-btn-star")
         ),
         # lead with the awesome plot — species composition, most common first
         card(full_screen = TRUE,
@@ -268,17 +270,17 @@ ui <- bslib::page_sidebar(
             card_head("people-fill", "MNKA & catch-per-effort, by plot",
               info_pop("MNKA & CPUE",
                 p(tags$b("MNKA"), " (Minimum Number Known Alive) counts how many individuals were ", tags$em("known"), " to be alive each month — caught that month, or before ", tags$em("and"), " after. A transparent abundance index (Krebs 1966)."),
-                p("The dotted white line is ", tags$b("CPUE"), " — captures per 100 trap-nights — which corrects for how much trapping effort happened."))),
+                p("The dotted grey line, read against the ", tags$b("right axis"), ", is ", tags$b("CPUE"), " — captures per 100 trap-nights — which corrects for how much trapping effort happened."))),
             spin(plotlyOutput("mnkaPlot", height = "440px"))),
           card(full_screen = TRUE,
             card_head("graph-up", "Species accumulation",
               info_pop("Species accumulation",
-                p("As more trapping bouts accumulate, how many ", tags$b("species"), " have been found? When the curve flattens, you've probably found them all."),
-                p("The amber line is ", tags$b("Chao1"), " — a statistical estimate of true richness, including species not yet caught (Gotelli & Colwell 2001)."))),
+                p("As more trapping bouts accumulate, how many ", tags$b("species"), " have been found? When the curve flattens, you've probably found them all. Genus-only IDs (\"X sp.\") are excluded so an unidentified catch isn't counted as its own species."),
+                p("The dashed ", tags$b("Chao1"), " line is a ", tags$b("bias-corrected minimum estimate"), " of true richness — a floor that includes species not yet caught — shown with a 95% interval. When ", tags$em("doubletons"), " (species caught as exactly 2 individuals) are scarce it's unstable and flagged as a lower bound (Chao 1987; Gotelli & Colwell 2001)."))),
             spin(plotlyOutput("accumPlot", height = "440px")))
         ),
         card(full_screen = TRUE,
-          card_head("incognito", "Detection-corrected abundance — counting the ones we missed",
+          card_head("incognito", "Detection-corrected abundance",
             info_pop("Detection-corrected abundance", placement = "left",
               p("Traps miss animals. On NEON's ", tags$b("multi-night bouts"), " (pathogen grids run ~3 nights in a row), the ", tags$b("recaptures"), " — animals caught more than once in the same bout — tell us how many we ", tags$em("didn't"), " catch, so we can estimate the true number present."),
               p("The ", tags$span(style="color:#0C234B;font-weight:700", "navy line + band"), " is the estimated abundance N̂ with a 95% interval; the ", tags$span(style="color:#6b7a89;font-weight:700", "grey line"), " is MNKA (minimum known alive). The gap between them ", tags$em("is"), " the detection correction."),
@@ -325,6 +327,8 @@ ui <- bslib::page_sidebar(
           tags$span(class = "rl-sep", "·"),
           tags$span(class = "rl-label", style = "letter-spacing:0;text-transform:none;",
                     "by total captures (15+ → Legendary)")),
+        div(class = "tab-intro", bs_icon("hand-index-thumb"),
+            " Tap any row to open that animal's dossier — measurements, home range, capture history, and a shareable card."),
         spin(DT::DTOutput("leaderboard"))
       ),
 

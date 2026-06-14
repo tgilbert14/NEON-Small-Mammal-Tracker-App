@@ -44,14 +44,14 @@ text(68, 396, "Tracker",            col = "white", cex = 3.5, font = 2, adj = 0)
 paw(470, 398, 16, grDevices::adjustcolor(gold, .92))
 
 # subtitle
-text(70, 322, "Tap a site on the national map, then explore who lives where — home",
+text(70, 322, "Tap a site on the national map and explore who lives where — home",
      col = grDevices::adjustcolor("white", .92), cex = 1.12, adj = 0)
-text(70, 292, "ranges, diversity, detection-corrected abundance, one ear-tag at a time.",
+text(70, 292, "ranges, diversity, and detection-corrected abundance, on real NEON data.",
      col = grDevices::adjustcolor("white", .92), cex = 1.12, adj = 0)
 
 # stat chips
 chips <- list(c("46", "field sites"), c("~178k", "captures"),
-              c("152", "species"), c("instant", "no API waits"))
+              c("145", "species"), c("instant", "no API waits"))
 x0 <- 70; gap <- 14; w <- 250; h <- 96; y1 <- 64
 chipfill <- grDevices::adjustcolor("white", .10)
 for (i in seq_along(chips)) {

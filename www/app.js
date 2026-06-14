@@ -93,11 +93,20 @@ function smtPrintReport() {
       text: "Pick a site, then generate its report card.", confirmButtonColor: "#0C234B" });
     return;
   }
+  // make the wrapper a direct <body> child so the print CSS sibling selector
+  // (body.printing-report > *:not(#reportCardWrap)) reliably hides only the app,
+  // regardless of how bslib nests page content. Harmless on screen (display:none).
+  if (wrap.parentNode !== document.body) document.body.appendChild(wrap);
   document.body.classList.add("printing-report");
-  var done = function () { document.body.classList.remove("printing-report");
-    window.removeEventListener("afterprint", done); };
+  var cleaned = false;
+  var done = function () {
+    if (cleaned) return; cleaned = true;
+    document.body.classList.remove("printing-report");
+    window.removeEventListener("afterprint", done);
+  };
   window.addEventListener("afterprint", done);
   setTimeout(function () { window.print(); }, 60);
+  setTimeout(done, 60000);   // safety net: never leave the app chrome hidden
 }
 
 // ---- save the dossier trading card as a PNG (html-to-image) --------------
