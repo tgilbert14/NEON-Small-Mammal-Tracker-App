@@ -250,20 +250,54 @@ function(input, output, session) {
   })
 
   # ---- Biogeography -------------------------------------------------------
+  updateSelectInput(session, "rangeSpecies",
+                    choices = c("All species (richness)" = "", species_choices()))
+
   output$map <- renderLeaflet({
     si <- SITE_INDEX
-    if (is.null(si)) return(leaflet() %>% addProviderTiles("CartoDB.Positron") %>%
-                              setView(-98, 39, zoom = 3))
+    base <- leaflet() %>% addProviderTiles("CartoDB.Positron") %>% setView(-98, 39, zoom = 3)
+    if (is.null(si)) return(base)
     si <- si[!is.na(si$lat), ]
+    sp <- input$rangeSpecies %||% ""
+    if (sp != "" && !is.null(SPECIES_SITES)) {
+      rng <- SPECIES_SITES[SPECIES_SITES$scientificName == sp, ]
+      rng <- merge(rng, si[, c("site", "name", "lat", "lng")],
+                   by.x = "siteID", by.y = "site")
+      if (!nrow(rng)) return(base)
+      return(base %>% addCircleMarkers(data = rng, lng = ~lng, lat = ~lat, layerId = ~siteID,
+        radius = ~pmax(6, sqrt(individualCount) * 2.2), color = "#13632b",
+        fillOpacity = 0.75, stroke = TRUE, weight = 1.5,
+        label = ~lapply(sprintf("<b>%s</b><br><i>%s</i>: %s individuals",
+          siteID, sp, fmt_int(individualCount)), htmltools::HTML)))
+    }
     pal <- c(neon = "#13632b", demo = "#c9a300")
-    leaflet(si) %>% addProviderTiles("CartoDB.Positron") %>%
-      setView(-98, 39, zoom = 3) %>%
-      addCircleMarkers(lng = ~lng, lat = ~lat, layerId = ~site,
+    base %>% addCircleMarkers(data = si, lng = ~lng, lat = ~lat, layerId = ~site,
         radius = ~pmax(6, sqrt(richness) * 4), color = ~unname(pal[source]),
         fillOpacity = 0.7, stroke = TRUE, weight = 1.5,
         label = ~lapply(sprintf("<b>%s</b> · %s<br>%d species · %s individuals<br>dominant: <i>%s</i>%s",
           site, name, richness, fmt_int(individuals), dominant,
           ifelse(source == "demo", "<br><b>demo data</b>", "")), htmltools::HTML))
+  })
+
+  # cross-site community ordination (PCoA on Bray-Curtis)
+  output$ordPlot <- renderPlotly({
+    o <- ORDINATION
+    if (is.null(o) || nrow(o) < 4)
+      return(note_plot("Not enough sites/samples to ordinate<br><span style='font-size:13px'>Bundle more sites with scripts/refresh_data.R</span>"))
+    pal <- grDevices::colorRampPalette(RColorBrewer::brewer.pal(8, "Dark2"))(length(unique(o$site)))
+    pal <- stats::setNames(pal, sort(unique(o$site)))
+    ve <- attr(o, "var_explained")
+    p <- plot_ly()
+    for (s in sort(unique(o$site))) {
+      os <- o[o$site == s, ]
+      p <- p %>% add_trace(data = os, x = ~x, y = ~y, type = "scatter", mode = "markers",
+        name = s, marker = list(size = 9, color = pal[[s]], opacity = 0.8,
+                                line = list(color = "#fff", width = 1)),
+        hovertemplate = paste0("<b>", s, "</b><br>%{text}<extra></extra>"), text = ~sample)
+    }
+    plotly_theme(p) %>% plotly::layout(
+      xaxis = list(title = if (!is.na(ve[1])) sprintf("PCoA 1 (%d%%)", ve[1]) else "PCoA 1"),
+      yaxis = list(title = if (!is.na(ve[2])) sprintf("PCoA 2 (%d%%)", ve[2]) else "PCoA 2"))
   })
   observeEvent(input$map_marker_click, {
     s <- input$map_marker_click$id; req(s)

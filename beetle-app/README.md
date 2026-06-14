@@ -23,7 +23,7 @@ sharing its Desert Data Labs house style and **bundle-first** data pattern.
 | **Overview** | Carabid community composition — species ranked by abundance and catch-per-100-trap-nights, plus "meet the beetles" natural-history cards. |
 | **Diversity** | Hill numbers (q0/q1/q2 effective species), Hurlbert rarefaction (richness at equal sample size), and species accumulation across bouts. |
 | **Seasonality** | Activity-density by month (catch per 100 trap-nights), overall or split by the top species. |
-| **Biogeography** | A national map of NEON sites sized by carabid richness; tap a site to load it; a sortable comparison table. |
+| **Biogeography** | A national map sized by carabid richness — or by a chosen species' local abundance (a range map); a **PCoA community ordination** (Bray–Curtis) showing which site×plot×year communities resemble each other; and a sortable comparison table. |
 | **About** | Data product, methods, and the demo-data caveat. |
 
 ## How the numbers work

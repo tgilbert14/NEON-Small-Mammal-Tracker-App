@@ -103,6 +103,35 @@ SITE_INDEX <- local({
   if (!length(rows)) NULL else dplyr::bind_rows(rows)
 })
 
+# ---- cross-site aggregates (national views) -------------------------------
+# All available sites' records, bound once at boot, for the ordination and the
+# species range-map picker (independent of whichever single site is loaded).
+ALL_DATA <- local({
+  sites <- available_sites()
+  if (!length(sites)) return(NULL)
+  ds <- lapply(sites, function(s) {
+    d <- load_site_bundle(s)
+    if (is.null(d) || !nrow(d)) return(NULL)
+    d$siteID <- s; d
+  })
+  ds <- ds[!vapply(ds, is.null, logical(1))]
+  if (!length(ds)) NULL else dplyr::bind_rows(ds)
+})
+
+# PCoA ordination of every site x plot x year community (precomputed).
+ORDINATION <- if (!is.null(ALL_DATA)) bray_ordination(ALL_DATA) else NULL
+
+# species -> sites with abundance, + the picker's choices (widest-ranging first).
+SPECIES_SITES <- if (!is.null(ALL_DATA)) species_site_table(ALL_DATA) else NULL
+species_choices <- function() {
+  if (is.null(SPECIES_SITES)) return(NULL)
+  sp <- SPECIES_SITES %>% dplyr::group_by(.data$scientificName) %>%
+    dplyr::summarise(sites = dplyr::n(), inds = sum(.data$individualCount), .groups = "drop") %>%
+    dplyr::arrange(dplyr::desc(.data$sites), dplyr::desc(.data$inds))
+  stats::setNames(sp$scientificName, sprintf("%s — %d site%s", sp$scientificName,
+                  sp$sites, ifelse(sp$sites == 1, "", "s")))
+}
+
 # ---- live NEON fetch (optional) -------------------------------------------
 # Pulls DP1.10022.001, reconciles parataxonomist with authoritative expert IDs,
 # and normalises to the app's long schema (one row per plot/bout/species).

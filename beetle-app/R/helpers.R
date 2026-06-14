@@ -254,3 +254,43 @@ assemble_beetles <- function(raw) {
   out$source <- "neon"
   tibble::as_tibble(out)
 }
+
+# ---------------------------------------------------------------------------
+# Cross-site community ordination (PCoA on Bray-Curtis), base R only.
+# Each "sample" is a site x plot x year community; we measure how dissimilar
+# every pair of samples is (Bray-Curtis) and lay them out in 2-D so similar
+# communities sit close together. Samples from the same biome cluster — the
+# classic carabid biogeography picture — without needing the vegan package.
+# ---------------------------------------------------------------------------
+bray_ordination <- function(d, min_total = 3, min_samples = 4) {
+  if (is.null(d) || nrow(d) == 0) return(NULL)
+  d <- d[!is.na(d$scientificName) & !is.na(d$individualCount), , drop = FALSE]
+  if (!nrow(d)) return(NULL)
+  d$sample <- paste(d$siteID, d$plotID, d$year, sep = "|")
+  agg <- stats::aggregate(individualCount ~ sample + scientificName, d, sum)
+  tab <- stats::xtabs(individualCount ~ sample + scientificName, data = agg)
+  mat <- matrix(as.numeric(tab), nrow = nrow(tab),
+                dimnames = list(rownames(tab), colnames(tab)))
+  mat <- mat[rowSums(mat) >= min_total, , drop = FALSE]
+  if (nrow(mat) < min_samples) return(NULL)
+  n <- nrow(mat); D <- matrix(0, n, n)
+  for (i in seq_len(n - 1)) for (j in (i + 1):n) {
+    num <- sum(abs(mat[i, ] - mat[j, ])); den <- sum(mat[i, ] + mat[j, ])
+    D[i, j] <- D[j, i] <- if (den > 0) num / den else 0
+  }
+  fit <- tryCatch(stats::cmdscale(stats::as.dist(D), k = 2, eig = TRUE),
+                  error = function(e) NULL)
+  if (is.null(fit)) return(NULL)
+  pts <- fit$points
+  out <- tibble::tibble(x = pts[, 1], y = pts[, 2], sample = rownames(mat))
+  out$site <- sub("\\|.*", "", out$sample)
+  ev <- fit$eig[fit$eig > 0]
+  attr(out, "var_explained") <- if (length(ev) >= 2) round(100 * ev[1:2] / sum(ev)) else c(NA, NA)
+  out
+}
+
+# Per-species, per-site abundance — powers the "range map" species picker.
+species_site_table <- function(d) {
+  if (is.null(d) || nrow(d) == 0) return(NULL)
+  tibble::as_tibble(stats::aggregate(individualCount ~ scientificName + siteID, d, sum))
+}
