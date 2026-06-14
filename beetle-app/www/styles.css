@@ -65,6 +65,16 @@ body { background: var(--bg); color: var(--ink); }
 .tab-head-text p { color: var(--muted); font-size: 13px; margin: 4px 0 12px; max-width: 640px; }
 .map-controls { display: flex; gap: 10px; align-items: flex-end; }
 
+/* data-quality (taxon resolution) note */
+.qa-note { display: flex; gap: 9px; align-items: flex-start; border-radius: 10px;
+  padding: 11px 14px; margin: 0 0 14px; font-size: 13px; line-height: 1.5; border: 1px solid; }
+.qa-note .bi { margin-top: 2px; flex: none; font-size: 16px; }
+.qa-clean { background: #eef6f0; border-color: #cfe6d6; color: #21503a; }
+.qa-clean .bi { color: var(--forest, #13632b); }
+.qa-flag { background: #f7f3e6; border-color: #ece0bd; color: #5f5320; }
+.qa-flag .bi { color: #b07d00; }
+.qa-cite { color: var(--muted); font-style: italic; }
+
 /* inter-annual trend verdict banner */
 .trend-verdict { display: flex; gap: 9px; align-items: flex-start; border-radius: 10px;
   padding: 11px 14px; margin: 0 0 14px; font-size: 14px; line-height: 1.5; border: 1px solid; }

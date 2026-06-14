@@ -87,6 +87,7 @@ ui <- bslib::page_sidebar(
 
       nav_panel(
         title = tagList(bs_icon("diagram-3-fill"), " Diversity"), value = "diversity",
+        uiOutput("qaNote"),
         layout_columns(col_widths = c(5, 7),
           card(full_screen = TRUE,
             card_head("diagram-3-fill", "Diversity profile — effective species",

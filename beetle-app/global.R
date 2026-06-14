@@ -87,6 +87,7 @@ SITE_INDEX <- local({
   rows <- lapply(sites, function(s) {
     d <- load_site_bundle(s); if (is.null(d) || !nrow(d)) return(NULL)
     ct <- community_table(d)
+    sp <- ct[ct$species_level %in% TRUE, , drop = FALSE]   # richness = species only
     meta <- neon_sites[neon_sites$site == s, , drop = FALSE]
     tibble::tibble(
       site = s,
@@ -94,9 +95,9 @@ SITE_INDEX <- local({
       lat  = if (nrow(meta)) meta$lat else NA_real_,
       lng  = if (nrow(meta)) meta$lng else NA_real_,
       state = if (nrow(meta)) meta$state else NA_character_,
-      richness = nrow(ct),
+      richness = nrow(sp),
       individuals = sum(ct$individuals),
-      dominant = ct$scientificName[1],
+      dominant = if (nrow(sp)) sp$scientificName[1] else ct$scientificName[1],
       source = attr(d, "source") %||% "neon")
   })
   rows <- rows[!vapply(rows, is.null, logical(1))]

@@ -20,6 +20,37 @@ mode_chr <- function(x) {
   names(sort(table(x), decreasing = TRUE))[1]
 }
 
+# ---------------------------------------------------------------------------
+# QA/QC: is a scientificName resolved to SPECIES level?
+#
+# NEON beetle records are not all named to species: many are left at genus
+# ("Bembidion sp."), family ("Carabidae"), or as ambiguous "A/B" calls. Counting
+# each of those as if it were its own species inflates richness and diversity
+# (a real foot-gun — the same mistake over-counted small-mammal taxa in an
+# earlier app). So we flag species-level rows once, here, and let richness-type
+# metrics use only those, while abundance keeps every beetle actually caught.
+# A species-level name is a binomial: "Genus species" (epithet lowercase), and
+# is not a "sp./spp./cf./aff." placeholder nor a family/subfamily/tribe name.
+# Ref: NEON ground-beetle design, Hoekman et al. 2017, Ecosphere 8(4):e01744.
+is_species_level <- function(name) {
+  n <- trimws(as.character(name))
+  n <- gsub("\\s*\\([^)]*\\)\\s*", " ", n)                  # drop subgenus "(Hypherpes)"
+  n <- trimws(gsub("\\s+", " ", n))
+  ok <- !is.na(n) & nzchar(n)
+  binomial <- grepl("^[A-Z][a-z]+ [a-z][a-z]+", n)          # Genus species…
+  placeholder <- grepl("\\b(sp|spp|cf|aff|nr|gen|indet)\\.?\\b", n, ignore.case = TRUE)
+  higher <- grepl("(idae|inae|ini)$", n)                    # family/subfamily/tribe
+  ambiguous <- grepl("/", n)                                # "Amara/Curtonotus" calls
+  ok & binomial & !placeholder & !higher & !ambiguous
+}
+
+# Keep only species-level rows (for richness, diversity, ordination, indicators).
+species_only <- function(d) {
+  if (is.null(d) || !nrow(d)) return(d)
+  flag <- if ("species_level" %in% names(d)) d$species_level else is_species_level(d$scientificName)
+  d[flag %in% TRUE, , drop = FALSE]
+}
+
 # Normalise a raw/bundled beetle table into the columns the app leans on.
 clean_beetle <- function(d) {
   if (is.null(d) || nrow(d) == 0) return(NULL)
@@ -33,9 +64,12 @@ clean_beetle <- function(d) {
   d$year <- as.integer(format(d$date, "%Y"))
   d$ym   <- substr(as.character(d$date), 1, 7)
   d$mon  <- as.integer(format(d$date, "%m"))
-  # drop rows with no count or no species id; keep genus/morphospecies as-is
+  # drop rows with no count or no name; keep genus/morphospecies for ABUNDANCE
+  # but tag whether each is resolved to species so richness metrics can exclude
+  # the higher-taxon rows (see is_species_level).
   d <- d[!is.na(d$individualCount) & d$individualCount > 0 &
          !is.na(d$scientificName) & d$scientificName != "", , drop = FALSE]
+  d$species_level <- is_species_level(d$scientificName)
   d
 }
 
@@ -51,7 +85,27 @@ community_table <- function(d) {
                      .groups = "drop") %>%
     dplyr::arrange(dplyr::desc(.data$individuals))
   out$cpn <- if (tn > 0) round(100 * out$individuals / tn, 2) else NA_real_
+  out$species_level <- is_species_level(out$scientificName)
+  attr(out, "qa") <- taxon_qa(d)
   out
+}
+
+# QA/QC summary for the data-quality note: how much of the catch is resolved to
+# species vs. left at genus/family. Richness uses species-level only; abundance
+# (total individuals) keeps everything actually trapped.
+taxon_qa <- function(d) {
+  if (is.null(d) || !nrow(d)) return(NULL)
+  sl <- if ("species_level" %in% names(d)) d$species_level else is_species_level(d$scientificName)
+  ind <- d$individualCount
+  list(
+    species          = length(unique(d$scientificName[sl %in% TRUE])),
+    higher_taxa      = length(unique(d$scientificName[!(sl %in% TRUE)])),
+    ind_total        = sum(ind, na.rm = TRUE),
+    ind_higher       = sum(ind[!(sl %in% TRUE)], na.rm = TRUE),
+    pct_ind_higher   = {
+      tot <- sum(ind, na.rm = TRUE)
+      if (tot > 0) round(100 * sum(ind[!(sl %in% TRUE)], na.rm = TRUE) / tot, 1) else 0
+    })
 }
 
 # Total trap-night effort = sum of unique (plot, bout) trap-night values, so a
@@ -109,6 +163,8 @@ rarefaction_curve <- function(counts, step = NULL) {
 # bout orderings (Gotelli & Colwell 2001) for a smooth, order-free curve.
 accumulation_by_bout <- function(d, perms = 50) {
   if (is.null(d) || nrow(d) == 0) return(NULL)
+  d <- species_only(d)              # richness curve = species-level only
+  if (is.null(d) || nrow(d) == 0) return(NULL)
   d$boutid <- paste(d$plotID, d$collectDate)
   bouts <- unique(d$boutid)
   K <- length(bouts)
@@ -143,9 +199,11 @@ seasonality <- function(d, by_species = FALSE, top_n = 6) {
     m$cpn <- 100 * m$individualCount / m$trapnights
     return(tibble::as_tibble(m[order(m$mon), c("mon", "cpn")]))
   }
-  keep <- names(sort(tapply(d$individualCount, d$scientificName, sum),
-                     decreasing = TRUE))[seq_len(min(top_n, length(unique(d$scientificName))))]
-  sub <- d[d$scientificName %in% keep, ]
+  ds <- species_only(d)             # name real species in the per-species split
+  if (is.null(ds) || !nrow(ds)) ds <- d
+  keep <- names(sort(tapply(ds$individualCount, ds$scientificName, sum),
+                     decreasing = TRUE))[seq_len(min(top_n, length(unique(ds$scientificName))))]
+  sub <- ds[ds$scientificName %in% keep, ]
   cap <- stats::aggregate(individualCount ~ mon + scientificName, sub, sum)
   m <- merge(cap, mon_eff, by = "mon")
   m$cpn <- 100 * m$individualCount / m$trapnights
@@ -300,6 +358,7 @@ assemble_beetles <- function(raw) {
 # ---------------------------------------------------------------------------
 bray_ordination <- function(d, min_total = 3, min_samples = 4) {
   if (is.null(d) || nrow(d) == 0) return(NULL)
+  d <- species_only(d)              # community structure on named species only
   d <- d[!is.na(d$scientificName) & !is.na(d$individualCount), , drop = FALSE]
   if (!nrow(d)) return(NULL)
   d$sample <- paste(d$siteID, d$plotID, d$year, sep = "|")
@@ -328,6 +387,8 @@ bray_ordination <- function(d, min_total = 3, min_samples = 4) {
 # Per-species, per-site abundance — powers the "range map" species picker.
 species_site_table <- function(d) {
   if (is.null(d) || nrow(d) == 0) return(NULL)
+  d <- species_only(d)              # range maps name species, not genera
+  if (is.null(d) || !nrow(d)) return(NULL)
   tibble::as_tibble(stats::aggregate(individualCount ~ scientificName + siteID, d, sum))
 }
 
@@ -341,6 +402,7 @@ species_site_table <- function(d) {
 # ---------------------------------------------------------------------------
 indicator_species <- function(d, min_total = 5) {
   if (is.null(d) || nrow(d) == 0) return(NULL)
+  d <- species_only(d)              # indicators must be actual species
   d <- d[!is.na(d$scientificName) & !is.na(d$individualCount), , drop = FALSE]
   if (!nrow(d)) return(NULL)
   d$sample <- paste(d$siteID, d$plotID, d$year, sep = "|")

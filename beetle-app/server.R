@@ -108,13 +108,15 @@ function(input, output, session) {
 
   output$heroStats <- renderUI({
     d <- rv$data; if (is.null(d)) return(NULL)
-    ct <- community_table(d); hn <- hill_numbers(ct$individuals)
+    ct <- community_table(d)
+    sp <- ct[ct$species_level %in% TRUE, , drop = FALSE]   # richness = species only
+    hn <- hill_numbers(sp$individuals)
     tn <- effort_trapnights(d)
     bouts <- length(unique(paste(d$plotID, d$collectDate)))
     stat <- function(v, l) div(class = "hero-stat", div(class = "hs-v", v), div(class = "hs-l", l))
     div(class = "hero-stats",
       stat(fmt_int(sum(ct$individuals)), "individuals"),
-      stat(nrow(ct), "species"),
+      stat(nrow(sp), "species"),
       stat(hn$q1, "effective species (q1)"),
       stat(fmt_int(bouts), "trap bouts"),
       stat(fmt_int(round(tn)), "trap-nights"))
@@ -124,6 +126,8 @@ function(input, output, session) {
   output$commBar <- renderPlotly({
     d <- rv$data; req(d)
     ct <- community_table(d); if (is.null(ct) || !nrow(ct)) return(note_plot("No community data"))
+    ct <- ct[ct$species_level %in% TRUE, , drop = FALSE]   # name species, not genera
+    if (!nrow(ct)) return(note_plot("No species-level identifications yet"))
     ct <- ct[order(ct$individuals), ]   # plotly bars: bottom = first
     pal <- rv$pal
     cols <- unname(pal[ct$scientificName]); cols[is.na(cols)] <- DDL$forest
@@ -143,7 +147,9 @@ function(input, output, session) {
 
   output$meetBeetles <- renderUI({
     d <- rv$data; req(d)
-    ct <- community_table(d); ct <- utils::head(ct, 6)
+    ct <- community_table(d)
+    ct <- utils::head(ct[ct$species_level %in% TRUE, , drop = FALSE], 6)
+    if (!nrow(ct)) return(NULL)
     cards <- lapply(seq_len(nrow(ct)), function(i) {
       sp <- ct$scientificName[i]
       div(class = "meet-card",
@@ -158,9 +164,28 @@ function(input, output, session) {
   })
 
   # ---- Diversity ----------------------------------------------------------
+  # species-level abundance vector — the input every richness metric must use
+  sp_counts <- function(d) {
+    ct <- community_table(d); if (is.null(ct)) return(numeric(0))
+    ct$individuals[ct$species_level %in% TRUE]
+  }
+
+  # data-quality note: how much of the catch is named to species vs. higher taxa
+  output$qaNote <- renderUI({
+    d <- rv$data; req(d)
+    qa <- attr(community_table(d), "qa")
+    if (is.null(qa) || qa$higher_taxa == 0)
+      return(div(class = "qa-note qa-clean", bs_icon("patch-check-fill"),
+        HTML(sprintf(" All %d taxa here are identified to species — richness counts are clean.", qa$species %||% 0))))
+    div(class = "qa-note qa-flag", bs_icon("funnel-fill"),
+      HTML(sprintf(" Richness counts <b>%d species</b>. %d record-type%s identified only to genus/family (%s individuals, %.1f%% of the catch) are <b>excluded from richness, diversity and ordination</b> — they'd otherwise inflate the species count — but still counted in total abundance. <span class='qa-cite'>(NEON beetle design: Hoekman et al. 2017)</span>",
+        qa$species, qa$higher_taxa, if (qa$higher_taxa == 1) "" else "s",
+        fmt_int(qa$ind_higher), qa$pct_ind_higher)))
+  })
+
   output$hillPlot <- renderPlotly({
     d <- rv$data; req(d)
-    ct <- community_table(d); hn <- hill_numbers(ct$individuals)
+    hn <- hill_numbers(sp_counts(d))
     if (is.na(hn$q0)) return(note_plot("Not enough data for diversity"))
     df <- data.frame(q = c("q0\nrichness", "q1\ncommon", "q2\ndominant"),
                      v = c(hn$q0, hn$q1, hn$q2))
@@ -174,7 +199,7 @@ function(input, output, session) {
 
   output$hillNote <- renderUI({
     d <- rv$data; req(d)
-    hn <- hill_numbers(community_table(d)$individuals)
+    hn <- hill_numbers(sp_counts(d))
     if (is.na(hn$even)) return(NULL)
     word <- if (hn$even >= 0.6) "an even community" else if (hn$even >= 0.35)
               "a moderately uneven community" else "a community dominated by a few species"
@@ -184,7 +209,7 @@ function(input, output, session) {
 
   output$rarePlot <- renderPlotly({
     d <- rv$data; req(d)
-    rc <- rarefaction_curve(community_table(d)$individuals)
+    rc <- rarefaction_curve(sp_counts(d))
     if (is.null(rc)) return(note_plot("Not enough individuals to rarefy"))
     plot_ly() %>%
       add_trace(x = rc$n, y = rc$hi, type = "scatter", mode = "lines",
@@ -399,7 +424,13 @@ function(input, output, session) {
       tags$ul(
         tags$li("Abundance is normalised to ", tags$b("catch per 100 trap-nights"),
                 " (effort = unique plot × bout trap-night totals) so sites compare fairly."),
-        tags$li("Hill numbers (Hill 1973; Jost 2006); Hurlbert (1971) rarefaction; Gotelli & Colwell (2001) accumulation."),
+        tags$li(tags$b("Species vs. higher taxa (QA/QC)."),
+                " Not every beetle is named to species — some are left at genus (\"",
+                tags$em("Bembidion"), " sp.\") or family (\"Carabidae\"). Counting those as if each were its own species ",
+                tags$b("inflates richness and diversity"), ", so all richness-type metrics (richness, Hill numbers, rarefaction, accumulation, ordination, indicator species) use ",
+                tags$b("species-level records only"), ". Total ", tags$b("abundance"),
+                " still counts every beetle trapped. The Diversity tab shows exactly how many records this excludes."),
+        tags$li("Hill numbers (Hill 1973; Jost 2006); Hurlbert (1971) rarefaction; Gotelli & Colwell (2001) accumulation; Dufrêne & Legendre (1997) indicator value; NEON ground-beetle sampling design (Hoekman et al. 2017, ", tags$em("Ecosphere"), " 8(4):e01744)."),
         tags$li("Real bundles reconcile parataxonomist IDs with authoritative ", tags$b("expert IDs"),
                 " and normalise the 2018 trap-count and 2023 plot-count protocol changes via per-trap-night effort.")),
       div(class = "about-note", bs_icon("exclamation-triangle"),

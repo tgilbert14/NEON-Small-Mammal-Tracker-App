@@ -38,6 +38,14 @@ sharing its Desert Data Labs house style and **bundle-first** data pattern.
   accumulation averaged over random bout orders (Gotelli & Colwell 2001).
 - **Taxonomy** — the real bundle reconciles parataxonomist IDs with the
   authoritative **expert taxonomist** IDs (`assemble_beetles()` in `R/helpers.R`).
+- **Species vs. higher taxa (QA/QC).** NEON records aren't all named to species —
+  some stop at genus (`Bembidion sp.`) or family (`Carabidae`). Counting those as
+  distinct species **inflates richness and diversity**, so every richness-type
+  metric (richness, Hill numbers, rarefaction, accumulation, ordination, indicator
+  species) uses **species-level records only** (`is_species_level()`), while total
+  **abundance** still counts every beetle trapped. The Diversity tab reports how
+  many records are excluded. Design ref: Hoekman et al. 2017, *Ecosphere* 8(4):e01744;
+  indicator value: Dufrêne & Legendre 1997.
 
 ## Run it locally
 
