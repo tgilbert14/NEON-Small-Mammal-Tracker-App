@@ -55,31 +55,33 @@ function rodentConfetti(big) {
 // so we show an INDETERMINATE animated bar (no fake %) on an OPAQUE backdrop —
 // it just spins until the server signals it's done. No number to "stall" at,
 // and you don't see half-rendered data through it.
-var smtShowTimer = null, smtSafetyTimer = null;
+var smtSafetyTimer = null;
 function smtLoadStart(label) {
   var ov = document.getElementById("loadOverlay");
   if (!ov) return;
-  // defer ~250ms so INSTANT (bundled) loads never even flash the overlay
-  clearTimeout(smtShowTimer);
-  smtShowTimer = setTimeout(function () {
-    var siteText = label || "";
-    if (!siteText) {
-      var sel = document.getElementById("site");
-      if (sel && sel.options && sel.selectedIndex >= 0) siteText = sel.options[sel.selectedIndex].text;
-    }
-    var siteEl = document.getElementById("loadSite");
-    if (siteEl) siteEl.textContent = siteText;
-    ov.style.display = "flex";
-    clearTimeout(smtSafetyTimer);
-    smtSafetyTimer = setTimeout(function () {  // safety net so it can never stick
-      var note = document.querySelector(".load-note");
-      if (note) note.textContent = "Still working — a large site or a slow NEON Portal can take a bit. You can close this and try again.";
-      setTimeout(smtLoadDone, 5000);
-    }, 90000);
-  }, 250);
+  // Raise the overlay IMMEDIATELY, synchronously, on the click. A site load is
+  // 1–3s of BLOCKING work on the worker (decompress + clean + leaderboard + the
+  // Overview tab's plotly renders). A server-sent "show" message can't paint
+  // until that block ends — by then it's too late — so the only honest feedback
+  // is to show it client-side right now. (Loads are never truly instant, so the
+  // old 250ms defer just hid the feedback during exactly the freeze it's for.)
+  var siteText = label || "";
+  if (!siteText) {
+    var sel = document.getElementById("site");
+    if (sel && sel.options && sel.selectedIndex >= 0) siteText = sel.options[sel.selectedIndex].text;
+  }
+  var siteEl = document.getElementById("loadSite");
+  if (siteEl) siteEl.textContent = siteText;
+  ov.style.display = "flex";
+  if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }  // tactile "got it"
+  clearTimeout(smtSafetyTimer);
+  smtSafetyTimer = setTimeout(function () {  // safety net so it can never stick
+    var note = document.querySelector(".load-note");
+    if (note) note.textContent = "Still working — a large site or a slow NEON Portal can take a bit. You can close this and try again.";
+    setTimeout(smtLoadDone, 5000);
+  }, 90000);
 }
 function smtLoadDone() {
-  clearTimeout(smtShowTimer);
   clearTimeout(smtSafetyTimer);
   var ov = document.getElementById("loadOverlay");
   if (ov) ov.style.display = "none";
