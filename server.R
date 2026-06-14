@@ -128,6 +128,33 @@ server <- function(input, output, session) {
       yaxis = list(title = "catch per 100 trap-nights", rangemode = "tozero"))
   })
 
+  # is any environmental overlay available for this site? (drives the driver card)
+  output$hasEnv <- reactive(!is.null(rv$env) && nrow(rv$env) > 0)
+  outputOptions(output, "hasEnv", suspendWhenHidden = FALSE)
+
+  # multi-driver comparison: best-lag |correlation| for every available driver
+  output$envDriverRank <- renderPlotly({
+    d <- rv$data; env <- rv$env
+    if (is.null(d) || is.null(env)) return(note_plot("No environmental data for this site", "\U0001F326"))
+    ca <- env_corr_all(d, env)
+    if (is.null(ca) || !nrow(ca)) return(note_plot("Not enough overlap to compare drivers", "\U0001F326"))
+    ca <- ca[order(abs(ca$r)), ]   # plotly horizontal bars draw bottom-up
+    ca$lab <- ifelse(ca$lag == 0, "same mo", sprintf("lag %d mo", ca$lag))
+    demo <- identical(attr(env, "source"), "demo")
+    plot_ly(ca, x = ~r, y = ~factor(label, levels = label), type = "bar",
+      orientation = "h", marker = list(color = ~color),
+      text = ~sprintf("r %+.2f · %s · n=%d", r, lab, n), textposition = "auto",
+      hovertemplate = ~paste0("<b>", label, "</b><br>best r %{x:+.2f} at ", lab,
+                              " (n=", n, ")<extra></extra>")) %>%
+      plotly_theme(legend = FALSE) %>%
+      plotly::layout(
+        title = list(text = if (demo) "Demo overlays — illustrative" else "",
+                     font = list(size = 11, color = "#9a7a00"), x = 0.02),
+        xaxis = list(title = "best correlation with catch-per-effort (r)",
+                     range = c(-1, 1), zeroline = TRUE, zerolinecolor = "rgba(31,42,48,0.35)"),
+        yaxis = list(title = ""))
+  })
+
   # state -> site cascading picker (Arizona default so the demo lines up)
   updateSelectInput(session, "stateSel", choices = state_choices(), selected = "NM")
   observeEvent(input$stateSel, {

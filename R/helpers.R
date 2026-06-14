@@ -1033,6 +1033,25 @@ env_response_points <- function(d, env, layer, lag = 0) {
   tibble::as_tibble(j[order(j$date), c("date", "year", "value", "cpue")])
 }
 
+# Best-lag correlation for EVERY available driver, ranked by |r|. Answers the
+# question "which environmental signal does this population track best?" — the
+# data behind the multi-driver comparison panel.
+env_corr_all <- function(d, env, max_lag = 12) {
+  if (is.null(d) || is.null(env)) return(NULL)
+  rows <- lapply(names(ENV_LAYERS), function(k) {
+    meta <- ENV_LAYERS[[k]]
+    if (!(meta$col %in% names(env)) || !any(!is.na(env[[meta$col]]))) return(NULL)
+    sc <- env_corr_scan(d, env, k, max_lag)
+    if (is.null(sc)) return(NULL)
+    data.frame(layer = k, label = meta$label, color = meta$color,
+               lag = sc$lag, r = sc$r, n = sc$n, stringsAsFactors = FALSE)
+  })
+  rows <- rows[!vapply(rows, is.null, logical(1))]
+  if (!length(rows)) return(NULL)
+  res <- do.call(rbind, rows)
+  tibble::as_tibble(res[order(-abs(res$r)), ])
+}
+
 # Long trap-grid table (one row per A-J x 1-10 cell) for an individual's heatmap.
 trap_grid_long <- function(d, tag) {
   sub <- dplyr::filter(d, .data$tagID == tag, !is.na(.data$tx), !is.na(.data$ty))

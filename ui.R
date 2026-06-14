@@ -295,6 +295,13 @@ ui <- bslib::page_sidebar(
             p("Minimum Number Known Alive (MNKA) and catch-per-unit-effort are honest abundance indices; the accumulation curve shows whether trapping ran long enough to find every species."))
         ),
         uiOutput("envCorrNote"),
+        conditionalPanel("output.hasEnv == true",
+          card(full_screen = TRUE,
+            card_head("bar-chart-steps", "Which environmental driver does this population track best?",
+              info_pop("Driver comparison",
+                p("For every co-located driver, we scan lags 0–12 months and keep the ", tags$b("strongest correlation"), " with monthly catch-per-effort."),
+                p("Bars show that best correlation (sign = direction); the label is the lag at which it peaks. The longest bar is the signal this population follows most closely — the others are candidate co-drivers."))),
+            spin(plotlyOutput("envDriverRank", height = "300px")))),
         layout_columns(col_widths = c(7, 5),
           card(full_screen = TRUE,
             card_head("people-fill", "MNKA & catch-per-effort, by plot",
