@@ -3,7 +3,8 @@
 #
 # Downloads each NEON site's ground-beetle record (DP1.10022.001), assembles it
 # into the app's tidy long schema (siteID, plotID, collectDate, taxonID,
-# scientificName, individualCount, trapnights) via assemble_beetles(), and
+# scientificName, taxonRank, individualCount, trapnights) via assemble_beetles()
+# — taxonRank lets richness cleanly exclude genus/family-only IDs — and
 # xz-compresses one .rds per site into data/sites/<SITE>.rds.
 #
 # RESUMABLE: skips sites whose .rds already exists. Delete a file to re-pull it.

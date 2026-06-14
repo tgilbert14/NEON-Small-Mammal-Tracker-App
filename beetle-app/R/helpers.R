@@ -44,10 +44,24 @@ is_species_level <- function(name) {
   ok & binomial & !placeholder & !higher & !ambiguous
 }
 
+# Decide, per row, whether an ID is resolved to species. Prefer NEON's authoritative
+# `taxonRank` (the robust discriminator the real bundle now carries from the expert
+# table) and fall back to the scientific-name test when rank is missing (e.g. the
+# demo CSV). Mirrors species_level_only() in the small-mammal app.
+resolved_to_species <- function(rank, name) {
+  name_ok <- is_species_level(name)
+  if (is.null(rank)) return(name_ok)
+  rank <- as.character(rank)
+  known <- !is.na(rank) & nzchar(rank)
+  ifelse(known, rank %in% c("species", "subspecies", "speciesGroup"), name_ok)
+}
+
 # Keep only species-level rows (for richness, diversity, ordination, indicators).
 species_only <- function(d) {
   if (is.null(d) || !nrow(d)) return(d)
-  flag <- if ("species_level" %in% names(d)) d$species_level else is_species_level(d$scientificName)
+  flag <- if ("species_level" %in% names(d)) d$species_level
+          else resolved_to_species(if ("taxonRank" %in% names(d)) d$taxonRank else NULL,
+                                    d$scientificName)
   d[flag %in% TRUE, , drop = FALSE]
 }
 
@@ -56,7 +70,7 @@ clean_beetle <- function(d) {
   if (is.null(d) || nrow(d) == 0) return(NULL)
   d <- tibble::as_tibble(d)
   need <- c("siteID", "plotID", "collectDate", "taxonID", "scientificName",
-            "individualCount", "trapnights")
+            "taxonRank", "individualCount", "trapnights")
   for (col in need) if (!col %in% names(d)) d[[col]] <- NA
   d$individualCount <- suppressWarnings(as.numeric(d$individualCount))
   d$trapnights      <- suppressWarnings(as.numeric(d$trapnights))
@@ -69,7 +83,7 @@ clean_beetle <- function(d) {
   # the higher-taxon rows (see is_species_level).
   d <- d[!is.na(d$individualCount) & d$individualCount > 0 &
          !is.na(d$scientificName) & d$scientificName != "", , drop = FALSE]
-  d$species_level <- is_species_level(d$scientificName)
+  d$species_level <- resolved_to_species(d$taxonRank, d$scientificName)
   d
 }
 
@@ -95,7 +109,8 @@ community_table <- function(d) {
 # (total individuals) keeps everything actually trapped.
 taxon_qa <- function(d) {
   if (is.null(d) || !nrow(d)) return(NULL)
-  sl <- if ("species_level" %in% names(d)) d$species_level else is_species_level(d$scientificName)
+  sl <- if ("species_level" %in% names(d)) d$species_level
+        else resolved_to_species(if ("taxonRank" %in% names(d)) d$taxonRank else NULL, d$scientificName)
   ind <- d$individualCount
   list(
     species          = length(unique(d$scientificName[sl %in% TRUE])),
@@ -284,7 +299,8 @@ fmt_int <- function(x) formatC(x, format = "d", big.mark = ",")
 # ---------------------------------------------------------------------------
 # assemble_beetles() — turn a neonUtilities loadByProduct() result for
 # DP1.10022.001 into the app's tidy long schema:
-#   siteID, plotID, collectDate, taxonID, scientificName, individualCount, trapnights
+#   siteID, plotID, collectDate, taxonID, scientificName, taxonRank,
+#   individualCount, trapnights
 #
 # Steps (the canonical EFI/neonDivData recipe, kept pragmatic for a scaffold):
 #  1. carabid counts from bet_sorting (sampleType == "carabid")
@@ -304,22 +320,25 @@ assemble_beetles <- function(raw) {
   if ("sampleType" %in% names(srt))
     srt <- srt[!is.na(srt$sampleType) & srt$sampleType == "carabid", , drop = FALSE]
   if (!nrow(srt)) return(NULL)
-  for (col in c("individualCount", "taxonID", "scientificName", "plotID",
-                "collectDate", "siteID"))
+  for (col in c("individualCount", "taxonID", "scientificName", "taxonRank",
+                "plotID", "collectDate", "siteID"))
     if (!col %in% names(srt)) srt[[col]] <- NA
   srt$individualCount <- suppressWarnings(as.numeric(srt$individualCount))
 
-  # 2) expert-ID override (authoritative). Build a taxonID -> expert name lookup.
+  # 2) expert-ID override (authoritative). Build a taxonID -> expert name/rank
+  #    lookup; the expert's taxonRank is what lets richness exclude genus/family
+  #    records cleanly (see is_species_level / species_only).
   exp <- raw$bet_expertTaxonomistIDProcessed
   if (!is.null(exp) && nrow(exp)) {
     exp <- tibble::as_tibble(exp)
+    if (!"taxonRank" %in% names(exp)) exp$taxonRank <- NA
     if (all(c("taxonID", "scientificName") %in% names(exp))) {
       lut <- unique(exp[!is.na(exp$taxonID) & !is.na(exp$scientificName),
-                        c("taxonID", "scientificName")])
+                        c("taxonID", "scientificName", "taxonRank")])
       lut <- lut[!duplicated(lut$taxonID), , drop = FALSE]
       hit <- match(srt$taxonID, lut$taxonID)
-      srt$scientificName <- ifelse(is.na(hit), srt$scientificName,
-                                   lut$scientificName[hit])
+      srt$scientificName <- ifelse(is.na(hit), srt$scientificName, lut$scientificName[hit])
+      srt$taxonRank      <- ifelse(is.na(hit), srt$taxonRank,      lut$taxonRank[hit])
     }
   }
 
@@ -327,7 +346,7 @@ assemble_beetles <- function(raw) {
     dplyr::filter(!is.na(.data$individualCount), .data$individualCount > 0,
                   !is.na(.data$scientificName)) %>%
     dplyr::group_by(.data$siteID, .data$plotID, .data$collectDate,
-                    .data$taxonID, .data$scientificName) %>%
+                    .data$taxonID, .data$scientificName, .data$taxonRank) %>%
     dplyr::summarise(individualCount = sum(.data$individualCount), .groups = "drop")
 
   # 3) trap-night effort per plot × bout from field data

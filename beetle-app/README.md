@@ -42,7 +42,9 @@ sharing its Desert Data Labs house style and **bundle-first** data pattern.
   some stop at genus (`Bembidion sp.`) or family (`Carabidae`). Counting those as
   distinct species **inflates richness and diversity**, so every richness-type
   metric (richness, Hill numbers, rarefaction, accumulation, ordination, indicator
-  species) uses **species-level records only** (`is_species_level()`), while total
+  species) uses **species-level records only** — keyed on NEON's authoritative
+  `taxonRank` (carried from the expert-taxonomist table), with a scientific-name
+  test (`is_species_level()`) as backstop when rank is absent — while total
   **abundance** still counts every beetle trapped. The Diversity tab reports how
   many records are excluded. Design ref: Hoekman et al. 2017, *Ecosphere* 8(4):e01744;
   indicator value: Dufrêne & Legendre 1997.
