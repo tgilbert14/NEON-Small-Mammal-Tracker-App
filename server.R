@@ -170,10 +170,110 @@ server <- function(input, output, session) {
     session$sendCustomMessage("smtLoadStart", list(label = sprintf("%s — %s", code, nm)))
     load_site(code, s0, e0, FALSE)
   }
+  # ---- the site-choice popup + "About this site" card --------------------
+  # Tapping a dot no longer auto-loads. It opens a small popup anchored on the
+  # dot offering a CLEAR choice: "Explore this site" (loads the record) or
+  # "About this site" (an instant info card). Both built from SITE_INDEX by the
+  # clicked code, so they're identical in by-site and by-species mode.
+  site_popup_html <- function(row) {
+    code <- row$site[1]
+    where <- paste(stats::na.omit(c(
+      as.character(row$state[1]),
+      if (!is.na(row$domain[1])) paste("NEON", row$domain[1]) else NA,
+      as.character(row$bio[1]))), collapse = " · ")
+    sp_line <- if (!is.na(row$top_species[1]))
+      sprintf("<div class='pm-pop-sp'>Most caught: <i>%s</i>%s</div>", row$top_species[1],
+              if (!is.na(row$nickname[1])) sprintf(" (%s)", row$nickname[1]) else "") else ""
+    yrs <- if (!is.na(row$year_min[1]) && !is.na(row$year_max[1]))
+      sprintf("<div class='sp-years'>Sampled %d&ndash;%d</div>", row$year_min[1], row$year_max[1]) else ""
+    htmltools::HTML(sprintf(
+      "<div class='pm-pop site-pop'>
+         <div class='pm-pop-t'>%s %s <span class='sp-code'>(%s)</span></div>
+         <div class='pm-pop-s'>%s</div>
+         <div class='pm-pop-n'><b>%s</b> captures &middot; <b>%s</b> individuals &middot; <b>%s</b> species</div>
+         %s%s
+         <div class='sp-actions'>
+           <button type='button' class='sp-btn sp-go' onclick=\"Shiny.setInputValue('siteExplore','%s',{priority:'event'});\">Explore this site &rarr;</button>
+           <button type='button' class='sp-btn sp-info' onclick=\"Shiny.setInputValue('siteInfo','%s',{priority:'event'});\">About this site</button>
+         </div>
+       </div>",
+      row$emoji[1], row$name[1], code, where,
+      format(row$captures[1], big.mark = ","), format(row$individuals[1], big.mark = ","),
+      row$species[1], sp_line, yrs, code, code))
+  }
+
+  site_info_modal <- function(code) {
+    row <- if (!is.null(SITE_INDEX)) SITE_INDEX[SITE_INDEX$site == code, ] else NULL
+    if (is.null(row) || !nrow(row))
+      return(modalDialog(title = "Site info", easyClose = TRUE, footer = modalButton("Close"),
+                         p("No details are available for this site.")))
+    dash  <- function(x) if (length(x) == 0 || is.na(x) || !nzchar(as.character(x))) "—" else as.character(x)
+    coords <- if (!is.na(row$lat[1]) && !is.na(row$lng[1]))
+      sprintf("%.3f, %.3f", row$lat[1], row$lng[1]) else "—"
+    yrs <- if (!is.na(row$year_min[1]) && !is.na(row$year_max[1]))
+      sprintf("%d–%d", row$year_min[1], row$year_max[1]) else "—"
+    star <- if (!is.na(row$top_species[1]))
+      HTML(sprintf("<i>%s</i>%s%s", row$top_species[1],
+        if (!is.na(row$nickname[1])) sprintf(" (%s)", row$nickname[1]) else "",
+        if (!is.na(row$top_caps[1])) sprintf(" — %s captures", format(row$top_caps[1], big.mark = ",")) else ""))
+      else "—"
+    stat <- function(v, lab) div(class = "si-stat",
+      div(class = "si-stat-n", if (is.na(v)) "—" else format(v, big.mark = ",")),
+      div(class = "si-stat-l", lab))
+    modalDialog(
+      title = HTML(sprintf("%s %s <span class='si-code'>(%s)</span>", row$emoji[1], row$name[1], code)),
+      easyClose = TRUE, size = "m",
+      footer = tagList(
+        modalButton("Close"),
+        tags$button(type = "button", class = "btn btn-primary",
+          onclick = sprintf("Shiny.setInputValue('siteExplore','%s',{priority:'event'});", code),
+          HTML("Explore this site&rsquo;s data &rarr;"))),
+      div(class = "site-info",
+        div(class = "si-sec",
+          div(class = "si-h", "Where"),
+          div(class = "si-row", dash(row$state[1]), " · NEON ", dash(row$domain[1])),
+          if (!is.na(row$bio[1])) div(class = "si-row si-bio", row$bio[1]),
+          div(class = "si-coords", bs_icon("geo-alt"), " ", coords)),
+        div(class = "si-sec",
+          div(class = "si-h", "When"),
+          div(class = "si-row", "Sampled ", yrs)),
+        div(class = "si-sec",
+          div(class = "si-h", "What’s been caught"),
+          div(class = "si-stats",
+            stat(row$captures[1], "captures"),
+            stat(row$individuals[1], "individuals"),
+            stat(row$species[1], "species")),
+          div(class = "si-row si-star", "Most caught: ", star)),
+        div(class = "si-sec",
+          div(class = "si-h", "Ecological family"),
+          div(class = "si-row si-fam",
+            tags$span(class = "si-dot", style = sprintf("background:%s", dash(row$group_color[1]))),
+            dash(row$group_label[1])))))
+  }
+
+  # click a dot -> open the choice popup (clearPopups first = one popup, ever)
   observeEvent(input$pickerMap_marker_click, {
-    click <- input$pickerMap_marker_click
-    if (!is.null(click$id)) load_site_full(click$id)
+    code <- input$pickerMap_marker_click$id
+    if (is.null(code) || is.na(code)) return()
+    row <- if (!is.null(SITE_INDEX)) SITE_INDEX[SITE_INDEX$site == code, ] else NULL
+    if (is.null(row) || !nrow(row)) { load_site_full(code); return() }  # fallback
+    leaflet::leafletProxy("pickerMap") %>% leaflet::clearPopups() %>%
+      leaflet::addPopups(lng = row$lng[1], lat = row$lat[1], popup = site_popup_html(row),
+        layerId = paste0("pop_", code),
+        options = leaflet::popupOptions(maxWidth = 300, minWidth = 230, autoPan = TRUE,
+          autoPanPadding = c(40, 55), keepInView = TRUE, closeButton = TRUE,
+          closeOnClick = FALSE, className = "pm-pop-card"))
   })
+  # "Explore this site" (popup button OR About-modal footer button) -> load it.
+  # removeModal()/clearPopups() so neither floats over the loading overlay.
+  observeEvent(input$siteExplore, {
+    removeModal()
+    leaflet::leafletProxy("pickerMap") %>% leaflet::clearPopups()
+    load_site_full(input$siteExplore)
+  })
+  # "About this site" -> instant info card (no bundle load)
+  observeEvent(input$siteInfo, showModal(site_info_modal(input$siteInfo)))
+
   observeEvent(input$pickFromList, load_site_full(input$pickFromList))
 
   # "Change site" (in the hero band) -> back to the picker-map landing
@@ -340,15 +440,12 @@ server <- function(input, output, session) {
   # add the all-sites markers (by-site mode): size = captures, color = family
   add_site_markers <- function(map) {
     idx <- SITE_INDEX
+    # hover label = a quick name-tag only; the CLICK opens the choice popup
     labs <- lapply(seq_len(nrow(idx)), function(i) htmltools::HTML(sprintf(
       "<div class='pm-pop'><div class='pm-pop-t'>%s %s</div>
-       <div class='pm-pop-s'>%s, %s · NEON %s</div>
-       <div class='pm-pop-n'><b>%s</b> captures · <b>%s</b> individuals · <b>%s</b> species</div>
-       <div class='pm-pop-sp'>Most caught: <i>%s</i></div>
-       <div class='pm-pop-go'>Click to explore &rarr;</div></div>",
-      idx$emoji[i], idx$site[i], idx$name[i], idx$state[i], idx$domain[i],
-      format(idx$captures[i], big.mark = ","), format(idx$individuals[i], big.mark = ","),
-      idx$species[i], idx$top_species[i])))
+       <div class='pm-pop-s'>%s · %s</div>
+       <div class='pm-pop-hint'>Tap for site options</div></div>",
+      idx$emoji[i], idx$site[i], idx$name[i], idx$state[i])))
     leaflet::addCircleMarkers(map, data = idx, lng = ~lng, lat = ~lat, layerId = ~site,
       radius = picker_radius(idx$captures), stroke = TRUE, color = "#ffffff", weight = 1.5,
       opacity = 1, fillColor = ~group_color, fillOpacity = 0.85, label = labs,
@@ -365,7 +462,7 @@ server <- function(input, output, session) {
       "<div class='pm-pop'><div class='pm-pop-t'>%s %s</div>
        <div class='pm-pop-s'>%s, %s</div>
        <div class='pm-pop-n'><b>%s</b> individuals · <b>%s</b> captures here</div>
-       <div class='pm-pop-go'>Click to open this site &rarr;</div></div>",
+       <div class='pm-pop-hint'>Tap for site options</div></div>",
       r$emoji[i], r$site[i], r$name[i], r$state[i],
       format(r$individuals[i], big.mark = ","), format(r$captures[i], big.mark = ","))))
     leaflet::addCircleMarkers(map, data = r, lng = ~lng, lat = ~lat, layerId = ~site,
@@ -386,7 +483,7 @@ server <- function(input, output, session) {
   # swap markers when the user toggles mode or picks a species (proxy = no reflow)
   observeEvent(list(input$pickMode, input$rangeSpecies), {
     req(SITE_INDEX)
-    map <- leaflet::leafletProxy("pickerMap") %>% leaflet::clearMarkers()
+    map <- leaflet::leafletProxy("pickerMap") %>% leaflet::clearMarkers() %>% leaflet::clearPopups()
     if (identical(input$pickMode, "species") && !is.null(input$rangeSpecies) &&
         nzchar(input$rangeSpecies)) {
       add_species_markers(map, input$rangeSpecies)
