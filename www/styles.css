@@ -129,6 +129,12 @@ body {
 .chart-hint { color: var(--muted); font-size: 12px; margin: 0 4px 6px; display: flex; align-items: center; gap: 6px; }
 .chart-hint .bi { color: var(--gold-ink); }
 .map-controls { display: flex; gap: 14px; align-items: flex-end; }
+/* inline "Tracking" individual picker in the Home Range tab head */
+.hr-controls { display: flex; gap: 18px; align-items: flex-end; flex-wrap: wrap; }
+.hr-indiv { display: flex; flex-direction: column; gap: 3px; }
+.hr-indiv-lab { font-size: 12px; font-weight: 700; color: var(--pine); margin: 0; display: flex; align-items: center; gap: 5px; }
+.hr-indiv-lab .bi { color: var(--gold-ink); }
+.hr-indiv .form-group, .hr-indiv .shiny-input-container { margin-bottom: 0; width: 260px; }
 
 /* leaderboard category "chips" */
 .leader-cats .shiny-options-group { display: flex; gap: 6px; flex-wrap: wrap; }

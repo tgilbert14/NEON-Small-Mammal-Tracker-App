@@ -176,8 +176,14 @@ ui <- bslib::page_sidebar(
                  p("The ", tags$b("replay"), " animates its captures in order — press ▶ to watch it move."),
                  p(tags$b("Hotspot blur"), " smooths the grid to show its core area."))),
             p("Where on the plot's trap grid this animal kept turning up. Hit play to replay its captures over time.")),
-          div(class = "hr-toggles",
-            checkboxInput("blurMode", "Hotspot blur", value = FALSE))
+          div(class = "hr-controls",
+            div(class = "hr-indiv",
+              tags$label(class = "hr-indiv-lab", `for` = "indivHR",
+                         tagList(bs_icon("search"), " Tracking")),
+              selectizeInput("indivHR", label = NULL, choices = NULL, width = "260px",
+                             options = list(placeholder = "Pick an individual…"))),
+            div(class = "hr-toggles",
+              checkboxInput("blurMode", "Hotspot blur", value = FALSE)))
         ),
         layout_columns(col_widths = c(6, 6),
           card(full_screen = TRUE, card_head("grid-3x3-gap-fill", "Capture heatmap"),

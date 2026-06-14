@@ -107,6 +107,7 @@ server <- function(input, output, session) {
     ch <- setNames(lb$tagID, sprintf("%s  %s · %s · %d caps",
                                      lb$emoji, lb$short, lb$scientificName, lb$captures))
     updateSelectizeInput(session, "indiv", choices = c("Pick a tagID…" = "", ch), server = TRUE)
+    updateSelectizeInput(session, "indivHR", choices = c("Pick an individual…" = "", ch), server = TRUE)
     nav_select("tabs", "overview")
     session$sendCustomMessage("countUp", list())
     session$sendCustomMessage("loadDone", list())   # hide the loading overlay
@@ -311,12 +312,13 @@ server <- function(input, output, session) {
   })
 
   # ---- selecting an individual -------------------------------------------
-  pick_individual <- function(tag) {
+  pick_individual <- function(tag, navigate = TRUE) {
     if (is.null(tag) || is.na(tag) || tag == "") return()
     rv$tag <- tag
-    if (!identical(input$indiv, tag))
-      updateSelectizeInput(session, "indiv", selected = tag)
-    nav_select("tabs", "dossier")
+    # keep BOTH pickers (sidebar + the inline Home-Range one) in lockstep
+    if (!identical(input$indiv, tag))   updateSelectizeInput(session, "indiv",   selected = tag)
+    if (!identical(input$indivHR, tag)) updateSelectizeInput(session, "indivHR", selected = tag)
+    if (navigate) nav_select("tabs", "dossier")
     row <- rv$lb[rv$lb$tagID == tag, ]
     if (nrow(row) && row$rarity[1] %in% c("Epic", "Legendary")) {
       session$sendCustomMessage("confetti", list(big = row$rarity[1] == "Legendary"))
@@ -326,6 +328,12 @@ server <- function(input, output, session) {
   observeEvent(input$indiv, {
     if (!is.null(input$indiv) && input$indiv != "" && !identical(input$indiv, rv$tag))
       pick_individual(input$indiv)
+  }, ignoreInit = TRUE)
+
+  # inline trap-grid picker: change who's tracked WITHOUT leaving Home Range
+  observeEvent(input$indivHR, {
+    if (!is.null(input$indivHR) && input$indivHR != "" && !identical(input$indivHR, rv$tag))
+      pick_individual(input$indivHR, navigate = FALSE)
   }, ignoreInit = TRUE)
 
   observeEvent(input$leaderboard_rows_selected, {
@@ -349,6 +357,7 @@ server <- function(input, output, session) {
     tag <- lb$tagID[1]
     rv$tag <- tag
     updateSelectizeInput(session, "indiv", selected = tag)
+    updateSelectizeInput(session, "indivHR", selected = tag)
   }
 
   # ---- Overview home-nav buttons (Girth-style quick jumps) ---------------
