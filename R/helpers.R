@@ -893,6 +893,88 @@ stat_breakdown <- function(d, lb, which) {
   NULL
 }
 
+# ---------------------------------------------------------------------------
+# Environmental overlays — "compare population with environment"
+#
+# A monthly per-site env table (precip / temp / soil moisture / phenology, see
+# global.R ENV_LAYERS + scripts/refresh_env_data.R) gets drawn as a soft filled
+# area BEHIND the abundance lines, on its own right-hand axis. These helpers are
+# pure plotly/data utilities so the future beetle app can reuse them verbatim.
+# ---------------------------------------------------------------------------
+
+# Shift a monthly env table's dates forward by `lag` months. Ecological drivers
+# often LEAD the response (a rain pulse feeds the seed crop that feeds the
+# rodent boom months later); shifting the driver forward lines it up under the
+# boom it putatively caused, which is exactly what the lag slider explores.
+shift_env <- function(env, lag = 0) {
+  if (is.null(env) || !nrow(env)) return(env)
+  env$date <- as.Date(env$date)
+  lag <- as.integer(lag %||% 0)
+  if (lag != 0) {
+    lt <- as.POSIXlt(env$date); lt$mon <- lt$mon + lag
+    env$date <- as.Date(lt)
+  }
+  env
+}
+
+# Add an environmental overlay (filled area) to a plotly time-series, bound to a
+# secondary axis (default "y3" so it can sit alongside an existing y2). `xlim`
+# clips the area to the data's own date range so it never zooms the chart out.
+add_env_overlay <- function(p, env, layer, lag = 0, yaxis = "y3", xlim = NULL,
+                            demo = FALSE) {
+  meta <- ENV_LAYERS[[layer]]
+  if (is.null(meta) || is.null(env) || !(meta$col %in% names(env))) return(p)
+  e <- shift_env(env, lag)
+  e$.v <- suppressWarnings(as.numeric(e[[meta$col]]))
+  e <- e[!is.na(e$.v), , drop = FALSE]
+  if (!is.null(xlim)) e <- e[e$date >= xlim[1] & e$date <= xlim[2], , drop = FALSE]
+  if (!nrow(e)) return(p)
+  nm <- meta$label
+  if (lag) nm <- sprintf("%s · lag %d mo", nm, as.integer(lag))
+  if (demo) nm <- paste0(nm, " (demo)")
+  plotly::add_trace(p, data = e, x = ~date, y = ~.v, yaxis = yaxis,
+    type = "scatter", mode = "lines", fill = "tozeroy",
+    name = nm, legendgroup = "env",
+    line = list(color = meta$color, width = 1.6, shape = "spline"),
+    fillcolor = paste0(meta$color, "1f"),
+    hovertemplate = paste0(meta$label, "<br>%{x|%b %Y}: %{y} ", meta$unit, "<extra></extra>"))
+}
+
+# Layout spec for an env overlay's axis. `show` toggles the tick labels/title
+# (off when the overlay is pure background context behind a busy chart).
+env_axis_spec <- function(layer, side = "right", overlaying = "y", show = TRUE,
+                          position = NULL) {
+  meta <- ENV_LAYERS[[layer]]
+  if (is.null(meta)) return(list(overlaying = overlaying, side = side, visible = FALSE))
+  spec <- list(
+    title = if (show) sprintf("%s (%s)", meta$label, meta$unit) else "",
+    overlaying = overlaying, side = side, rangemode = "tozero",
+    showgrid = FALSE, zeroline = FALSE, color = meta$color,
+    showticklabels = show)
+  if (!is.null(position)) spec$position <- position
+  spec
+}
+
+# Collapse a monthly env table to a 12-point calendar-month climatology (mean
+# of each metric across years) for the by-month phenology overlay. `lag` rotates
+# the months so a leading driver lines up with the response month.
+env_climatology <- function(env, layer, lag = 0) {
+  meta <- ENV_LAYERS[[layer]]
+  if (is.null(meta) || is.null(env) || !(meta$col %in% names(env))) return(NULL)
+  e <- env; e$date <- as.Date(e$date)
+  e$.v <- suppressWarnings(as.numeric(e[[meta$col]]))
+  e <- e[!is.na(e$.v), , drop = FALSE]
+  if (!nrow(e)) return(NULL)
+  e$mon <- as.integer(format(e$date, "%m"))
+  clim <- stats::aggregate(.v ~ mon, data = e, FUN = mean, na.rm = TRUE)
+  clim <- clim[order(clim$mon), ]
+  lag <- as.integer(lag %||% 0)
+  if (lag != 0) clim$mon <- ((clim$mon - 1 + lag) %% 12) + 1
+  clim <- clim[order(clim$mon), ]
+  clim$value <- round(clim$.v, 1)
+  clim[, c("mon", "value")]
+}
+
 # Long trap-grid table (one row per A-J x 1-10 cell) for an individual's heatmap.
 trap_grid_long <- function(d, tag) {
   sub <- dplyr::filter(d, .data$tagID == tag, !is.na(.data$tx), !is.na(.data$ty))

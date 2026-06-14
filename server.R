@@ -50,8 +50,34 @@ server <- function(input, output, session) {
     lb_view = NULL,    # currently-displayed leaderboard slice (row order = DT rows)
     pal = NULL,        # stable species -> color map (shared across all views)
     label = NULL,      # human label for the active site/window
-    tag = NULL         # selected full tagID
+    tag = NULL,        # selected full tagID
+    env = NULL         # monthly co-located environmental overlay for the site
   )
+
+  # Currently-selected overlay layer ("none" or an ENV_LAYERS key) + its lag.
+  # Centralised so every plot reads the same selection.
+  env_sel <- reactive({
+    layer <- input$envLayer %||% "none"
+    if (is.null(rv$env) || layer == "none" || !layer %in% names(ENV_LAYERS)) return(NULL)
+    list(layer = layer, lag = as.integer(input$envLag %||% 0),
+         env = rv$env, demo = identical(attr(rv$env, "source"), "demo"))
+  })
+
+  # show the lag slider only once a layer is chosen
+  observeEvent(input$envLayer, {
+    shinyjs::toggle("envLagWrap", condition = !is.null(input$envLayer) && input$envLayer != "none")
+  }, ignoreNULL = FALSE)
+
+  # provenance badge under the picker: real NEON vs the illustrative demo series
+  output$envSourceNote <- renderUI({
+    if (is.null(rv$env)) return(NULL)
+    if (identical(attr(rv$env, "source"), "demo"))
+      div(class = "env-source env-demo", bs_icon("info-circle-fill"),
+          tags$span(HTML(" <b>Demo overlay</b> — an illustrative monthly series, <b>not</b> NEON data. Run <code>scripts/refresh_env_data.R</code> to bundle the real product.")))
+    else
+      div(class = "env-source env-real", bs_icon("patch-check-fill"),
+          tags$span(" Live from co-located NEON sensors at this site."))
+  })
 
   # state -> site cascading picker (Arizona default so the demo lines up)
   updateSelectInput(session, "stateSel", choices = state_choices(), selected = "NM")
@@ -93,6 +119,8 @@ server <- function(input, output, session) {
     rv$pal   <- make_species_pal(d)
     rv$label <- label
     rv$tag   <- NULL
+    # co-located environmental overlay for THIS site (precip/temp/soil/phenology)
+    rv$env   <- load_site_env(mode_chr(d$siteID))
     # compact context shown on each plot, e.g. "JORN · 2022–2024"
     y1 <- format(safe_date_min(d$date), "%Y"); y2 <- format(safe_date_max(d$date), "%Y")
     rv$ctx <- paste0(mode_chr(d$siteID), " · ", if (is.na(y1)) "" else if (y1 == y2) y1 else paste0(y1, "–", y2))
@@ -101,6 +129,16 @@ server <- function(input, output, session) {
     shinyjs::show("mainTabsWrap")
     shinyjs::show("indivPickerWrap")
     shinyjs::hide("splash")
+
+    # environmental-overlay picker: only offer it when this site has env data,
+    # and only the layers that actually have values for it.
+    env_ch <- env_layer_choices(rv$env)
+    if (length(env_ch) > 1) {
+      updateSelectInput(session, "envLayer", choices = env_ch, selected = "none")
+      shinyjs::show("envPickerWrap")
+    } else {
+      shinyjs::hide("envPickerWrap")
+    }
 
     # individual picker choices
     lb <- rv$lb
@@ -299,8 +337,8 @@ server <- function(input, output, session) {
 
   # "Change site" (in the hero band) -> back to the picker-map landing
   observeEvent(input$changeSite, {
-    rv$data <- NULL; rv$lb <- NULL; rv$lb_view <- NULL; rv$tag <- NULL; rv$label <- NULL
-    shinyjs::hide("mainTabsWrap"); shinyjs::hide("indivPickerWrap"); shinyjs::show("splash")
+    rv$data <- NULL; rv$lb <- NULL; rv$lb_view <- NULL; rv$tag <- NULL; rv$label <- NULL; rv$env <- NULL
+    shinyjs::hide("mainTabsWrap"); shinyjs::hide("indivPickerWrap"); shinyjs::hide("envPickerWrap"); shinyjs::show("splash")
   })
 
   observeEvent(input$demoBtn, {
@@ -1435,17 +1473,35 @@ server <- function(input, output, session) {
     by_m$pm <- ifelse(by_m$males > 0, round(100 * by_m$breeding_m / by_m$males), NA)
     by_m$pf <- ifelse(by_m$females > 0, round(100 * by_m$repro_f / by_m$females), NA)
     mlab <- month.abb[by_m$mon]
-    p <- plot_ly(x = mlab) %>%
-      add_trace(y = by_m$pm, type = "scatter", mode = "lines+markers", name = "breeding males",
+    p <- plot_ly()
+    # seasonal climatology of the chosen env layer, behind the breeding curves
+    es <- env_sel()
+    if (!is.null(es)) {
+      clim <- env_climatology(es$env, es$layer, es$lag)
+      if (!is.null(clim) && nrow(clim)) {
+        meta <- ENV_LAYERS[[es$layer]]
+        nm <- meta$label; if (es$lag) nm <- sprintf("%s · lag %d mo", nm, es$lag)
+        if (es$demo) nm <- paste0(nm, " (demo)")
+        p <- p %>% add_trace(x = month.abb[clim$mon], y = clim$value, yaxis = "y2",
+          type = "scatter", mode = "lines", fill = "tozeroy", name = nm, legendgroup = "env",
+          line = list(color = meta$color, width = 1.6, shape = "spline"),
+          fillcolor = paste0(meta$color, "1f"),
+          hovertemplate = paste0(meta$label, " (typical): %{y} ", meta$unit, "<extra></extra>"))
+      }
+    }
+    p <- p %>%
+      add_trace(x = mlab, y = by_m$pm, type = "scatter", mode = "lines+markers", name = "breeding males",
         line = list(color = "#2f7fb5", width = 3), marker = list(size = 8, color = "#2f7fb5"),
         hovertemplate = "%{x}<br>%{y}% of adult males scrotal<extra></extra>") %>%
-      add_trace(y = by_m$pf, type = "scatter", mode = "lines+markers", name = "reproductive females",
+      add_trace(x = mlab, y = by_m$pf, type = "scatter", mode = "lines+markers", name = "reproductive females",
         line = list(color = "#c2255c", width = 3), marker = list(size = 8, color = "#c2255c"),
         hovertemplate = "%{x}<br>%{y}% of adult females pregnant/lactating<extra></extra>")
-    plotly_theme(p) %>% plotly::layout(
+    p <- plotly_theme(p) %>% plotly::layout(
       xaxis = list(title = "", categoryorder = "array", categoryarray = month.abb),
       yaxis = list(title = "% reproductively active", range = c(0, 100)),
       hovermode = "x unified", margin = list(t = 44)) %>% ctx_anno()
+    if (!is.null(es)) p <- p %>% plotly::layout(yaxis2 = env_axis_spec(es$layer, show = TRUE))
+    p
   })
 
   # ---- body-size profile (violin per species, "Position DNA") ------------
@@ -1503,6 +1559,11 @@ server <- function(input, output, session) {
     plots <- sort(unique(mn$plotID))
     plot_cols <- colorRampPalette(brewer.pal(8, "Set2"))(max(length(plots), 3))
     p <- plot_ly()
+    # environmental overlay FIRST so it reads as soft context behind the lines
+    es <- env_sel()
+    if (!is.null(es))
+      p <- add_env_overlay(p, es$env, es$layer, es$lag, yaxis = "y3",
+                           xlim = range(mn$date, na.rm = TRUE), demo = es$demo)
     for (i in seq_along(plots)) {
       pl <- plots[i]; dd <- mn[mn$plotID == pl, ]
       p <- p %>% add_trace(data = dd, x = ~date, y = ~mnka, type = "scatter", mode = "lines+markers",
@@ -1518,7 +1579,7 @@ server <- function(input, output, session) {
       mode = "lines", name = "site total, per 100 trap-nights",
       line = list(color = "rgba(31,42,48,0.55)", width = 2, dash = "dot"),
       hovertemplate = "%{x|%b %Y}<br>%{y} captures per 100 trap-nights<extra></extra>")
-    plotly_theme(p) %>% plotly::layout(
+    p <- plotly_theme(p) %>% plotly::layout(
       yaxis  = list(title = "MNKA (individuals known alive)", color = "#16386e"),
       yaxis2 = list(title = "captures per 100 trap-nights (site total)", color = "#7a8896",
                     overlaying = "y", side = "right", gridcolor = "rgba(0,0,0,0)"),
@@ -1528,6 +1589,11 @@ server <- function(input, output, session) {
       annotations = list(list(text = "⋯ dotted = catch-per-effort (right axis)",
         x = 0, y = 1.08, xref = "paper", yref = "paper", xanchor = "left", yanchor = "bottom",
         showarrow = FALSE, font = list(color = "#7a8896", size = 11, family = "Rubik")))) %>% ctx_anno()
+    # hidden y3 for the env area: pure background context (y2 already holds CPUE)
+    if (!is.null(es))
+      p <- p %>% plotly::layout(yaxis3 = c(env_axis_spec(es$layer, show = FALSE),
+                                           list(anchor = "free", position = 1)))
+    p
   })
 
   # ---- species accumulation ----------------------------------------------
@@ -1599,7 +1665,12 @@ server <- function(input, output, session) {
     s <- cc$series
     # cap any infinite upper bound for plotting (shouldn't occur post-roll-up, but be safe)
     s$hi[!is.finite(s$hi)] <- s$N[!is.finite(s$hi)] * 2
-    p <- plot_ly() %>%
+    es <- env_sel()
+    p <- plot_ly()
+    if (!is.null(es))   # env area first → soft context behind the abundance band
+      p <- add_env_overlay(p, es$env, es$layer, es$lag, yaxis = "y2",
+                           xlim = range(s$date, na.rm = TRUE), demo = es$demo)
+    p <- p %>%
       add_trace(data = s, x = ~date, y = ~hi, type = "scatter", mode = "lines",
         line = list(width = 0), showlegend = FALSE, hoverinfo = "skip") %>%
       add_trace(data = s, x = ~date, y = ~lo, type = "scatter", mode = "lines", fill = "tonexty",
@@ -1614,9 +1685,11 @@ server <- function(input, output, session) {
         marker = list(size = 7, color = "#0C234B"),
         customdata = ~round(100 * p),
         hovertemplate = "%{x|%b %Y}<br>N̂ %{y} · p̂ %{customdata}%<extra></extra>")
-    plotly_theme(p) %>% plotly::layout(
+    p <- plotly_theme(p) %>% plotly::layout(
       xaxis = list(title = ""), yaxis = list(title = "animals on the grid(s)", rangemode = "tozero"),
       margin = list(t = 30)) %>% ctx_anno()
+    if (!is.null(es)) p <- p %>% plotly::layout(yaxis2 = env_axis_spec(es$layer, show = TRUE))
+    p
   })
 
   output$detectNote <- renderUI({

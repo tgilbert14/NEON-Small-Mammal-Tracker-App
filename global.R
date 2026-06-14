@@ -94,6 +94,81 @@ load_site_bundle <- function(site) {
   if (file.exists(f)) tibble::as_tibble(readRDS(f)) else NULL
 }
 
+# ---- co-located environmental overlays ("compare with environment") --------
+# Other NEON data products are collected at these SAME sites, so they overlay
+# cleanly on the small-mammal time-series. We pre-aggregate each to MONTHLY
+# per-site values (see scripts/refresh_env_data.R) and bundle one tiny
+# data/env/<SITE>.rds per site — a few KB each — mirroring the mammal bundle.
+#
+# ENV_LAYERS is the registry the UI + plots read: each entry maps a column in
+# the monthly table to a NEON data product, a label/unit, an aggregation rule,
+# and a house-palette color. Adding a layer = add a row here + a column in the
+# refresh script. `lead` flags drivers we expect to LEAD abundance (so the lag
+# slider is meaningful — e.g. a rain pulse precedes the rodent boom it feeds).
+ENV_DIR <- "data/env"
+
+ENV_LAYERS <- list(
+  precip = list(col = "precip_mm",   label = "Precipitation", unit = "mm/mo",
+                dpid = "DP1.00044.001", agg = "sum",  color = "#2f7fb5", lead = TRUE),
+  temp   = list(col = "temp_c",      label = "Air temperature", unit = "°C",
+                dpid = "DP1.00002.001", agg = "mean", color = "#d9480f", lead = FALSE),
+  rh     = list(col = "rh_pct",      label = "Relative humidity", unit = "%",
+                dpid = "DP1.00098.001", agg = "mean", color = "#0b7285", lead = FALSE),
+  vswc   = list(col = "vswc_pct",    label = "Soil moisture", unit = "% vol",
+                dpid = "DP1.00094.001", agg = "mean", color = "#8a5a2b", lead = TRUE),
+  fruit  = list(col = "fruiting_pct", label = "Plants fruiting", unit = "% in fruit",
+                dpid = "DP1.10055.001", agg = "mean", color = "#1a7f37", lead = TRUE)
+)
+
+# Choices for the overlay picker: only layers that actually have data for the
+# loaded site (so we never offer an empty overlay).
+env_layer_choices <- function(env) {
+  base <- c("None" = "none")
+  if (is.null(env) || !nrow(env)) return(base)
+  have <- vapply(names(ENV_LAYERS), function(k) {
+    col <- ENV_LAYERS[[k]]$col
+    col %in% names(env) && any(!is.na(env[[col]]))
+  }, logical(1))
+  if (!any(have)) return(base)
+  labs <- vapply(ENV_LAYERS[have], function(m) sprintf("%s (%s)", m$label, m$unit), character(1))
+  c(base, stats::setNames(names(ENV_LAYERS)[have], labs))
+}
+
+# The illustrative demo overlay. We can't run a live NEON download in every
+# build, so a small, clearly-labeled monthly series for the demo sites ships as
+# plain CSV (data-sample/env_demo.csv). It is NOT NEON data — every plot that
+# uses it is badged "demo · illustrative". Real per-site overlays come from
+# scripts/refresh_env_data.R writing data/env/<SITE>.rds, which always wins.
+ENV_DEMO <- local({
+  f <- "data-sample/env_demo.csv"
+  if (!file.exists(f)) return(NULL)
+  d <- tryCatch(utils::read.csv(f, stringsAsFactors = FALSE), error = function(e) NULL)
+  if (is.null(d) || !nrow(d)) return(NULL)
+  tibble::as_tibble(d)
+})
+
+# Load a site's monthly environmental overlay table, or NULL. Real bundle first
+# (data/env/<SITE>.rds → source "neon"), then the illustrative demo fallback
+# (source "demo"). The source is carried as an attribute so the UI can badge it.
+load_site_env <- function(site) {
+  if (is.null(site) || site == "") return(NULL)
+  f <- file.path(ENV_DIR, paste0(site, ".rds"))
+  if (file.exists(f)) {
+    e <- tibble::as_tibble(readRDS(f))
+    attr(e, "source") <- "neon"
+    return(e)
+  }
+  if (!is.null(ENV_DEMO) && "siteID" %in% names(ENV_DEMO)) {
+    e <- ENV_DEMO[ENV_DEMO$siteID == site, , drop = FALSE]
+    if (nrow(e)) {
+      e$date <- as.Date(e$date)
+      attr(e, "source") <- "demo"
+      return(tibble::as_tibble(e))
+    }
+  }
+  NULL
+}
+
 # Demo = the JORN bundle if present, else the small committed sample.
 load_demo <- function() {
   b <- load_site_bundle("JORN")

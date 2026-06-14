@@ -94,6 +94,28 @@ ui <- bslib::page_sidebar(
       uiOutput("bioLinks")
     )),
 
+    # ---- compare with environment (co-located NEON products) --------------
+    hidden(div(id = "envPickerWrap",
+      hr(class = "deck-hr"),
+      selectInput("envLayer",
+        label = tagList(bs_icon("cloud-drizzle-fill"), " Compare with environment",
+          info_pop("Environmental overlays",
+            p("Overlay a co-located NEON data product — measured at ", tags$b("this same site"),
+              " — behind the population & seasonality charts to see what the booms and busts track."),
+            tags$ul(
+              tags$li(tags$b("Precipitation"), " — the rain pulse that feeds desert seed crops"),
+              tags$li(tags$b("Air temperature / humidity"), " — thermal & moisture limits on activity"),
+              tags$li(tags$b("Soil moisture"), " — often a better productivity signal than rain alone"),
+              tags$li(tags$b("Plants fruiting"), " — a near-direct food-supply signal for granivores")),
+            p("Use the ", tags$b("lag"), " slider to shift a driver forward in time — a rain pulse can take months to become a rodent boom."))),
+        choices = c("None" = "none"), width = "100%"),
+      div(id = "envLagWrap",
+        sliderInput("envLag", tagList(bs_icon("hourglass-split"), " Lead time (months)"),
+                    min = 0, max = 12, value = 0, step = 1, width = "100%"),
+        div(class = "env-lag-hint", "0 = same month · 3 = driver 3 months earlier")),
+      uiOutput("envSourceNote")
+    )),
+
     hr(class = "deck-hr"),
     actionButton("help", tagList(bs_icon("question-circle"), " How it works"),
                  class = "btn-outline-dark btn-sm w-100"),
