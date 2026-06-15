@@ -428,6 +428,9 @@ server <- function(input, output, session) {
   observeEvent(input$changeSite, {
     rv$data <- NULL; rv$lb <- NULL; rv$lb_view <- NULL; rv$tag <- NULL; rv$label <- NULL; rv$env <- NULL
     shinyjs::hide("mainTabsWrap"); shinyjs::hide("indivPickerWrap"); shinyjs::hide("envPickerWrap"); shinyjs::show("splash")
+    # the picker map was hidden while a site was loaded; nudge it to recompute
+    # size now that it's visible again, so it never paints blank/grey on return
+    session$sendCustomMessage("kickMaps", list())
   })
 
   observeEvent(input$demoBtn, {
