@@ -893,6 +893,165 @@ stat_breakdown <- function(d, lb, which) {
   NULL
 }
 
+# ---------------------------------------------------------------------------
+# Environmental overlays — "compare population with environment"
+#
+# A monthly per-site env table (precip / temp / soil moisture / phenology, see
+# global.R ENV_LAYERS + scripts/refresh_env_data.R) gets drawn as a soft filled
+# area BEHIND the abundance lines, on its own right-hand axis. These helpers are
+# pure plotly/data utilities so the future beetle app can reuse them verbatim.
+# ---------------------------------------------------------------------------
+
+# Shift a monthly env table's dates forward by `lag` months. Ecological drivers
+# often LEAD the response (a rain pulse feeds the seed crop that feeds the
+# rodent boom months later); shifting the driver forward lines it up under the
+# boom it putatively caused, which is exactly what the lag slider explores.
+shift_env <- function(env, lag = 0) {
+  if (is.null(env) || !nrow(env)) return(env)
+  env$date <- as.Date(env$date)
+  lag <- as.integer(lag %||% 0)
+  if (lag != 0) {
+    lt <- as.POSIXlt(env$date); lt$mon <- lt$mon + lag
+    env$date <- as.Date(lt)
+  }
+  env
+}
+
+# Add an environmental overlay (filled area) to a plotly time-series, bound to a
+# secondary axis (default "y3" so it can sit alongside an existing y2). `xlim`
+# clips the area to the data's own date range so it never zooms the chart out.
+add_env_overlay <- function(p, env, layer, lag = 0, yaxis = "y3", xlim = NULL,
+                            demo = FALSE) {
+  meta <- ENV_LAYERS[[layer]]
+  if (is.null(meta) || is.null(env) || !(meta$col %in% names(env))) return(p)
+  e <- shift_env(env, lag)
+  e$.v <- suppressWarnings(as.numeric(e[[meta$col]]))
+  e <- e[!is.na(e$.v), , drop = FALSE]
+  if (!is.null(xlim)) e <- e[e$date >= xlim[1] & e$date <= xlim[2], , drop = FALSE]
+  if (!nrow(e)) return(p)
+  nm <- meta$label
+  if (lag) nm <- sprintf("%s · lag %d mo", nm, as.integer(lag))
+  if (demo) nm <- paste0(nm, " (demo)")
+  plotly::add_trace(p, data = e, x = ~date, y = ~.v, yaxis = yaxis,
+    type = "scatter", mode = "lines", fill = "tozeroy",
+    name = nm, legendgroup = "env",
+    line = list(color = meta$color, width = 1.6, shape = "spline"),
+    fillcolor = paste0(meta$color, "1f"),
+    hovertemplate = paste0(meta$label, "<br>%{x|%b %Y}: %{y} ", meta$unit, "<extra></extra>"))
+}
+
+# Layout spec for an env overlay's axis. `show` toggles the tick labels/title
+# (off when the overlay is pure background context behind a busy chart).
+env_axis_spec <- function(layer, side = "right", overlaying = "y", show = TRUE,
+                          position = NULL) {
+  meta <- ENV_LAYERS[[layer]]
+  if (is.null(meta)) return(list(overlaying = overlaying, side = side, visible = FALSE))
+  spec <- list(
+    title = if (show) sprintf("%s (%s)", meta$label, meta$unit) else "",
+    overlaying = overlaying, side = side, rangemode = "tozero",
+    showgrid = FALSE, zeroline = FALSE, color = meta$color,
+    showticklabels = show)
+  if (!is.null(position)) spec$position <- position
+  spec
+}
+
+# Collapse a monthly env table to a 12-point calendar-month climatology (mean
+# of each metric across years) for the by-month phenology overlay. `lag` rotates
+# the months so a leading driver lines up with the response month.
+env_climatology <- function(env, layer, lag = 0) {
+  meta <- ENV_LAYERS[[layer]]
+  if (is.null(meta) || is.null(env) || !(meta$col %in% names(env))) return(NULL)
+  e <- env; e$date <- as.Date(e$date)
+  e$.v <- suppressWarnings(as.numeric(e[[meta$col]]))
+  e <- e[!is.na(e$.v), , drop = FALSE]
+  if (!nrow(e)) return(NULL)
+  e$mon <- as.integer(format(e$date, "%m"))
+  clim <- stats::aggregate(.v ~ mon, data = e, FUN = mean, na.rm = TRUE)
+  clim <- clim[order(clim$mon), ]
+  lag <- as.integer(lag %||% 0)
+  if (lag != 0) clim$mon <- ((clim$mon - 1 + lag) %% 12) + 1
+  clim <- clim[order(clim$mon), ]
+  clim$value <- round(clim$.v, 1)
+  clim[, c("mon", "value")]
+}
+
+# Scan lags 0..max_lag for the strongest correlation between this site's monthly
+# catch-per-effort and a (lagged) environmental driver. Returns the best lag and
+# Pearson r — the quantitative backbone of the "rain pulse leads the boom" story.
+# Returns NULL when there's too little overlap to be meaningful.
+env_corr_scan <- function(d, env, layer, max_lag = 12) {
+  meta <- ENV_LAYERS[[layer]]
+  if (is.null(meta) || is.null(env) || !(meta$col %in% names(env))) return(NULL)
+  m <- d %>% dplyr::filter(!is.na(.data$ym)) %>%
+    dplyr::group_by(.data$ym) %>%
+    dplyr::summarise(cap = sum(!is.na(.data$tagID)),
+                     tn  = sum(.data$trap_effort, na.rm = TRUE), .groups = "drop")
+  m <- m[m$tn > 0, , drop = FALSE]
+  if (nrow(m) < 4) return(NULL)
+  m$cpue <- 100 * m$cap / m$tn
+  m$date <- as.Date(paste0(m$ym, "-01"))
+  ev <- env; ev$date <- as.Date(ev$date)
+  ev$.v <- suppressWarnings(as.numeric(ev[[meta$col]]))
+  ev <- ev[!is.na(ev$.v), c("date", ".v"), drop = FALSE]
+  if (!nrow(ev)) return(NULL)
+  best <- list(lag = NA_integer_, r = NA_real_, n = 0L)
+  for (lag in 0:max_lag) {
+    e2 <- ev; lt <- as.POSIXlt(e2$date); lt$mon <- lt$mon + lag; e2$date <- as.Date(lt)
+    j <- merge(m[, c("date", "cpue")], e2, by = "date")
+    if (nrow(j) >= 4) {
+      r <- suppressWarnings(stats::cor(j$cpue, j$.v))
+      if (!is.na(r) && (is.na(best$r) || abs(r) > abs(best$r)))
+        best <- list(lag = lag, r = round(r, 2), n = nrow(j))
+    }
+  }
+  if (is.na(best$r)) return(NULL)
+  best$label <- meta$label; best$unit <- meta$unit
+  best
+}
+
+# Month-matched pairs of (catch-per-effort, lagged driver value) for the
+# environmental RESPONSE scatter — the same data the correlation note summarises,
+# but as points so the shape of the relationship (linear? saturating?) is visible.
+env_response_points <- function(d, env, layer, lag = 0) {
+  meta <- ENV_LAYERS[[layer]]
+  if (is.null(meta) || is.null(env) || !(meta$col %in% names(env))) return(NULL)
+  m <- d %>% dplyr::filter(!is.na(.data$ym)) %>%
+    dplyr::group_by(.data$ym) %>%
+    dplyr::summarise(cap = sum(!is.na(.data$tagID)),
+                     tn  = sum(.data$trap_effort, na.rm = TRUE), .groups = "drop")
+  m <- m[m$tn > 0, , drop = FALSE]
+  if (!nrow(m)) return(NULL)
+  m$cpue <- 100 * m$cap / m$tn
+  m$date <- as.Date(paste0(m$ym, "-01"))
+  e <- shift_env(env, lag)
+  e$.v <- suppressWarnings(as.numeric(e[[meta$col]]))
+  e <- e[!is.na(e$.v), c("date", ".v"), drop = FALSE]
+  j <- merge(m[, c("date", "cpue")], e, by = "date")
+  if (nrow(j) < 3) return(NULL)
+  j$year <- as.integer(format(j$date, "%Y"))
+  names(j)[names(j) == ".v"] <- "value"
+  tibble::as_tibble(j[order(j$date), c("date", "year", "value", "cpue")])
+}
+
+# Best-lag correlation for EVERY available driver, ranked by |r|. Answers the
+# question "which environmental signal does this population track best?" — the
+# data behind the multi-driver comparison panel.
+env_corr_all <- function(d, env, max_lag = 12) {
+  if (is.null(d) || is.null(env)) return(NULL)
+  rows <- lapply(names(ENV_LAYERS), function(k) {
+    meta <- ENV_LAYERS[[k]]
+    if (!(meta$col %in% names(env)) || !any(!is.na(env[[meta$col]]))) return(NULL)
+    sc <- env_corr_scan(d, env, k, max_lag)
+    if (is.null(sc)) return(NULL)
+    data.frame(layer = k, label = meta$label, color = meta$color,
+               lag = sc$lag, r = sc$r, n = sc$n, stringsAsFactors = FALSE)
+  })
+  rows <- rows[!vapply(rows, is.null, logical(1))]
+  if (!length(rows)) return(NULL)
+  res <- do.call(rbind, rows)
+  tibble::as_tibble(res[order(-abs(res$r)), ])
+}
+
 # Long trap-grid table (one row per A-J x 1-10 cell) for an individual's heatmap.
 trap_grid_long <- function(d, tag) {
   sub <- dplyr::filter(d, .data$tagID == tag, !is.na(.data$tx), !is.na(.data$ty))

@@ -120,6 +120,27 @@ off-peak window so the brief redeploy doesn't interrupt active users) by a GitHu
 (`scripts/refresh_data.R`); the approach is documented in
 [docs/data-bundling-pattern.md](docs/data-bundling-pattern.md).
 
+### Compare with environment (co-located NEON overlays)
+
+The sidebar's **Compare with environment** picker overlays a *co-located* NEON data product —
+measured at the **same site** — behind the population and seasonality charts (MNKA, detection-corrected
+abundance, breeding phenology), with a **lead-time (lag) slider** so you can shift a driver forward and
+watch, say, a rain pulse line up under the rodent boom it feeds months later. Available layers:
+
+| Layer | NEON product | Aggregation |
+| --- | --- | --- |
+| Precipitation | `DP1.00044.001` (weighing gauge) | monthly sum (mm) |
+| Air temperature | `DP1.00002.001` (single-aspirated) | monthly mean/min/max (°C) |
+| Relative humidity | `DP1.00098.001` | monthly mean (%) |
+| Soil moisture | `DP1.00094.001` | monthly mean (% vol) |
+| Plants fruiting | `DP1.10055.001` (phenology) | monthly % of individuals in fruit |
+
+Each layer is pre-aggregated to **one value per site-month** and bundled as a tiny `data/env/<SITE>.rds`
+(a few KB) by `scripts/refresh_env_data.R`, mirroring the mammal bundle. Where a site has no real env
+bundle, the app falls back to a small, clearly-badged **illustrative demo** series
+(`data-sample/env_demo.csv`, JORN + SRER) so the feature is demonstrable — it is **not** NEON data and
+the UI says so. Run `scripts/refresh_env_data.R` to populate the real per-site overlays.
+
 ## Run it locally
 
 ```r
@@ -150,6 +171,7 @@ data/sites/               per-site .rds bundle ("the database")
 data/site_index.rds       national picker-map index (per-site stats)
 data/species_ranges.rds   per-species national ranges (the "by species" map)
 scripts/refresh_data.R    rebuild the per-site data bundle
+scripts/refresh_env_data.R  build per-site monthly environmental overlays (data/env/)
 scripts/build_site_index.R  rebuild the picker + species-range indexes
 scripts/make_og_image.R   draw the docs/ social card
 scripts/write_manifest.R  (re)generate manifest.json for Connect Cloud (lean, bundle-only)

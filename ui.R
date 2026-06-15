@@ -94,6 +94,31 @@ ui <- bslib::page_sidebar(
       uiOutput("bioLinks")
     )),
 
+    # ---- compare with environment (co-located NEON products) --------------
+    hidden(div(id = "envPickerWrap",
+      hr(class = "deck-hr"),
+      selectInput("envLayer",
+        label = tagList(bs_icon("cloud-drizzle-fill"), " Compare with environment",
+          info_pop("Environmental overlays",
+            p("Overlay a co-located NEON data product — measured at ", tags$b("this same site"),
+              " — behind the population & seasonality charts to see what the booms and busts track."),
+            tags$ul(
+              tags$li(tags$b("Precipitation"), " — the rain pulse that feeds desert seed crops"),
+              tags$li(tags$b("Air temperature / humidity"), " — thermal & moisture limits on activity"),
+              tags$li(tags$b("Soil moisture"), " — often a better productivity signal than rain alone"),
+              tags$li(tags$b("Plants fruiting"), " — a near-direct food-supply signal for granivores")),
+            p("Use the ", tags$b("lag"), " slider to shift a driver forward in time — a rain pulse can take months to become a rodent boom (the classic desert ", tags$em("pulse–reserve"), " response; Noy-Meir 1973; Brown & Ernest 2002)."),
+            p(class = "pop-caveat", bs_icon("exclamation-triangle"),
+              tags$b(" These overlays show correlation, not proof of cause."),
+              " Drivers are often correlated with each other (warm months are also dry months), so read a strong match as a lead to investigate, not a settled mechanism."))),
+        choices = c("None" = "none"), width = "100%"),
+      div(id = "envLagWrap",
+        sliderInput("envLag", tagList(bs_icon("hourglass-split"), " Lead time (months)"),
+                    min = 0, max = 12, value = 0, step = 1, width = "100%"),
+        div(class = "env-lag-hint", "0 = same month · 3 = driver 3 months earlier")),
+      uiOutput("envSourceNote")
+    )),
+
     hr(class = "deck-hr"),
     actionButton("help", tagList(bs_icon("question-circle"), " How it works"),
                  class = "btn-outline-dark btn-sm w-100"),
@@ -272,6 +297,16 @@ ui <- bslib::page_sidebar(
             h4("Defensible population signals"),
             p("Minimum Number Known Alive (MNKA) and catch-per-unit-effort are honest abundance indices; the accumulation curve shows whether trapping ran long enough to find every species."))
         ),
+        uiOutput("envCorrNote"),
+        conditionalPanel("output.hasEnv == true",
+          card(full_screen = TRUE,
+            card_head("bar-chart-steps", "Which environmental driver does this population track best?",
+              info_pop("Driver comparison",
+                p("For every co-located driver, we scan lags 0–12 months and keep the ", tags$b("strongest correlation"), " with monthly catch-per-effort."),
+                p("Bars show that best correlation (sign = direction); the label is the lag at which it peaks. The longest bar is the signal this population follows most closely — the others are candidate co-drivers."),
+                p(class = "pop-caveat", bs_icon("exclamation-triangle"),
+                  " A longer bar isn't proof of cause: drivers correlate with each other, and scanning many lags can flag a strong match by chance. Treat this as a ranking of leads to investigate."))),
+            spin(plotlyOutput("envDriverRank", height = "300px")))),
         layout_columns(col_widths = c(7, 5),
           card(full_screen = TRUE,
             card_head("people-fill", "MNKA & catch-per-effort, by plot",
@@ -300,7 +335,16 @@ ui <- bslib::page_sidebar(
             tags$span(class = "card-hint", style = "margin-left:auto", "navy = estimate · grey = known alive")),
           uiOutput("detectHead"),
           spin(plotlyOutput("detectPlot", height = "400px")),
-          uiOutput("detectNote"))
+          uiOutput("detectNote")),
+        conditionalPanel("input.envLayer && input.envLayer != 'none'",
+          card(full_screen = TRUE,
+            card_head("bullseye", "Environmental response — catch-per-effort vs the driver",
+              info_pop("Response scatter",
+                p("Each point is one month: its ", tags$b("catch per 100 trap-nights"),
+                  " against the value of the selected environmental driver (with your ",
+                  tags$b("lag"), " applied)."),
+                p("A rising cloud means more animals when the driver is high; the dashed line is an OLS fit. This is the same signal as the correlation banner above, shown as a shape so you can spot thresholds or saturation."))),
+            spin(plotlyOutput("envScatter", height = "420px"))))
       ),
 
       nav_panel(
