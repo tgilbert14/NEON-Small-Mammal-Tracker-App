@@ -205,5 +205,17 @@ document.addEventListener("DOMContentLoaded", function () {
     Shiny.addCustomMessageHandler("smtLoadStart", function (msg) {
       smtLoadStart(msg && msg.label);
     });
+    // A Leaflet map that initialised inside a hidden tab/container (the Plot-map
+    // tab, or the picker map re-shown after "change site") can paint blank until
+    // it recomputes its size. Dispatching 'resize' makes every Leaflet map
+    // invalidateSize. The server kicks this after re-showing the splash.
+    Shiny.addCustomMessageHandler("kickMaps", function () {
+      setTimeout(function () { try { window.dispatchEvent(new Event("resize")); } catch (e) {} }, 90);
+    });
   }
+});
+
+// Re-fit any Leaflet map the moment its tab becomes visible (hidden-init blank fix).
+document.addEventListener("shown.bs.tab", function () {
+  setTimeout(function () { try { window.dispatchEvent(new Event("resize")); } catch (e) {} }, 60);
 });
