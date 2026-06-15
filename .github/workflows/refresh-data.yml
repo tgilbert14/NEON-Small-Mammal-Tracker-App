@@ -1,6 +1,7 @@
 name: Refresh NEON data bundle
 
-# Monthly rebuild of the per-site .rds bundle (data/sites/*.rds), then redeploy.
+# Monthly rebuild of the per-site .rds bundles (data/sites/*.rds mammal data +
+# data/env/*.rds environmental overlays), then redeploy.
 # Runs late on the FIRST SATURDAY NIGHT of each month (~11pm Arizona time) so the
 # brief redeploy lands off-peak. NEON publishes on a lag, so a monthly pull keeps
 # the bundled "database" current.
@@ -85,6 +86,16 @@ jobs:
           rm -f data/sites/*.rds
           Rscript scripts/refresh_data.R
 
+      # Environmental-overlay bundle (precip / temp / RH / soil moisture /
+      # fruiting) for the "Compare with environment" feature. Non-fatal: a hiccup
+      # building env overlays must not block the mammal-data deploy below.
+      - name: Rebuild the environmental-overlay bundle (full re-pull)
+        if: ${{ github.event.inputs.skip_download != 'true' }}
+        continue-on-error: true
+        run: |
+          rm -f data/env/*.rds
+          Rscript scripts/refresh_env_data.R
+
       # Deploy BEFORE touching git: the runner already holds the fresh .rds
       # files, so the live app gets current data even if the PR step hiccups.
       - name: Deploy to shinyapps.io
@@ -100,14 +111,18 @@ jobs:
       - name: Open/update data-refresh PR
         uses: peter-evans/create-pull-request@v6
         with:
-          add-paths: data/sites
+          add-paths: |
+            data/sites
+            data/env
           branch: auto/data-refresh
           delete-branch: true
           commit-message: "data: monthly NEON refresh"
           title: "data: monthly NEON refresh"
           body: |
-            Automated monthly re-pull of NEON Small Mammal box-trapping data
-            (`DP1.10072.001`) into `data/sites/*.rds`.
+            Automated monthly re-pull of NEON data into the bundles:
+            - small-mammal box trapping (`DP1.10072.001`) → `data/sites/*.rds`
+            - environmental overlays (precip / temp / RH / soil moisture /
+              fruiting) → `data/env/*.rds` for the "Compare with environment" feature.
 
             The live app has already been redeployed from this data — merging
             this PR just keeps the committed bundle (and local runs) in sync.
