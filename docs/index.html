@@ -268,6 +268,42 @@
     </div>
   </section>
 
+  <style>
+    .series { background: #0C234B; color: #fff; padding: 56px 0; }
+    .series h2 { color: #fff; margin: 0; font-size: 1.6rem; }
+    .series-sub { color: #bcccdf; margin: 8px 0 26px; max-width: 640px; }
+    .series-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    .series-card { display: flex; flex-direction: column; gap: 5px; padding: 22px; border-radius: 16px;
+      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); color: #fff;
+      text-decoration: none; transition: transform .15s ease, border-color .15s ease, background .15s ease; }
+    .series-card:hover { transform: translateY(-3px); border-color: #FFD200; background: rgba(255,255,255,.10); }
+    .series-emoji { font-size: 1.9rem; line-height: 1; }
+    .series-name { font-weight: 800; font-size: 1.12rem; }
+    .series-tag { color: #bcccdf; font-size: .95rem; }
+    .series-go { color: #FFD200; font-weight: 700; margin-top: 6px; }
+    @media (max-width: 640px) { .series-grid { grid-template-columns: 1fr; } }
+  </style>
+  <section class="series">
+    <div class="wrap">
+      <h2>More from the NEON series 🔭</h2>
+      <p class="series-sub">Same DNA — real NEON open data, honest statistics, instant loads, no sign-up. Pick your critter (or your chemistry).</p>
+      <div class="series-grid">
+        <a class="series-card" href="https://tgilbert14.github.io/NEON-Ground-Beetle-Tracker/" target="_blank" rel="noopener">
+          <span class="series-emoji">🪲</span>
+          <span class="series-name">NEON Ground Beetle Tracker</span>
+          <span class="series-tag">Carabid biodiversity, pitfall by pitfall.</span>
+          <span class="series-go">Open&nbsp;→</span>
+        </a>
+        <a class="series-card" href="https://tgilbert14.github.io/NEON-WaterChemistry-Analyte-Viewer-App/" target="_blank" rel="noopener">
+          <span class="series-emoji">💧</span>
+          <span class="series-name">NEON Water Chemistry Analyte Viewer</span>
+          <span class="series-tag">Surface-water chemistry across 34 aquatic sites.</span>
+          <span class="series-go">Open&nbsp;→</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
   <footer>
     <div class="wrap">
       <a class="cta-foot" href="mailto:desertdatalabs@gmail.com?subject=NEON%20Small%20Mammal%20Tracker"><span aria-hidden="true">👋</span> Want a custom data app like this for your project?</a><br>
