@@ -16,6 +16,50 @@
   --shadow: rgba(12, 35, 75, 0.10);
 }
 
+/* =========================================================================
+   DARK THEME — toggled by the sidebar input_dark_mode("colorMode").
+   Most components read the tokens above, so flipping the structural ones
+   carries the bulk of it; the targeted rules handle spots where the navy
+   --pine token is used as TEXT (unreadable on dark) or a light color was
+   hard-coded. Plots adapt server-side via is_dark() in plotly_theme().
+   ========================================================================= */
+[data-bs-theme="dark"] {
+  --ink: #e6edf5;  --muted: #9fb0c4;
+  --bg: #0e1726;   --paper: #16213a;  --line: #29384f;
+  --gold-ink: #e8c552;                 /* brighter gold for icons/text on dark */
+  --shadow: rgba(0, 0, 0, 0.45);
+}
+[data-bs-theme="dark"] body {
+  background:
+    radial-gradient(1100px 520px at 10% -8%, rgba(70,110,170,0.12), transparent 60%),
+    radial-gradient(900px 460px at 100% 0%, rgba(171,5,32,0.10), transparent 55%),
+    linear-gradient(180deg, #0e1726 0%, #0a1120 100%);
+  color: var(--ink);
+}
+[data-bs-theme="dark"] .control-deck { background: #111c30; }
+/* the navy --pine token used as TEXT is unreadable on dark -> light blue */
+[data-bs-theme="dark"] .brand-title,
+[data-bs-theme="dark"] .bio-links-title,
+[data-bs-theme="dark"] .tab-head-text h4,
+[data-bs-theme="dark"] .hr-indiv-lab,
+[data-bs-theme="dark"] .stat-sub,
+[data-bs-theme="dark"] .tab-intro .bi,
+[data-bs-theme="dark"] .chart-hint .bi { color: #b9d2f2 !important; }
+[data-bs-theme="dark"] .deck-foot code { color: #cfe0f5; background: #22324a; }
+[data-bs-theme="dark"] .deck-foot a:hover { color: #cfe0f5; }
+[data-bs-theme="dark"] .bio-links a { background: #1b2942; color: var(--muted); }
+[data-bs-theme="dark"] .bio-links a:hover { background: #22324a; color: #cfe0f5; border-color: #3a557e; }
+/* lift the card-header navy slightly so it separates from the dark card body */
+[data-bs-theme="dark"] .card-header { background: #1d4a8f !important; }
+/* form controls + selectize on dark */
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select,
+[data-bs-theme="dark"] .selectize-input,
+[data-bs-theme="dark"] .selectize-dropdown { background: #0f1b2e; color: var(--ink); border-color: var(--line); }
+/* the sidebar theme toggle row */
+.theme-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 0 4px; }
+.theme-toggle-lab { font-size: 12px; font-weight: 700; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+
 body {
   background:
     radial-gradient(1100px 520px at 10% -8%, rgba(12,35,75,0.05), transparent 60%),
@@ -64,7 +108,9 @@ body {
   color: #fff; padding: 22px 26px; border-radius: 14px; margin-bottom: 16px;
   box-shadow: 0 6px 20px -8px var(--shadow);
 }
-.app-title { font-weight: 800; font-size: 32px; margin: 0; color: #fff; letter-spacing: .3px; }
+.app-title { font-weight: 800; font-size: 32px; margin: 0; color: var(--gold); letter-spacing: .3px; }
+/* the banner now lives inside the (centered) splash — keep it left-read, full width */
+.app-hero-splash { text-align: left; margin: 0 0 16px; }
 .title-tag {
   font-size: 12px; font-weight: 600; letter-spacing: 1.5px; vertical-align: middle;
   margin-left: 8px; text-transform: uppercase; color: #fff;

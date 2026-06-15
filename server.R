@@ -4,15 +4,26 @@
 
 server <- function(input, output, session) {
 
-  # ---- shared plotly styling (light theme, Rubik, dark ink text) ---------
+  # is the dark theme active? Driven by the sidebar input_dark_mode("colorMode").
+  # Reading it inside the shared plot helpers makes every chart that calls them
+  # take a reactive dependency on the toggle, so they re-render on theme switch.
+  is_dark <- function() identical(input$colorMode, "dark")
+
+  # ---- shared plotly styling (Rubik; light or dark per the toggle) -------
   plotly_theme <- function(p, legend = TRUE) {
+    dark <- is_dark()
+    ink  <- if (dark) "#e8eef2" else "#1f2a30"
+    grid <- if (dark) "rgba(220,230,240,0.10)" else "rgba(31,42,48,0.08)"
+    zero <- if (dark) "rgba(220,230,240,0.22)" else "rgba(31,42,48,0.15)"
+    lin  <- if (dark) "#3a4759" else "#d6ddd4"
+    legc <- if (dark) "#c3cedd" else "#344049"
     p %>% plotly::layout(
       paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)",
-      font = list(color = "#1f2a30", family = "Rubik"),
-      xaxis = list(gridcolor = "rgba(31,42,48,0.08)", zerolinecolor = "rgba(31,42,48,0.15)", linecolor = "#d6ddd4"),
-      yaxis = list(gridcolor = "rgba(31,42,48,0.08)", zerolinecolor = "rgba(31,42,48,0.15)", linecolor = "#d6ddd4"),
-      legend = list(bgcolor = "rgba(0,0,0,0)", orientation = "h", y = -0.2, font = list(color = "#344049")),
-      margin = list(l = 50, r = 30, t = 30, b = 40),
+      font = list(color = ink, family = "Rubik"),
+      xaxis = list(gridcolor = grid, zerolinecolor = zero, linecolor = lin),
+      yaxis = list(gridcolor = grid, zerolinecolor = zero, linecolor = lin),
+      legend = list(bgcolor = "rgba(0,0,0,0)", orientation = "h", y = -0.2, font = list(color = legc)),
+      margin = list(l = 50, r = 30, t = 48, b = 40),   # t roomy enough for the ctx caption
       # navy card + gold edge tooltips, on-theme across every plot
       hoverlabel = list(bgcolor = "rgba(12,35,75,0.96)", bordercolor = "#FFD200",
         font = list(color = "#ffffff", family = "Rubik", size = 13))
@@ -27,9 +38,11 @@ server <- function(input, output, session) {
   # (uses add_annotations so it never clobbers a plot's own annotations).
   ctx_anno <- function(p) {
     if (is.null(rv$ctx)) return(p)
-    plotly::add_annotations(p, text = rv$ctx, x = 1, y = 1.07, xref = "paper", yref = "paper",
+    # y just above the plot (1.03) so it clears the panel without needing a huge
+    # top margin; plotly_theme's t=48 gives every plot enough headroom.
+    plotly::add_annotations(p, text = rv$ctx, x = 1, y = 1.03, xref = "paper", yref = "paper",
       xanchor = "right", yanchor = "bottom", showarrow = FALSE,
-      font = list(color = "#6b7a89", size = 11, family = "Rubik"))
+      font = list(color = if (is_dark()) "#9fb0c4" else "#6b7a89", size = 11, family = "Rubik"))
   }
 
   # A centered-message placeholder for plots that have nothing to show.
@@ -39,7 +52,7 @@ server <- function(input, output, session) {
         paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)",
         xaxis = list(visible = FALSE), yaxis = list(visible = FALSE),
         annotations = list(list(text = paste0(icon, "<br>", msg), showarrow = FALSE,
-          font = list(color = "#6b7a85", size = 15), align = "center"))) %>%
+          font = list(color = if (is_dark()) "#9fb0c4" else "#6b7a85", size = 15), align = "center"))) %>%
       plotly::config(displayModeBar = FALSE)
   }
 
@@ -272,25 +285,15 @@ server <- function(input, output, session) {
             dash(row$group_label[1])))))
   }
 
-  # click a dot -> open the choice popup (clearPopups first = one popup, ever)
-  observeEvent(input$pickerMap_marker_click, {
-    code <- input$pickerMap_marker_click$id
-    if (is.null(code) || is.na(code)) return()
-    row <- if (!is.null(SITE_INDEX)) SITE_INDEX[SITE_INDEX$site == code, ] else NULL
-    if (is.null(row) || !nrow(row)) { load_site_full(code); return() }  # fallback
-    leaflet::leafletProxy("pickerMap") %>% leaflet::clearPopups() %>%
-      leaflet::addPopups(lng = row$lng[1], lat = row$lat[1], popup = site_popup_html(row),
-        layerId = paste0("pop_", code),
-        options = leaflet::popupOptions(maxWidth = 300, minWidth = 230, autoPan = TRUE,
-          autoPanPadding = c(40, 55), keepInView = TRUE, closeButton = TRUE,
-          closeOnClick = FALSE, className = "pm-pop-card"))
-  })
+  # The choice popup is bound directly to each marker (add_site_markers /
+  # add_species_markers), so a dot tap opens it client-side — no marker_click
+  # observer + leafletProxy("pickerMap") addPopups, which silently failed after
+  # the picker map had been hidden and re-shown ("change site").
+
   # "Explore this site" (popup button OR About-modal footer button) -> load it.
-  # removeModal()/clearPopups() so neither floats over the loading overlay.
   observeEvent(input$siteExplore, {
     removeModal()
-    leaflet::leafletProxy("pickerMap") %>% leaflet::clearPopups()
-    load_site_full(input$siteExplore)
+    load_site_full(input$siteExplore)   # the native popup closes when the splash hides
   })
   # "About this site" -> instant info card (no bundle load)
   observeEvent(input$siteInfo, showModal(site_info_modal(input$siteInfo)))
@@ -380,14 +383,23 @@ server <- function(input, output, session) {
   # Dot size = total captures (log-scaled); color = the ecological family of the
   # site's most-caught species. Falls back to a clickable list (a11y / no-JS).
   output$splash <- renderUI({
-    if (!is.null(rv$data)) return(NULL)
+    # Intentionally NOT guarded on rv$data. The picker map (leafletOutput
+    # "pickerMap") lives inside this output; if it re-rendered on load / change
+    # site it would recreate the map and the client-side leaflet proxy would lose
+    # it ("Couldn't find map with id pickerMap"), so dot popups stopped opening
+    # after "change site". Render ONCE and toggle visibility via shinyjs
+    # show/hide("splash"); suspendWhenHidden is disabled below so hiding the
+    # splash never tears the map down.
     idx <- SITE_INDEX
 
     # graceful fallback to a simple prompt if the index wasn't precomputed
     if (is.null(idx) || nrow(idx) == 0) {
       return(div(class = "splash",
-        div(class = "splash-icon", "\U0001F43E"),
-        h3("Explore the small mammals of the NEON network"),
+        div(class = "app-hero app-hero-splash",
+          h1(class = "app-title", "NEON Small Mammal Tracker",
+             span(class = "title-tag", "unofficial")),
+          p(class = "app-subtitle",
+            "Meet the small mammals NEON catches across the country — what lives where, who the regulars are, and what eight years of capture records reveal.")),
         p("Pick a ", tags$b("state"), " then a ", tags$b("site"), " in the sidebar, or jump into the demo."),
         actionButton("demoBtn2", tagList(bs_icon("stars"), " Explore the Jornada demo instantly"),
                      class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')")))
@@ -418,8 +430,11 @@ server <- function(input, output, session) {
 
     has_species <- !is.null(SPECIES_RANGES) && nrow(SPECIES_RANGES) > 0
     div(class = "splash splash-map",
-      div(class = "splash-icon", "\U0001F43E"),
-      h3("Explore the NEON small-mammal network"),
+      div(class = "app-hero app-hero-splash",
+        h1(class = "app-title", "NEON Small Mammal Tracker",
+           span(class = "title-tag", "unofficial")),
+        p(class = "app-subtitle",
+          "Meet the small mammals NEON catches across the country — what lives where, who the regulars are, and what eight years of capture records reveal.")),
       p("NEON live-traps small mammals at ", tags$b(nrow(idx)), " field sites across the U.S. and Puerto Rico. ",
         "Explore ", tags$b("by site"), " — tap a dot to dive in — or ", tags$b("by species"),
         ", to see where one animal turns up across the country."),
@@ -476,9 +491,17 @@ server <- function(input, output, session) {
        <div class='pm-pop-s'>%s · %s</div>
        <div class='pm-pop-hint'>Tap for site options</div></div>",
       idx$emoji[i], idx$site[i], idx$name[i], idx$state[i])))
+    # Bind the choice popup to each marker so a CLICK opens it client-side — no
+    # leafletProxy round-trip (which fails once the picker map has been hidden and
+    # re-shown via "change site"). This is what makes site selection work again.
+    pops <- vapply(seq_len(nrow(idx)),
+      function(i) as.character(site_popup_html(idx[i, , drop = FALSE])), character(1))
     leaflet::addCircleMarkers(map, data = idx, lng = ~lng, lat = ~lat, layerId = ~site,
       radius = picker_radius(idx$captures), stroke = TRUE, color = "#ffffff", weight = 1.5,
       opacity = 1, fillColor = ~group_color, fillOpacity = 0.85, label = labs,
+      popup = pops, popupOptions = leaflet::popupOptions(maxWidth = 300, minWidth = 230,
+        autoPan = TRUE, autoPanPadding = c(40, 55), keepInView = TRUE,
+        closeButton = TRUE, closeOnClick = FALSE, className = "pm-pop-card"),
       labelOptions = picker_label_opts, options = leaflet::markerOptions(riseOnHover = TRUE))
   }
 
@@ -495,9 +518,18 @@ server <- function(input, output, session) {
        <div class='pm-pop-hint'>Tap for site options</div></div>",
       r$emoji[i], r$site[i], r$name[i], r$state[i],
       format(r$individuals[i], big.mark = ","), format(r$captures[i], big.mark = ","))))
+    # native popups (built from the full SITE_INDEX row) so a click opens the
+    # choice card client-side — same robustness as the by-site markers
+    pops <- vapply(seq_len(nrow(r)), function(i) {
+      srow <- if (!is.null(SITE_INDEX)) SITE_INDEX[SITE_INDEX$site == r$site[i], , drop = FALSE] else NULL
+      if (is.null(srow) || !nrow(srow)) "" else as.character(site_popup_html(srow))
+    }, character(1))
     leaflet::addCircleMarkers(map, data = r, lng = ~lng, lat = ~lat, layerId = ~site,
       radius = picker_radius(r$individuals), stroke = TRUE, color = "#ffffff", weight = 1.5,
       opacity = 1, fillColor = col, fillOpacity = 0.85, label = labs,
+      popup = pops, popupOptions = leaflet::popupOptions(maxWidth = 300, minWidth = 230,
+        autoPan = TRUE, autoPanPadding = c(40, 55), keepInView = TRUE,
+        closeButton = TRUE, closeOnClick = FALSE, className = "pm-pop-card"),
       labelOptions = picker_label_opts, options = leaflet::markerOptions(riseOnHover = TRUE))
   }
 
@@ -509,6 +541,12 @@ server <- function(input, output, session) {
       setView(lng = -96, lat = 41, zoom = 4) %>%
       add_site_markers()
   })
+
+  # Keep the splash + its picker map rendered ONCE and alive while hidden, so the
+  # leaflet proxy stays valid across "change site" (otherwise the map is recreated
+  # and leafletProxy("pickerMap") can't find it -> dot popups silently fail).
+  outputOptions(output, "splash",    suspendWhenHidden = FALSE)
+  outputOptions(output, "pickerMap", suspendWhenHidden = FALSE)
 
   # swap markers when the user toggles mode or picks a species (proxy = no reflow)
   observeEvent(list(input$pickMode, input$rangeSpecies), {
@@ -1265,8 +1303,10 @@ server <- function(input, output, session) {
       ctx_anno()
   })
 
-  donut_center <- function(total, label) list(text = sprintf("<b>%s</b><br><span style='font-size:11px;color:#6b7a85'>%s</span>",
-    format(total, big.mark = ","), label), showarrow = FALSE, font = list(color = "#1f2a30", size = 20))
+  donut_center <- function(total, label) list(
+    text = sprintf("<b>%s</b><br><span style='font-size:11px;color:%s'>%s</span>",
+      format(total, big.mark = ","), if (is_dark()) "#9fb0c4" else "#6b7a85", label),
+    showarrow = FALSE, font = list(color = if (is_dark()) "#e8eef2" else "#1f2a30", size = 20))
 
   output$sexDonut <- renderPlotly({
     d <- rv$data; req(d)
@@ -1282,13 +1322,13 @@ server <- function(input, output, session) {
       pull = c(0.03, 0, 0), textinfo = "percent", textposition = "inside",
       insidetextorientation = "horizontal", textfont = list(color = "#ffffff", size = 13),
       hovertemplate = "<b>%{label}</b><br>%{value:,} animals · %{percent:.0%} of handled<extra></extra>") %>%
-      plotly::layout(title = list(text = "Sex", font = list(color = "#344049", size = 14)),
+      plotly::layout(title = list(text = "Sex", font = list(color = if (is_dark()) "#c3cedd" else "#344049", size = 14)),
         paper_bgcolor = "rgba(0,0,0,0)", showlegend = TRUE,
         legend = list(orientation = "h", y = -0.05, x = 0.5, xanchor = "center", font = list(size = 11)),
         annotations = list(donut_center(sum(tab$n), "handled")),
         hoverlabel = list(bgcolor = "rgba(12,35,75,0.96)", bordercolor = "#FFD200",
           font = list(color = "#ffffff", family = "Rubik", size = 13)),
-        font = list(color = "#344049"), margin = list(t = 38, b = 30, l = 10, r = 10)) %>%
+        font = list(color = if (is_dark()) "#c3cedd" else "#344049"), margin = list(t = 38, b = 30, l = 10, r = 10)) %>%
       plotly::config(displayModeBar = FALSE)
   })
 
@@ -1306,13 +1346,13 @@ server <- function(input, output, session) {
       textinfo = "percent", textposition = "inside", insidetextorientation = "horizontal",
       textfont = list(color = "#ffffff", size = 13),
       hovertemplate = "<b>%{label}</b><br>%{value:,} animals · %{percent:.0%} of aged<extra></extra>") %>%
-      plotly::layout(title = list(text = "Life stage", font = list(color = "#344049", size = 14)),
+      plotly::layout(title = list(text = "Life stage", font = list(color = if (is_dark()) "#c3cedd" else "#344049", size = 14)),
         paper_bgcolor = "rgba(0,0,0,0)", showlegend = TRUE,
         legend = list(orientation = "h", y = -0.05, x = 0.5, xanchor = "center", font = list(size = 11)),
         annotations = list(donut_center(sum(tab$n), "aged")),
         hoverlabel = list(bgcolor = "rgba(12,35,75,0.96)", bordercolor = "#FFD200",
           font = list(color = "#ffffff", family = "Rubik", size = 13)),
-        font = list(color = "#344049"), margin = list(t = 38, b = 30, l = 10, r = 10)) %>%
+        font = list(color = if (is_dark()) "#c3cedd" else "#344049"), margin = list(t = 38, b = 30, l = 10, r = 10)) %>%
       plotly::config(displayModeBar = FALSE)
   })
 
@@ -1536,38 +1576,45 @@ server <- function(input, output, session) {
     sa <- species_accum(d)
     if (is.null(sa)) return(note_plot("Not enough data for accumulation", "\U0001F4C8"))
     cv <- sa$curve
+    # The Chao1 CI upper bound explodes when doubletons are scarce (e.g. 33 from a
+    # single doubleton), which used to draw a giant unlabeled pink rectangle that
+    # dwarfed the curve. Cap the band for legibility, LABEL it, pin the y-axis, and
+    # state the true range in the caption so it stays honest.
+    cap <- min(sa$chao_hi, max(2 * sa$chao1, sa$sobs + 5))
+    band_name <- if (isTRUE(sa$unstable)) "Chao1 interval (wide — unstable)"
+                 else sprintf("Chao1 95%% CI (%d–%d)", sa$chao_lo, sa$chao_hi)
     p <- plot_ly() %>%
       add_trace(x = cv$bouts, y = cv$hi, type = "scatter", mode = "lines",
         line = list(width = 0), showlegend = FALSE, hoverinfo = "skip") %>%
       add_trace(x = cv$bouts, y = cv$lo, type = "scatter", mode = "lines", fill = "tonexty",
         fillcolor = "rgba(22,56,110,0.14)", line = list(width = 0),
-        name = "±1 SD", hoverinfo = "skip") %>%
+        name = "±1 SD (resampling)", hoverinfo = "skip") %>%
       add_trace(x = cv$bouts, y = cv$richness, type = "scatter", mode = "lines+markers",
         name = "species found", line = list(color = "#16386e", width = 3),
         marker = list(size = 6, color = "#16386e"),
         hovertemplate = "after %{x} bouts<br>%{y:.1f} species<extra></extra>") %>%
-      # Chao1 95% CI band (faint), drawn behind the dashed asymptote
+      # Chao1 CI band — capped at `cap` for display, now NAMED in the legend
       add_trace(x = c(range(cv$bouts), rev(range(cv$bouts))),
-        y = c(sa$chao_hi, sa$chao_hi, sa$chao_lo, sa$chao_lo),
+        y = c(cap, cap, sa$chao_lo, sa$chao_lo),
         type = "scatter", mode = "lines", fill = "toself",
-        fillcolor = "rgba(171,5,32,0.08)", line = list(width = 0),
-        hoverinfo = "skip", showlegend = FALSE) %>%
+        fillcolor = "rgba(171,5,32,0.10)", line = list(width = 0),
+        name = band_name, hoverinfo = "skip") %>%
       add_trace(x = range(cv$bouts), y = rep(sa$chao1, 2), type = "scatter", mode = "lines",
-        name = if (isTRUE(sa$unstable))
-                 sprintf("Chao1 ≥ %d (few doubletons — lower bound)", sa$chao1)
-               else sprintf("Chao1 ≈ %d (95%% CI %d–%d)", sa$chao1, sa$chao_lo, sa$chao_hi),
+        name = if (isTRUE(sa$unstable)) sprintf("Chao1 ≥ %d (lower bound)", sa$chao1)
+               else sprintf("Chao1 ≈ %d", sa$chao1),
         line = list(color = "#AB0520", width = 1.5, dash = "dash"), hoverinfo = "skip")
     anno_txt <- if (isTRUE(sa$unstable))
-        sprintf("observed %d species · Chao1 ≥ %d — a lower bound (only %d doubleton%s)",
-                sa$sobs, sa$chao1, sa$f2, ifelse(sa$f2 == 1, "", "s"))
-      else sprintf("observed %d species · Chao1 ≈ %d (95%% CI %d–%d)",
-                   sa$sobs, sa$chao1, sa$chao_lo, sa$chao_hi)
+        sprintf("observed %d species · shaded = Chao1 interval, very wide (only %d doubleton%s)",
+                sa$sobs, sa$f2, ifelse(sa$f2 == 1, "", "s"))
+      else sprintf("observed %d species · shaded = Chao1 95%% CI (%d–%d)",
+                   sa$sobs, sa$chao_lo, sa$chao_hi)
     plotly_theme(p) %>% plotly::layout(
       xaxis = list(title = "trapping bouts (months)"),
-      yaxis = list(title = "cumulative species"), margin = list(t = 44),
+      yaxis = list(title = "cumulative species", range = c(0, cap + 1), rangemode = "tozero"),
+      margin = list(l = 50, r = 30, t = 64, b = 40),
       annotations = list(list(text = anno_txt,
-        x = 0.98, y = 0.05, xref = "paper", yref = "paper", xanchor = "right", showarrow = FALSE,
-        font = list(color = "#6b7a85", size = 11)))) %>% ctx_anno()
+        x = 0, y = 1.05, xref = "paper", yref = "paper", xanchor = "left", yanchor = "bottom",
+        showarrow = FALSE, font = list(color = "#6b7a85", size = 11)))) %>% ctx_anno()
   })
 
   # ---- detection-corrected abundance (closed-capture per bout) ------------
@@ -1616,7 +1663,7 @@ server <- function(input, output, session) {
         hovertemplate = "%{x|%b %Y}<br>N̂ %{y} · p̂ %{customdata}%<extra></extra>")
     plotly_theme(p) %>% plotly::layout(
       xaxis = list(title = ""), yaxis = list(title = "animals on the grid(s)", rangemode = "tozero"),
-      margin = list(t = 30)) %>% ctx_anno()
+      margin = list(l = 50, r = 30, t = 48, b = 40)) %>% ctx_anno()   # t roomy for ctx caption
   })
 
   output$detectNote <- renderUI({
