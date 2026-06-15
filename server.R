@@ -274,7 +274,17 @@ server <- function(input, output, session) {
         d0 <- filter_window(bundle, s0, e0)
         if (sum(!is.na(d0$tagID)) > 0)
           return(ingest(d0, sprintf("%s · %s", site_label(site), fmt_range(s0, e0))))
-        # window had no captures in the bundle -> fall through to live (if enabled)
+        # Window had no captures, but the site IS bundled — its records just fall
+        # outside this window (e.g. GUAN/LAJA predate the default range). Show the
+        # full bundled record INSTANTLY rather than dropping to a slow live fetch.
+        if (sum(!is.na(bundle$tagID)) > 0) {
+          showNotification(sprintf(
+            "No captures at %s in %s–%s — showing its full bundled record instead.",
+            site_label(site), format(as.Date(s0), "%Y"), format(as.Date(e0), "%Y")),
+            type = "message", duration = 6)
+          return(ingest(bundle, sprintf("%s · full record", site_label(site))))
+        }
+        # bundle truly empty -> fall through to live (if enabled)
       }
     }
 
