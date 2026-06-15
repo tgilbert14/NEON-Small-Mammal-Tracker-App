@@ -122,6 +122,9 @@ ui <- bslib::page_sidebar(
     hr(class = "deck-hr"),
     actionButton("help", tagList(bs_icon("question-circle"), " How it works"),
                  class = "btn-outline-dark btn-sm w-100"),
+    div(class = "theme-toggle-row",
+      tags$span(class = "theme-toggle-lab", bs_icon("circle-half"), " Theme"),
+      input_dark_mode(id = "colorMode", mode = "light")),
     div(class = "deck-foot",
       bs_icon("database"), " NEON ", tags$code("DP1.10072.001"),
       br(), tags$a(href = "https://github.com/tgilbert14/NEON-Small-Mammal-Tracker-App",
@@ -142,14 +145,10 @@ ui <- bslib::page_sidebar(
           "Building the leaderboard, maps, and charts. Live NEON downloads can take up to a minute.")
     )),
 
-  # ---- main: header + hero stats + tabs ----------------------------------
-  div(class = "app-hero",
-    h1(class = "app-title", "NEON Small Mammal Tracker",
-       span(class = "title-tag", "unofficial")),
-    p(class = "app-subtitle", id = "siteSubtitle",
-      "Meet the small mammals NEON catches across the country — what lives where, who the regulars are, and what eight years of capture records reveal.")
-  ),
-
+  # ---- main: hero stats + tabs -------------------------------------------
+  # (The big gold banner now lives INSIDE the splash/landing — output$splash —
+  #  so it shows only on site selection and frees room for the loaded view,
+  #  which has its own context bar.)
   uiOutput("heroStats"),
 
   # idle splash before any data is loaded
