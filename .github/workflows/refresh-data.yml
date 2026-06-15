@@ -86,18 +86,10 @@ jobs:
           rm -f data/sites/*.rds
           Rscript scripts/refresh_data.R
 
-      # Environmental-overlay bundle (precip / temp / RH / soil moisture /
-      # fruiting) for the "Compare with environment" feature. Non-fatal: a hiccup
-      # building env overlays must not block the mammal-data deploy below.
-      - name: Rebuild the environmental-overlay bundle (full re-pull)
-        if: ${{ github.event.inputs.skip_download != 'true' }}
-        continue-on-error: true
-        run: |
-          rm -f data/env/*.rds
-          Rscript scripts/refresh_env_data.R
-
-      # Deploy BEFORE touching git: the runner already holds the fresh .rds
-      # files, so the live app gets current data even if the PR step hiccups.
+      # Deploy right after the MAMMAL bundle — the live app gets fresh data even
+      # if the heavy, optional env-overlay build below runs long or is canceled.
+      # (The env build previously ran 1h37m and was canceled before deploy could
+      # run; deploying first decouples the core refresh from that runaway step.)
       - name: Deploy to shinyapps.io
         env:
           SHINYAPPS_NAME:   ${{ secrets.SHINYAPPS_NAME }}
@@ -105,6 +97,19 @@ jobs:
           SHINYAPPS_SECRET: ${{ secrets.SHINYAPPS_SECRET }}
         run: |
           Rscript -e 'rsconnect::setAccountInfo(Sys.getenv("SHINYAPPS_NAME"), Sys.getenv("SHINYAPPS_TOKEN"), Sys.getenv("SHINYAPPS_SECRET")); source("scripts/deploy.R")'
+
+      # Environmental-overlay bundle (precip / temp / RH / soil moisture /
+      # fruiting) for the "Compare with environment" feature. Heavy + OPTIONAL:
+      # runs AFTER deploy, is non-fatal, AND time-boxed so it can never stall or
+      # block the core mammal refresh + deploy. If it times out, the app simply
+      # keeps using the committed demo overlay until the env build is made lighter.
+      - name: Rebuild the environmental-overlay bundle (full re-pull)
+        if: ${{ github.event.inputs.skip_download != 'true' }}
+        continue-on-error: true
+        timeout-minutes: 50
+        run: |
+          rm -f data/env/*.rds
+          Rscript scripts/refresh_env_data.R
 
       # Land the refreshed bundle on main via a PR (re-uses one branch/PR each
       # run, so they don't pile up). Skips cleanly when nothing changed.
