@@ -662,7 +662,13 @@ server <- function(input, output, session) {
 
   # base map drawn once (tiles + view + initial by-site markers)
   output$pickerMap <- renderLeaflet({
-    req(SITE_INDEX, nrow(SITE_INDEX) > 0)
+    # Show a clear notice (not an endless spinner) if the site index didn't load.
+    # `req()` here would silently halt and spin forever; `validate()` surfaces the
+    # cause in-place so a missing/unreadable data/site_index.rds is diagnosable.
+    validate(need(
+      !is.null(SITE_INDEX) && nrow(SITE_INDEX) > 0,
+      "The national site map couldn't load its data (data/site_index.rds is missing or unreadable in this deployment). The rest of the app still works — pick a site, or try the demo."
+    ))
     leaflet(options = leafletOptions(minZoom = 2, worldCopyJump = TRUE)) %>%
       addProviderTiles("CartoDB.Positron", options = providerTileOptions(noWrap = TRUE)) %>%
       setView(lng = -96, lat = 41, zoom = 4) %>%

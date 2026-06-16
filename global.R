@@ -55,21 +55,32 @@ SITE_DIR  <- "data/sites"
 DEMO_PATH <- "data-sample/jorn_2017_2021.rds"   # fallback if the bundle isn't built
 DEMO_META <- list(site = "JORN", label = "JORN · Jornada Experimental Range")
 
+# Defensive bundle read: a tibble, or NULL when the file is missing OR can't be
+# deserialized (corrupt .rds, or a non-portable serialization the deploy R can't
+# read). A bad bundle must NEVER crash app startup or hang a render — an empty
+# layer with a visible notice beats an infinite loading spinner. (readRDS throws
+# on a bad file, so the bare `readRDS()` calls this replaces could take down the
+# whole session before the UI ever painted.)
+read_bundle <- function(f) {
+  if (!file.exists(f)) return(NULL)
+  out <- tryCatch(
+    tibble::as_tibble(readRDS(f)),
+    error = function(e) {
+      warning(sprintf("read_bundle('%s') failed: %s", f, conditionMessage(e)))
+      NULL
+    })
+  if (is.null(out) || !nrow(out)) NULL else out
+}
+
 # ---- national site index (the picker map) ---------------------------------
 # scripts/build_site_index.R precomputes one row per bundled site with the
 # headline numbers the landing map needs (captures, richness, dominant species
 # + its group color/emoji). Loaded once here so the map is instant on boot.
-SITE_INDEX <- local({
-  f <- "data/site_index.rds"
-  if (file.exists(f)) tibble::as_tibble(readRDS(f)) else NULL
-})
+SITE_INDEX <- read_bundle("data/site_index.rds")
 
 # Per-species national ranges (where each species is caught + per-site abundance)
 # powering the "explore by species" range map on the landing.
-SPECIES_RANGES <- local({
-  f <- "data/species_ranges.rds"
-  if (file.exists(f)) tibble::as_tibble(readRDS(f)) else NULL
-})
+SPECIES_RANGES <- read_bundle("data/species_ranges.rds")
 
 # Species choices for the range picker: grouped by family, labeled with emoji +
 # how widespread, sorted by total individuals (most abundant first).
@@ -88,10 +99,9 @@ species_choices <- function() {
   lapply(split_lab, as.list)
 }
 
-# Read a bundled site's full record, or NULL if not bundled.
+# Read a bundled site's full record, or NULL if not bundled (or unreadable).
 load_site_bundle <- function(site) {
-  f <- file.path(SITE_DIR, paste0(site, ".rds"))
-  if (file.exists(f)) tibble::as_tibble(readRDS(f)) else NULL
+  read_bundle(file.path(SITE_DIR, paste0(site, ".rds")))
 }
 
 # ---- co-located environmental overlays ("compare with environment") --------
@@ -153,8 +163,8 @@ ENV_DEMO <- local({
 load_site_env <- function(site) {
   if (is.null(site) || site == "") return(NULL)
   f <- file.path(ENV_DIR, paste0(site, ".rds"))
-  if (file.exists(f)) {
-    e <- tibble::as_tibble(readRDS(f))
+  e <- read_bundle(f)
+  if (!is.null(e)) {
     attr(e, "source") <- "neon"
     return(e)
   }
@@ -173,8 +183,7 @@ load_site_env <- function(site) {
 load_demo <- function() {
   b <- load_site_bundle("JORN")
   if (!is.null(b)) return(b)
-  if (file.exists(DEMO_PATH)) return(tibble::as_tibble(readRDS(DEMO_PATH)))
-  NULL
+  read_bundle(DEMO_PATH)
 }
 
 # Filter a raw mam table to a [start, end] window. Uses ISO-string comparison
