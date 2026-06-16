@@ -152,7 +152,84 @@ ui <- bslib::page_sidebar(
   uiOutput("heroStats"),
 
   # idle splash before any data is loaded
-  uiOutput("splash"),
+  # National site-picker splash — built STATICALLY here, not via a server
+  # renderUI. The picker map is a leaflet htmlwidget; when it was delivered
+  # inside a renderUI it failed to bind on Connect Cloud (the dynamic
+  # dependency-deliver → re-bind → shiny:value race), so shinycssloaders spun
+  # forever. A STATIC leafletOutput gets its deps in the page <head> at first
+  # paint and binds reliably. SITE_INDEX / SPECIES_RANGES / GENUS_GROUPS /
+  # species_choices() are globals (global.R, sourced before ui.R). Visibility is
+  # toggled via shinyjs show/hide("splash"); the server keeps output$pickerMap
+  # + its leafletProxy marker swaps.
+  div(id = "splash", local({
+    idx <- SITE_INDEX
+    if (is.null(idx) || nrow(idx) == 0) {
+      div(class = "splash",
+        div(class = "app-hero app-hero-splash",
+          h1(class = "app-title", "NEON Small Mammal Tracker",
+             span(class = "title-tag", "unofficial")),
+          p(class = "app-subtitle",
+            "Meet the small mammals NEON catches across the country — what lives where, who the regulars are, and what eight years of capture records reveal.")),
+        p("Pick a ", tags$b("state"), " then a ", tags$b("site"), " in the sidebar, or jump into the demo."),
+        actionButton("demoBtn2", tagList(bs_icon("stars"), " Explore the Jornada demo instantly"),
+                     class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')"))
+    } else {
+      g_order <- vapply(GENUS_GROUPS, function(g) g$key, character(1))
+      grps <- unique(idx[, c("group_key", "group_label", "group_color")])
+      grps <- grps[order(match(grps$group_key, g_order)), ]
+      legend <- div(class = "picker-legend",
+        tags$span(class = "pl-label", "Most-caught family:"),
+        lapply(seq_len(nrow(grps)), function(i)
+          tags$span(class = "pl-item",
+            tags$span(class = "pl-dot", style = sprintf("background:%s", grps$group_color[i])),
+            grps$group_label[i])))
+      ord <- idx[order(idx$name), ]
+      fallback <- tags$details(class = "picker-list",
+        tags$summary(tagList(bs_icon("list-ul"), " Browse all ", nrow(ord), " sites as a list")),
+        div(class = "picker-list-grid",
+          lapply(seq_len(nrow(ord)), function(i)
+            tags$a(class = "picker-list-link", href = "#",
+              onclick = sprintf("smtLoadStart('%s \\u2014 loading\\u2026');Shiny.setInputValue('pickFromList','%s',{priority:'event'});return false;",
+                                gsub("'", "\\\\'", ord$name[i]), ord$site[i]),
+              tags$b(ord$site[i]), sprintf(" — %s ", ord$name[i]),
+              tags$span(class = "pll-meta", sprintf("%s · %s caps", ord$state[i], format(ord$captures[i], big.mark = ",")))))))
+      has_species <- !is.null(SPECIES_RANGES) && nrow(SPECIES_RANGES) > 0
+      div(class = "splash splash-map",
+        div(class = "app-hero app-hero-splash",
+          h1(class = "app-title", "NEON Small Mammal Tracker",
+             span(class = "title-tag", "unofficial")),
+          p(class = "app-subtitle",
+            "Meet the small mammals NEON catches across the country — what lives where, who the regulars are, and what eight years of capture records reveal.")),
+        p("NEON live-traps small mammals at ", tags$b(nrow(idx)), " field sites across the U.S. and Puerto Rico. ",
+          "Explore ", tags$b("by site"), " — tap a dot to dive in — or ", tags$b("by species"),
+          ", to see where one animal turns up across the country."),
+        if (has_species) div(class = "picker-mode",
+          radioButtons("pickMode", NULL, inline = TRUE,
+            choiceNames = list(tagList(bs_icon("geo-alt-fill"), " By site"),
+                               tagList(bs_icon("bezier2"), " By species")),
+            choiceValues = c("site", "species"), selected = "site")),
+        conditionalPanel("input.pickMode != 'species'", legend),
+        if (has_species) conditionalPanel("input.pickMode == 'species'",
+          div(class = "range-controls",
+            selectizeInput("rangeSpecies", label = NULL, width = "100%",
+              choices = species_choices(),
+              options = list(placeholder = "Pick a species to map its range…")),
+            uiOutput("rangeSummary"))),
+        div(class = "picker-map-wrap",
+          spin(leafletOutput("pickerMap", height = "560px"), img = "rat1.gif"),
+          div(class = "picker-map-hint", bs_icon("hand-index-thumb"),
+              " Drag to pan · scroll to zoom · Alaska & Puerto Rico are out there too")),
+        div(class = "picker-actions",
+          actionButton("demoBtn2", tagList(bs_icon("stars"), " Or jump straight into the Jornada demo"),
+                       class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')"),
+          actionButton("compareBtn", tagList(bs_icon("bar-chart-steps"), " Compare two sites"),
+                       class = "btn-outline-dark btn-lg ms-2")),
+        div(class = "picker-tour",
+          tags$a(href = "#", onclick = "smtTour();return false;",
+                 bs_icon("signpost-2"), " Take a 30-second tour")),
+        fallback)
+    }
+  })),
 
   div(id = "mainTabsWrap", class = "main-tabs-wrap",
     navset_card_tab(id = "tabs",
