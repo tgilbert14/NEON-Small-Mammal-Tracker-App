@@ -505,101 +505,6 @@ server <- function(input, output, session) {
   observeEvent(input$goFameFromDossier,   nav_select("tabs", "fame"))
   observeEvent(input$surpriseFromDossier, surprise_pick())
 
-  # ---- splash / landing: the national site-picker map --------------------
-  # "Select your site" — a map of all bundled NEON sites. Tap a dot to load it.
-  # Dot size = total captures (log-scaled); color = the ecological family of the
-  # site's most-caught species. Falls back to a clickable list (a11y / no-JS).
-  output$splash <- renderUI({
-    # Intentionally NOT guarded on rv$data. The picker map (leafletOutput
-    # "pickerMap") lives inside this output; if it re-rendered on load / change
-    # site it would recreate the map and the client-side leaflet proxy would lose
-    # it ("Couldn't find map with id pickerMap"), so dot popups stopped opening
-    # after "change site". Render ONCE and toggle visibility via shinyjs
-    # show/hide("splash"); suspendWhenHidden is disabled below so hiding the
-    # splash never tears the map down.
-    idx <- SITE_INDEX
-
-    # graceful fallback to a simple prompt if the index wasn't precomputed
-    if (is.null(idx) || nrow(idx) == 0) {
-      return(div(class = "splash",
-        div(class = "app-hero app-hero-splash",
-          h1(class = "app-title", "NEON Small Mammal Tracker",
-             span(class = "title-tag", "unofficial")),
-          p(class = "app-subtitle",
-            "Meet the small mammals NEON catches across the country — what lives where, who the regulars are, and what eight years of capture records reveal.")),
-        p("Pick a ", tags$b("state"), " then a ", tags$b("site"), " in the sidebar, or jump into the demo."),
-        actionButton("demoBtn2", tagList(bs_icon("stars"), " Explore the Jornada demo instantly"),
-                     class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')")))
-    }
-
-    # legend — only the groups actually present, in canonical family order
-    g_order <- vapply(GENUS_GROUPS, function(g) g$key, character(1))
-    grps <- unique(idx[, c("group_key", "group_label", "group_color")])
-    grps <- grps[order(match(grps$group_key, g_order)), ]
-    legend <- div(class = "picker-legend",
-      tags$span(class = "pl-label", "Most-caught family:"),
-      lapply(seq_len(nrow(grps)), function(i)
-        tags$span(class = "pl-item",
-          tags$span(class = "pl-dot", style = sprintf("background:%s", grps$group_color[i])),
-          grps$group_label[i])))
-
-    # a11y / no-JS fallback: every site as a clickable link (one shared input)
-    ord <- idx[order(idx$name), ]
-    fallback <- tags$details(class = "picker-list",
-      tags$summary(tagList(bs_icon("list-ul"), " Browse all ", nrow(ord), " sites as a list")),
-      div(class = "picker-list-grid",
-        lapply(seq_len(nrow(ord)), function(i)
-          tags$a(class = "picker-list-link", href = "#",
-            onclick = sprintf("smtLoadStart('%s \\u2014 loading\\u2026');Shiny.setInputValue('pickFromList','%s',{priority:'event'});return false;",
-                              gsub("'", "\\\\'", ord$name[i]), ord$site[i]),
-            tags$b(ord$site[i]), sprintf(" — %s ", ord$name[i]),
-            tags$span(class = "pll-meta", sprintf("%s · %s caps", ord$state[i], format(ord$captures[i], big.mark = ",")))))))
-
-    has_species <- !is.null(SPECIES_RANGES) && nrow(SPECIES_RANGES) > 0
-    div(class = "splash splash-map",
-      div(class = "app-hero app-hero-splash",
-        h1(class = "app-title", "NEON Small Mammal Tracker",
-           span(class = "title-tag", "unofficial")),
-        p(class = "app-subtitle",
-          "Meet the small mammals NEON catches across the country — what lives where, who the regulars are, and what eight years of capture records reveal.")),
-      p("NEON live-traps small mammals at ", tags$b(nrow(idx)), " field sites across the U.S. and Puerto Rico. ",
-        "Explore ", tags$b("by site"), " — tap a dot to dive in — or ", tags$b("by species"),
-        ", to see where one animal turns up across the country."),
-
-      # mode toggle: by-site picker  vs  by-species range map
-      if (has_species) div(class = "picker-mode",
-        radioButtons("pickMode", NULL, inline = TRUE,
-          choiceNames = list(tagList(bs_icon("geo-alt-fill"), " By site"),
-                             tagList(bs_icon("bezier2"), " By species")),
-          choiceValues = c("site", "species"), selected = "site")),
-
-      # by-site: the family-color legend
-      conditionalPanel("input.pickMode != 'species'", legend),
-
-      # by-species: a species picker + a live range summary
-      if (has_species) conditionalPanel("input.pickMode == 'species'",
-        div(class = "range-controls",
-          selectizeInput("rangeSpecies", label = NULL, width = "100%",
-            choices = species_choices(),
-            options = list(placeholder = "Pick a species to map its range…")),
-          uiOutput("rangeSummary"))),
-
-      div(class = "picker-map-wrap",
-        spin(leafletOutput("pickerMap", height = "560px"), img = "rat1.gif"),
-        div(class = "picker-map-hint", bs_icon("hand-index-thumb"),
-            " Drag to pan · scroll to zoom · Alaska & Puerto Rico are out there too")),
-      div(class = "picker-actions",
-        actionButton("demoBtn2", tagList(bs_icon("stars"), " Or jump straight into the Jornada demo"),
-                     class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')"),
-        actionButton("compareBtn", tagList(bs_icon("bar-chart-steps"), " Compare two sites"),
-                     class = "btn-outline-dark btn-lg ms-2")),
-      div(class = "picker-tour",
-        tags$a(href = "#", onclick = "smtTour();return false;",
-               bs_icon("signpost-2"), " Take a 30-second tour")),
-      fallback
-    )
-  })
-
   # radius helper: 6–24 px on a log scale, self-consistent within whichever set
   picker_radius <- function(v) {
     lc <- log1p(pmax(v, 0))
@@ -678,7 +583,9 @@ server <- function(input, output, session) {
   # Keep the splash + its picker map rendered ONCE and alive while hidden, so the
   # leaflet proxy stays valid across "change site" (otherwise the map is recreated
   # and leafletProxy("pickerMap") can't find it -> dot popups silently fail).
-  outputOptions(output, "splash",    suspendWhenHidden = FALSE)
+  # pickerMap is a STATIC leafletOutput in ui.R now (not a server renderUI) so it
+  # binds reliably on Connect Cloud. Keep it alive while the splash is hidden so
+  # leafletProxy("pickerMap") stays valid across "change site".
   outputOptions(output, "pickerMap", suspendWhenHidden = FALSE)
 
   # swap markers when the user toggles mode or picks a species (proxy = no reflow)
