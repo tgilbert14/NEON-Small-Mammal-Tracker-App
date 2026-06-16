@@ -2966,7 +2966,7 @@
       "checksum": "f0421a06c558a7774fcd33f10fd033ef"
     },
     "data/site_index.rds": {
-      "checksum": "710745f49bdd21507bd1568debb25e03"
+      "checksum": "2e920d321b4d28333ff68b285be43c25"
     },
     "data/sites/ABBY.rds": {
       "checksum": "f27ec86fa8289498ba813de95c8441d0"
@@ -3107,25 +3107,25 @@
       "checksum": "a99514d5510982e2a9f48042efe3e278"
     },
     "data/species_ranges.rds": {
-      "checksum": "2afbf25e5bcd917661e2b5538693aec2"
+      "checksum": "47dbc051e5ea51a5fdb7b618e7acd8c4"
     },
     "global.R": {
-      "checksum": "8fbb2a4d6c68c8928f04e73edbc2754a"
+      "checksum": "fd847a3bf92d2e7f868b4156c104e7df"
     },
     "R/helpers.R": {
-      "checksum": "53e64bacc1746644b0aed985325898ad"
+      "checksum": "8aac5d57bb94c2ec52b5b797213ed4ea"
     },
     "R/site_metadata.R": {
       "checksum": "dd998c7eb8763e4ae1f33c060ed8364a"
     },
     "server.R": {
-      "checksum": "f313b8b895164c9ef0218d098cbfead7"
+      "checksum": "d1121e39514123648e71f8dd6b09b440"
     },
     "ui.R": {
-      "checksum": "821a97ec900d3398cfdabda9084246fc"
+      "checksum": "a5d5ee3d38690ac7d9de51380718294d"
     },
     "www/app.js": {
-      "checksum": "cc3b941a6b16405d7fe6876dc549deab"
+      "checksum": "d9e924548bfa08d0b5c96efc6c1700e5"
     },
     "www/confirm.js": {
       "checksum": "c05030299121b6bb32e2794f0decb120"
@@ -3143,7 +3143,7 @@
       "checksum": "03caa0fdc9353ecf3495715d7e5f11f5"
     },
     "www/styles.css": {
-      "checksum": "a79f4b008c2c2029607698336fefb123"
+      "checksum": "880690977533295ee9b9bbfffecad9e4"
     },
     "data-sample/env_demo.csv": {
       "checksum": "7e335a0b4e978711168ca5aa677b3778"
