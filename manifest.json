@@ -3251,19 +3251,19 @@
       "checksum": "162d6bde4c29749d2211ec8370b07f14"
     },
     "R/helpers.R": {
-      "checksum": "5995f4d3021b60fa57c6a63bd1ce15c1"
+      "checksum": "de780a21407d11e39bf161b0517585f2"
     },
     "R/report_pdf.R": {
-      "checksum": "fde40ed98168de709c24a1d19c29eabc"
+      "checksum": "5779ddada0c41621862c3a75e279808b"
     },
     "R/site_metadata.R": {
       "checksum": "dd998c7eb8763e4ae1f33c060ed8364a"
     },
     "server.R": {
-      "checksum": "c608ecb6dbc3943dbfc6cb8ca9fb5074"
+      "checksum": "636dac9d85a40e22cfa9816fdf1271dc"
     },
     "ui.R": {
-      "checksum": "de97e73bbdc14f7dedb9f9968dd154b6"
+      "checksum": "8e2bf082e7b2866e9203775827fe0124"
     },
     "www/app.js": {
       "checksum": "27b51557f767db76b5b387aff1f0efe3"

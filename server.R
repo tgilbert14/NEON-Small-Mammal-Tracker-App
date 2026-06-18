@@ -1227,8 +1227,10 @@ server <- function(input, output, session) {
     if (!any(is.finite(df$weight)) && !any(is.finite(df$hindfootLength)))
       return(note_plot("No weight or hind-foot<br>measurements recorded for this animal", "\U0001F4CF"))
     sp <- rv$lb$scientificName[rv$lb$tagID == tag][1]
-    sp_w <- rv$data %>% dplyr::filter(.data$scientificName == sp, !is.na(.data$weight),
-                                      .data$weight > 0) %>% dplyr::pull(.data$weight)
+    # ADULT reference band — pooling juveniles/subadults drags the species
+    # median/IQR down, making a normal adult read as "above" the band.
+    sp_w <- rv$data %>% dplyr::filter(.data$scientificName == sp, .data$lifeStage %in% "adult",
+                                      !is.na(.data$weight), .data$weight > 0) %>% dplyr::pull(.data$weight)
     qs <- if (length(sp_w) >= 8) stats::quantile(sp_w, c(.25, .5, .75), names = FALSE) else NULL
     xr <- range(df$date)
 
@@ -1240,10 +1242,10 @@ server <- function(input, output, session) {
           line = list(width = 0), showlegend = FALSE, hoverinfo = "skip", name = "q75") %>%
         add_trace(x = xr, y = rep(qs[1], 2), type = "scatter", mode = "lines", fill = "tonexty",
           fillcolor = "rgba(27,96,81,0.10)", line = list(width = 0),
-          name = "species IQR", hoverinfo = "skip") %>%
+          name = "adult IQR", hoverinfo = "skip") %>%
         add_trace(x = xr, y = rep(qs[2], 2), type = "scatter", mode = "lines",
           line = list(color = "rgba(31,42,48,0.35)", width = 1, dash = "dash"),
-          name = "species median wt", hoverinfo = "skip")
+          name = "adult median wt", hoverinfo = "skip")
     }
     p <- p %>% add_trace(
       data = df, x = ~date, y = ~weight, name = "Weight (g)",

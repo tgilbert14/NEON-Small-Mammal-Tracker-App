@@ -303,7 +303,7 @@ render_report_pdf <- function(file, d, label, is_demo = FALSE, cc = NULL) {
       ifelse(is.na(sp_show$avg_weight[i]), "-", as.character(sp_show$avg_weight[i])))
   })
   rh_fn <- function() { new_page(2, label); 0.5 }
-  y <- draw_table(c("Species", "Indiv.", "Caps", "Avg g"), rows,
+  y <- draw_table(c("Species", "Indiv.", "Caps", "Adult g"), rows,
                   colx = c(0.00, 0.66, 0.78, 0.90), yTop = y, faces = c(3, 1, 1, 1), repeat_header = rh_fn)
   more_n <- nrow(sp) - nrow(sp_show)
   if (more_n > 0) y <- draw_para(sprintf("+ %d more taxa recorded", more_n), y, 9, PG$muted, 3)
