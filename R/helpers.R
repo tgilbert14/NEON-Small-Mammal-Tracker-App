@@ -439,7 +439,10 @@ species_summary <- function(d) {
     dplyr::summarise(
       individuals = dplyr::n_distinct(.data$tagID),
       captures    = dplyr::n(),
-      avg_weight  = round(safe_mean(.data$weight), 1),
+      # ADULT mean weight — juveniles/subadults are much lighter, so pooling all
+      # stages drags a species' "typical weight" down and mixes growth stages.
+      # (%in% is NA-safe; NA when a species has no staged adults.)
+      avg_weight  = round(safe_mean(.data$weight[.data$lifeStage %in% "adult"]), 1),
       .groups = "drop"
     ) %>%
     dplyr::arrange(dplyr::desc(.data$captures)) %>%
@@ -447,12 +450,18 @@ species_summary <- function(d) {
                   nickname = species_nickname(.data$scientificName))
 }
 
-# Per-species body-measurement profile. NEON records weight + hindfoot densely;
-# tail/ear are sparse, so each measurement carries its own n and a cell is shown
-# only where measured. "Mode" isn't meaningful for a continuous measure, so we
-# report median + range (the honest summary). One row per species-level ID.
+# Per-species body-measurement profile. ADULTS ONLY — juveniles/subadults are
+# much lighter and shorter, so pooling stages inflates the range and pulls the
+# median down (verified on JORN: C. eremicus mean 14.7 g all-stages vs 15.4 g
+# adults-only; D. merriami 42.7 vs 43.7). Matches the body-size violin + Chonk
+# Index, which are also adults-only.
+# NEON records weight + hindfoot densely; tail/ear are sparse, so each measure
+# carries its own n and a cell is shown only where measured. "Mode" isn't
+# meaningful for a continuous measure, so we report median + range. One row per
+# species-level ID.
 species_measurements <- function(d) {
-  h <- species_level_only(dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$scientificName)))
+  h <- species_level_only(dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$scientificName),
+                                        .data$lifeStage %in% "adult"))
   if (is.null(h) || !nrow(h)) return(NULL)
   pos <- function(x) { x[is.finite(x) & x > 0] }
   npos <- function(x) length(pos(x))
@@ -906,7 +915,7 @@ site_insights <- function(d, lb = NULL, cs = NULL) {
       hv <- sp[which.max(replace(sp$avg_weight, is.na(sp$avg_weight), -Inf)), ]
       if (is.finite(hv$avg_weight) && hv$scientificName != top$scientificName)
         out <- c(out, sprintf(
-          "The heaviest species caught is the <b><i>%s</i></b>, averaging about <b>%s g</b> — one of the larger-bodied species at this site.",
+          "The heaviest species caught is the <b><i>%s</i></b>, with adults averaging about <b>%s g</b> — one of the larger-bodied species at this site.",
           hv$scientificName, hv$avg_weight))
     }
   }
