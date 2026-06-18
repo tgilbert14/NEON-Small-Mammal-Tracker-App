@@ -275,6 +275,16 @@ info_pop <- function(title, ..., placement = "auto")
   bslib::popover(tags$span(class = "info-dot", bsicons::bs_icon("info-circle")),
                  ..., title = title, placement = placement)
 
+# A compact "answer up front" banner shown at the top of a data-heavy chart
+# card: a tone-coloured left rail + icon + one plain-English finding (wrap the
+# number that matters in tags$b() or <span class='ci-hero'>). Echoes the
+# population driver card so every key chart leads with a sentence, not a raw
+# plot. tone: navy | pine | gold | terra | muted.
+insight_banner <- function(icon, ..., tone = "navy") {
+  div(class = paste("chart-insight", paste0("ci-", tone)),
+    bsicons::bs_icon(icon), div(class = "ci-text", ...))
+}
+
 # A clean tinted pill/badge (rarity & chonk tags) for the light theme.
 glow_badge <- function(label, color = "#0C234B", glow = color) {
   span(

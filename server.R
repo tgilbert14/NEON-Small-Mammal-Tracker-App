@@ -892,6 +892,64 @@ server <- function(input, output, session) {
             lapply(site_insights(d, rv$lb), function(s) tags$li(HTML(s))))
   })
 
+  # ---- "answer up front" banners for the data-heavy charts ----------------
+  # Each leads its chart card with one plain-English finding, the way the
+  # population driver card does. They read the same helpers the charts do.
+  output$speciesBarInsight <- renderUI({
+    d <- rv$data; req(d)
+    sp <- species_summary(d); if (is.null(sp) || nrow(sp) == 0) return(NULL)
+    tot <- sum(sp$individuals, na.rm = TRUE)
+    # species_summary is sorted by CAPTURES; pick the row with the most
+    # INDIVIDUALS, since the banner's claim is a share "of individuals"
+    # (in a re-trap-heavy system most-trapped != most-abundant).
+    dom <- sp[which.max(sp$individuals), ]
+    share <- if (tot > 0) round(100 * dom$individuals / tot) else 0
+    insight_banner("collection", tone = "navy",
+      HTML(sprintf("The <b><i>%s</i></b> is the most abundant here — <span class='ci-hero'>%s%%</span> of individuals (%s of %s).",
+        dom$scientificName, share, fmt_int(dom$individuals), fmt_int(tot))))
+  })
+
+  output$hillInsight <- renderUI({
+    d <- rv$data; req(d)
+    hn <- hill_numbers(d); if (hn$n_sp == 0) return(NULL)
+    if (is.na(hn$even)) return(insight_banner("diagram-3-fill", tone = "muted",
+      HTML(sprintf("<span class='ci-hero'>%s</span> species recorded at this site.", hn$n_sp))))
+    verdict <- if (hn$even >= 0.75) "an even community"
+      else if (hn$even >= 0.5) "a moderately even community"
+      else if (hn$even >= 0.3) "an uneven community — a few species dominate"
+      else "a highly skewed community — one or two species dominate"
+    insight_banner("diagram-3-fill", tone = if (hn$even >= 0.5) "pine" else "gold",
+      HTML(sprintf("This is <b>%s</b>: <span class='ci-hero'>%s</span> species seen, but only about <b>%s</b> are common.",
+        verdict, hn$n_sp, format(hn$q1, nsmall = 1))))
+  })
+
+  output$accumInsight <- renderUI({
+    d <- rv$data; req(d)
+    sa <- tryCatch(species_accum(d), error = function(e) NULL); if (is.null(sa)) return(NULL)
+    complete <- sa$sobs >= 0.85 * sa$chao1
+    est <- if (isTRUE(sa$unstable)) sprintf("at least <b>%s</b> (only %d species seen twice — a soft floor)", sa$chao1, sa$f2)
+           else sprintf("<span class='ci-hero'>%s</span> (95%% CI %s–%s)", sa$chao1, sa$chao_lo, sa$chao_hi)
+    insight_banner("graph-up", tone = if (complete) "pine" else "gold",
+      HTML(sprintf("Found <span class='ci-hero'>%s</span> species; Chao1 estimates %s are really here — sampling looks %s.",
+        sa$sobs, est, if (complete) "close to complete" else "like it's still missing a rare species or two")))
+  })
+
+  output$phenoInsight <- renderUI({
+    d <- rv$data; req(d)
+    bm <- repro_by_month(d); if (is.null(bm)) return(NULL)
+    pkm <- if (any(!is.na(bm$pm))) bm$mon[which.max(replace(bm$pm, is.na(bm$pm), -1))] else NA
+    pkf <- if (any(!is.na(bm$pf))) bm$mon[which.max(replace(bm$pf, is.na(bm$pf), -1))] else NA
+    if (is.na(pkm) && is.na(pkf)) return(insight_banner("calendar-heart", tone = "muted",
+      "Too few sexed adults per month to read a clear breeding season here."))
+    segs <- character(0)
+    if (!is.na(pkm)) segs <- c(segs, sprintf("males in <span class='ci-hero'>%s</span> (%d%%)",
+      month.abb[pkm], as.integer(bm$pm[bm$mon == pkm])))
+    if (!is.na(pkf)) segs <- c(segs, sprintf("reproductive females in <span class='ci-hero'>%s</span> (%d%%)",
+      month.abb[pkf], as.integer(bm$pf[bm$mon == pkf])))
+    insight_banner("calendar-heart", tone = "navy",
+      HTML(paste0("Breeding peaks — ", paste(segs, collapse = ", "), ".")))
+  })
+
   output$meetLocals <- renderUI({
     d <- rv$data; req(d)
     s <- utils::head(species_summary(d), 6)
@@ -1257,33 +1315,44 @@ server <- function(input, output, session) {
       return(note_plot("No mapped trap coordinates<br>for this animal", "\U0001F5FA️"))
     z <- matrix(0, 10, 10)
     for (k in seq_len(nrow(g))) z[g$ty[k], g$tx[k]] <- g$captures[k]
-    if (isTRUE(input$blurMode)) z <- blur_grid(z)
+    blurred <- isTRUE(input$blurMode)
+    if (blurred) z <- blur_grid(z)
     zmax <- max(z)
 
-    cx <- mean(g$tx[g$captures > 0]); cy <- mean(g$ty[g$captures > 0])
+    # capture-WEIGHTED centre of activity (a trap caught 20x should pull the
+    # centre toward it) — not the unweighted mean of merely-visited cells.
+    wsum <- sum(g$captures)
+    cx <- if (wsum > 0) sum(g$tx * g$captures) / wsum else NA_real_
+    cy <- if (wsum > 0) sum(g$ty * g$captures) / wsum else NA_real_
     hit <- g[g$captures > 0, ]   # visited cells, drawn as points on top
 
-    # singleton-safe colorbar: integer ticks when the animal was caught ≤ a few times
-    cbar <- list(title = "caps", tickcolor = "#6b7a85", tickfont = list(color = "#6b7a85"))
-    if (zmax <= 5) cbar$dtick <- 1
+    dark <- is_dark(); barfont <- if (dark) "#9fb0c4" else "#6b7a85"
+    # blur smooths counts into a density surface — don't label it "captures".
+    cbar <- list(title = if (blurred) "density" else "caps",
+                 tickcolor = barfont, tickfont = list(color = barfont))
+    if (!blurred && zmax <= 5) cbar$dtick <- 1
+    # SINGLE-HUE sequential ramp (theme-aware): the old green->gold->cardinal
+    # rainbow implied ordered categories on what is just a count, and failed CVD.
+    empty <- if (dark) "#1b2942" else "#f0f3ee"
+    ramp  <- if (dark) list(c(0, empty), c(0.001, "#244468"), c(0.5, "#3f7fc4"), c(1, "#7dc0f0"))
+             else      list(c(0, empty), c(0.001, "#cfddf0"), c(0.5, "#4f8fc4"), c(1, "#0C234B"))
+    zword <- if (blurred) "Density" else "Captures"
 
     p <- plot_ly(x = LETTERS[1:10], y = 1:10, z = z, type = "heatmap",
-      zmin = 0, zmax = max(zmax, 1),
-      colorscale = list(c(0, "#f0f3ee"), c(0.001, "#d6e8df"),
-                        c(0.4, "#1a7f37"), c(0.75, "#c9a300"), c(1, "#AB0520")),
-      hovertemplate = "Trap %{x}%{y}<br>Captures: %{z}<extra></extra>",
+      zmin = 0, zmax = max(zmax, 1), colorscale = ramp,
+      hovertemplate = paste0("Trap %{x}%{y}<br>", zword, ": %{z}<extra></extra>"),
       showscale = TRUE, xgap = 2, ygap = 2, colorbar = cbar)
     # overlay actual capture points so single-capture animals still pop
     p <- p %>% add_trace(x = LETTERS[hit$tx], y = hit$ty, type = "scatter", mode = "markers",
-      marker = list(size = ~pmax(7, sqrt(hit$captures) * 8), color = "#1f2a30",
-                    line = list(color = "#ffffff", width = 1.5)),
-      text = ~paste0("Trap ", LETTERS[hit$tx], hit$ty, " · ", hit$captures, " cap"),
+      marker = list(size = pmax(7, sqrt(hit$captures) * 8), color = if (dark) "#e6edf5" else "#1f2a30",
+                    line = list(color = if (dark) "#0e1726" else "#ffffff", width = 1.5)),
+      text = paste0("Trap ", LETTERS[hit$tx], hit$ty, " · ", hit$captures, " cap"),
       hovertemplate = "%{text}<extra></extra>", inherit = FALSE, showlegend = FALSE)
     if (is.finite(cx) && is.finite(cy))
       p <- p %>% add_trace(x = LETTERS[round(cx)], y = round(cy), type = "scatter",
         mode = "markers", marker = list(symbol = "x", size = 16, color = "#AB0520",
-        line = list(color = "#ffffff", width = 2)), name = "centroid",
-        hovertemplate = "home centroid<extra></extra>", inherit = FALSE)
+        line = list(color = "#ffffff", width = 2)), name = "centre",
+        hovertemplate = "capture-weighted centre of activity<extra></extra>", inherit = FALSE)
     plotly_theme(p, legend = FALSE) %>% plotly::layout(
       xaxis = list(title = "", side = "top", showgrid = FALSE, tickfont = list(size = 11)),
       yaxis = list(title = "", autorange = "reversed", showgrid = FALSE, dtick = 1),
@@ -1430,9 +1499,15 @@ server <- function(input, output, session) {
 
   output$sexDonut <- renderPlotly({
     d <- rv$data; req(d)
-    h <- dplyr::filter(d, !is.na(.data$tagID))
-    tab <- as.data.frame(table(factor(h$sex, levels = c("F", "M", "U"))))
-    names(tab) <- c("key", "n")
+    # one row per INDIVIDUAL (sex is stable per animal) so a much-recaptured
+    # animal doesn't count many times — the "% of handled" denominator is then
+    # distinct individuals, matching the deduped diversity card on this tab.
+    per <- d %>% dplyr::filter(!is.na(.data$tagID)) %>%
+      dplyr::group_by(.data$tagID) %>%
+      dplyr::summarise(sex = mode_chr(.data$sex), .groups = "drop")
+    if (nrow(per) == 0) return(note_plot("No handled animals to profile", "\U00002640\UFE0F"))
+    key <- factor(ifelse(per$sex %in% c("F", "M"), per$sex, "U"), levels = c("F", "M", "U"))
+    tab <- as.data.frame(table(key)); names(tab) <- c("key", "n")
     # keep a fixed key->color->label mapping so slices never swap colors
     lab <- c(F = "Female", M = "Male", U = "Unknown")
     col <- c(F = "#c2255c", M = "#2f7fb5", U = "#6c757d")
@@ -1441,11 +1516,11 @@ server <- function(input, output, session) {
       marker = list(colors = unname(col[as.character(tab$key)]), line = list(color = "#ffffff", width = 2)),
       pull = c(0.03, 0, 0), textinfo = "percent", textposition = "inside",
       insidetextorientation = "horizontal", textfont = list(color = "#ffffff", size = 13),
-      hovertemplate = "<b>%{label}</b><br>%{value:,} animals · %{percent:.0%} of handled<extra></extra>") %>%
+      hovertemplate = "<b>%{label}</b><br>%{value:,} individuals · %{percent:.0%} of handled<extra></extra>") %>%
       plotly::layout(title = list(text = "Sex", font = list(color = if (is_dark()) "#c3cedd" else "#344049", size = 14)),
         paper_bgcolor = "rgba(0,0,0,0)", showlegend = TRUE,
         legend = list(orientation = "h", y = -0.05, x = 0.5, xanchor = "center", font = list(size = 11)),
-        annotations = list(donut_center(sum(tab$n), "handled")),
+        annotations = list(donut_center(sum(tab$n), "individuals")),
         hoverlabel = list(bgcolor = "rgba(12,35,75,0.96)", bordercolor = "#FFD200",
           font = list(color = "#ffffff", family = "Rubik", size = 13)),
         font = list(color = if (is_dark()) "#c3cedd" else "#344049"), margin = list(t = 38, b = 30, l = 10, r = 10)) %>%
@@ -1454,22 +1529,29 @@ server <- function(input, output, session) {
 
   output$ageDonut <- renderPlotly({
     d <- rv$data; req(d)
-    h <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$lifeStage))
+    # one row per INDIVIDUAL (its modal life-stage). NA stage is kept as
+    # "unknown" so the slice IS the honest staging-coverage disclosure, and the
+    # denominator is distinct individuals (not capture-rows) — so this can't
+    # contradict the deduped diversity card six inches away.
+    per <- d %>% dplyr::filter(!is.na(.data$tagID)) %>%
+      dplyr::group_by(.data$tagID) %>%
+      dplyr::summarise(lifeStage = mode_chr(.data$lifeStage), .groups = "drop")
+    if (nrow(per) == 0) return(note_plot("No handled animals to profile", "\U0001F423"))
     # FIX: pin life-stage order + named colors so a stage always gets the same color
     lvls <- c("juvenile", "subadult", "adult", "unknown")
     col  <- c(juvenile = "#4bb87a", subadult = "#AB0520", adult = "#16386e", unknown = "#6c757d")
-    h$stage <- factor(ifelse(h$lifeStage %in% lvls, h$lifeStage, "unknown"), levels = lvls)
-    tab <- as.data.frame(table(h$stage)); names(tab) <- c("stage", "n")
+    per$stage <- factor(ifelse(!is.na(per$lifeStage) & per$lifeStage %in% lvls, per$lifeStage, "unknown"), levels = lvls)
+    tab <- as.data.frame(table(per$stage)); names(tab) <- c("stage", "n")
     tab <- tab[tab$n > 0, , drop = FALSE]
     plot_ly(tab, labels = ~stage, values = ~n, type = "pie", hole = 0.62, sort = FALSE,
       marker = list(colors = unname(col[as.character(tab$stage)]), line = list(color = "#ffffff", width = 2)),
       textinfo = "percent", textposition = "inside", insidetextorientation = "horizontal",
       textfont = list(color = "#ffffff", size = 13),
-      hovertemplate = "<b>%{label}</b><br>%{value:,} animals · %{percent:.0%} of aged<extra></extra>") %>%
+      hovertemplate = "<b>%{label}</b><br>%{value:,} individuals · %{percent:.0%} of handled<extra></extra>") %>%
       plotly::layout(title = list(text = "Life stage", font = list(color = if (is_dark()) "#c3cedd" else "#344049", size = 14)),
         paper_bgcolor = "rgba(0,0,0,0)", showlegend = TRUE,
         legend = list(orientation = "h", y = -0.05, x = 0.5, xanchor = "center", font = list(size = 11)),
-        annotations = list(donut_center(sum(tab$n), "aged")),
+        annotations = list(donut_center(sum(tab$n), "individuals")),
         hoverlabel = list(bgcolor = "rgba(12,35,75,0.96)", bordercolor = "#FFD200",
           font = list(color = "#ffffff", family = "Rubik", size = 13)),
         font = list(color = if (is_dark()) "#c3cedd" else "#344049"), margin = list(t = 38, b = 30, l = 10, r = 10)) %>%
@@ -1540,6 +1622,11 @@ server <- function(input, output, session) {
     pal <- rv$pal %||% make_species_pal(d)
     allsp <- sort(unique(ds$scientificName))
     plots <- sort(unique(ds$plotID))
+    # ONE shared y-scale across panels: a 3-capture plot and a 40-capture plot
+    # must NOT peak at the same height (free axes manufactured a false "all plots
+    # alike" read). gymax drives both the shared range and the label headroom.
+    gymax <- suppressWarnings(max(ds$count, na.rm = TRUE))
+    if (!is.finite(gymax) || gymax <= 0) gymax <- 1
 
     # facet-like layout, one mini time-series per plot. The legend is built from
     # the REAL data traces: each species' FIRST trace (in any panel) carries
@@ -1549,8 +1636,7 @@ server <- function(input, output, session) {
     labcol <- if (is_dark()) "#cfe0f5" else "#16386e"   # readable in both themes
     mk <- function(pl, first) {
       dd <- ds[ds$plotID == pl, ]
-      ymax <- suppressWarnings(max(dd$count, na.rm = TRUE))
-      if (!is.finite(ymax) || ymax <= 0) ymax <- 1
+      ymax <- gymax                              # shared scale across all panels
       xleft <- suppressWarnings(min(dd$date, na.rm = TRUE))
       p <- plot_ly()
       for (s in unique(dd$scientificName)) {
@@ -1574,7 +1660,7 @@ server <- function(input, output, session) {
         yaxis = list(gridcolor = "rgba(31,42,48,0.06)", range = c(0, ymax * 1.25)))
     }
     sub <- lapply(seq_along(plots), function(i) mk(plots[i], i == 1))
-    plotly::subplot(sub, nrows = ceiling(length(plots) / 2), shareX = TRUE, shareY = FALSE,
+    plotly::subplot(sub, nrows = ceiling(length(plots) / 2), shareX = TRUE, shareY = TRUE,
                     titleX = FALSE, margin = 0.05) %>%
       plotly::layout(paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)",
                      font = list(color = "#344049", family = "Rubik"),
@@ -1591,17 +1677,10 @@ server <- function(input, output, session) {
   # ---- breeding phenology -------------------------------------------------
   output$phenoPlot <- renderPlotly({
     d <- rv$data; req(d)
-    ad <- flag_repro(dplyr::filter(d, !is.na(.data$tagID), .data$lifeStage == "adult", !is.na(.data$date)))
-    if (nrow(ad) == 0) return(note_plot("No adult reproductive data", "\U0001F423"))
-    ad$mon <- as.integer(format(ad$date, "%m"))
-    by_m <- ad %>% dplyr::group_by(.data$mon) %>% dplyr::summarise(
-      males = sum(.data$sex == "M", na.rm = TRUE),
-      females = sum(.data$sex == "F", na.rm = TRUE),
-      breeding_m = sum(.data$repro == "breeding male", na.rm = TRUE),
-      repro_f = sum(.data$repro %in% c("pregnant female", "lactating/receptive female"), na.rm = TRUE),
-      .groups = "drop")
-    by_m$pm <- ifelse(by_m$males > 0, round(100 * by_m$breeding_m / by_m$males), NA)
-    by_m$pf <- ifelse(by_m$females > 0, round(100 * by_m$repro_f / by_m$females), NA)
+    # deduped to one row per (individual, calendar month), completed to 12 months,
+    # <5-sexed-adult months suppressed — shared with the phenology answer-banner.
+    by_m <- repro_by_month(d)
+    if (is.null(by_m)) return(note_plot("No adult reproductive data", "\U0001F423"))
     mlab <- month.abb[by_m$mon]
     p <- plot_ly()
     # seasonal climatology of the chosen env layer, behind the breeding curves
@@ -1622,10 +1701,12 @@ server <- function(input, output, session) {
     p <- p %>%
       add_trace(x = mlab, y = by_m$pm, type = "scatter", mode = "lines+markers", name = "breeding males",
         line = list(color = "#2f7fb5", width = 3), marker = list(size = 8, color = "#2f7fb5"),
-        hovertemplate = "%{x}<br>%{y}% of adult males scrotal<extra></extra>") %>%
+        connectgaps = FALSE, customdata = by_m$males,
+        hovertemplate = "%{x}<br>%{y}% of adult males scrotal<br>(n = %{customdata} adult males)<extra></extra>") %>%
       add_trace(x = mlab, y = by_m$pf, type = "scatter", mode = "lines+markers", name = "reproductive females",
         line = list(color = "#c2255c", width = 3), marker = list(size = 8, color = "#c2255c"),
-        hovertemplate = "%{x}<br>%{y}% of adult females pregnant/lactating<extra></extra>")
+        connectgaps = FALSE, customdata = by_m$females,
+        hovertemplate = "%{x}<br>%{y}% of adult females pregnant/lactating<br>(n = %{customdata} adult females)<extra></extra>")
     p <- plotly_theme(p) %>% plotly::layout(
       xaxis = list(title = "", categoryorder = "array", categoryarray = month.abb),
       yaxis = list(title = "% reproductively active", range = c(0, 100)),
@@ -1637,12 +1718,19 @@ server <- function(input, output, session) {
   # ---- body-size profile (violin per species, "Position DNA") ------------
   output$sizeViolin <- renderPlotly({
     d <- rv$data; req(d)
+    # ADULTS only (juveniles/subadults make a mixture that reads as a fat/bimodal
+    # violin), and ONE weight per INDIVIDUAL (its mean) so a much-recaptured
+    # animal isn't counted as many "weights" — matches the adults + per-individual
+    # convention the leaderboard already uses.
     w <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$weight), .data$weight > 0,
-                       !is.na(.data$scientificName))
+                       !is.na(.data$scientificName), .data$lifeStage == "adult") %>%
+      dplyr::group_by(.data$tagID) %>%
+      dplyr::summarise(weight = mean(.data$weight),
+                       scientificName = mode_chr(.data$scientificName), .groups = "drop")
     keep <- w %>% dplyr::count(.data$scientificName) %>% dplyr::filter(.data$n >= 8) %>%
       dplyr::pull(.data$scientificName)
     w <- w[w$scientificName %in% keep, ]
-    if (nrow(w) == 0) return(note_plot("Not enough weighed animals<br>for a size profile", "⚖️"))
+    if (nrow(w) == 0) return(note_plot("Not enough weighed adults<br>for a size profile", "⚖️"))
     ord <- w %>% dplyr::group_by(.data$scientificName) %>%
       dplyr::summarise(m = stats::median(.data$weight), .groups = "drop") %>%
       dplyr::arrange(.data$m) %>% dplyr::pull(.data$scientificName)
@@ -1657,7 +1745,8 @@ server <- function(input, output, session) {
         scalemode = "width", spanmode = "hard", points = FALSE,
         line = list(color = col), fillcolor = paste0(col, "44"),
         meanline = list(visible = TRUE, color = col),
-        hovertemplate = paste0("<b>", s, "</b><br>%{y} g<extra></extra>"))
+        hovertemplate = paste0("<b>", s, "</b> · n=", nrow(sub),
+                               " adults<br>%{y} g (per-individual mean)<extra></extra>"))
     }
     # mark the selected individual on its species' violin
     tag <- rv$tag
@@ -1681,6 +1770,12 @@ server <- function(input, output, session) {
   })
 
   # ---- MNKA + catch-per-effort -------------------------------------------
+  output$mnkaInsight <- renderUI({
+    d <- rv$data; req(d)
+    insight_banner("people-fill", tone = "navy",
+      HTML("<b>MNKA</b> (per plot, left axis) counts individuals known alive each month; the dotted <b>site-total catch-per-effort</b> (right axis) is a different quantity — they're on separate scales and can move apart, so read each on its own axis."))
+  })
+
   output$mnkaPlot <- renderPlotly({
     d <- rv$data; req(d)
     mn <- mnka_series(d)
@@ -1694,12 +1789,17 @@ server <- function(input, output, session) {
     if (!is.null(es))
       p <- add_env_overlay(p, es$env, es$layer, es$lag, yaxis = "y3",
                            xlim = range(mn$date, na.rm = TRUE), demo = es$demo)
+    max_tn <- max(mn$trap_nights, na.rm = TRUE)
     for (i in seq_along(plots)) {
       pl <- plots[i]; dd <- mn[mn$plotID == pl, ]
+      # marker size tracks trap-EFFORT: a low-effort month reads as a smaller,
+      # more tentative point (MNKA isn't effort-normalized, so this is the only
+      # honest "how hard did we look that month" cue).
+      msz <- 4 + 7 * (dd$trap_nights / max_tn)
       p <- p %>% add_trace(data = dd, x = ~date, y = ~mnka, type = "scatter", mode = "lines+markers",
         name = pl, legendgroup = pl, line = list(color = plot_cols[i], width = 2),
-        marker = list(size = 5, color = plot_cols[i]),
-        hovertemplate = paste0(pl, "<br>%{x|%b %Y}<br>MNKA: %{y}<extra></extra>"))
+        marker = list(size = msz, color = plot_cols[i]), customdata = round(dd$trap_nights),
+        hovertemplate = paste0(pl, "<br>%{x|%b %Y}<br>MNKA: %{y} · %{customdata} trap-nights<extra></extra>"))
     }
     # site-total CPUE companion line on a secondary axis
     site <- mn %>% dplyr::group_by(.data$date) %>%
@@ -1709,16 +1809,28 @@ server <- function(input, output, session) {
       mode = "lines", name = "site total, per 100 trap-nights",
       line = list(color = "rgba(31,42,48,0.55)", width = 2, dash = "dot"),
       hovertemplate = "%{x|%b %Y}<br>%{y} captures per 100 trap-nights<extra></extra>")
+    # Shaded "no sampling" bands behind long pauses (>~4 months between sampled
+    # months — e.g. the COVID-2020 hiatus): the line stays continuous (clean) but
+    # a labelled band names the gap, so a bridged segment is never read as a real
+    # trend through months that weren't surveyed.
+    sdates <- sort(unique(mn$date))
+    gi <- if (length(sdates) > 1) which(as.numeric(diff(sdates)) > 124) else integer(0)
+    bands <- lapply(gi, function(k) list(type = "rect", xref = "x", yref = "paper",
+      x0 = sdates[k], x1 = sdates[k + 1], y0 = 0, y1 = 1, layer = "below",
+      fillcolor = "rgba(120,130,140,0.13)", line = list(width = 0)))
+    band_lbls <- lapply(gi, function(k) list(text = "no sampling",
+      x = sdates[k] + (sdates[k + 1] - sdates[k]) / 2, y = 0.5, xref = "x", yref = "paper",
+      showarrow = FALSE, font = list(color = "#9aa7b5", size = 10, family = "Rubik")))
     p <- plotly_theme(p) %>% plotly::layout(
-      yaxis  = list(title = "MNKA (individuals known alive)", color = "#16386e"),
+      yaxis  = list(title = "MNKA (individuals known alive)", color = "#16386e", rangemode = "tozero"),
       yaxis2 = list(title = "captures per 100 trap-nights (site total)", color = "#7a8896",
-                    overlaying = "y", side = "right", gridcolor = "rgba(0,0,0,0)"),
+                    overlaying = "y", side = "right", gridcolor = "rgba(0,0,0,0)", rangemode = "tozero"),
       xaxis  = list(title = "", showspikes = TRUE, spikemode = "across",
                     spikethickness = 1, spikecolor = "#7a8896", spikedash = "dot"),
-      hovermode = "x", margin = list(t = 44),
-      annotations = list(list(text = "⋯ dotted = catch-per-effort (right axis)",
+      hovermode = "x", margin = list(t = 44), shapes = bands,
+      annotations = c(list(list(text = "⋯ dotted = catch-per-effort (right axis)",
         x = 0, y = 1.08, xref = "paper", yref = "paper", xanchor = "left", yanchor = "bottom",
-        showarrow = FALSE, font = list(color = "#7a8896", size = 11, family = "Rubik")))) %>% ctx_anno()
+        showarrow = FALSE, font = list(color = "#7a8896", size = 11, family = "Rubik"))), band_lbls)) %>% ctx_anno()
     # hidden y3 for the env area: pure background context (y2 already holds CPUE)
     if (!is.null(es))
       p <- p %>% plotly::layout(yaxis3 = c(env_axis_spec(es$layer, show = FALSE),
@@ -1767,7 +1879,7 @@ server <- function(input, output, session) {
     # caveat is in the info popover, so the subtitle stays short enough never to clip.
     anno_txt <- sprintf("observed %d species", sa$sobs)
     plotly_theme(p) %>% plotly::layout(
-      xaxis = list(title = "trapping bouts (months)"),
+      xaxis = list(title = "trapping bouts (sampling order, resampled)"),
       yaxis = list(title = "cumulative species", range = c(0, cap + 1), rangemode = "tozero"),
       margin = list(l = 50, r = 30, t = 84, b = 40),
       annotations = list(list(text = anno_txt,
@@ -1789,10 +1901,15 @@ server <- function(input, output, session) {
     pct <- function(x) if (is.na(x)) "—" else paste0(round(100 * x), "%")
     chip <- function(v, lab, col) div(class = "detect-chip", style = sprintf("--dc:%s", col),
       div(class = "detect-v", v), div(class = "detect-l", lab))
-    div(class = "detect-head",
-      chip(pct(cc$mean_p),      "per-night detection (p̂)", "#0C234B"),
-      chip(pct(cc$mean_detect), "of population caught / bout", "#2f7fb5"),
-      chip(cc$n_estimable,      sprintf("estimable bouts (of %d)", cc$n_bouts), "#1a7f37"))
+    lead <- if (!is.na(cc$mean_detect))
+      insight_banner("incognito", tone = "navy",
+        HTML(sprintf("Traps caught about <span class='ci-hero'>%s</span> of the animals present per bout — the gap between the navy estimate and the grey known-alive line is everything they missed.",
+          paste0(round(100 * cc$mean_detect), "%")))) else NULL
+    tagList(lead,
+      div(class = "detect-head",
+        chip(pct(cc$mean_p),      "per-night detection (p̂)", "#0C234B"),
+        chip(pct(cc$mean_detect), "of population caught / bout", "#2f7fb5"),
+        chip(cc$n_estimable,      sprintf("estimable bouts (of %d)", cc$n_bouts), "#1a7f37")))
   })
 
   # The driver overlaid on the detection plot: the sidebar pick if any, else the
