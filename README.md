@@ -131,22 +131,41 @@ watch, say, a rain pulse line up under the rodent boom it feeds months later. Av
 | --- | --- | --- | --- |
 | Precipitation | `DP1.00044.001` (weighing gauge) | monthly sum (mm) | 19 / 46 |
 | Air temperature | `DP1.00002.001` (single-aspirated) | monthly mean/min/max (°C) | 46 / 46 |
-| Plants fruiting | `DP1.10055.001` (phenology) | monthly % of individuals in fruit | 41 / 46 |
+| Plants flowering | `DP1.10055.001` (phenology) | monthly % of individuals in "Open flowers" | 46 / 46 |
+| Green-up (leaf-out) | `DP1.10055.001` (phenology) | monthly % of individuals in early leaf-out | 46 / 46 |
+| Plants fruiting | `DP1.10055.001` (phenology) | monthly % of individuals in "Fruits" | 36 / 46 |
 
 Each layer is pre-aggregated to **one value per site-month** and bundled as a tiny `data/env/<SITE>.rds`
 (a few KB) by `scripts/refresh_env_data.R`, mirroring the mammal bundle and shipped with the app — so
-the overlays are **real NEON data**, not a demo. Coverage varies by product: NEON publishes the
-Precipitation product at only ~24 sites observatory-wide (19 of our 46 mammal sites), so precip is
-genuinely absent at the rest. The picker only offers a layer when that site actually has data for it
-(`env_layer_choices()`), so a missing layer simply doesn't appear — the feature never shows an empty
-overlay. Where a site lacks an env bundle entirely, the app falls back to a small, clearly-badged
-**illustrative demo** series (`data-sample/env_demo.csv`).
+the overlays are **real NEON data**, not a demo. The picker only offers a layer when that site actually
+has data for it (`env_layer_choices()`), so a missing layer simply doesn't appear — the feature never
+shows an empty overlay. Where a site lacks an env bundle entirely, the app falls back to a small,
+clearly-badged **illustrative demo** series (`data-sample/env_demo.csv`).
 
-The build is deliberately scoped to these three layers: precipitation and fruiting are *lead* drivers
-(they precede rodent booms), and air temperature is pulled with `timeIndex = 30` so only the 30-minute
-table is downloaded. Relative humidity and **soil moisture** were dropped — soil water is a
-very-high-volume 30-minute product that made a full pull too heavy for CI; the env bundle is therefore
-built **offline** (run `scripts/refresh_env_data.R`, then commit `data/env/`), not in the monthly Action.
+**Phenology — three signals, not one.** NEON's phenology product tracks many phenophases, not just
+fruiting. We derive three: **flowering** (`Open flowers`), **green-up** (early leaf-out: young
+leaves/needles, breaking buds, increasing leaf size, initial growth), and **fruiting** (`Fruits`).
+Flowering and green-up are the *lead drivers at arid sites* — the desert/grassland sites the app centers
+on (SRER, JORN) have **no fruiting phenophase at all** but rich flowering + green-up, and green-up
+doubles as a precipitation-pulse proxy where NEON has no rain gauge. Fruiting is the *mast/forest* lead
+(autumn acorn → next-summer mice). Each is a **monthly status yes-share** — the share of monitored
+individuals in that phenophase — computed at the individual×month grain, with `'uncertain'`/blank
+excluded and months backed by fewer than 5 individuals suppressed to `NA` (a companion `_n` column
+carries the count). This is the metric NEON's own R tutorial uses; binned *intensity* is deliberately
+**not** averaged (its bins are ordinal and incommensurable across phenophases).
+
+Coverage varies by product: NEON publishes precipitation at only ~24 sites observatory-wide (19 of our
+46), so precip is genuinely absent at the rest; flowering and green-up are recorded at all 46. Air
+temperature is pulled with `timeIndex = 30` (30-minute table only). Relative humidity and **soil
+moisture** are deliberately not built (soil water is a very-high-volume product). The bundle is built
+**offline** (run `scripts/refresh_env_data.R`, then commit `data/env/`), not in the monthly Action.
+
+**Honest lag correlations.** The "which driver does this population track?" panel scans 0–12-month lags
+for the strongest correlation with catch-per-effort. To keep that defensible: both series are
+**deseasonalized** (calendar-month anomalies) before correlating — so a match reflects year-to-year
+covariation, not a shared "both peak in summer" cycle — the overlap floor is **n ≥ 8 months**, and the
+panel labels the search ("best of N drivers × ≤13 lags") and flags that the bars are correlated stages
+of one seasonal cascade, *not* independent evidence.
 
 ## Run it locally
 

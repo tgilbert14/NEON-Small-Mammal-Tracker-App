@@ -987,18 +987,29 @@ env_corr_scan <- function(d, env, layer, max_lag = 12) {
     dplyr::summarise(cap = sum(!is.na(.data$tagID)),
                      tn  = sum(.data$trap_effort, na.rm = TRUE), .groups = "drop")
   m <- m[m$tn > 0, , drop = FALSE]
-  if (nrow(m) < 4) return(NULL)
+  if (nrow(m) < 8) return(NULL)                 # honest overlap floor (was 4)
   m$cpue <- 100 * m$cap / m$tn
   m$date <- as.Date(paste0(m$ym, "-01"))
   ev <- env; ev$date <- as.Date(ev$date)
   ev$.v <- suppressWarnings(as.numeric(ev[[meta$col]]))
   ev <- ev[!is.na(ev$.v), c("date", ".v"), drop = FALSE]
   if (!nrow(ev)) return(NULL)
+  # DESEASONALIZE both series (subtract each one's calendar-month climatology)
+  # before correlating, so r reflects year-to-year ANOMALIES, not the shared
+  # "both peak in summer" annual cycle — which otherwise inflates |r| and
+  # manufactures driver-vs-driver multicollinearity. (Phenology review, 2026-06.)
+  deseason <- function(val, date) {
+    mon  <- as.integer(format(date, "%m"))
+    clim <- tapply(val, mon, mean, na.rm = TRUE)
+    val - as.numeric(clim[as.character(mon)])
+  }
+  m$cpue <- deseason(m$cpue, m$date)
+  ev$.v  <- deseason(ev$.v,  ev$date)
   best <- list(lag = NA_integer_, r = NA_real_, n = 0L)
   for (lag in 0:max_lag) {
     e2 <- ev; lt <- as.POSIXlt(e2$date); lt$mon <- lt$mon + lag; e2$date <- as.Date(lt)
     j <- merge(m[, c("date", "cpue")], e2, by = "date")
-    if (nrow(j) >= 4) {
+    if (nrow(j) >= 8 && stats::sd(j$cpue, na.rm = TRUE) > 0 && stats::sd(j$.v, na.rm = TRUE) > 0) {
       r <- suppressWarnings(stats::cor(j$cpue, j$.v))
       if (!is.na(r) && (is.na(best$r) || abs(r) > abs(best$r)))
         best <- list(lag = lag, r = round(r, 2), n = nrow(j))

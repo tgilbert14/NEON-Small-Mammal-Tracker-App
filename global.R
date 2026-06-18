@@ -117,17 +117,22 @@ load_site_bundle <- function(site) {
 # slider is meaningful — e.g. a rain pulse precedes the rodent boom it feeds).
 ENV_DIR <- "data/env"
 
-# Built bundle = precip + air temperature + fruiting (see scripts/refresh_env_data.R).
-# Relative humidity and soil moisture are intentionally NOT bundled (soil water is
-# a very-high-volume product); re-add a row here + a column in the refresh script
-# if you later decide the offline build cost is worth it.
+# Built bundle = precip + air temperature + three plant-phenology STATUS yes-share
+# signals (flowering, green-up, fruiting; see scripts/refresh_env_data.R). Flowering
+# and green-up are the LEAD drivers for arid sites (SRER/JORN have no fruit); fruiting
+# is the mast/forest lead. Relative humidity and soil moisture are intentionally NOT
+# bundled (soil water is a very-high-volume product).
 ENV_LAYERS <- list(
-  precip = list(col = "precip_mm",   label = "Precipitation", unit = "mm/mo",
-                dpid = "DP1.00044.001", agg = "sum",  color = "#2f7fb5", lead = TRUE),
-  temp   = list(col = "temp_c",      label = "Air temperature", unit = "°C",
-                dpid = "DP1.00002.001", agg = "mean", color = "#d9480f", lead = FALSE),
-  fruit  = list(col = "fruiting_pct", label = "Plants fruiting", unit = "% in fruit",
-                dpid = "DP1.10055.001", agg = "mean", color = "#1a7f37", lead = TRUE)
+  precip  = list(col = "precip_mm",     label = "Precipitation",       unit = "mm/mo",
+                 dpid = "DP1.00044.001", agg = "sum",   color = "#2f7fb5", lead = TRUE),
+  temp    = list(col = "temp_c",        label = "Air temperature",     unit = "°C",
+                 dpid = "DP1.00002.001", agg = "mean",  color = "#d9480f", lead = FALSE),
+  flower  = list(col = "flowering_pct", label = "Plants flowering",    unit = "% in flower",
+                 dpid = "DP1.10055.001", agg = "share", color = "#d6336c", lead = TRUE),
+  greenup = list(col = "greenup_pct",   label = "Green-up (leaf-out)", unit = "% leafing out",
+                 dpid = "DP1.10055.001", agg = "share", color = "#2f9e44", lead = TRUE),
+  fruit   = list(col = "fruiting_pct",  label = "Plants fruiting",     unit = "% in fruit",
+                 dpid = "DP1.10055.001", agg = "share", color = "#9c6644", lead = TRUE)
 )
 
 # Choices for the overlay picker: only layers that actually have data for the

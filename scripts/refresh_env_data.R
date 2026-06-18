@@ -10,9 +10,10 @@
 #   siteID, ym ("YYYY-MM"), date (first of month),
 #   precip_mm   (monthly SUM,  DP1.00044.001 weighing-gauge precipitation)
 #   temp_c/min/max (monthly MEAN/MIN/MAX, DP1.00002.001 single-aspirated air temp)
-#   rh_pct      (monthly MEAN, DP1.00098.001 relative humidity)
-#   vswc_pct    (monthly MEAN, DP1.00094.001 soil water content, as % volume)
-#   fruiting_pct(monthly MEAN % of phenology individuals in fruit, DP1.10055.001)
+#   flowering_pct (monthly STATUS yes-share, "Open flowers",  DP1.10055.001)
+#   greenup_pct   (monthly STATUS yes-share, early leaf-out bundle, DP1.10055.001)
+#   fruiting_pct  (monthly STATUS yes-share, "Fruits" exact,   DP1.10055.001)
+#   <col>_n       (distinct individuals behind each phenology share; <5 -> share NA)
 #   source = "neon"
 #
 # RESUMABLE: skips sites whose .rds already exists. Delete one to re-pull it.
@@ -104,6 +105,33 @@ monthly <- function(tb, col_rx, fun) {
   stats::aggregate(list(value = v[ok]), by = list(ym = ym[ok]), FUN = fun)
 }
 
+# Monthly STATUS yes-share for a phenophase group (DP1.10055.001 phe_statusintensity),
+# built defensibly per the phenology review:
+#  - only status yes/no count (uncertain/blank dropped from BOTH num & denom — the
+#    old fruit code folded them in as 0, biasing the share down);
+#  - grain = individual x month (a high-cadence month doesn't over-weight): an
+#    individual counts "yes" if seen in-phenophase at >=1 bout that month;
+#  - returns a companion n (distinct individuals); months with n<5 -> share NA.
+# Returns a data.frame(ym, share, n) or NULL when the phenophase isn't recorded.
+pheno_share <- function(pht, name_rx) {
+  if (is.null(pht) || !nrow(pht)) return(NULL)
+  if (!all(c("phenophaseName", "phenophaseStatus", "individualID") %in% names(pht))) return(NULL)
+  st   <- tolower(trimws(as.character(pht$phenophaseStatus)))
+  keep <- grepl(name_rx, pht$phenophaseName) & st %in% c("yes", "no")
+  if (!any(keep)) return(NULL)
+  d <- tibble::tibble(individualID = pht$individualID[keep],
+                      ym  = month_key(pht[keep, , drop = FALSE]),
+                      yes = as.integer(st[keep] == "yes"))
+  d <- d[!is.na(d$ym), , drop = FALSE]
+  if (!nrow(d)) return(NULL)
+  im <- d %>% dplyr::group_by(.data$individualID, .data$ym) %>%
+    dplyr::summarise(yes = max(.data$yes), .groups = "drop")
+  mo <- im %>% dplyr::group_by(.data$ym) %>%
+    dplyr::summarise(share = 100 * mean(.data$yes), n = dplyr::n(), .groups = "drop")
+  mo$share[mo$n < 5] <- NA_real_
+  as.data.frame(mo)
+}
+
 safe_load <- function(dpID, site, timeIndex = NULL) {
   # timeIndex (e.g. 30) restricts a sensor product to ONE averaging interval,
   # so we don't download the high-volume 1-min tables we'd only discard.
@@ -154,23 +182,33 @@ build_site_env <- function(site) {
   #  product. The bundled overlays are precip + temperature + fruiting; ENV_LAYERS
   #  in global.R lists exactly those three.)
 
-  # 3) plant phenology — DP1.10055.001; monthly % of records in "Fruits" = yes
-  ph <- safe_load("DP1.10055.001", site)
+  # 3) plant phenology — DP1.10055.001 phe_statusintensity. Three monthly STATUS
+  #    yes-share signals (via pheno_share, with the yes/no filter, individual x
+  #    month grain, and n<5 -> NA guardrails):
+  #      flowering_pct  "Open flowers"        — seed-crop precursor (arid LEAD driver)
+  #      greenup_pct    early leaf-out bundle  — precip-pulse proxy / forage (arid LEAD)
+  #      fruiting_pct   "Fruits" (exact)      — mast signal (mesic/forest LEAD)
+  #    Arid sites (SRER/JORN) have NO Fruits but rich flowers + green-up, so this
+  #    gives them a real phenology signal the old fruit-only build missed. Each
+  #    layer also gets a <col>_n companion (distinct individuals behind the share).
+  ph  <- safe_load("DP1.10055.001", site)
   pht <- pick_table(ph, "phe_statusintensity")
-  if (!is.null(pht) && all(c("phenophaseName", "phenophaseStatus") %in% names(pht))) {
-    fr <- pht[grepl("[Ff]ruit", pht$phenophaseName), ]
-    if (nrow(fr)) {
-      fr$.yes <- as.integer(grepl("^yes", tolower(fr$phenophaseStatus)))
-      fr$ym <- month_key(fr)
-      m <- stats::aggregate(list(value = fr$.yes), by = list(ym = fr$ym),
-                            FUN = function(x) 100 * mean(x, na.rm = TRUE))
-      out$fruiting_pct <- dplyr::left_join(out["ym"], setNames(m, c("ym","v")), by = "ym")$v
-    } else out$fruiting_pct <- NA_real_
-  } else out$fruiting_pct <- NA_real_
+  join_pheno <- function(out, rx, col) {
+    sh <- pheno_share(pht, rx)
+    if (is.null(sh)) { out[[col]] <- NA_real_; out[[paste0(col, "_n")]] <- NA_integer_; return(out) }
+    j <- dplyr::left_join(out["ym"], sh, by = "ym")
+    out[[col]]               <- j$share
+    out[[paste0(col, "_n")]] <- j$n
+    out
+  }
+  out <- join_pheno(out, "^Open flowers$", "flowering_pct")
+  out <- join_pheno(out, "[Bb]reaking leaf buds|[Ee]merging needles|[Yy]oung (leaves|needles)|[Ii]ncreasing leaf size|[Ii]nitial growth", "greenup_pct")
+  out <- join_pheno(out, "^Fruits$", "fruiting_pct")
 
   out$source <- "neon"
   # drop months with no data at all (keeps files lean)
-  keep_cols <- c("precip_mm","temp_c","temp_min","temp_max","fruiting_pct")
+  keep_cols <- c("precip_mm", "temp_c", "temp_min", "temp_max",
+                 "flowering_pct", "greenup_pct", "fruiting_pct")
   has_any <- rowSums(!is.na(out[keep_cols])) > 0
   out[has_any, , drop = FALSE]
 }

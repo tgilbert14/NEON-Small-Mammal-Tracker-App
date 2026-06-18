@@ -107,7 +107,7 @@ server <- function(input, output, session) {
                 sc$lag, if (sc$lag == 1) "" else "s")
     tone <- if (strength >= 0.35) "env-corr-strong" else "env-corr-mild"
     div(class = paste("env-corr", tone), bs_icon("graph-up-arrow"),
-      HTML(sprintf(" Across this window, catch-per-effort shows <b>%s</b> relationship with <b>%s</b> (Pearson r = <b>%+.2f</b>, n = %d months) — strongest when %s is read <b>%s</b>. Higher %s tracks <b>%s</b> animals caught.%s",
+      HTML(sprintf(" Across this window, catch-per-effort shows <b>%s</b> relationship with <b>%s</b> (deseasonalized Pearson r = <b>%+.2f</b>, n = %d months) — strongest when %s is read <b>%s</b>. Higher %s tracks <b>%s</b> animals caught.%s",
         word, tolower(sc$label), sc$r, sc$n, tolower(sc$label), lagtxt, tolower(sc$label), dir,
         if (es$demo) " <i>(demo overlay — illustrative)</i>" else "")))
   })
@@ -154,6 +154,7 @@ server <- function(input, output, session) {
     ca <- ca[order(abs(ca$r)), ]   # plotly horizontal bars draw bottom-up
     ca$lab <- ifelse(ca$lag == 0, "same mo", sprintf("lag %d mo", ca$lag))
     demo <- identical(attr(env, "source"), "demo")
+    n_drv <- nrow(ca)
     plot_ly(ca, x = ~r, y = ~factor(label, levels = label), type = "bar",
       orientation = "h", marker = list(color = ~color),
       text = ~sprintf("r %+.2f · %s · n=%d", r, lab, n), textposition = "auto",
@@ -163,9 +164,17 @@ server <- function(input, output, session) {
       plotly::layout(
         title = list(text = if (demo) "Demo overlays — illustrative" else "",
                      font = list(size = 11, color = "#9a7a00"), x = 0.02),
-        xaxis = list(title = "best correlation with catch-per-effort (r)",
+        xaxis = list(title = "best deseasonalized correlation with catch-per-effort (r)",
                      range = c(-1, 1), zeroline = TRUE, zerolinecolor = "rgba(31,42,48,0.35)"),
-        yaxis = list(title = ""))
+        yaxis = list(title = ""),
+        margin = list(b = 76),
+        # on-chart honesty: r is the max of a lag scan, and these bars are stages
+        # of one seasonal cascade (collinear) — not independent lines of evidence
+        annotations = list(list(
+          text = sprintf("deseasonalized · best of %d driver%s × up to 13 lags<br>bars share one seasonal cascade — not independent evidence",
+                         n_drv, if (n_drv == 1) "" else "s"),
+          x = 0, y = -0.34, xref = "paper", yref = "paper", xanchor = "left", yanchor = "top",
+          align = "left", showarrow = FALSE, font = list(size = 10, color = "#8a97a8"))))
   })
 
   # state -> site cascading picker (Arizona default so the demo lines up)
