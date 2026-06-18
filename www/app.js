@@ -87,29 +87,9 @@ function smtLoadDone() {
   if (ov) ov.style.display = "none";
 }
 
-// ---- print / save the site report card (PDF via the browser) ------------
-function smtPrintReport() {
-  var wrap = document.getElementById("reportCardWrap");
-  if (!wrap || !wrap.querySelector(".report-card")) {
-    if (typeof Swal !== "undefined") Swal.fire({ icon: "info", title: "Load a site first",
-      text: "Pick a site, then generate its report card.", confirmButtonColor: "#0C234B" });
-    return;
-  }
-  // make the wrapper a direct <body> child so the print CSS sibling selector
-  // (body.printing-report > *:not(#reportCardWrap)) reliably hides only the app,
-  // regardless of how bslib nests page content. Harmless on screen (display:none).
-  if (wrap.parentNode !== document.body) document.body.appendChild(wrap);
-  document.body.classList.add("printing-report");
-  var cleaned = false;
-  var done = function () {
-    if (cleaned) return; cleaned = true;
-    document.body.classList.remove("printing-report");
-    window.removeEventListener("afterprint", done);
-  };
-  window.addEventListener("afterprint", done);
-  setTimeout(function () { window.print(); }, 60);
-  setTimeout(done, 60000);   // safety net: never leave the app chrome hidden
-}
+// (The site report card is now a server-side PDF streamed by a Shiny
+//  downloadHandler — output$reportPdf, via the hero downloadLink — so the old
+//  browser-print path (smtPrintReport) has been removed.)
 
 // ---- save the dossier trading card as a PNG (html-to-image) --------------
 function smtSaveCard() {

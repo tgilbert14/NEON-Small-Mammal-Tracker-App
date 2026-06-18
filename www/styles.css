@@ -502,57 +502,9 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
   border-left: 1px solid var(--line); padding-left: 10px; cursor: pointer; }
 .hero-report:hover { color: var(--pine); text-decoration: underline; }
 
-/* ---- printable report card -------------------------------------------- */
-#reportCardWrap { display: none; }            /* hidden on screen */
-.report-card { max-width: 760px; margin: 0 auto; color: #111; font-size: 12px; }
-.rc-head { border-bottom: 3px solid var(--pine); padding-bottom: 8px; margin-bottom: 12px; }
-.rc-brand { font-weight: 800; color: var(--pine); font-size: 18px; }
-.rc-site { font-weight: 700; font-size: 14px; margin-top: 2px; }
-.rc-range { color: #555; font-size: 12px; }
-.rc-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 12px; }
-.rc-stat { text-align: center; border: 1px solid #ccc; border-radius: 8px; padding: 8px 4px; }
-.rc-stat-v { font-size: 18px; font-weight: 800; color: var(--pine); }
-.rc-stat-l { font-size: 10px; color: #555; }
-.rc-section { margin: 10px 0; }
-.rc-section h4 { font-size: 13px; color: var(--pine); margin: 0 0 4px; border-bottom: 1px solid #ddd; padding-bottom: 2px; }
-.rc-section p { margin: 0; line-height: 1.5; }
-.rc-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.rc-table th { text-align: left; border-bottom: 1.5px solid #999; padding: 3px 6px; color: #333; }
-.rc-table td { border-bottom: 1px solid #e2e2e2; padding: 3px 6px; }
-.rc-table th:nth-child(n+2), .rc-table td:nth-child(n+2) { text-align: right; width: 90px; }
-.rc-nick { color: #777; font-style: normal; }
-.rc-foot { margin-top: 14px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 9.5px; color: #777; }
-/* expanded full-rundown report card */
-.rc-bio { font-style: italic; color: #444; font-size: 11.5px; margin: 0 0 10px; }
-.rc-stats-4 { grid-template-columns: repeat(4, 1fr); margin-top: -4px; }
-.rc-cols { display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; align-items: start; }
-.rc-colstack > .rc-section:first-child { margin-top: 0; }
-.rc-caveat { font-size: 9.5px; color: #888; margin-top: 3px; line-height: 1.35; }
-.rc-table-notable td { padding: 3px 6px; text-align: left; width: auto; }
-.rc-table-notable td:nth-child(1) { width: 92px; color: #333; font-weight: 700; }
-.rc-table-notable td:last-child { text-align: right; font-weight: 700; color: var(--pine); white-space: nowrap; }
-
-/* Print: collapse the whole app OUT of flow (display:none, not visibility:hidden)
-   so the printer doesn't emit trailing blank pages for the hidden app height.
-   Scoped to the body.printing-report class the Report-card button toggles, and
-   smtPrintReport() moves #reportCardWrap to be a direct body child first so this
-   sibling selector is reliable regardless of bslib's wrapper nesting. */
-@media print {
-  body.printing-report > *:not(#reportCardWrap) { display: none !important; }
-  body.printing-report #reportCardWrap {
-    display: block !important; position: static !important;
-    margin: 0 !important; padding: 0 !important; width: 100%; background: #fff;
-  }
-  body.printing-report { background: #fff !important; }
-  body.printing-report .report-card { box-shadow: none !important; max-width: none; margin: 0; }
-  body.printing-report .report-card, body.printing-report .report-card * {
-    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-  }
-  body.printing-report .rc-section, body.printing-report .rc-stats,
-  body.printing-report .rc-table tr { break-inside: avoid; page-break-inside: avoid; }
-  body.printing-report .rc-head { break-after: avoid; }
-  @page { margin: 14mm; size: letter; }
-}
+/* The site report card is now a server-side PDF (downloadHandler output$reportPdf,
+   built in R/report_pdf.R), so the old hidden-HTML .report-card / .rc-* styles and
+   the @media print machinery have been removed. */
 
 .empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
 .empty-icon { font-size: 46px; }

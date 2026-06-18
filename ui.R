@@ -503,8 +503,9 @@ ui <- bslib::page_sidebar(
     )
   ),
 
-  # ---- printable report card (hidden on screen; shown only when printing) -
-  div(id = "reportCardWrap", uiOutput("reportCard")),
+  # (The site report card is now a server-side PDF streamed by downloadHandler
+  #  output$reportPdf — see the hero downloadLink — so there's no hidden HTML to
+  #  print here anymore.)
 
   # ---- Desert Data Labs business footer ----------------------------------
   div(class = "ddl-footer",
