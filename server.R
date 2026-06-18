@@ -115,14 +115,33 @@ server <- function(input, output, session) {
     strength <- abs(sc$r)
     word <- if (strength >= 0.6) "a strong" else if (strength >= 0.35) "a moderate"
             else if (strength >= 0.2) "a weak" else "little"
-    dir <- if (sc$r >= 0) "more" else "fewer"
+    dir  <- if (sc$r >= 0) "more" else "fewer"
     lagtxt <- if (sc$lag == 0) "the same month" else sprintf("%d month%s earlier",
                 sc$lag, if (sc$lag == 1) "" else "s")
-    tone <- if (strength >= 0.35) "env-corr-strong" else "env-corr-mild"
-    div(class = paste("env-corr", tone), bs_icon("graph-up-arrow"),
-      HTML(sprintf(" Across this window, catch-per-effort shows <b>%s</b> relationship with <b>%s</b> (deseasonalized Pearson r = <b>%+.2f</b>, n = %d months) — strongest when %s is read <b>%s</b>. Higher %s tracks <b>%s</b> animals caught.%s",
-        word, tolower(sc$label), sc$r, sc$n, tolower(sc$label), lagtxt, tolower(sc$label), dir,
-        if (es$demo) " <i>(demo overlay — illustrative)</i>" else "")))
+    tone  <- if (strength >= 0.35) "env-corr-strong" else "env-corr-mild"
+    s_cls <- if (strength >= 0.6) "chip-sig" else if (strength >= 0.35) "chip-mod" else "chip-weak"
+    d_cls <- if (sc$r >= 0) "chip-pos" else "chip-neg"
+    div(class = paste("env-corr", tone),
+      div(class = "corr-head",
+        bs_icon("graph-up-arrow"), " catch-per-effort × ",
+        tags$span(class = "corr-chip chip-driver", tolower(sc$label))
+      ),
+      div(class = "corr-stats",
+        tags$span(class = paste("corr-chip", s_cls), word),
+        tags$span(class = "corr-dot", "·"),
+        tags$span(class = "corr-chip chip-r", HTML(sprintf("r = %+.2f", sc$r))),
+        tags$span(class = "corr-dot", "·"),
+        tags$span(class = "corr-chip chip-n", sprintf("n = %d months", sc$n))
+      ),
+      div(class = "corr-foot",
+        "Strongest when read ",
+        tags$span(class = "corr-chip chip-lag", lagtxt),
+        HTML(" — higher = "),
+        tags$span(class = paste("corr-chip", d_cls), dir),
+        " animals caught",
+        if (es$demo) tags$i(class = "corr-demo-note", " (demo overlay)") else NULL
+      )
+    )
   })
 
   # Response scatter: monthly catch-per-effort vs the (lagged) driver, with fit.
