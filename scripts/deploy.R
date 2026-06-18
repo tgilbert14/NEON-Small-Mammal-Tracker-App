@@ -11,7 +11,8 @@ files <- c("global.R", "ui.R", "server.R",
            # precomputed national indexes (picker map + species ranges) live in
            # data/ directly — must ship or the landing map is blank in prod
            Sys.glob("data/*.rds"),
-           list.files("data/sites", pattern = "\\.rds$", full.names = TRUE))
+           list.files("data/sites", pattern = "\\.rds$", full.names = TRUE),
+           list.files("data/env",   pattern = "\\.rds$", full.names = TRUE))  # env overlays
 files <- unique(files[file.exists(files)])
 cat("Bundling", length(files), "files (",
     length(list.files("data/sites", pattern = "\\.rds$")), "bundled sites )\n")

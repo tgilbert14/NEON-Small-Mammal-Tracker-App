@@ -23,6 +23,7 @@ appFiles <- c(
   list.files("www", recursive = TRUE, full.names = TRUE),
   Sys.glob("data/*.rds"),                                       # precomputed indexes
   list.files("data/sites", pattern = "\\.rds$", full.names = TRUE),
+  list.files("data/env",   pattern = "\\.rds$", full.names = TRUE),   # env overlays
   list.files("data-sample", pattern = "\\.rds$", full.names = TRUE)
 )
 appFiles <- unique(appFiles[file.exists(appFiles)])

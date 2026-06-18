@@ -21,6 +21,14 @@ suppressMessages({
   library(tibble)
 })
 
+# NEON API token — set env var NEON_TOKEN to raise the anonymous rate limit.
+.neon_token <- Sys.getenv("NEON_TOKEN", unset = NA_character_)
+if (!is.na(.neon_token) && nchar(.neon_token) > 10) {
+  cat("Using NEON API token (higher rate limits).\n")
+} else {
+  .neon_token <- NA_character_
+}
+
 source("R/site_metadata.R")  # for the canonical site list
 
 keep <- c("tagID","individualCode","taxonID","scientificName","taxonRank",
@@ -46,8 +54,12 @@ for (s in sites) {
 
   cat(sprintf("• %-5s downloading…\n", s))
   raw <- tryCatch(
-    loadByProduct(dpID = "DP1.10072.001", site = s, startdate = start_d, enddate = end_d,
-                  package = "basic", check.size = "F"),
+    {
+      args <- list(dpID = "DP1.10072.001", site = s, startdate = start_d, enddate = end_d,
+                   package = "basic", check.size = "F")
+      if (!is.na(.neon_token)) args$token <- .neon_token
+      do.call(loadByProduct, args)
+    },
     error = function(e) { cat(sprintf("    ERROR %s: %s\n", s, conditionMessage(e))); NULL })
   if (is.null(raw) || is.null(raw$mam_pertrapnight) || nrow(raw$mam_pertrapnight) == 0) {
     cat(sprintf("    no data for %s\n", s)); next

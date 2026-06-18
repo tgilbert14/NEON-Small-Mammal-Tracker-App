@@ -34,6 +34,16 @@ suppressMessages({
   library(tibble)
 })
 
+# NEON API token — set env var NEON_TOKEN to raise the anonymous rate limit.
+# Free account + token: https://data.neonscience.org  (Profile → API token)
+.neon_token <- Sys.getenv("NEON_TOKEN", unset = NA_character_)
+if (!is.na(.neon_token) && nchar(.neon_token) > 10) {
+  cat("Using NEON API token (higher rate limits).\n")
+} else {
+  .neon_token <- NA_character_
+  cat("No NEON_TOKEN set — anonymous rate limits apply.\n")
+}
+
 source("R/site_metadata.R")  # canonical site list
 
 out_dir <- "data/env"
@@ -42,6 +52,22 @@ dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 start_d <- "2013-01"
 end_d   <- format(Sys.Date(), "%Y-%m")
 sites   <- neon_sites$site
+# Optional CLI site subset, for parallel/sharded builds (resumable; skips files
+# that already exist):  Rscript scripts/refresh_env_data.R JORN SRER HARV ...
+.args <- commandArgs(trailingOnly = TRUE)
+if (length(.args)) sites <- intersect(sites, .args)
+
+# Monthly "top-up" mode: SMT_ENV_RECENT_MONTHS=N narrows the pull to the last N
+# months and MERGES the result into each existing bundle — so the CI refresh
+# keeps env current (new months as the mammal record extends) cheaply, instead
+# of re-pulling 13 years. Leave it unset for a full (offline) build.
+.recent_n <- suppressWarnings(as.integer(Sys.getenv("SMT_ENV_RECENT_MONTHS", "")))
+.recent   <- !is.na(.recent_n) && .recent_n > 0
+if (.recent) {
+  start_d <- format(seq(as.Date(paste0(end_d, "-01")),
+                        by = sprintf("-%d months", .recent_n), length.out = 2)[2], "%Y-%m")
+  cat(sprintf("Recent-refresh mode: last %d months (%s -> %s)\n", .recent_n, start_d, end_d))
+}
 
 # ---- generic helpers ------------------------------------------------------
 
@@ -78,10 +104,14 @@ monthly <- function(tb, col_rx, fun) {
   stats::aggregate(list(value = v[ok]), by = list(ym = ym[ok]), FUN = fun)
 }
 
-safe_load <- function(dpID, site) {
-  tryCatch(
-    loadByProduct(dpID = dpID, site = site, startdate = start_d, enddate = end_d,
-                  package = "basic", check.size = "F"),
+safe_load <- function(dpID, site, timeIndex = NULL) {
+  # timeIndex (e.g. 30) restricts a sensor product to ONE averaging interval,
+  # so we don't download the high-volume 1-min tables we'd only discard.
+  args <- list(dpID = dpID, site = site, startdate = start_d, enddate = end_d,
+               package = "basic", check.size = "F")
+  if (!is.null(timeIndex)) args$timeIndex <- timeIndex
+  if (!is.na(.neon_token))  args$token     <- .neon_token
+  tryCatch(do.call(loadByProduct, args),
     error = function(e) { cat(sprintf("      ! %s: %s\n", dpID, conditionMessage(e))); NULL })
 }
 
@@ -101,11 +131,17 @@ build_site_env <- function(site) {
 
   # 1) precipitation — weighing gauge, DAILY table, monthly SUM (mm)
   pr <- safe_load("DP1.00044.001", site)
-  prt <- pick_table(pr, "wss_daily_precip|.*daily.*[Pp]recip|PRIPRE")
-  out <- join1(out, monthly(prt, "[Pp]recipBulk|secPrecipBulk|priPrecipBulk|[Pp]recip", sum), "precip_mm")
+  # NEON publishes precip as WEIPRE_* (weighing gauge), PRIPRE_* (primary) or
+  # SECPRE_* (secondary tipping bucket); prefer the DAILY table, fall back to
+  # 60/30-min. Sum to a monthly total (mm). Some arid sites (e.g. JORN) have no
+  # precip deployment at all -> stays NA, which the UI handles gracefully.
+  prt <- pick_table(pr, "(WEIPRE|PRIPRE|SECPRE)_daily|wss_daily_precip|.*daily.*[Pp]recip")
+  if (is.null(prt)) prt <- pick_table(pr, "(WEIPRE|PRIPRE|SECPRE)_(60|30)min|.*[Pp]recip")
+  out <- join1(out, monthly(prt, "[Pp]recipBulk|secPrecipBulk|priPrecipBulk", sum), "precip_mm")
 
-  # 2) air temperature — single aspirated, 30-min; keep one tower level
-  at <- safe_load("DP1.00002.001", site)
+  # 2) air temperature — single aspirated, 30-min ONLY (timeIndex=30 skips the
+  #    high-volume 1-min table we'd discard anyway); keep one tower level
+  at <- safe_load("DP1.00002.001", site, timeIndex = 30)
   att <- pick_table(at, "SAAT_30min|saat.*30")
   if (!is.null(att) && "verticalPosition" %in% names(att))
     att <- att[att$verticalPosition == min(att$verticalPosition, na.rm = TRUE), ]
@@ -113,28 +149,12 @@ build_site_env <- function(site) {
   out <- join1(out, monthly(att, "tempSingleMinimum", min),  "temp_min")
   out <- join1(out, monthly(att, "tempSingleMaximum", max),  "temp_max")
 
-  # 3) relative humidity — DP1.00098.001, 30-min mean
-  rh <- safe_load("DP1.00098.001", site)
-  rht <- pick_table(rh, "RH_30min|rh.*30")
-  if (!is.null(rht) && "verticalPosition" %in% names(rht))
-    rht <- rht[rht$verticalPosition == min(rht$verticalPosition, na.rm = TRUE), ]
-  out <- join1(out, monthly(rht, "RHMean", mean), "rh_pct")
+  # (Relative humidity DP1.00098.001 and soil water content DP1.00094.001 are
+  #  intentionally NOT built — soil water especially is a very-high-volume 30-min
+  #  product. The bundled overlays are precip + temperature + fruiting; ENV_LAYERS
+  #  in global.R lists exactly those three.)
 
-  # 4) soil water content — DP1.00094.001; shallow depth/one position, cap artifact
-  sm <- safe_load("DP1.00094.001", site)
-  smt <- pick_table(sm, "SWS_30_minute|swc.*30|soilWaterContent")
-  if (!is.null(smt)) {
-    vv <- pick_col(smt, "VSWCMean|soilWaterContent")
-    if (!is.null(vv)) {
-      vv[vv > 0.6 | vv < 0] <- NA          # documented high-VSWC artifact guard
-      smt$.vswc <- vv * 100                 # fraction -> % volume
-      m <- monthly(smt, "\\.vswc", mean)
-      out$vswc_pct <- if (is.null(m)) NA_real_ else
-        dplyr::left_join(out["ym"], setNames(m, c("ym","v")), by = "ym")$v
-    } else out$vswc_pct <- NA_real_
-  } else out$vswc_pct <- NA_real_
-
-  # 5) plant phenology — DP1.10055.001; monthly % of records in "Fruits" = yes
+  # 3) plant phenology — DP1.10055.001; monthly % of records in "Fruits" = yes
   ph <- safe_load("DP1.10055.001", site)
   pht <- pick_table(ph, "phe_statusintensity")
   if (!is.null(pht) && all(c("phenophaseName", "phenophaseStatus") %in% names(pht))) {
@@ -150,7 +170,7 @@ build_site_env <- function(site) {
 
   out$source <- "neon"
   # drop months with no data at all (keeps files lean)
-  keep_cols <- c("precip_mm","temp_c","temp_min","temp_max","rh_pct","vswc_pct","fruiting_pct")
+  keep_cols <- c("precip_mm","temp_c","temp_min","temp_max","fruiting_pct")
   has_any <- rowSums(!is.na(out[keep_cols])) > 0
   out[has_any, , drop = FALSE]
 }
@@ -162,11 +182,22 @@ cat(sprintf("Refreshing environmental overlays for %d sites (%s → %s) into %s/
 
 for (s in sites) {
   f <- file.path(out_dir, paste0(s, ".rds"))
-  if (file.exists(f)) { cat(sprintf("• %-5s skip (exists, %.1f KB)\n", s, file.size(f)/1e3)); next }
-  cat(sprintf("• %-5s building…\n", s))
+  # full build skips a site that's already bundled; top-up mode always refreshes
+  if (file.exists(f) && !.recent) { cat(sprintf("• %-5s skip (exists, %.1f KB)\n", s, file.size(f)/1e3)); next }
+  cat(sprintf("• %-5s building%s…\n", s, if (.recent) " (recent top-up)" else ""))
   env <- tryCatch(build_site_env(s), error = function(e) {
     cat(sprintf("    ERROR %s: %s\n", s, conditionMessage(e))); NULL })
   if (is.null(env) || !nrow(env)) { cat(sprintf("    no env data for %s\n", s)); next }
+  # top-up: merge the freshly-pulled recent months into the existing bundle —
+  # drop the months we just re-pulled, keep everything older, then append.
+  if (.recent && file.exists(f)) {
+    prev <- tryCatch(tibble::as_tibble(readRDS(f)), error = function(e) NULL)
+    if (!is.null(prev) && nrow(prev)) {
+      prev <- prev[!(prev$ym %in% env$ym), , drop = FALSE]
+      env  <- dplyr::bind_rows(prev, env)
+      env  <- env[order(env$ym), , drop = FALSE]
+    }
+  }
   saveRDS(tibble::as_tibble(env), f, compress = "xz")
   cat(sprintf("    saved %s: %d months, %.1f KB\n", s, nrow(env), file.size(f)/1e3))
 }

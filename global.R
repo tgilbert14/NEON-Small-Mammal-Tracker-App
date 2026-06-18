@@ -117,15 +117,15 @@ load_site_bundle <- function(site) {
 # slider is meaningful — e.g. a rain pulse precedes the rodent boom it feeds).
 ENV_DIR <- "data/env"
 
+# Built bundle = precip + air temperature + fruiting (see scripts/refresh_env_data.R).
+# Relative humidity and soil moisture are intentionally NOT bundled (soil water is
+# a very-high-volume product); re-add a row here + a column in the refresh script
+# if you later decide the offline build cost is worth it.
 ENV_LAYERS <- list(
   precip = list(col = "precip_mm",   label = "Precipitation", unit = "mm/mo",
                 dpid = "DP1.00044.001", agg = "sum",  color = "#2f7fb5", lead = TRUE),
   temp   = list(col = "temp_c",      label = "Air temperature", unit = "°C",
                 dpid = "DP1.00002.001", agg = "mean", color = "#d9480f", lead = FALSE),
-  rh     = list(col = "rh_pct",      label = "Relative humidity", unit = "%",
-                dpid = "DP1.00098.001", agg = "mean", color = "#0b7285", lead = FALSE),
-  vswc   = list(col = "vswc_pct",    label = "Soil moisture", unit = "% vol",
-                dpid = "DP1.00094.001", agg = "mean", color = "#8a5a2b", lead = TRUE),
   fruit  = list(col = "fruiting_pct", label = "Plants fruiting", unit = "% in fruit",
                 dpid = "DP1.10055.001", agg = "mean", color = "#1a7f37", lead = TRUE)
 )
