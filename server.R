@@ -137,6 +137,9 @@ server <- function(input, output, session) {
               else if (strength >= 0.2) "Weak" else "Negligible"
     glyph  <- if (pos) "arrow-up-right" else "arrow-down-right"
     div(class = paste("ec", rail),
+      # tint the driver-name underline to that driver's IDENTITY colour (not its
+      # sign/strength) so the banner echoes the warm/blue/green family below.
+      style = sprintf("--ec-driver-hue:%s;", ENV_LAYERS[[es$layer]]$color %||% "#8a97a8"),
       div(class = "ec-eyebrow",
         bs_icon("graph-up-arrow"), tags$span("environmental tracking"),
         if (es$demo) tags$span(class = "ec-demo", "demo overlay") else NULL),
@@ -145,6 +148,7 @@ server <- function(input, output, session) {
           tags$span(class = "ec-strength", slabel), " link with ",
           tags$span(class = "ec-driver", tolower(sc$label))),
         div(class = paste("ec-rvalue", if (pos) "ec-sgn-pos" else "ec-sgn-neg"),
+          title = "correlation coefficient, -1 to +1 — tap the (i) above for what it means",
           bs_icon(glyph), HTML(sprintf("r&nbsp;%+.2f", sc$r)))),
       div(class = "ec-foot",
         tags$span(class = "ec-meta", bs_icon("clock-history"),
@@ -162,6 +166,7 @@ server <- function(input, output, session) {
     es <- env_sel(); d <- rv$data
     if (is.null(es) || is.null(d)) return(note_plot("Pick an environmental overlay to compare", "\U0001F3AF"))
     meta <- ENV_LAYERS[[es$layer]]
+    sc   <- tryCatch(env_corr_scan(d, es$env, es$layer), error = function(e) NULL)
     pts <- env_response_points(d, es$env, es$layer, es$lag)
     if (is.null(pts) || nrow(pts) < 3)
       return(note_plot("Not enough month-matched data for this overlay", "\U0001F3AF"))
@@ -176,9 +181,10 @@ server <- function(input, output, session) {
       fit <- stats::lm(cpue ~ value, data = pts)
       xs <- range(pts$value, na.rm = TRUE)
       yh <- stats::predict(fit, newdata = data.frame(value = xs))
+      fitcol <- if (!is.null(sc)) ec_corr_color(es$layer, sc$r, is_dark()) else meta$color
       p <- p %>% plotly::add_trace(x = xs, y = yh, type = "scatter", mode = "lines",
         inherit = FALSE, showlegend = FALSE, hoverinfo = "skip",
-        line = list(color = meta$color, width = 2, dash = "dash"))
+        line = list(color = fitcol, width = 2, dash = "dash"))
     }
     p %>% plotly_theme(legend = FALSE) %>% plotly::layout(
       xaxis = list(title = sprintf("%s (%s)%s", meta$label, meta$unit,
@@ -199,6 +205,11 @@ server <- function(input, output, session) {
     ca <- ca[order(abs(ca$r)), ]   # plotly horizontal bars draw bottom-up
     ca$lab <- ifelse(ca$lag == 0, "same mo", sprintf("lag %d mo", ca$lag))
     ca$dir <- ifelse(ca$r < 0, "inverse", "positive")
+    # Driver-semantic fill: hue = which driver + sign of r (warm/cool, green/brown,
+    # faded for weak links). Safe here ONLY because the bar's SIDE of x=0 (+ the
+    # "left of 0 = inverse" caption) is the authoritative direction cue — colour
+    # never carries the direction call alone, so it survives colour-blindness.
+    ca$ccol <- mapply(ec_corr_color, ca$layer, ca$r, MoreArgs = list(dark = is_dark()))
     demo <- identical(attr(env, "source"), "demo")
     n_drv <- nrow(ca)
     # Bars are clickable (source = "driverRank", customdata = the layer key): a
@@ -207,7 +218,7 @@ server <- function(input, output, session) {
     # tells you whether more driver means more or fewer animals.
     plot_ly(ca, x = ~r, y = ~factor(label, levels = label), type = "bar",
       orientation = "h", source = "driverRank", customdata = ~layer,
-      marker = list(color = ~color),
+      marker = list(color = ~ccol),
       text = ~sprintf("r %+.2f · %s · n=%d", r, lab, n), textposition = "auto",
       hovertemplate = ~paste0("<b>", label, "</b><br>r %{x:+.2f} (", dir, ") at ", lab,
                               " · n=", n, "<br><i>tap to overlay below</i><extra></extra>")) %>%
