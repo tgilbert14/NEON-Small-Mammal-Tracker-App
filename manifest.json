@@ -3248,19 +3248,19 @@
       "checksum": "47dbc051e5ea51a5fdb7b618e7acd8c4"
     },
     "global.R": {
-      "checksum": "0274cab48051ac0b91ac69b27f5c5558"
+      "checksum": "8d8c4857f6a0409489f91474123f4910"
     },
     "R/helpers.R": {
-      "checksum": "f94a8dfcede7d2af414aff33fafc5737"
+      "checksum": "7385b090daf2859658450c02610b3c97"
     },
     "R/site_metadata.R": {
       "checksum": "dd998c7eb8763e4ae1f33c060ed8364a"
     },
     "server.R": {
-      "checksum": "15f8cda736b04412491d81a786d3aeeb"
+      "checksum": "0d42d26376ea69f72d2f705b4d6f0c4a"
     },
     "ui.R": {
-      "checksum": "5d63507a0fb1d9dcbdd8ce0c8ee7848a"
+      "checksum": "f6fcdaeac16da159f2555e38f273818a"
     },
     "www/app.js": {
       "checksum": "d9e924548bfa08d0b5c96efc6c1700e5"

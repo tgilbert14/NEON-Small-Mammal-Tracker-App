@@ -76,9 +76,22 @@ server <- function(input, output, session) {
          env = rv$env, demo = identical(attr(rv$env, "source"), "demo"))
   })
 
-  # show the lag slider only once a layer is chosen
+  # show the lag slider once a layer is chosen, AND default it to that layer's
+  # MOST-correlated lag (from the deseasonalized scan) so picking a layer shows
+  # its best match, not lag 0; the slider still lets you switch to any other lag.
   observeEvent(input$envLayer, {
-    shinyjs::toggle("envLagWrap", condition = !is.null(input$envLayer) && input$envLayer != "none")
+    on <- !is.null(input$envLayer) && input$envLayer != "none"
+    shinyjs::toggle("envLagWrap", condition = on)
+    if (on && !is.null(rv$data) && !is.null(rv$env)) {
+      sc <- tryCatch(env_corr_scan(rv$data, rv$env, input$envLayer), error = function(e) NULL)
+      best <- if (!is.null(sc) && !is.na(sc$lag)) as.integer(sc$lag) else 0L
+      updateSliderInput(session, "envLag", value = best)
+      # The lag slider's wrapper was just un-hidden; ionRangeSlider can compute a
+      # 0-width track when updated inside a hidden box and then not repaint the
+      # handle. A resize tick once it's visible makes it recompute width and
+      # redraw the handle at the value we just set (`best`).
+      shinyjs::runjs("setTimeout(function(){window.dispatchEvent(new Event('resize'));},150);")
+    }
   }, ignoreNULL = FALSE)
 
   # provenance badge under the picker: real NEON vs the illustrative demo series
@@ -124,7 +137,7 @@ server <- function(input, output, session) {
       color = ~year, colors = "YlGnBu",
       marker = list(size = 10, line = list(color = "#fff", width = 1)),
       text = ~format(date, "%b %Y"),
-      hovertemplate = paste0("%{text}<br>", meta$label, ": %{x} ", meta$unit,
+      hovertemplate = paste0("%{text}<br>", meta$label, ": %{x:.", (meta$dig %||% 0), "f} ", meta$unit,
                              "<br>CPUE: %{y:.1f}/100TN<extra></extra>")) %>%
       plotly::colorbar(title = "year")
     if (nrow(pts) >= 3 && stats::sd(pts$value) > 0) {
