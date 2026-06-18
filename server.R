@@ -1844,6 +1844,30 @@ server <- function(input, output, session) {
   })
 
   # ---- body-size profile (violin per species, "Position DNA") ------------
+  # per-species body-measurement profile (weight/hindfoot dense; tail/ear sparse)
+  output$speciesMeas <- DT::renderDT({
+    d <- rv$data; req(d)
+    m <- species_measurements(d)
+    if (is.null(m) || !nrow(m)) return(DT::datatable(data.frame(Note = "No measured animals"),
+      rownames = FALSE, options = list(dom = "t")))
+    cell <- function(med, lo, hi, n, min_n = 3) ifelse(
+      is.na(med) | n < min_n, "<span class='muted'>—</span>",
+      sprintf("<b>%s</b> <span class='mz-rng'>[%s–%s]</span> <span class='mz-n'>n=%s</span>",
+              med, lo, hi, format(n, big.mark = ",")))
+    df <- tibble::tibble(
+      Species = sprintf("<span class='ind-cell'><span class='ind-emoji'>%s</span><span class='ind-id'><i>%s</i></span></span>", m$emoji, m$scientificName),
+      Indiv = m$n_ind,
+      `Weight (g)`    = cell(m$w_med,  m$w_lo,  m$w_hi,  m$w_n),
+      `Hindfoot (mm)` = cell(m$hf_med, m$hf_lo, m$hf_hi, m$hf_n),
+      `Tail (mm)`     = cell(m$tl_med, m$tl_lo, m$tl_hi, m$tl_n),
+      `Ear (mm)`      = cell(m$el_med, m$el_lo, m$el_hi, m$el_n))
+    DT::datatable(df, escape = FALSE, rownames = FALSE, selection = "none",
+      class = "compact stripe hover nowrap leader-dt",
+      options = list(pageLength = 12, dom = "tip", scrollX = TRUE,
+        columnDefs = list(list(className = "dt-center", targets = 1:5)),
+        language = list(search = "", searchPlaceholder = "filter species…")))
+  })
+
   output$sizeViolin <- renderPlotly({
     d <- rv$data; req(d)
     # ADULTS only (juveniles/subadults make a mixture that reads as a fat/bimodal

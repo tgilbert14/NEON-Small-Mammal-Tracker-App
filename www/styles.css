@@ -861,6 +861,10 @@ table.dataTable tbody tr:active { background: #dfe8f4 !important; }
 /* counters pop in */
 .count-up { display: inline-block; }
 
+/* per-species measurement table: dim the [range] and the n */
+.mz-rng { color: var(--muted); font-size: 11px; }
+.mz-n { color: var(--muted); font-size: 10px; opacity: .85; margin-left: 2px; }
+
 /* ---- Hall of Fame podium (top-3, olympic: 2nd · 1st-raised · 3rd) ------ */
 .podium { display: flex; justify-content: center; align-items: flex-end; gap: 14px; margin: 4px 0 16px; }
 .podium-card { flex: 1 1 0; max-width: 230px; min-width: 0; text-align: center; cursor: pointer;
