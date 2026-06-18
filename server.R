@@ -166,27 +166,34 @@ server <- function(input, output, session) {
     if (is.null(ca) || !nrow(ca)) return(note_plot("Not enough overlap to compare drivers", "\U0001F326"))
     ca <- ca[order(abs(ca$r)), ]   # plotly horizontal bars draw bottom-up
     ca$lab <- ifelse(ca$lag == 0, "same mo", sprintf("lag %d mo", ca$lag))
+    ca$dir <- ifelse(ca$r < 0, "inverse", "positive")
     demo <- identical(attr(env, "source"), "demo")
     n_drv <- nrow(ca)
+    # Bars are clickable (source = "driverRank", customdata = the layer key): a
+    # click overlays that driver on the abundance plot below — the ranking IS the
+    # driver switcher. Sorted by strength |r| regardless of sign; the sign/dir
+    # tells you whether more driver means more or fewer animals.
     plot_ly(ca, x = ~r, y = ~factor(label, levels = label), type = "bar",
-      orientation = "h", marker = list(color = ~color),
+      orientation = "h", source = "driverRank", customdata = ~layer,
+      marker = list(color = ~color),
       text = ~sprintf("r %+.2f · %s · n=%d", r, lab, n), textposition = "auto",
-      hovertemplate = ~paste0("<b>", label, "</b><br>best r %{x:+.2f} at ", lab,
-                              " (n=", n, ")<extra></extra>")) %>%
+      hovertemplate = ~paste0("<b>", label, "</b><br>r %{x:+.2f} (", dir, ") at ", lab,
+                              " · n=", n, "<br><i>tap to overlay below</i><extra></extra>")) %>%
+      plotly::event_register("plotly_click") %>%
       plotly_theme(legend = FALSE) %>%
       plotly::layout(
         title = list(text = if (demo) "Demo overlays — illustrative" else "",
                      font = list(size = 11, color = "#9a7a00"), x = 0.02),
-        xaxis = list(title = "best deseasonalized correlation with catch-per-effort (r)",
+        xaxis = list(title = "deseasonalized correlation with catch-per-effort (r) — left of 0 = inverse",
                      range = c(-1, 1), zeroline = TRUE, zerolinecolor = "rgba(31,42,48,0.35)"),
         yaxis = list(title = ""),
-        margin = list(b = 76),
-        # on-chart honesty: r is the max of a lag scan, and these bars are stages
-        # of one seasonal cascade (collinear) — not independent lines of evidence
+        margin = list(b = 84),
+        # cohesion + honesty: the bars ARE the switcher, sorted by strength; and
+        # they're collinear stages of one seasonal cascade, not independent evidence
         annotations = list(list(
-          text = sprintf("deseasonalized · best of %d driver%s × up to 13 lags<br>bars share one seasonal cascade — not independent evidence",
+          text = sprintf("tap a bar to overlay that driver below · sorted by strength · best of %d driver%s × ≤13 lags<br>left of 0 = inverse (more driver → fewer animals) · bars aren't independent evidence",
                          n_drv, if (n_drv == 1) "" else "s"),
-          x = 0, y = -0.34, xref = "paper", yref = "paper", xanchor = "left", yanchor = "top",
+          x = 0, y = -0.36, xref = "paper", yref = "paper", xanchor = "left", yanchor = "top",
           align = "left", showarrow = FALSE, font = list(size = 10, color = "#8a97a8"))))
   })
 
@@ -820,6 +827,14 @@ server <- function(input, output, session) {
   # the species bar advertises a click (source = "speciesBar") — wire it to the
   # same ranked species breakdown so the affordance isn't a dead end
   observeEvent(event_data("plotly_click", source = "speciesBar"), open_stat_modal("species"))
+
+  # click a driver-rank bar -> overlay that driver on the abundance plot below
+  # (the envLayer observer then sets its best lag); the ranking IS the switcher
+  observeEvent(event_data("plotly_click", source = "driverRank"), {
+    cd <- event_data("plotly_click", source = "driverRank")$customdata
+    if (!is.null(cd) && length(cd) && cd[1] %in% names(ENV_LAYERS))
+      updateSelectInput(session, "envLayer", selected = cd[1])
+  })
 
   # click an animal inside a modal -> open its dossier
   observeEvent(input$modalPick, {
@@ -1750,16 +1765,26 @@ server <- function(input, output, session) {
     # one; otherwise AUTO-overlay the BEST-correlated driver at its best lag (the
     # winner from the ranking above) — but only when the link is real (|r| >= 0.2)
     # — so the "which driver does this track?" answer plays out in action here.
-    es <- env_sel(); best_label <- NULL
+    es <- env_sel(); best_label <- NULL; auto <- FALSE
     if (is.null(es) && !is.null(rv$env)) {
       ca <- env_corr_all(rv$data, rv$env)
       if (!is.null(ca) && nrow(ca) && !is.na(ca$r[1]) && abs(ca$r[1]) >= 0.2) {
         w <- ca[1, ]
         es <- list(layer = w$layer, lag = as.integer(w$lag), env = rv$env,
                    demo = identical(attr(rv$env, "source"), "demo"))
-        best_label <- sprintf("best match: %s%s", w$label,
-          if (w$lag == 0) " (same month)" else sprintf(" (lag %d mo)", w$lag))
+        auto <- TRUE
       }
+    }
+    # Label the overlaid driver with its DIRECTION (so a negative winner reads as
+    # an inverse relationship, not a weak one) + lag. "best match" = the auto top
+    # driver; "showing" = one you picked (sidebar or by tapping a ranking bar).
+    if (!is.null(es)) {
+      meta <- ENV_LAYERS[[es$layer]]
+      sc <- tryCatch(env_corr_scan(rv$data, rv$env, es$layer), error = function(e) NULL)
+      dirtxt <- if (!is.null(sc) && !is.na(sc$r)) sprintf(" (%s)", if (sc$r < 0) "inverse" else "positive") else ""
+      lagtxt <- if (es$lag == 0) "same month" else sprintf("lag %d mo", es$lag)
+      best_label <- sprintf("%s: %s%s · %s", if (auto) "best match" else "showing",
+                            meta$label, dirtxt, lagtxt)
     }
     p <- plot_ly()
     if (!is.null(es))   # env area first → soft context behind the abundance band
