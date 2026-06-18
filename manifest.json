@@ -3254,13 +3254,13 @@
       "checksum": "5995f4d3021b60fa57c6a63bd1ce15c1"
     },
     "R/report_pdf.R": {
-      "checksum": "c56a3f565ebf018dc7ce32dd37778fbb"
+      "checksum": "fde40ed98168de709c24a1d19c29eabc"
     },
     "R/site_metadata.R": {
       "checksum": "dd998c7eb8763e4ae1f33c060ed8364a"
     },
     "server.R": {
-      "checksum": "b6cada303e6f328757de4a837f26a2ad"
+      "checksum": "c608ecb6dbc3943dbfc6cb8ca9fb5074"
     },
     "ui.R": {
       "checksum": "de97e73bbdc14f7dedb9f9968dd154b6"

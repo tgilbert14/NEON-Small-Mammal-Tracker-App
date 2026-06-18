@@ -715,9 +715,24 @@ server <- function(input, output, session) {
                        selected = if ("HARV" %in% ch) "HARV" else unname(ch)[2], width = "100%")),
       actionButton("runCompare", tagList(bs_icon("bar-chart-steps"), " Compare these sites"),
                    class = "btn-primary w-100 cmp-run"),
-      spin(uiOutput("compareOut"), img = "rat1.gif")
+      spin(uiOutput("compareOut"), img = "rat1.gif"),
+      downloadButton("compareReport",
+        tagList(bs_icon("file-earmark-arrow-down"), " Download comparison report (PDF)"),
+        class = "btn-outline-dark w-100 cmp-dl")
     ))
   })
+
+  # side-by-side comparison report (PDF) for the two picked sites — reads the
+  # live cmpA/cmpB selection, so it works whether or not Compare was pressed.
+  output$compareReport <- downloadHandler(
+    filename = function() sprintf("NEON-compare_%s-vs-%s.pdf", input$cmpA %||% "A", input$cmpB %||% "B"),
+    content = function(file) {
+      a <- input$cmpA; b <- input$cmpB
+      validate(need(!is.null(a) && !is.null(b) && !identical(a, b), "Pick two different sites to compare."))
+      ba <- load_site_bundle(a); bb <- load_site_bundle(b)
+      validate(need(!is.null(ba) && !is.null(bb), "Both sites must be in the offline bundle."))
+      render_compare_pdf(file, clean_mam(ba), site_label(a), clean_mam(bb), site_label(b))
+    })
 
   # build a one-site metric pack from its bundle (memoized so swapping a site
   # back in is instant and a repeat compare never re-crunches the heavy sites)
