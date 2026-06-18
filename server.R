@@ -1146,6 +1146,23 @@ server <- function(input, output, session) {
       if (row$career_days[1] > 0) sprintf(" over %s days", fmt_int(row$career_days[1])) else "",
       rank_phrase)
 
+    # approximate-age tile — a plain string (it carries a ~ / ≥ glyph the count-up
+    # animator can't render). "~X.X yr" only for animals first caught young;
+    # "≥X.X yr" (left-censored minimum) for adult/unknown-first. Suppressed for
+    # tag-reuse suspects: a recycled-tag "career" is two animals, so any age is
+    # fiction — the existing "verify tag" chip already explains why.
+    age_val <- row$approx_age_years[1]
+    age_tile <- if (!isTRUE(row$tag_suspect[1]) && length(age_val) == 1 && !is.na(age_val) && is.finite(age_val)) {
+      pre <- if (isTRUE(row$age_is_minimum[1])) "≥" else "~"
+      tip <- paste0("Days we knew this animal, plus an estimate of how old it already was at first ",
+                    "capture (≈1 mo if first seen as a juvenile, ≈2.5 mo as a subadult). ",
+                    "≥ means first caught as an adult, so its true age is at least this — ",
+                    "we can't see how old it was before we met it. Approximate to ~0.1 yr, not a birthday.")
+      div(class = "ds-stat ds-stat-hint", title = tip,
+          div(class = "ds-stat-v", paste0(pre, age_val, " yr")),
+          div(class = "ds-stat-l", "approx age"))
+    } else NULL
+
     div(class = "dossier-card", style = sprintf("--rarity:%s; --rglow:%s;", rm$color, rm$glow),
       div(class = "ds-left",
         div(class = "ds-emoji", row$emoji[1]),
@@ -1167,6 +1184,7 @@ server <- function(input, output, session) {
         div(class = "ds-stats",
           stat("captures", target = row$captures[1]),
           stat("career span", target = if (row$career_days[1] > 0) row$career_days[1] else NA, suffix = "d"),
+          age_tile,
           stat("traps used", target = row$n_traps[1]),
           stat("max move", target = row$mdm_m[1], suffix = "m"),
           stat("avg weight", target = row$avg_weight[1], suffix = "g"),
@@ -1867,22 +1885,61 @@ server <- function(input, output, session) {
     m <- species_measurements(d)
     if (is.null(m) || !nrow(m)) return(DT::datatable(data.frame(Note = "No measured animals"),
       rownames = FALSE, options = list(dom = "t")))
-    cell <- function(med, lo, hi, n, min_n = 3) ifelse(
-      is.na(med) | n < min_n, "<span class='muted'>—</span>",
-      sprintf("<b>%s</b> <span class='mz-rng'>[%s–%s]</span> <span class='mz-n'>n=%s</span>",
-              med, lo, hi, format(n, big.mark = ",")))
+    # headline range is now the robust p5–p95 envelope; an amber ⚠ appears when a
+    # measure contains values flagged as possible data-entry errors (beyond
+    # median±5·MAD). The flagged value is KEPT — its raw min–max rides in the
+    # tooltip for field QC — but it's excluded from the median and the p5–p95 range.
+    cell <- function(med, lo, hi, n, nflag, rmin, rmax, unit, min_n = 3) {
+      warn <- ifelse(!is.na(nflag) & nflag > 0,
+        sprintf(" <span class='mz-flag' title='%s value(s) here are beyond the plausible adult range (raw %s–%s %s) — kept for your QC, but excluded from the median and the 5th–95th-percentile range shown'>&#9888;</span>",
+                format(nflag, big.mark = ","), rmin, rmax, unit),
+        "")
+      ifelse(is.na(med) | n < min_n, "<span class='muted'>—</span>",
+        sprintf("<b>%s</b> <span class='mz-rng'>[%s–%s]</span> <span class='mz-n'>n=%s</span>%s",
+                med, lo, hi, format(n, big.mark = ","), warn))
+    }
     df <- tibble::tibble(
       Species = sprintf("<span class='ind-cell'><span class='ind-emoji'>%s</span><span class='ind-id'><i>%s</i></span></span>", m$emoji, m$scientificName),
       Indiv = m$n_ind,
-      `Weight (g)`    = cell(m$w_med,  m$w_lo,  m$w_hi,  m$w_n),
-      `Hindfoot (mm)` = cell(m$hf_med, m$hf_lo, m$hf_hi, m$hf_n),
-      `Tail (mm)`     = cell(m$tl_med, m$tl_lo, m$tl_hi, m$tl_n),
-      `Ear (mm)`      = cell(m$el_med, m$el_lo, m$el_hi, m$el_n))
+      `Weight (g)`    = cell(m$w_med,  m$w_lo,  m$w_hi,  m$w_n,  m$w_nflag,  m$w_min,  m$w_max,  "g"),
+      `Hindfoot (mm)` = cell(m$hf_med, m$hf_lo, m$hf_hi, m$hf_n, m$hf_nflag, m$hf_min, m$hf_max, "mm"),
+      `Tail (mm)`     = cell(m$tl_med, m$tl_lo, m$tl_hi, m$tl_n, m$tl_nflag, m$tl_min, m$tl_max, "mm"),
+      `Ear (mm)`      = cell(m$el_med, m$el_lo, m$el_hi, m$el_n, m$el_nflag, m$el_min, m$el_max, "mm"))
     DT::datatable(df, escape = FALSE, rownames = FALSE, selection = "none",
       class = "compact stripe hover nowrap leader-dt",
       options = list(pageLength = 12, dom = "tip", scrollX = TRUE,
         columnDefs = list(list(className = "dt-center", targets = 1:5)),
         language = list(search = "", searchPlaceholder = "filter species…")))
+  })
+
+  # ---- minimum known lifespan (a right-censored FLOOR, not a lifespan) -----
+  # Longest age-at-last-capture among animals first caught young; muted tone so a
+  # tentative floor never reads as a confident "good" finding. Captive AnAge
+  # maxima shown for scale (always several times the wild value).
+  output$lifespanBanner <- renderUI({
+    lb <- rv$lb
+    if (is.null(lb)) return(NULL)
+    ml <- min_known_lifespan(lb)
+    if (is.null(ml) || !nrow(ml))
+      return(insight_banner("hourglass-split", tone = "muted", HTML(paste0(
+        "Not enough recaptured individuals here to say how long animals are confirmed alive — ",
+        "it needs at least 5 individuals per species, each caught 3+ times."))))
+    rows <- paste0(
+      "<div class='lsp-row'>",
+        "<span class='lsp-sp'>", ml$emoji, " <i>", ml$scientificName, "</i></span>",
+        "<span class='lsp-val'>&ge;", ml$min_known_yr, " yr</span>",
+        "<span class='lsp-n'>n=", ml$n_qual, "</span>",
+        ifelse(is.na(ml$captive_max_yr), "",
+               paste0("<span class='lsp-cap'>captive max ~", ml$captive_max_yr, " yr</span>")),
+      "</div>", collapse = "")
+    insight_banner("hourglass-split", tone = "muted", HTML(paste0(
+      "<b>Longest we confirmed an individual alive</b> — how old the single longest-tracked animal ",
+      "was when last caught (caught 3+ times). A <b>floor</b>, not a lifespan: it can't climb past ",
+      "~1.7 yr (careers beyond ~1.5 yr are set aside as probable reused ear tags), animals still ",
+      "alive or that left the grid aren't counted (absence isn't death), and species we trap more ",
+      "often reach higher floors just from more chances — so read each as its own floor, not a ranking. ",
+      "True lifespans run far longer; the captive maxima shown for scale are several times these figures.",
+      "<div class='lsp-list'>", rows, "</div>")))
   })
 
   output$sizeViolin <- renderPlotly({

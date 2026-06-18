@@ -356,6 +356,11 @@ build_leaderboard <- function(d) {
       avg_hf         = round(safe_mean(.data$hindfootLength), 1),
       sex            = mode_chr(.data$sex),
       lifeStage      = mode_chr(.data$lifeStage),
+      # life stage at the EARLIEST capture (not the modal stage) — the age clock
+      # only has a birth anchor if we first met the animal young. NA-safe: drops
+      # undated rows, NA when none are dated.
+      first_stage    = { o <- order(.data$date, na.last = NA)
+                         if (length(o)) .data$lifeStage[o[1]] else NA_character_ },
       roam_m         = roam_radius(.data$tx, .data$ty),
       mdm_m          = max_dist_moved(.data$tx, .data$ty),
       .groups = "drop"
@@ -378,7 +383,24 @@ build_leaderboard <- function(d) {
       # cricetids plausibly live (~550 d ≈ 1.5 yr) OR a gap of a full missed
       # year+ (>300 d) is almost certainly a recycled ear-tag = two animals.
       tag_suspect = (.data$career_days > 550) | (!is.na(.data$max_gap_days) & .data$max_gap_days > 300),
-      id_uncertain = .data$n_species_ids > 1
+      id_uncertain = .data$n_species_ids > 1,
+      # APPROX AGE (decimal years) = career span + a coarse estimate of how old
+      # the animal already was at first capture. Genus-level heteromyid offsets
+      # (ADW/AnAge D. merriami: weaning 15–25 d, maturity 60–102 d): juvenile
+      # ~30 d, subadult ~75 d. A CONFIRMED adult first capture is LEFT-CENSORED:
+      # it was already mature when first seen, so its true age is unknown-and-
+      # greater — floored at ~90 d (earliest reliably-scored adult) and flagged a
+      # MINIMUM (shown with "≥"). Unknown / unrecorded first stage is ALSO a
+      # minimum, but we must NOT assume maturity, so it takes the conservative
+      # 30 d (juvenile) floor — a smaller, safer lower bound for "we don't know."
+      # Right-censored regardless: the clock stops at last capture, not death.
+      # career_days is already coalesced to 0 above.
+      age_offset_days  = dplyr::case_when(.data$first_stage == "juvenile" ~ 30,
+                                          .data$first_stage == "subadult" ~ 75,
+                                          .data$first_stage == "adult"    ~ 90,
+                                          TRUE ~ 30),   # unknown / unrecorded: don't assume it was a mature adult
+      approx_age_years = round((.data$age_offset_days + .data$career_days) / 365.25, 1),
+      age_is_minimum   = !(.data$first_stage %in% c("juvenile", "subadult"))
     ) %>%
     dplyr::arrange(dplyr::desc(.data$captures), dplyr::desc(.data$career_days)) %>%
     dplyr::mutate(rank = dplyr::row_number())
@@ -434,17 +456,34 @@ community_stats <- function(d, lb = NULL) {
 
 # Per-species community summary (richness / abundance table + charts).
 species_summary <- function(d) {
-  dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$scientificName)) %>%
+  hh <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$scientificName))
+  # ADULT mean weight, de-pseudoreplicated and gated. Two honesty fixes:
+  #  (1) average ONE mean-weight per INDIVIDUAL first, so a much-recaptured heavy
+  #      animal weighed 20× can't pull the species mean up (and the n counts
+  #      animals, not capture-rows);
+  #  (2) require >= 8 distinct staged adults before reporting a mean — matches the
+  #      size-violin / dossier-band n>=8 floors sitting beside it; below that a
+  #      "typical weight" / "heaviest species" claim is too noisy, so avg_weight
+  #      is NA (renders as "—" with an "n too low" note). adults-only as before.
+  adult_w <- hh %>%
+    dplyr::filter(.data$lifeStage %in% "adult", is.finite(.data$weight), .data$weight > 0) %>%
+    dplyr::group_by(.data$scientificName, .data$tagID) %>%
+    dplyr::summarise(w = mean(.data$weight), .groups = "drop_last") %>%
+    dplyr::summarise(n_adult = dplyr::n(), adult_mean = mean(.data$w), .groups = "drop")
+
+  hh %>%
     dplyr::group_by(.data$scientificName) %>%
     dplyr::summarise(
       individuals = dplyr::n_distinct(.data$tagID),
       captures    = dplyr::n(),
-      # ADULT mean weight — juveniles/subadults are much lighter, so pooling all
-      # stages drags a species' "typical weight" down and mixes growth stages.
-      # (%in% is NA-safe; NA when a species has no staged adults.)
-      avg_weight  = round(safe_mean(.data$weight[.data$lifeStage %in% "adult"]), 1),
       .groups = "drop"
     ) %>%
+    dplyr::left_join(adult_w, by = "scientificName") %>%
+    dplyr::mutate(
+      n_adult    = dplyr::coalesce(.data$n_adult, 0L),
+      avg_weight = dplyr::if_else(.data$n_adult >= 8L, round(.data$adult_mean, 1), NA_real_)
+    ) %>%
+    dplyr::select(-"adult_mean") %>%
     dplyr::arrange(dplyr::desc(.data$captures)) %>%
     dplyr::mutate(emoji = genus_emoji(.data$scientificName),
                   nickname = species_nickname(.data$scientificName))
@@ -466,17 +505,89 @@ species_measurements <- function(d) {
   pos <- function(x) { x[is.finite(x) & x > 0] }
   npos <- function(x) length(pos(x))
   med  <- function(x) { v <- pos(x); if (length(v)) round(stats::median(v), 1) else NA_real_ }
-  lo   <- function(x) { v <- pos(x); if (length(v)) round(min(v), 1) else NA_real_ }
-  hi   <- function(x) { v <- pos(x); if (length(v)) round(max(v), 1) else NA_real_ }
+  # Headline range is the p5–p95 envelope (a "typical adult" band), so a single
+  # mis-keyed value can't blow the bracket open — the raw min/max are kept
+  # separately for QC.
+  lo   <- function(x) { v <- pos(x); if (length(v)) round(stats::quantile(v, 0.05, names = FALSE), 1) else NA_real_ }
+  hi   <- function(x) { v <- pos(x); if (length(v)) round(stats::quantile(v, 0.95, names = FALSE), 1) else NA_real_ }
+  rmin <- function(x) { v <- pos(x); if (length(v)) round(min(v), 1) else NA_real_ }
+  rmax <- function(x) { v <- pos(x); if (length(v)) round(max(v), 1) else NA_real_ }
+  # Count values flagged as POSSIBLE data-entry errors: |x − median| > 5·MAD,
+  # with MAD floored at 10% of the median so a tight integer distribution (pocket
+  # mice clustered at a few grams, mad≈1.5) doesn't read normal jitter as an
+  # error. MAD/median are breakdown-robust so the outlier can't mask itself. The
+  # flagged value STAYS in the data (and in the QC tooltip) but is beyond the
+  # p5–p95 range shown; this is a "verify this record" affordance, not a delete.
+  nflag <- function(x) {
+    v <- pos(x); if (length(v) < 3) return(0L)
+    m <- stats::median(v); s <- max(stats::mad(v), 0.1 * m)
+    if (!is.finite(s) || s <= 0) return(0L)
+    as.integer(sum(abs(v - m) > 5 * s))
+  }
   out <- h %>% dplyr::group_by(.data$scientificName) %>% dplyr::summarise(
     n_ind  = dplyr::n_distinct(.data$tagID),
-    w_n  = npos(.data$weight),         w_med  = med(.data$weight),         w_lo  = lo(.data$weight),         w_hi  = hi(.data$weight),
-    hf_n = npos(.data$hindfootLength), hf_med = med(.data$hindfootLength), hf_lo = lo(.data$hindfootLength), hf_hi = hi(.data$hindfootLength),
-    tl_n = npos(.data$tailLength),     tl_med = med(.data$tailLength),     tl_lo = lo(.data$tailLength),     tl_hi = hi(.data$tailLength),
-    el_n = npos(.data$earLength),      el_med = med(.data$earLength),      el_lo = lo(.data$earLength),      el_hi = hi(.data$earLength),
+    w_n  = npos(.data$weight),  w_med  = med(.data$weight),  w_lo  = lo(.data$weight),  w_hi  = hi(.data$weight),  w_min  = rmin(.data$weight),         w_max  = rmax(.data$weight),         w_nflag  = nflag(.data$weight),
+    hf_n = npos(.data$hindfootLength), hf_med = med(.data$hindfootLength), hf_lo = lo(.data$hindfootLength), hf_hi = hi(.data$hindfootLength), hf_min = rmin(.data$hindfootLength), hf_max = rmax(.data$hindfootLength), hf_nflag = nflag(.data$hindfootLength),
+    tl_n = npos(.data$tailLength),     tl_med = med(.data$tailLength),     tl_lo = lo(.data$tailLength),     tl_hi = hi(.data$tailLength),     tl_min = rmin(.data$tailLength),     tl_max = rmax(.data$tailLength),     tl_nflag = nflag(.data$tailLength),
+    el_n = npos(.data$earLength),      el_med = med(.data$earLength),      el_lo = lo(.data$earLength),      el_hi = hi(.data$earLength),      el_min = rmin(.data$earLength),      el_max = rmax(.data$earLength),      el_nflag = nflag(.data$earLength),
     .groups = "drop") %>%
     dplyr::arrange(dplyr::desc(.data$n_ind))
   dplyr::mutate(out, emoji = genus_emoji(.data$scientificName))
+}
+
+# Genus-level CAPTIVE maximum longevity (years), from AnAge / HAGR. Shown ONLY as
+# a sanity ceiling beside the observed floor — captive maxima run ~3–10× typical
+# wild lifespan, so they are always labelled "captive" and never read as a wild
+# value. Chaetodipus penicillatus/eremicus aren't in AnAge; the congener
+# C. formosus (7.1 yr) stands in for the genus. Genera absent here show no value.
+# Sources: genomics.senescence.info — Dipodomys merriami 9.7 / D. ordii 9.9,
+# Chaetodipus formosus 7.1, Perognathus flavus 4.9, Peromyscus maniculatus 8.3.
+ANAGE_CAPTIVE_MAX_YR <- c(
+  Dipodomys = 9.9, Chaetodipus = 7.1, Perognathus = 4.9,
+  Peromyscus = 8.3, Onychomys = 4.8, Reithrodontomys = 5.0
+)
+genus_of <- function(sci) sub("^([A-Za-z]+).*$", "\\1", sci)
+
+# Per-species "longest confirmed time alive" — a right-censored FLOOR, NOT a
+# lifespan. The longest age-at-last-capture (approx_age_years = conservative
+# age-at-first-capture + career span) among non-tag-suspect individuals with >=3
+# captures, where >=5 such individuals exist. It is DOUBLY bounded:
+#  - biased LOW (right-censored): animals still alive or that left the grid are
+#    uncounted, and absence != death (death vs permanent emigration are
+#    indistinguishable here);
+#  - ceiling-capped: the tag-reuse guard sets aside any career >550 d (~1.5 yr)
+#    as a probable recycled ear tag, so this floor cannot exceed ~1.7 yr no matter
+#    how long an animal really lived — which is exactly why the abundant species
+#    pin near that value. We therefore present it as "longest confirmed alive,"
+#    not a lifespan, and show the AnAge captive max for scale.
+# (Restricting to juvenile-first animals — verified — collapses this to ~0.4 yr:
+# young-first animals are caught repeatedly in one season then gone, while the
+# long-tracked individuals are ~96-100% adult-first. Their approx_age_years uses
+# the conservative ~90 d adult-age floor, so including them stays a valid lower
+# bound.) A model-based apparent-survival (CJS φ) lifespan is deliberately NOT
+# computed — it needs an offline-validated session definition and would
+# over-claim. One row per qualifying species-level taxon.
+min_known_lifespan <- function(lb) {
+  if (is.null(lb) || !nrow(lb)) return(NULL)
+  if (!all(c("approx_age_years", "captures", "tag_suspect") %in% names(lb)))
+    return(NULL)
+  q <- dplyr::filter(lb,
+    .data$captures >= 3,
+    !.data$tag_suspect,
+    is.finite(.data$approx_age_years),
+    !is.na(.data$scientificName))
+  q <- species_level_only(q)
+  if (is.null(q) || !nrow(q)) return(NULL)
+  out <- q %>% dplyr::group_by(.data$scientificName) %>%
+    dplyr::summarise(n_qual = dplyr::n(),
+                     min_known_yr = round(max(.data$approx_age_years), 1),
+                     .groups = "drop") %>%
+    dplyr::filter(.data$n_qual >= 5) %>%
+    dplyr::arrange(dplyr::desc(.data$min_known_yr))
+  if (!nrow(out)) return(NULL)
+  out$captive_max_yr <- unname(ANAGE_CAPTIVE_MAX_YR[genus_of(out$scientificName)])
+  out$emoji <- genus_emoji(out$scientificName)
+  out
 }
 
 # Light 3x3 smoothing of a capture-count grid -> "hotspot blur" view.
@@ -912,11 +1023,16 @@ site_insights <- function(d, lb = NULL, cs = NULL) {
       "The most-trapped mammal here is the <b><i>%s</i></b>%s — <b>%s</b> individuals across <b>%s</b> captures.",
       top$scientificName, nn, fmt_int(top$individuals), fmt_int(top$captures)))
     if (nrow(sp) >= 2) {
-      hv <- sp[which.max(replace(sp$avg_weight, is.na(sp$avg_weight), -Inf)), ]
-      if (is.finite(hv$avg_weight) && hv$scientificName != top$scientificName)
-        out <- c(out, sprintf(
-          "The heaviest species caught is the <b><i>%s</i></b>, with adults averaging about <b>%s g</b> — one of the larger-bodied species at this site.",
-          hv$scientificName, hv$avg_weight))
+      # only species clearing the n>=8 adult floor are eligible (avg_weight is NA
+      # below it) — never crown a "heaviest" off a 2-adult mean.
+      elig <- sp[sp$n_adult >= 8L & is.finite(sp$avg_weight), ]
+      if (nrow(elig) > 0) {
+        hv <- elig[which.max(elig$avg_weight), ]
+        if (hv$scientificName != top$scientificName)
+          out <- c(out, sprintf(
+            "The heaviest species caught is the <b><i>%s</i></b>, with adults averaging about <b>%s g</b> (n=%s) — one of the larger-bodied species at this site.",
+            hv$scientificName, hv$avg_weight, fmt_int(hv$n_adult)))
+      }
     }
   }
 

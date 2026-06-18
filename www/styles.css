@@ -658,11 +658,12 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .ds-nick { font-size: 14px; color: var(--muted); font-weight: 400; margin-left: 10px; text-transform: lowercase; }
 .ds-warn { font-size: 12px; font-weight: 700; color: #9a6b12; background: #fdf3e0; border: 1px solid var(--gold); border-radius: 20px; padding: 2px 9px; margin-left: 10px; vertical-align: middle; cursor: help; white-space: nowrap; }
 .ds-sci { color: var(--pine); font-size: 15px; margin: 2px 0 16px; }
-.ds-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 14px; }
+.ds-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; margin-bottom: 14px; }
 @media (max-width: 900px) { .ds-stats { grid-template-columns: repeat(3, 1fr); } }
 .ds-stat { background: #f7f9f6; border: 1px solid var(--line); border-radius: 10px; padding: 8px 6px; text-align: center; }
 .ds-stat-v { font-weight: 800; font-size: 19px; color: var(--ink); }
 .ds-stat-l { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+.ds-stat-hint { cursor: help; }
 .ds-meta { display: flex; gap: 18px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
 .ds-meta b { color: var(--ink); font-weight: 700; }
 
@@ -864,6 +865,17 @@ table.dataTable tbody tr:active { background: #dfe8f4 !important; }
 /* per-species measurement table: dim the [range] and the n */
 .mz-rng { color: var(--muted); font-size: 11px; }
 .mz-n { color: var(--muted); font-size: 10px; opacity: .85; margin-left: 2px; }
+/* amber "possible data error" flag — same verify-treatment as .ds-warn, inline */
+.mz-flag { color: #c9871f; font-weight: 700; cursor: help; margin-left: 4px; }
+
+/* minimum-known-lifespan banner list (lsp- prefix; .ls- is the meet-locals card) */
+.lsp-list { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-top: 9px; }
+.lsp-row { display: inline-flex; align-items: baseline; gap: 8px; padding: 3px 11px;
+  border: 1px solid var(--line); border-radius: 9px; background: rgba(127,127,127,.06); }
+.lsp-sp { font-size: 13px; }
+.lsp-val { font-weight: 800; font-size: 14px; }
+.lsp-n { font-size: 11px; color: var(--muted); }
+.lsp-cap { font-size: 11px; color: var(--muted); font-style: italic; }
 
 /* ---- Hall of Fame podium (top-3, olympic: 2nd · 1st-raised · 3rd) ------ */
 .podium { display: flex; justify-content: center; align-items: flex-end; gap: 14px; margin: 4px 0 16px; }
