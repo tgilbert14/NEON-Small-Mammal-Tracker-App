@@ -94,31 +94,9 @@ ui <- bslib::page_sidebar(
       uiOutput("bioLinks")
     )),
 
-    # ---- compare with environment (co-located NEON products) --------------
-    hidden(div(id = "envPickerWrap",
-      hr(class = "deck-hr"),
-      selectInput("envLayer",
-        label = tagList(bs_icon("cloud-drizzle-fill"), " Compare with environment",
-          info_pop("Environmental overlays",
-            p("Overlay a co-located NEON data product — measured at ", tags$b("this same site"),
-              " — behind the population & seasonality charts to see what the booms and busts track."),
-            tags$ul(
-              tags$li(tags$b("Precipitation"), " — the rain pulse that feeds desert seed crops"),
-              tags$li(tags$b("Air temperature"), " — thermal limits on activity & plant growth"),
-              tags$li(tags$b("Plants flowering"), " — the annual seed-crop precursor granivores key on"),
-              tags$li(tags$b("Green-up (leaf-out)"), " — forage & cover, and an early precip-pulse proxy"),
-              tags$li(tags$b("Plants fruiting"), " — a near-direct food-supply signal (mast at forest sites)")),
-            p("Picking a layer shows it at its ", tags$b("most-correlated lag"), " by default; use the ", tags$b("lag"), " slider to shift the driver forward in time and explore other lags — a rain pulse can take months to become a rodent boom (the classic desert ", tags$em("pulse–reserve"), " response; Noy-Meir 1973; Brown & Ernest 2002)."),
-            p(class = "pop-caveat", bs_icon("exclamation-triangle"),
-              tags$b(" These overlays show correlation, not proof of cause."),
-              " Drivers are often correlated with each other (warm months are also dry months), so read a strong match as a lead to investigate, not a settled mechanism."))),
-        choices = c("None" = "none"), width = "100%"),
-      div(id = "envLagWrap",
-        sliderInput("envLag", tagList(bs_icon("hourglass-split"), " Lead time (months)"),
-                    min = 0, max = 12, value = 0, step = 1, width = "100%"),
-        div(class = "env-lag-hint", "0 = same month · 3 = driver 3 months earlier")),
-      uiOutput("envSourceNote")
-    )),
+    # ("Compare with environment" was moved out of the sidebar and onto the
+    #  Population tab — see envPickerWrap there — so it's actually discoverable
+    #  right where its overlays live.)
 
     hr(class = "deck-hr"),
     actionButton("help", tagList(bs_icon("question-circle"), " How it works"),
@@ -274,6 +252,34 @@ ui <- bslib::page_sidebar(
             h4("Defensible population signals"),
             p("Minimum Number Known Alive (MNKA) and catch-per-unit-effort are honest abundance indices; the accumulation curve shows whether trapping ran long enough to find every species."))
         ),
+        # "Compare with environment" lives HERE (moved off the sidebar) so it's
+        # discoverable right where its overlays appear. Hidden until the site has
+        # env data; choices + show/hide are driven server-side by id.
+        hidden(div(id = "envPickerWrap", class = "env-pop-bar",
+          div(class = "env-pop-row",
+            div(class = "env-pop-sel",
+              selectInput("envLayer",
+                label = tagList(bs_icon("cloud-drizzle-fill"), " Compare with environment",
+                  info_pop("Environmental overlays",
+                    p("Overlay a co-located NEON data product — measured at ", tags$b("this same site"),
+                      " — behind the population & seasonality charts to see what the booms and busts track."),
+                    tags$ul(
+                      tags$li(tags$b("Precipitation"), " — the rain pulse that feeds desert seed crops"),
+                      tags$li(tags$b("Air temperature"), " — thermal limits on activity & plant growth"),
+                      tags$li(tags$b("Plants flowering"), " — the annual seed-crop precursor granivores key on"),
+                      tags$li(tags$b("Green-up (leaf-out)"), " — forage & cover, and an early precip-pulse proxy"),
+                      tags$li(tags$b("Plants fruiting"), " — a near-direct food-supply signal (mast at forest sites)")),
+                    p("Picking a layer shows it at its ", tags$b("most-correlated lag"), " by default; use the ", tags$b("lag"), " slider to shift the driver forward in time and explore other lags — a rain pulse can take months to become a rodent boom (the classic desert ", tags$em("pulse–reserve"), " response; Noy-Meir 1973; Brown & Ernest 2002)."),
+                    p(class = "pop-caveat", bs_icon("exclamation-triangle"),
+                      tags$b(" These overlays show correlation, not proof of cause."),
+                      " Drivers are often correlated with each other (warm months are also dry months), so read a strong match as a lead to investigate, not a settled mechanism."))),
+                choices = c("None" = "none"), width = "100%")),
+            div(id = "envLagWrap", class = "env-pop-lag",
+              sliderInput("envLag", tagList(bs_icon("hourglass-split"), " Lead time (months)"),
+                          min = 0, max = 12, value = 0, step = 1, width = "100%"),
+              div(class = "env-lag-hint", "0 = same month · 3 = driver 3 months earlier"))),
+          uiOutput("envSourceNote")
+        )),
         conditionalPanel("output.hasEnv == true",
           card(full_screen = TRUE,
             card_head("bar-chart-steps", "Which environmental driver does this population track best?",
