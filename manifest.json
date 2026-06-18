@@ -3257,10 +3257,10 @@
       "checksum": "dd998c7eb8763e4ae1f33c060ed8364a"
     },
     "server.R": {
-      "checksum": "7a5571ba8b94d57e33d543fcfe468394"
+      "checksum": "ade3364daa861ae0d1c878fbf4a63296"
     },
     "ui.R": {
-      "checksum": "9cf01a99d2515c13e9193c32e936fbcf"
+      "checksum": "5d63507a0fb1d9dcbdd8ce0c8ee7848a"
     },
     "www/app.js": {
       "checksum": "d9e924548bfa08d0b5c96efc6c1700e5"
@@ -3281,7 +3281,7 @@
       "checksum": "03caa0fdc9353ecf3495715d7e5f11f5"
     },
     "www/styles.css": {
-      "checksum": "880690977533295ee9b9bbfffecad9e4"
+      "checksum": "7ee0613cad480f7ceea10e6bd16b2a8c"
     }
   },
   "users": null
