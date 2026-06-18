@@ -353,3 +353,96 @@ render_report_pdf <- function(file, d, label, is_demo = FALSE, cc = NULL) {
   popViewport()
   invisible(file)
 }
+
+# ---- two-site comparison report -------------------------------------------
+# Side-by-side PDF for two sites: a winner-highlighted metric table, species
+# overlap, top species per site, and (if ggplot2) composition charts on page 2.
+render_compare_pdf <- function(file, dA, labelA, dB, labelB) {
+  pack <- function(d) list(
+    cs = community_stats(d), hn = hill_numbers(d),
+    sp = utils::head(species_summary(d), 6),
+    all_sp = sort(unique(species_level_only(dplyr::filter(d, !is.na(.data$scientificName)))$scientificName)))
+  A <- pack(dA); B <- pack(dB)
+  codeA <- sub("[ ].*$", "", labelA); codeB <- sub("[ ].*$", "", labelB)
+  has_gg <- requireNamespace("ggplot2", quietly = TRUE)
+
+  PDF_DEV(file, width = PG$w, height = PG$h, onefile = TRUE)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  new_page(1, "")
+  y <- 0.05
+  grid.text(ascii("Two-site comparison"), x = unit(0, "npc"), y = gy(y),
+            just = c("left", "top"), gp = gpar(fontsize = 20, fontface = "bold", col = PG$navy))
+  y <- y + 0.36
+  grid.text(ascii(sprintf("%s   vs   %s", labelA, labelB)), x = unit(0, "npc"), y = gy(y),
+            just = c("left", "top"), gp = gpar(fontsize = 11, col = PG$muted))
+  y <- y + 0.44
+
+  cax <- 0.58; cbx <- 0.79
+  grid.text("Metric", x = unit(0, "npc"), y = gy(y), just = c("left", "top"), gp = gpar(fontface = "bold", fontsize = 10, col = PG$navy))
+  grid.text(ascii(codeA), x = unit(cax, "npc"), y = gy(y), just = c("left", "top"), gp = gpar(fontface = "bold", fontsize = 10, col = PG$navy))
+  grid.text(ascii(codeB), x = unit(cbx, "npc"), y = gy(y), just = c("left", "top"), gp = gpar(fontface = "bold", fontsize = 10, col = PG$navy))
+  grid.lines(x = unit(c(0, 1), "npc"), y = gy(y + 0.19), gp = gpar(col = PG$line, lwd = 1))
+  y <- y + 0.30
+  mrow <- function(lab, va, vb, fmt = function(x) format(round(x), big.mark = ","), higher = TRUE) {
+    tie <- is.na(va) || is.na(vb) || va == vb
+    aw <- !tie && ((va > vb) == higher); bw <- !tie && !aw && !(va == vb)
+    list(lab = lab, sa = fmt(va), sb = fmt(vb), fa = if (aw) 2 else 1, fb = if (bw) 2 else 1)
+  }
+  rows <- list(
+    mrow("Captures", A$cs$total_captures, B$cs$total_captures),
+    mrow("Individuals", A$cs$individuals, B$cs$individuals),
+    mrow("Species (richness)", A$cs$species, B$cs$species),
+    mrow("Effective common species (Hill q1)", A$hn$q1, B$hn$q1, fmt = function(x) format(round(x, 1), nsmall = 1)),
+    mrow("Evenness (0-1)", A$hn$even, B$hn$even, fmt = function(x) format(round(x, 2), nsmall = 2)),
+    mrow("Recapture rate", A$cs$recap_rate, B$cs$recap_rate, fmt = function(x) paste0(round(x, 1), "%")),
+    mrow("Trap-nights (effort)", A$cs$trap_nights, B$cs$trap_nights))
+  for (i in seq_along(rows)) {
+    r <- rows[[i]]
+    if (i %% 2 == 0)
+      grid.rect(x = unit(0, "npc"), y = gy(y), width = unit(1, "npc"), height = unit(0.22, "in"),
+                just = c("left", "top"), gp = gpar(fill = PG$zebra, col = NA))
+    grid.text(ascii(r$lab), x = unit(0, "npc"), y = gy(y + 0.02), just = c("left", "top"), gp = gpar(fontsize = 9.5))
+    grid.text(ascii(r$sa), x = unit(cax, "npc"), y = gy(y + 0.02), just = c("left", "top"),
+              gp = gpar(fontsize = 9.5, fontface = r$fa, col = if (r$fa == 2) PG$navy else PG$ink))
+    grid.text(ascii(r$sb), x = unit(cbx, "npc"), y = gy(y + 0.02), just = c("left", "top"),
+              gp = gpar(fontsize = 9.5, fontface = r$fb, col = if (r$fb == 2) PG$navy else PG$ink))
+    y <- y + 0.24
+  }
+  y <- y + 0.05
+  grid.text("Higher value per row in bold navy. Diversity is Hill numbers over distinct individuals.",
+            x = unit(0, "npc"), y = gy(y), just = c("left", "top"), gp = gpar(fontsize = 8, col = PG$muted))
+  y <- y + 0.34
+
+  shared <- intersect(A$all_sp, B$all_sp); onlyA <- setdiff(A$all_sp, B$all_sp); onlyB <- setdiff(B$all_sp, A$all_sp)
+  y <- draw_h4("Species overlap", y)
+  y <- draw_para(sprintf("%d species shared - %d only at %s - %d only at %s.",
+                         length(shared), length(onlyA), codeA, length(onlyB), codeB), y, 9.5)
+  y <- y + 0.12
+
+  y <- draw_h4("Top species (by individuals)", y)
+  grid.text(ascii(codeA), x = unit(0, "npc"), y = gy(y), just = c("left", "top"), gp = gpar(fontsize = 9.5, fontface = "bold", col = PG$navy))
+  grid.text(ascii(codeB), x = unit(0.5, "npc"), y = gy(y), just = c("left", "top"), gp = gpar(fontsize = 9.5, fontface = "bold", col = PG$navy))
+  y <- y + 0.24
+  splist <- function(p, x0) {
+    yy <- y
+    for (i in seq_len(nrow(p$sp))) {
+      grid.text(ascii(sprintf("%s  (%s ind)", p$sp$scientificName[i], format(p$sp$individuals[i], big.mark = ","))),
+                x = unit(x0, "npc"), y = gy(yy), just = c("left", "top"), gp = gpar(fontsize = 9, fontface = 3))
+      yy <- yy + 0.2
+    }
+    yy
+  }
+  y <- max(splist(A, 0.0), splist(B, 0.5)) + 0.1
+  popViewport()
+
+  if (has_gg) {
+    new_page(2, sprintf("%s vs %s", codeA, codeB)); yy <- 0.5
+    yy <- draw_h4(sprintf("Species composition - %s", codeA), yy)
+    yy <- embed_chart(chart_species(dA, A$cs), yy, 3.2)
+    yy <- draw_h4(sprintf("Species composition - %s", codeB), yy)
+    embed_chart(chart_species(dB, B$cs), yy, 3.2)
+    popViewport()
+  }
+  invisible(file)
+}
