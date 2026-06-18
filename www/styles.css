@@ -104,35 +104,95 @@ body {
   border-radius: 7px; padding: 6px 8px; margin: 6px 0 0; line-height: 1.4; }
 .pop-caveat .bi { color: var(--gold, #c9a300); }
 
-/* population<->environment correlation readout (Population tab) */
-@keyframes corrFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
-.env-corr { text-align: center; border-radius: 12px; padding: 14px 18px 13px;
-  margin: 0 0 14px; animation: corrFadeIn .3s ease; }
-.env-corr-strong { background: #eef6f0; border: 1px solid #cfe6d6; color: #21503a; }
-.env-corr-strong .corr-head .bi { color: var(--pine, #1a7f37); }
-.env-corr-mild { background: #f3f6fb; border: 1px solid var(--line); color: #3a4654; }
-.env-corr-mild .corr-head .bi { color: var(--muted); }
+/* =========================================================================
+   ENV-CORRELATION "answer" banner — sits at the top of the driver-ranking
+   card and answers its question (Q in the navy header → A here → bars below).
+   STRENGTH drives the left rail + verdict-word color; SIGN drives the
+   r-value color + arrow glyph + the more/fewer word — kept on separate
+   visual channels so a strong-but-inverse link never reads as "weak".
+   ========================================================================= */
+@keyframes ecReveal { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 
-.corr-head  { font-size: 13px; font-weight: 700; letter-spacing: .2px; margin-bottom: 9px; }
-.corr-head .bi { font-size: 15px; vertical-align: middle; margin-right: 2px; }
-.corr-stats { display: flex; justify-content: center; align-items: center;
-  flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
-.corr-foot  { font-size: 12.5px; line-height: 1.8; }
-.corr-dot   { color: var(--muted); opacity: .55; padding: 0 1px; }
-.corr-demo-note { font-size: 11px; opacity: .6; margin-left: 3px; }
+.ec {
+  position: relative;
+  margin: -8px 0 16px;                          /* pull up to sit under the navy header */
+  padding: 12px 16px 11px 18px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--ec-rail, var(--muted));
+  border-radius: 9px;
+  background: linear-gradient(180deg, #f4f8fd 0%, var(--paper) 100%);
+  box-shadow: 0 1px 2px rgba(12, 35, 75, .05);
+  animation: ecReveal .3s ease;
+}
+.ec.rail-strong { --ec-rail: #1a7f37; }          /* green (no green CSS token in this theme) */
+.ec.rail-mod    { --ec-rail: #c9a300; }          /* amber */
+.ec.rail-weak   { --ec-rail: var(--muted); }
 
-.corr-chip { display: inline-flex; align-items: center; border-radius: 5px;
-  padding: 1px 8px 2px; font-size: 12.5px; font-weight: 700; white-space: nowrap;
-  line-height: 1.65; letter-spacing: .1px; }
-.chip-driver { background: rgba(0,0,0,.09); }
-.chip-sig    { background: #c3e6cb; color: #155724; }
-.chip-mod    { background: #ffeeba; color: #7d5a00; }
-.chip-weak   { background: #dee2e6; color: #495057; }
-.chip-r      { background: rgba(0,0,0,.08); font-family: monospace; font-size: 12px; }
-.chip-n      { background: rgba(0,0,0,.05); font-weight: 600; }
-.chip-lag    { background: #e0d6f5; color: #5a3f8a; }
-.chip-pos    { background: #c3e6cb; color: #155724; }
-.chip-neg    { background: #f5c6cb; color: #721c24; }
+.ec-eyebrow {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 7px;
+  font-size: 10px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--muted);
+}
+.ec-eyebrow .bi { font-size: 12px; color: var(--ec-rail); }
+.ec-demo {
+  margin-left: auto; font-size: 9px; font-weight: 700; letter-spacing: .5px;
+  text-transform: uppercase; color: var(--gold-ink);
+  background: rgba(201, 163, 0, .12); border: 1px solid rgba(201, 163, 0, .32);
+  border-radius: 20px; padding: 1px 8px;
+}
+
+.ec-hero { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.ec-hero-text { flex: 1 1 auto; min-width: 0; font-size: 15px; line-height: 1.35;
+  font-weight: 500; color: var(--ink); }
+.ec-strength { font-weight: 800; color: var(--ec-rail); }
+.ec-driver { font-weight: 800; color: var(--ink);
+  border-bottom: 2px solid var(--ec-rail); padding-bottom: 1px; }
+
+.ec-rvalue {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 25px; font-weight: 700; line-height: 1; letter-spacing: -.5px;
+  font-variant-numeric: tabular-nums;
+}
+.ec-rvalue .bi { font-size: 18px; }
+.ec-rvalue.ec-sgn-pos { color: #1a7f37; }
+.ec-rvalue.ec-sgn-neg { color: var(--terra, #AB0520); }
+
+.ec-foot {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 9px;
+  margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line);
+  font-size: 11.5px; color: var(--muted);
+}
+.ec-meta { display: inline-flex; align-items: center; gap: 4px; line-height: 1.4; }
+.ec-meta .bi { font-size: 12px; opacity: .85; }
+.ec-meta b { color: var(--ink); font-weight: 800; }
+.ec-meta-dot { width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: .4; }
+.ec-dir { margin-left: auto; }                   /* push "higher -> more/fewer" to the right edge */
+.ec-dir.ec-sgn-pos b { color: #1a7f37; }
+.ec-dir.ec-sgn-neg b { color: var(--terra, #AB0520); }
+
+/* ---- dark mode (mirrors the app-wide [data-bs-theme="dark"] pattern) ---- */
+[data-bs-theme="dark"] .ec {
+  background: linear-gradient(180deg, #1b2942 0%, var(--paper) 100%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .3);
+}
+[data-bs-theme="dark"] .ec.rail-strong { --ec-rail: #5fcf86; }   /* raw greens read dim on navy */
+[data-bs-theme="dark"] .ec.rail-mod    { --ec-rail: var(--gold-ink); }
+[data-bs-theme="dark"] .ec-rvalue.ec-sgn-pos,
+[data-bs-theme="dark"] .ec-dir.ec-sgn-pos b { color: #5fcf86; }
+[data-bs-theme="dark"] .ec-rvalue.ec-sgn-neg,
+[data-bs-theme="dark"] .ec-dir.ec-sgn-neg b { color: #ff7a8a; }  /* cardinal too dark on navy */
+[data-bs-theme="dark"] .ec-demo {
+  color: var(--gold-ink); background: rgba(232, 197, 82, .12); border-color: rgba(232, 197, 82, .32);
+}
+
+/* ---- narrow / mobile (~380px): stack the hero, let the r-value own its row ---- */
+@media (max-width: 560px) {
+  .ec-hero { flex-direction: column; align-items: flex-start; gap: 5px; }
+  .ec-hero-text { font-size: 14px; }
+  .ec-rvalue { font-size: 28px; }
+  .ec-dir { margin-left: 0; flex-basis: 100%; }
+}
 
 .or-divider { display: flex; align-items: center; text-align: center; color: var(--muted); margin: 12px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; }
 .or-divider::before, .or-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); margin: 0 10px; }

@@ -109,39 +109,52 @@ server <- function(input, output, session) {
   # this site's monthly catch-per-effort and the selected (lagged) driver.
   output$envCorrNote <- renderUI({
     es <- env_sel(); d <- rv$data
-    if (is.null(es) || is.null(d)) return(NULL)
+    if (is.null(d)) return(NULL)
+    # On initial load no layer is picked (env_sel() is NULL), but the ranking
+    # card + auto-overlay below already default to the BEST-correlated driver.
+    # Mirror that here so the narrative renders immediately and describes the
+    # same driver — instead of staying blank until the user taps a bar.
+    if (is.null(es)) {
+      if (is.null(rv$env)) return(NULL)
+      ca <- env_corr_all(d, rv$env)
+      if (is.null(ca) || !nrow(ca)) return(NULL)
+      w  <- ca[1, ]
+      es <- list(layer = w$layer, lag = as.integer(w$lag), env = rv$env,
+                 demo = identical(attr(rv$env, "source"), "demo"))
+    }
     sc <- env_corr_scan(d, es$env, es$layer)
     if (is.null(sc)) return(NULL)
+    # The redesign reads as one designed "answer" to the card below it:
+    #   eyebrow · hero sentence + hero r-value · supporting metadata.
+    # Strength drives the left rail + the bold verdict word; SIGN drives the
+    # r-value color + arrow glyph + the "more/fewer" word — kept on separate
+    # visual channels so a strong-but-inverse link never reads as "weak".
     strength <- abs(sc$r)
-    word <- if (strength >= 0.6) "a strong" else if (strength >= 0.35) "a moderate"
-            else if (strength >= 0.2) "a weak" else "little"
-    dir  <- if (sc$r >= 0) "more" else "fewer"
-    lagtxt <- if (sc$lag == 0) "the same month" else sprintf("%d month%s earlier",
-                sc$lag, if (sc$lag == 1) "" else "s")
-    tone  <- if (strength >= 0.35) "env-corr-strong" else "env-corr-mild"
-    s_cls <- if (strength >= 0.6) "chip-sig" else if (strength >= 0.35) "chip-mod" else "chip-weak"
-    d_cls <- if (sc$r >= 0) "chip-pos" else "chip-neg"
-    div(class = paste("env-corr", tone),
-      div(class = "corr-head",
-        bs_icon("graph-up-arrow"), " catch-per-effort × ",
-        tags$span(class = "corr-chip chip-driver", tolower(sc$label))
-      ),
-      div(class = "corr-stats",
-        tags$span(class = paste("corr-chip", s_cls), word),
-        tags$span(class = "corr-dot", "·"),
-        tags$span(class = "corr-chip chip-r", HTML(sprintf("r = %+.2f", sc$r))),
-        tags$span(class = "corr-dot", "·"),
-        tags$span(class = "corr-chip chip-n", sprintf("n = %d months", sc$n))
-      ),
-      div(class = "corr-foot",
-        "Strongest when read ",
-        tags$span(class = "corr-chip chip-lag", lagtxt),
-        HTML(" — higher = "),
-        tags$span(class = paste("corr-chip", d_cls), dir),
-        " animals caught",
-        if (es$demo) tags$i(class = "corr-demo-note", " (demo overlay)") else NULL
-      )
-    )
+    pos    <- sc$r >= 0
+    dir    <- if (pos) "more" else "fewer"
+    rail   <- if (strength >= 0.6) "rail-strong" else if (strength >= 0.35) "rail-mod" else "rail-weak"
+    slabel <- if (strength >= 0.6) "Strong" else if (strength >= 0.35) "Moderate"
+              else if (strength >= 0.2) "Weak" else "Negligible"
+    glyph  <- if (pos) "arrow-up-right" else "arrow-down-right"
+    div(class = paste("ec", rail),
+      div(class = "ec-eyebrow",
+        bs_icon("graph-up-arrow"), tags$span("environmental tracking"),
+        if (es$demo) tags$span(class = "ec-demo", "demo overlay") else NULL),
+      div(class = "ec-hero",
+        div(class = "ec-hero-text",
+          tags$span(class = "ec-strength", slabel), " link with ",
+          tags$span(class = "ec-driver", tolower(sc$label))),
+        div(class = paste("ec-rvalue", if (pos) "ec-sgn-pos" else "ec-sgn-neg"),
+          bs_icon(glyph), HTML(sprintf("r&nbsp;%+.2f", sc$r)))),
+      div(class = "ec-foot",
+        tags$span(class = "ec-meta", bs_icon("clock-history"),
+          if (sc$lag == 0) "same-month signal"
+          else HTML(sprintf("<b>%d-mo</b> lead", sc$lag))),
+        tags$span(class = "ec-meta-dot"),
+        tags$span(class = "ec-meta", bs_icon("calendar3"),
+          HTML(sprintf("<b>%d</b> months matched", sc$n))),
+        tags$span(class = paste("ec-meta ec-dir", if (pos) "ec-sgn-pos" else "ec-sgn-neg"),
+          HTML(sprintf("higher \U2192 <b>%s</b> animals", dir)))))
   })
 
   # Response scatter: monthly catch-per-effort vs the (lagged) driver, with fit.
