@@ -447,6 +447,29 @@ species_summary <- function(d) {
                   nickname = species_nickname(.data$scientificName))
 }
 
+# Per-species body-measurement profile. NEON records weight + hindfoot densely;
+# tail/ear are sparse, so each measurement carries its own n and a cell is shown
+# only where measured. "Mode" isn't meaningful for a continuous measure, so we
+# report median + range (the honest summary). One row per species-level ID.
+species_measurements <- function(d) {
+  h <- species_level_only(dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$scientificName)))
+  if (is.null(h) || !nrow(h)) return(NULL)
+  pos <- function(x) { x[is.finite(x) & x > 0] }
+  npos <- function(x) length(pos(x))
+  med  <- function(x) { v <- pos(x); if (length(v)) round(stats::median(v), 1) else NA_real_ }
+  lo   <- function(x) { v <- pos(x); if (length(v)) round(min(v), 1) else NA_real_ }
+  hi   <- function(x) { v <- pos(x); if (length(v)) round(max(v), 1) else NA_real_ }
+  out <- h %>% dplyr::group_by(.data$scientificName) %>% dplyr::summarise(
+    n_ind  = dplyr::n_distinct(.data$tagID),
+    w_n  = npos(.data$weight),         w_med  = med(.data$weight),         w_lo  = lo(.data$weight),         w_hi  = hi(.data$weight),
+    hf_n = npos(.data$hindfootLength), hf_med = med(.data$hindfootLength), hf_lo = lo(.data$hindfootLength), hf_hi = hi(.data$hindfootLength),
+    tl_n = npos(.data$tailLength),     tl_med = med(.data$tailLength),     tl_lo = lo(.data$tailLength),     tl_hi = hi(.data$tailLength),
+    el_n = npos(.data$earLength),      el_med = med(.data$earLength),      el_lo = lo(.data$earLength),      el_hi = hi(.data$earLength),
+    .groups = "drop") %>%
+    dplyr::arrange(dplyr::desc(.data$n_ind))
+  dplyr::mutate(out, emoji = genus_emoji(.data$scientificName))
+}
+
 # Light 3x3 smoothing of a capture-count grid -> "hotspot blur" view.
 blur_grid <- function(z) {
   n <- nrow(z); m <- ncol(z)
