@@ -481,6 +481,14 @@ mnka_series <- function(d) {
     dplyr::group_by(.data$plotID, .data$ym) %>%
     dplyr::summarise(trap_nights = sum(.data$trap_effort, na.rm = TRUE),
                      captures = sum(!is.na(.data$tagID)), .groups = "drop")
+  # Drop plot-months with ZERO trap effort: NEON ships non-trapping records (e.g.
+  # the COVID-2020 pause, trap-status-only rows) that carry a plotID+ym but no
+  # actual sampling. Left in, they give CPUE = 100*0/0 = NaN, which shatters the
+  # site-total line into scattered single-month breaks (the SRER "spotty" bug),
+  # and add phantom points to the per-plot MNKA lines. A no-effort month is not
+  # a sampling event, so it isn't a data point.
+  eff <- eff[is.finite(eff$trap_nights) & eff$trap_nights > 0, , drop = FALSE]
+  if (nrow(eff) == 0) return(NULL)
   out <- eff %>% dplyr::rowwise() %>%
     dplyr::mutate(mnka = sum(span$plotID == .data$plotID &
                              span$first <= .data$ym & span$last >= .data$ym)) %>%
