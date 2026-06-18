@@ -11,16 +11,21 @@ function animateCount(el) {
   // custom Shiny message, which doesn't always register in time).
   if (typeof smtLoadDone === "function") smtLoadDone();
   const target = parseFloat(el.getAttribute("data-target")) || 0;
+  const suffix = el.dataset.suffix || "";          // e.g. "d", "m", "g"
   const isFloat = !Number.isInteger(target);
+  const fmt = (v) => (isFloat ? v.toFixed(1) : Math.round(v).toLocaleString()) + suffix;
+  // reduced-motion: snap to the final value, no animation
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    el.textContent = fmt(target); return;
+  }
   const dur = 900;
   const start = performance.now();
   function tick(now) {
     const t = Math.min(1, (now - start) / dur);
     const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
-    const val = target * eased;
-    el.textContent = isFloat ? val.toFixed(1) : Math.round(val).toLocaleString();
+    el.textContent = fmt(target * eased);
     if (t < 1) requestAnimationFrame(tick);
-    else el.textContent = isFloat ? target.toFixed(1) : Math.round(target).toLocaleString();
+    else el.textContent = fmt(target);
   }
   requestAnimationFrame(tick);
 }
