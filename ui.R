@@ -423,6 +423,7 @@ ui <- bslib::page_sidebar(
                  p("Each circle is a NEON trapping ", tags$b("plot"), ", placed at its real coordinates."),
                  p("Circle ", tags$b("size"), " = total captures there; ", tags$b("color"), " = species (same colors as the charts)."),
                  p("When an individual is selected, its plots get a pulsing ", tags$span(style="color:#ffd24a", "gold ring"), "."),
+                 p(tags$b("Recapture movement"), " (toggle, top-right): curved ", tags$span(style="color:#15b8a6", "teal arcs"), " link grids where the same tagged animals were recaptured — thicker = more individuals made that move. It's mark-recapture (\"here, then there\"), ", tags$b("not"), " a tracked route; a selected individual's own moves draw in gold."),
                  p("Hover a circle for its species + counts; switch basemap top-right."))),
             p("Each marker is a plot, sized by captures and colored by species. The selected individual's plots glow gold.")),
           div(class = "map-controls",
@@ -432,9 +433,12 @@ ui <- bslib::page_sidebar(
                                     "Light" = "CartoDB.Positron",
                                     "Dark" = "CartoDB.DarkMatter")),
             sliderInput("rad_size", "Marker scale", min = .3, max = 2.5, value = 1, step = .1, width = "150px"),
+            div(class = "map-flow-toggle",
+              checkboxInput("showFlow", tagList(bs_icon("share-fill"), " Recapture movement"), value = FALSE)),
             actionButton("reloadMapBtn", tagList(bs_icon("arrow-clockwise"), " Redraw"),
                          class = "btn-outline-dark btn-sm"))
         ),
+        uiOutput("mapInsight"),
         spin(leafletOutput("map", height = "620px"), img = "rat1.gif")
       ),
 

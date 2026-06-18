@@ -314,7 +314,12 @@ body {
 /* "tap me" hint under an interactive chart */
 .chart-hint { color: var(--muted); font-size: 12px; margin: 0 4px 6px; display: flex; align-items: center; gap: 6px; }
 .chart-hint .bi { color: var(--gold-ink); }
-.map-controls { display: flex; gap: 14px; align-items: flex-end; }
+.map-controls { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+/* the recapture-movement checkbox sits inline in the map control bar */
+.map-flow-toggle { margin-bottom: 6px; }
+.map-flow-toggle .form-group, .map-flow-toggle .checkbox { margin: 0; }
+.map-flow-toggle .form-check-label, .map-flow-toggle label { font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.map-flow-toggle .bi { color: #15b8a6; }
 /* inline "Tracking" individual picker in the Home Range tab head */
 .hr-controls { display: flex; gap: 18px; align-items: flex-end; flex-wrap: wrap; }
 .hr-indiv { display: flex; flex-direction: column; gap: 3px; }

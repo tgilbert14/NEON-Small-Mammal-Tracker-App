@@ -1470,6 +1470,59 @@ server <- function(input, output, session) {
       label = lapply(sprintf("⭐ selected individual here (%d caps)", hl$n), htmltools::HTML))
   })
 
+  # ---- between-plot recapture connectivity (the "movement" layer) ----------
+  recap_flow <- reactive({ d <- rv$data; if (is.null(d)) return(NULL); recapture_edges(d) })
+
+  # plain-English answer + the honest mark-recapture framing, above the map
+  output$mapInsight <- renderUI({
+    d <- rv$data; req(d)
+    rf <- recap_flow(); if (is.null(rf)) return(NULL)
+    if (rf$n_plots < 2)
+      return(insight_banner("diagram-2", tone = "muted",
+        "Only one trapping grid has coordinates here — there's no between-grid movement to map."))
+    if (rf$max_pair_m < 30)
+      return(insight_banner("diagram-2", tone = "muted",
+        HTML(sprintf("The grids here sit within <b>%d m</b> of each other — movement between them isn't resolvable at this scale.", round(rf$max_pair_m)))))
+    if (rf$n_movers == 0)
+      return(insight_banner("geo-fill", tone = "navy",
+        "No between-grid recaptures: every tagged animal stayed on its home grid (high site fidelity)."))
+    insight_banner("share-fill", tone = "navy",
+      HTML(sprintf("<span class='ci-hero'>%d</span> of %d tagged individuals were recaptured across <b>2+ grids</b>. Toggle <b>recapture movement</b> (top-right) to see the links — curved lines connect successive capture plots, <i>not</i> tracked routes.",
+        rf$n_movers, rf$n_tagged)))
+  })
+
+  # draw / clear the curved recapture arcs without redrawing the base map
+  observeEvent(list(input$showFlow, mapBase(), rv$tag), {
+    proxy <- leafletProxy("map") %>% clearGroup("flow") %>% clearGroup("flowSel")
+    if (!isTRUE(input$showFlow)) return()
+    rf <- recap_flow(); d <- rv$data
+    if (is.null(rf) || is.null(rf$edges) || !nrow(rf$edges) || rf$max_pair_m < 30) return()
+    e <- rf$edges; maxw <- max(e$n_movers)
+    for (i in seq_len(nrow(e))) {
+      a <- arc_xy(e$lng0[i], e$lat0[i], e$lng1[i], e$lat1[i])
+      frac <- if (maxw > 0) e$n_movers[i] / maxw else 1   # width+opacity carry weight (not hue) — CVD-safe
+      proxy %>% addPolylines(lng = a$lng, lat = a$lat, group = "flow",
+        weight = 1.8 + 5.5 * frac, opacity = 0.30 + 0.45 * frac, color = "#15b8a6",
+        label = htmltools::HTML(sprintf("%s &harr; %s<br/><b>%d</b> individuals moved between", e$plot_a[i], e$plot_b[i], e$n_movers[i])))
+    }
+    # selected individual's own successive-plot path, in gold, on top
+    tag <- rv$tag
+    if (!is.null(tag) && !is.null(rf$cen)) {
+      th <- d %>% dplyr::filter(.data$tagID == tag, !is.na(.data$plotID), !is.na(.data$date)) %>%
+        dplyr::arrange(.data$date)
+      pl <- if (nrow(th)) rle(as.character(th$plotID))$values else character(0)
+      cl <- rf$cen
+      for (j in seq_len(max(0, length(pl) - 1))) {
+        ra <- cl[match(pl[j], cl$plotID), ]; rb <- cl[match(pl[j + 1], cl$plotID), ]
+        if (nrow(ra) == 0 || nrow(rb) == 0 || is.na(ra$lat) || is.na(rb$lat)) next
+        a <- arc_xy(ra$lng, ra$lat, rb$lng, rb$lat)
+        proxy %>% addPolylines(lng = a$lng, lat = a$lat, group = "flowSel",
+          weight = 4, opacity = 0.95, color = "#c9a300",
+          label = htmltools::HTML(sprintf("selected: %s &rarr; %s", pl[j], pl[j + 1])))
+      }
+    }
+  }, ignoreNULL = FALSE)
+
   # ---- community pulse ----------------------------------------------------
   output$speciesBar <- renderPlotly({
     d <- rv$data; req(d)
