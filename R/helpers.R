@@ -467,6 +467,71 @@ blur_grid <- function(z) {
 }
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Between-plot recapture connectivity — the "movement" the dot map throws away.
+# For each individual caught at >=2 distinct plots, link its SUCCESSIVE distinct
+# capture plots (consecutive same-plot recaptures collapsed), aggregate across
+# animals so a plot-pair's weight = number of individuals that made that move.
+# This is mark-recapture, NOT telemetry: the line means "this animal was here,
+# then there," not a tracked route. Endpoints are pinned to fixed plot centroids.
+# Returns list(edges, n_movers, n_tagged, n_plots, max_pair_m) or NULL.
+# ---------------------------------------------------------------------------
+plot_span_m <- function(cen) {
+  if (is.null(cen) || nrow(cen) < 2) return(0)
+  R <- 6371000; rad <- pi / 180; mx <- 0
+  for (i in 1:(nrow(cen) - 1)) for (j in (i + 1):nrow(cen)) {
+    dlat <- (cen$lat[j] - cen$lat[i]) * rad; dlng <- (cen$lng[j] - cen$lng[i]) * rad
+    a <- sin(dlat / 2)^2 + cos(cen$lat[i] * rad) * cos(cen$lat[j] * rad) * sin(dlng / 2)^2
+    mx <- max(mx, 2 * R * asin(min(1, sqrt(a))))
+  }
+  mx
+}
+
+recapture_edges <- function(d) {
+  h <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$plotID), !is.na(.data$date),
+                     !is.na(.data$decimalLatitude), !is.na(.data$decimalLongitude))
+  if (nrow(h) == 0) return(NULL)
+  cen <- h %>% dplyr::group_by(.data$plotID) %>%
+    dplyr::summarise(lat = mean(.data$decimalLatitude), lng = mean(.data$decimalLongitude), .groups = "drop")
+  n_plots <- nrow(cen); n_tagged <- dplyr::n_distinct(h$tagID); span <- plot_span_m(cen)
+  seqs <- h %>% dplyr::arrange(.data$tagID, .data$date) %>%
+    dplyr::group_by(.data$tagID) %>% dplyr::summarise(ps = list(.data$plotID), .groups = "drop")
+  rows <- list(); movers <- character(0)
+  for (i in seq_len(nrow(seqs))) {
+    pl <- rle(as.character(seqs$ps[[i]]))$values   # drop consecutive same-plot repeats, keep A->B->A
+    if (length(pl) < 2) next
+    movers <- c(movers, seqs$tagID[i])
+    for (j in seq_len(length(pl) - 1)) {
+      ab <- sort(c(pl[j], pl[j + 1]))              # unordered pair as columns (no delimiter round-trip)
+      rows[[length(rows) + 1]] <- data.frame(a = ab[1], b = ab[2],
+        tag = as.character(seqs$tagID[i]), stringsAsFactors = FALSE)
+    }
+  }
+  base <- list(edges = NULL, n_movers = length(unique(movers)),
+               n_tagged = n_tagged, n_plots = n_plots, max_pair_m = span, cen = cen)
+  if (!length(rows)) return(base)
+  pr <- do.call(rbind, rows)
+  agg <- pr %>% dplyr::group_by(.data$a, .data$b) %>%
+    dplyr::summarise(n_movers = dplyr::n_distinct(.data$tag), .groups = "drop")
+  ca <- cen[match(agg$a, cen$plotID), ]; cb <- cen[match(agg$b, cen$plotID), ]
+  base$edges <- data.frame(plot_a = agg$a, plot_b = agg$b,
+    lat0 = ca$lat, lng0 = ca$lng, lat1 = cb$lat, lng1 = cb$lng,
+    n_movers = agg$n_movers, stringsAsFactors = FALSE)
+  base
+}
+
+# Quadratic-Bezier arc points between two lon/lat endpoints (a curved connector,
+# so a line on a satellite tile never reads as a walked straight route). `bow`
+# offsets the control point perpendicular to the chord.
+arc_xy <- function(lng0, lat0, lng1, lat1, n = 24, bow = 0.18) {
+  mx <- (lng0 + lng1) / 2; my <- (lat0 + lat1) / 2
+  dx <- lng1 - lng0; dy <- lat1 - lat0
+  cx <- mx - dy * bow; cy <- my + dx * bow
+  t <- seq(0, 1, length.out = n)
+  list(lng = (1 - t)^2 * lng0 + 2 * (1 - t) * t * cx + t^2 * lng1,
+       lat = (1 - t)^2 * lat0 + 2 * (1 - t) * t * cy + t^2 * lat1)
+}
+
 # Population index: Minimum Number Known Alive (MNKA; Krebs 1966) + CPUE.
 # An individual is "known alive" in every monthly session between its first and
 # last capture in a plot (even sessions it was missed). Returns one row per
