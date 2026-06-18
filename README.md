@@ -49,13 +49,17 @@ holographic PNG trading card, put two sites head-to-head, or print a one-page si
 **Overview — the story of a site.** Species ranked by abundance, an automatically written
 plain-English summary, and quick-jump navigation to every view.
 
-**Hall of Fame — rank every individual.** A leaderboard of the most-caught animals, re-sortable by
-captures, weight, career length, roaming, or weight-for-its-species, with rarity tiers.
+**Hall of Fame — rank every individual.** A top-3 **podium** over a leaderboard of every animal,
+re-sortable by captures, weight, career length, roaming, or weight-for-its-species, with rarity tiers
+and a Legendary shimmer. Each **dossier** opens with a computed one-line "story" — the animal's standout
+stat ranked against its peers ("the most-caught individual at this site") — and count-up stats.
 
 ![Capture leaderboard](assets/JORN_captureleaderboard.png)
 
 **Site map.** Species diversity by plot on a satellite basemap; the selected individual's plots are
-highlighted.
+highlighted. An optional **recapture-movement** layer draws curved arcs between grids where the same
+tagged animals were recaptured (thicker = more individuals made the move) — the between-grid
+connectivity the dots can't show, framed honestly as mark-recapture, not telemetry.
 
 ![Site map](assets/JORN_capturemap.png)
 
@@ -165,7 +169,11 @@ for the strongest correlation with catch-per-effort. To keep that defensible: bo
 **deseasonalized** (calendar-month anomalies) before correlating — so a match reflects year-to-year
 covariation, not a shared "both peak in summer" cycle — the overlap floor is **n ≥ 8 months**, and the
 panel labels the search ("best of N drivers × ≤13 lags") and flags that the bars are correlated stages
-of one seasonal cascade, *not* independent evidence.
+of one seasonal cascade, *not* independent evidence. The result is stated as a plain-English **answer**
+("a moderate link with air temperature, r = −0.50"), with a popover that explains *r* in lay terms —
+it's the correlation, **not** the percentage of the population explained (that's r²) — and the driver
+bars use an intuitive, colour-blind-safe palette: warm/cool for a positive/inverse temperature link,
+green/brown for vegetation.
 
 ## Run it locally
 
