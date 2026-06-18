@@ -1487,15 +1487,17 @@ server <- function(input, output, session) {
       return(insight_banner("geo-fill", tone = "navy",
         "No between-grid recaptures: every tagged animal stayed on its home grid (high site fidelity)."))
     insight_banner("share-fill", tone = "navy",
-      HTML(sprintf("<span class='ci-hero'>%d</span> of %d tagged individuals were recaptured across <b>2+ grids</b>. Toggle <b>recapture movement</b> (top-right) to see the links — curved lines connect successive capture plots, <i>not</i> tracked routes.",
+      HTML(sprintf("<span class='ci-hero'>%d</span> of %d tagged individuals were recaptured across <b>2+ grids</b>. Toggle <b>recapture movement</b> (top-right) to see the links — curved lines connect successive capture plots, <i>not</i> tracked routes, and a link across a long time gap can reflect a reused ear tag.",
         rf$n_movers, rf$n_tagged)))
   })
 
-  # draw / clear the curved recapture arcs without redrawing the base map
-  observeEvent(list(input$showFlow, mapBase(), rv$tag), {
-    proxy <- leafletProxy("map") %>% clearGroup("flow") %>% clearGroup("flowSel")
+  # teal AGGREGATE layer — redraws only when the toggle or base map changes
+  # (kept separate from the gold layer so clicking a new individual doesn't
+  # flicker the whole network).
+  observeEvent(list(input$showFlow, mapBase()), {
+    proxy <- leafletProxy("map") %>% clearGroup("flow")
     if (!isTRUE(input$showFlow)) return()
-    rf <- recap_flow(); d <- rv$data
+    rf <- recap_flow()
     if (is.null(rf) || is.null(rf$edges) || !nrow(rf$edges) || rf$max_pair_m < 30) return()
     e <- rf$edges; maxw <- max(e$n_movers)
     for (i in seq_len(nrow(e))) {
@@ -1505,21 +1507,25 @@ server <- function(input, output, session) {
         weight = 1.8 + 5.5 * frac, opacity = 0.30 + 0.45 * frac, color = "#15b8a6",
         label = htmltools::HTML(sprintf("%s &harr; %s<br/><b>%d</b> individuals moved between", e$plot_a[i], e$plot_b[i], e$n_movers[i])))
     }
-    # selected individual's own successive-plot path, in gold, on top
-    tag <- rv$tag
-    if (!is.null(tag) && !is.null(rf$cen)) {
-      th <- d %>% dplyr::filter(.data$tagID == tag, !is.na(.data$plotID), !is.na(.data$date)) %>%
-        dplyr::arrange(.data$date)
-      pl <- if (nrow(th)) rle(as.character(th$plotID))$values else character(0)
-      cl <- rf$cen
-      for (j in seq_len(max(0, length(pl) - 1))) {
-        ra <- cl[match(pl[j], cl$plotID), ]; rb <- cl[match(pl[j + 1], cl$plotID), ]
-        if (nrow(ra) == 0 || nrow(rb) == 0 || is.na(ra$lat) || is.na(rb$lat)) next
-        a <- arc_xy(ra$lng, ra$lat, rb$lng, rb$lat)
-        proxy %>% addPolylines(lng = a$lng, lat = a$lat, group = "flowSel",
-          weight = 4, opacity = 0.95, color = "#c9a300",
-          label = htmltools::HTML(sprintf("selected: %s &rarr; %s", pl[j], pl[j + 1])))
-      }
+  }, ignoreNULL = FALSE)
+
+  # selected individual's own date-ordered path, in gold — redraws on tag change
+  observeEvent(list(rv$tag, input$showFlow, mapBase()), {
+    proxy <- leafletProxy("map") %>% clearGroup("flowSel")
+    if (!isTRUE(input$showFlow)) return()
+    tag <- rv$tag; d <- rv$data; rf <- recap_flow()
+    if (is.null(tag) || is.null(d) || is.null(rf) || is.null(rf$cen) || rf$max_pair_m < 30) return()
+    th <- d %>% dplyr::filter(.data$tagID == tag, !is.na(.data$plotID), !is.na(.data$date)) %>%
+      dplyr::arrange(.data$date)
+    pl <- if (nrow(th)) rle(as.character(th$plotID))$values else character(0)
+    cl <- rf$cen
+    for (j in seq_len(max(0, length(pl) - 1))) {
+      ra <- cl[match(pl[j], cl$plotID), ]; rb <- cl[match(pl[j + 1], cl$plotID), ]
+      if (is.na(ra$lat) || is.na(rb$lat)) next   # plot lacked coords -> skip the leg, don't fabricate it
+      a <- arc_xy(ra$lng, ra$lat, rb$lng, rb$lat)
+      proxy %>% addPolylines(lng = a$lng, lat = a$lat, group = "flowSel",
+        weight = 4, opacity = 0.95, color = "#c9a300",
+        label = htmltools::HTML(sprintf("selected: %s &rarr; %s", pl[j], pl[j + 1])))
     }
   }, ignoreNULL = FALSE)
 

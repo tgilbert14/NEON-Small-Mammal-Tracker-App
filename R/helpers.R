@@ -502,19 +502,19 @@ recapture_edges <- function(d) {
     if (length(pl) < 2) next
     movers <- c(movers, seqs$tagID[i])
     for (j in seq_len(length(pl) - 1)) {
-      key <- paste(sort(c(pl[j], pl[j + 1])), collapse = "||")
-      rows[[length(rows) + 1]] <- c(key = key, tag = as.character(seqs$tagID[i]))
+      ab <- sort(c(pl[j], pl[j + 1]))              # unordered pair as columns (no delimiter round-trip)
+      rows[[length(rows) + 1]] <- data.frame(a = ab[1], b = ab[2],
+        tag = as.character(seqs$tagID[i]), stringsAsFactors = FALSE)
     }
   }
   base <- list(edges = NULL, n_movers = length(unique(movers)),
                n_tagged = n_tagged, n_plots = n_plots, max_pair_m = span, cen = cen)
   if (!length(rows)) return(base)
-  pr <- as.data.frame(do.call(rbind, rows), stringsAsFactors = FALSE)
-  agg <- pr %>% dplyr::group_by(.data$key) %>%
+  pr <- do.call(rbind, rows)
+  agg <- pr %>% dplyr::group_by(.data$a, .data$b) %>%
     dplyr::summarise(n_movers = dplyr::n_distinct(.data$tag), .groups = "drop")
-  ab <- do.call(rbind, strsplit(agg$key, "||", fixed = TRUE))
-  ca <- cen[match(ab[, 1], cen$plotID), ]; cb <- cen[match(ab[, 2], cen$plotID), ]
-  base$edges <- data.frame(plot_a = ab[, 1], plot_b = ab[, 2],
+  ca <- cen[match(agg$a, cen$plotID), ]; cb <- cen[match(agg$b, cen$plotID), ]
+  base$edges <- data.frame(plot_a = agg$a, plot_b = agg$b,
     lat0 = ca$lat, lng0 = ca$lng, lat1 = cb$lat, lng1 = cb$lng,
     n_movers = agg$n_movers, stringsAsFactors = FALSE)
   base
