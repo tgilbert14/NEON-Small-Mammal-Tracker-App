@@ -1119,7 +1119,9 @@ server <- function(input, output, session) {
     # one computed "story" sentence, with the lead stat ranked against peers
     lb <- rv$lb; ntot <- nrow(lb)
     cap_rank <- sum(lb$captures > row$captures[1], na.rm = TRUE) + 1L
-    rank_phrase <- if (cap_rank == 1) "the most-caught individual at this site"
+    n_tied_top <- sum(lb$captures == row$captures[1], na.rm = TRUE)   # don't crown two tied animals
+    rank_phrase <- if (cap_rank == 1 && n_tied_top == 1) "the most-caught individual at this site"
+      else if (cap_rank == 1) sprintf("tied for most-caught at this site (%d-way)", n_tied_top)
       else if (cap_rank <= max(2, ceiling(0.05 * ntot))) sprintf("in the top %d%% by captures here", max(1L, round(100 * cap_rank / ntot)))
       else sprintf("#%d of %d by captures here", cap_rank, ntot)
     art <- if (grepl("^[AEIOU]", row$rarity[1])) "an" else "a"
