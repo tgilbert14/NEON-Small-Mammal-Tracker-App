@@ -145,8 +145,13 @@ body {
 .ec-hero-text { flex: 1 1 auto; min-width: 0; font-size: 15px; line-height: 1.35;
   font-weight: 500; color: var(--ink); }
 .ec-strength { font-weight: 800; color: var(--ec-rail); }
+/* a WEAK/Negligible verdict's rail is grey (--muted) -> the word would be
+   low-contrast; keep the rail grey but render the word in readable ink. */
+.ec.rail-weak .ec-strength { color: var(--ink); }
+/* the driver name underline carries the driver's IDENTITY hue (set inline as
+   --ec-driver-hue), falling back to the strength rail colour. */
 .ec-driver { font-weight: 800; color: var(--ink);
-  border-bottom: 2px solid var(--ec-rail); padding-bottom: 1px; }
+  border-bottom: 2px solid var(--ec-driver-hue, var(--ec-rail)); padding-bottom: 1px; }
 
 .ec-rvalue {
   flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;

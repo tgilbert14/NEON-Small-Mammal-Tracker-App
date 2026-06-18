@@ -1068,6 +1068,46 @@ env_corr_all <- function(d, env, max_lag = 12) {
   tibble::as_tibble(res[order(-abs(res$r)), ])
 }
 
+# ---------------------------------------------------------------------------
+# ec_corr_color() — the SINGLE source of truth for the hue of a (driver,
+# correlation) pair on the population-driver visuals. Three meanings, three
+# channels, never overloaded onto one:
+#   identity  -> WHICH driver (the hue family: temp warm, rain blue, leaf green)
+#   direction -> the SIGN of r (which pole) — but only USED on surfaces that
+#                ALSO encode sign geometrically (a bar's side of 0, a slope), so
+#                a colour-blind reader never reads direction from hue alone
+#   magnitude -> length / the r number; colour only modulates LOUDNESS here:
+#                weak links fade toward the surface, |r| < 0.2 -> neutral grey
+# The only CVD-bulletproof diverging axis is cool-blue <-> warm, so fruit- and
+# flower-negative escape to blue/slate rather than a green/brown pair that would
+# collapse under red-green colour-blindness. (Vera + Quinn + Alyssa, 2026-06.)
+EC_CORR_POLES <- list(
+  precip  = list(pos = c("#1f6fb2", "#5aa9e6"), neg = c("#b07a35", "#d8a85a")),  # wet blue <-> dry tan
+  temp    = list(pos = c("#d9480f", "#ff7a45"), neg = c("#2f7fb5", "#6cc4ec")),  # hot red <-> cold blue
+  flower  = list(pos = c("#c2255c", "#f06595"), neg = c("#7a8a99", "#9aa7b5")),  # bloom magenta <-> slate
+  greenup = list(pos = c("#2b8a3e", "#69db7c"), neg = c("#9c6644", "#c08457")),  # leaf green <-> dead brown
+  fruit   = list(pos = c("#9c6644", "#c08457"), neg = c("#2f7fb5", "#6cc4ec"))   # ripe brown <-> cool blue
+)
+
+# mix hex `a` toward hex `b` by fraction `w` (0 = all a, 1 = all b)
+blend_hex <- function(a, b, w) {
+  ca <- grDevices::col2rgb(a); cb <- grDevices::col2rgb(b)
+  m  <- round(ca * (1 - w) + cb * w)
+  grDevices::rgb(m[1], m[2], m[3], maxColorValue = 255)
+}
+
+ec_corr_color <- function(layer, r, dark = FALSE) {
+  if (length(r) != 1 || is.na(r)) return("#8a97a8")
+  s <- abs(r)
+  if (s < 0.2) return("#8a97a8")                       # negligible -> neutral grey
+  pole <- EC_CORR_POLES[[layer]]
+  base <- if (is.null(pole)) (ENV_LAYERS[[layer]]$color %||% "#8a97a8")
+          else (if (r >= 0) pole$pos else pole$neg)[[if (dark) 2L else 1L]]
+  surf <- if (dark) "#16213a" else "#ffffff"           # blend target = the plot surface
+  w    <- if (s >= 0.6) 0 else if (s >= 0.35) 0.15 else 0.40  # fade loudness for weaker links
+  blend_hex(base, surf, w)
+}
+
 # Long trap-grid table (one row per A-J x 1-10 cell) for an individual's heatmap.
 trap_grid_long <- function(d, tag) {
   sub <- dplyr::filter(d, .data$tagID == tag, !is.na(.data$tx), !is.na(.data$ty))
