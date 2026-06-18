@@ -114,6 +114,23 @@ The deploy bundles the `.rds` files alongside the code (here `scripts/deploy.R` 
 the code and reproducible. Keep raw downloads out of the bundle (`.gitignore` the neon cache /
 `filesToProcess`) — only the trimmed `.rds` ship.
 
+### ⚠ Rebuilt bundles do NOT go live until you republish
+
+On a git-backed host (Posit Connect Cloud), the running app serves the **published snapshot**, and
+`manifest.json` pins a **SHA/MD5 checksum per bundled file**. So rebuilding a `.rds` locally changes
+nothing in production, and a changed bundle whose checksum wasn't refreshed can even fail the deploy.
+This bit us once — bundles looked updated locally but the live app kept serving the old data until a
+republish. The required sequence after any data rebuild:
+
+1. rebuild the bundles (`scripts/refresh_data.R`)
+2. **regenerate the manifest** so its checksums match the new files (`scripts/write_manifest.R` →
+   `rsconnect::writeManifest()`)
+3. `git add data/ manifest.json && git commit`
+4. **push + republish** on Connect Cloud (git-backed redeploy)
+
+Miss step 2 or 4 and the deployed app silently keeps the stale data. (On a non-manifest host like
+shinyapps.io, there's no checksum step, but you still must redeploy — the bundle only updates on push.)
+
 ---
 
 ## When to reach for this
@@ -134,4 +151,5 @@ the code and reproducible. Keep raw downloads out of the bundle (`.gitignore` th
    into `data/<thing>/<id>.rds`. Make it **resumable** + **tryCatch per item**.
 2. App: `load_bundle(id)` reads the file; **filter in memory**; **fall back** to live if missing.
 3. Commit the `.rds` files (they're the durable store) and include them in the deploy bundle.
-4. To refresh: delete the stale files, re-run the script, redeploy (or schedule it).
+4. To refresh: delete the stale files, re-run the script, **regenerate the manifest, commit, and
+   republish** — on a git-backed/manifest host the live app keeps the old data until you do.

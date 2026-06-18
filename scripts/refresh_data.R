@@ -7,8 +7,19 @@
 # all ~47 fit in the app bundle and load instantly — no live download for users.
 #
 # RESUMABLE: skips sites whose .rds already exists. Delete a file to re-pull it.
-# To refresh with newer data: delete data/sites/*.rds (or the ones you want) and
-# re-run, then redeploy.
+#
+# !! AFTER REBUILDING BUNDLES YOU MUST REPUBLISH !! The deployed app keeps serving
+# the OLD data until you do. Posit Connect Cloud serves the *published* git
+# snapshot, and manifest.json pins a CHECKSUM per bundled file — so a changed .rds
+# whose checksum wasn't refreshed will not take effect (and can fail the deploy).
+# Full refresh sequence, in order:
+#   1. delete data/sites/*.rds (or just the sites to refresh) and re-run THIS script
+#   2. Rscript scripts/write_manifest.R        # regenerate manifest.json checksums
+#   3. git add data/ manifest.json && git commit
+#   4. push, then republish on Connect Cloud (git-backed redeploy)
+# The live app shows the new data only once step 4 finishes — a local rebuild
+# alone changes nothing in production. (This bit us once: bundles looked updated
+# locally but the deployed app didn't change until a republish.)
 #
 # Run from the project root:
 #   Rscript scripts/refresh_data.R

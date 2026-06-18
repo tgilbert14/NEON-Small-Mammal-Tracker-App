@@ -3251,19 +3251,19 @@
       "checksum": "162d6bde4c29749d2211ec8370b07f14"
     },
     "R/helpers.R": {
-      "checksum": "edd0296275fb14a9517cca1815f4ab99"
+      "checksum": "74313bcb30a249850a3dca4ee40bf25f"
     },
     "R/report_pdf.R": {
-      "checksum": "74592c970ab4ad000171527af9750530"
+      "checksum": "b38dfd1642658ccd59b1de91c77872be"
     },
     "R/site_metadata.R": {
       "checksum": "dd998c7eb8763e4ae1f33c060ed8364a"
     },
     "server.R": {
-      "checksum": "2571c8e4c30946ca22166044a9de8a3d"
+      "checksum": "61bbadfb89acb2f8dbdc1cf6550c82f8"
     },
     "ui.R": {
-      "checksum": "d6c6793a9e71008fec26e0ba5b7aafc3"
+      "checksum": "a8898806276070cb22dc913d4b5c945a"
     },
     "www/app.js": {
       "checksum": "27b51557f767db76b5b387aff1f0efe3"
@@ -3284,7 +3284,7 @@
       "checksum": "03caa0fdc9353ecf3495715d7e5f11f5"
     },
     "www/styles.css": {
-      "checksum": "33935df5e50fa71c5b1fd35597c0d1c3"
+      "checksum": "706246616a43a0b993ce16f16c8e4bfe"
     }
   },
   "users": null

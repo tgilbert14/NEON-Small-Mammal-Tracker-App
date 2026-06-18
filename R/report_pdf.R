@@ -307,6 +307,29 @@ render_report_pdf <- function(file, d, label, is_demo = FALSE, cc = NULL) {
                   colx = c(0.00, 0.66, 0.78, 0.90), yTop = y, faces = c(3, 1, 1, 1), repeat_header = rh_fn)
   more_n <- nrow(sp) - nrow(sp_show)
   if (more_n > 0) y <- draw_para(sprintf("+ %d more taxa recorded", more_n), y, 9, PG$muted, 3)
+
+  # Body-measurement profile (adults only). Weight + hindfoot are measured at
+  # nearly every handling; tail/ear are too sparse for a clean table, so they're
+  # left to the on-screen profile. Ranges are the robust 5th-95th percentile.
+  mm <- tryCatch(species_measurements(d), error = function(e) NULL)
+  if (!is.null(mm) && nrow(mm) > 0) {
+    y <- draw_h4("Body measurements (adults)", y)
+    mm_show <- utils::head(mm, 12)
+    mcell <- function(med, lo, hi, n) if (is.na(med) || n < 3) "-" else
+      sprintf("%s [%s-%s]  n=%s", med, lo, hi, format(n, big.mark = ","))
+    mrows <- lapply(seq_len(nrow(mm_show)), function(i) {
+      r <- mm_show[i, ]
+      c(r$scientificName, mcell(r$w_med, r$w_lo, r$w_hi, r$w_n),
+        mcell(r$hf_med, r$hf_lo, r$hf_hi, r$hf_n))
+    })
+    rh_m <- function() { new_page(2, label); 0.5 }
+    y <- draw_table(c("Species", "Weight (g)", "Hindfoot (mm)"), mrows,
+                    colx = c(0.00, 0.40, 0.72), yTop = y, faces = c(3, 1, 1), repeat_header = rh_m)
+    y <- draw_para(paste("Adults only; median with the [5th-95th-percentile] range (a typical-adult envelope;",
+      "extreme values that look like data-entry errors are excluded from it). Tail & ear lengths are sparse",
+      "and shown in the app's Community profile."), y, 8, PG$muted)
+  }
+
   y <- draw_h4("Population structure", y)
   y <- draw_para(sprintf("Sex ratio: %s (%s F, %s M of %s handled). Life stage: %s.",
     sex_ratio, fmt_int(cs$n_female), fmt_int(cs$n_male), fmt_int(n_handled), stage_txt), y, 9.5)
