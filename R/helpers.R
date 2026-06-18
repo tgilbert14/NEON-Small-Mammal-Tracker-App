@@ -920,15 +920,19 @@ shift_env <- function(env, lag = 0) {
 # Add an environmental overlay (filled area) to a plotly time-series, bound to a
 # secondary axis (default "y3" so it can sit alongside an existing y2). `xlim`
 # clips the area to the data's own date range so it never zooms the chart out.
+# `conv` optionally transforms the displayed values (e.g. C->F) and `unit_label`
+# overrides the hover unit to match (defaults keep the layer's native unit).
 add_env_overlay <- function(p, env, layer, lag = 0, yaxis = "y3", xlim = NULL,
-                            demo = FALSE) {
+                            demo = FALSE, conv = NULL, unit_label = NULL) {
   meta <- ENV_LAYERS[[layer]]
   if (is.null(meta) || is.null(env) || !(meta$col %in% names(env))) return(p)
   e <- shift_env(env, lag)
   e$.v <- suppressWarnings(as.numeric(e[[meta$col]]))
+  if (!is.null(conv)) e$.v <- conv(e$.v)
   e <- e[!is.na(e$.v), , drop = FALSE]
   if (!is.null(xlim)) e <- e[e$date >= xlim[1] & e$date <= xlim[2], , drop = FALSE]
   if (!nrow(e)) return(p)
+  u  <- unit_label %||% meta$unit
   nm <- meta$label
   if (lag) nm <- sprintf("%s · lag %d mo", nm, as.integer(lag))
   if (demo) nm <- paste0(nm, " (demo)")
@@ -938,17 +942,17 @@ add_env_overlay <- function(p, env, layer, lag = 0, yaxis = "y3", xlim = NULL,
     name = nm, legendgroup = "env",
     line = list(color = meta$color, width = 1.6, shape = "spline"),
     fillcolor = paste0(meta$color, "1f"),
-    hovertemplate = paste0(meta$label, "<br>%{x|%b %Y}: %{y:.", dig, "f} ", meta$unit, "<extra></extra>"))
+    hovertemplate = paste0(meta$label, "<br>%{x|%b %Y}: %{y:.", dig, "f} ", u, "<extra></extra>"))
 }
 
 # Layout spec for an env overlay's axis. `show` toggles the tick labels/title
 # (off when the overlay is pure background context behind a busy chart).
 env_axis_spec <- function(layer, side = "right", overlaying = "y", show = TRUE,
-                          position = NULL) {
+                          position = NULL, unit_label = NULL) {
   meta <- ENV_LAYERS[[layer]]
   if (is.null(meta)) return(list(overlaying = overlaying, side = side, visible = FALSE))
   spec <- list(
-    title = if (show) sprintf("%s (%s)", meta$label, meta$unit) else "",
+    title = if (show) sprintf("%s (%s)", meta$label, unit_label %||% meta$unit) else "",
     overlaying = overlaying, side = side, rangemode = "tozero",
     showgrid = FALSE, zeroline = FALSE, color = meta$color,
     showticklabels = show)

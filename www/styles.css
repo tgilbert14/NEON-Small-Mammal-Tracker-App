@@ -189,6 +189,18 @@ body {
   overflow-wrap: anywhere; line-height: 1.25; }
 .card-hint { font-size: 11px; color: rgba(255,255,255,.85); font-weight: 400; flex: 0 0 auto; }
 
+/* compact °F/°C unit toggle in the (navy) detection-card header */
+.detect-head-right { margin-left: auto; display: flex; align-items: center; gap: 14px; flex: 0 0 auto; }
+.temp-unit-toggle { display: inline-flex; }
+.temp-unit-toggle .shiny-input-radiogroup { margin: 0; }
+.temp-unit-toggle .control-label { display: none; }
+.temp-unit-toggle .shiny-options-group { display: flex; gap: 8px; }
+.temp-unit-toggle .radio-inline, .temp-unit-toggle .form-check-inline {
+  margin: 0; min-height: 0; padding-left: 1.25em; }
+.temp-unit-toggle label, .temp-unit-toggle .form-check-label {
+  color: rgba(255,255,255,.9); font-size: 12px; font-weight: 600; cursor: pointer; margin: 0; }
+.temp-unit-toggle input[type="radio"] { cursor: pointer; }
+
 /* ---- tab heads -------------------------------------------------------- */
 .main-tabs-wrap { margin-top: 4px; }
 .tab-head { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 14px; padding: 14px 4px 6px; }

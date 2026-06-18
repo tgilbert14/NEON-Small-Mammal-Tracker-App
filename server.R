@@ -1752,6 +1752,28 @@ server <- function(input, output, session) {
       chip(cc$n_estimable,      sprintf("estimable bouts (of %d)", cc$n_bouts), "#1a7f37"))
   })
 
+  # The driver overlaid on the detection plot: the sidebar pick if any, else the
+  # auto best-match (top of the ranking, |r| >= 0.2). Shared so the °F/°C toggle's
+  # visibility and the plot agree on what's currently shown.
+  detect_overlay <- reactive({
+    es <- env_sel()
+    if (!is.null(es)) return(c(es, list(auto = FALSE)))
+    if (!is.null(rv$env)) {
+      ca <- env_corr_all(rv$data, rv$env)
+      if (!is.null(ca) && nrow(ca) && !is.na(ca$r[1]) && abs(ca$r[1]) >= 0.2) {
+        w <- ca[1, ]
+        return(list(layer = w$layer, lag = as.integer(w$lag), env = rv$env,
+                    demo = identical(attr(rv$env, "source"), "demo"), auto = TRUE))
+      }
+    }
+    NULL
+  })
+  # drives the conditional °F/°C toggle in the card header — only when temp is overlaid
+  output$detectTempActive <- reactive({
+    ov <- detect_overlay(); !is.null(ov) && identical(ov$layer, "temp")
+  })
+  outputOptions(output, "detectTempActive", suspendWhenHidden = FALSE)
+
   output$detectPlot <- renderPlotly({
     cc <- detect_cc()
     if (is.null(cc) || is.null(cc$series) || nrow(cc$series) == 0)
@@ -1765,16 +1787,11 @@ server <- function(input, output, session) {
     # one; otherwise AUTO-overlay the BEST-correlated driver at its best lag (the
     # winner from the ranking above) — but only when the link is real (|r| >= 0.2)
     # — so the "which driver does this track?" answer plays out in action here.
-    es <- env_sel(); best_label <- NULL; auto <- FALSE
-    if (is.null(es) && !is.null(rv$env)) {
-      ca <- env_corr_all(rv$data, rv$env)
-      if (!is.null(ca) && nrow(ca) && !is.na(ca$r[1]) && abs(ca$r[1]) >= 0.2) {
-        w <- ca[1, ]
-        es <- list(layer = w$layer, lag = as.integer(w$lag), env = rv$env,
-                   demo = identical(attr(rv$env, "source"), "demo"))
-        auto <- TRUE
-      }
-    }
+    es <- detect_overlay(); auto <- isTRUE(es$auto); best_label <- NULL
+    # temperature unit: default °F; the card-header toggle (input$tempUnit) flips to °C
+    tempF <- !is.null(es) && identical(es$layer, "temp") && (input$tempUnit %||% "F") == "F"
+    conv  <- if (tempF) function(x) x * 9 / 5 + 32 else NULL
+    ulab  <- if (tempF) "°F" else NULL
     # Label the overlaid driver with its DIRECTION (so a negative winner reads as
     # an inverse relationship, not a weak one) + lag. "best match" = the auto top
     # driver; "showing" = one you picked (sidebar or by tapping a ranking bar).
@@ -1789,7 +1806,8 @@ server <- function(input, output, session) {
     p <- plot_ly()
     if (!is.null(es))   # env area first → soft context behind the abundance band
       p <- add_env_overlay(p, es$env, es$layer, es$lag, yaxis = "y2",
-                           xlim = range(s$date, na.rm = TRUE), demo = es$demo)
+                           xlim = range(s$date, na.rm = TRUE), demo = es$demo,
+                           conv = conv, unit_label = ulab)
     p <- p %>%
       add_trace(data = s, x = ~date, y = ~hi, type = "scatter", mode = "lines",
         line = list(width = 0), showlegend = FALSE, hoverinfo = "skip") %>%
@@ -1814,7 +1832,7 @@ server <- function(input, output, session) {
       xaxis = list(title = ""), yaxis = list(title = "animals on the grid(s)", rangemode = "tozero"),
       margin = list(l = 50, r = 30, t = if (!is.null(best_label)) 72 else 48, b = 40),
       annotations = annos) %>% ctx_anno()   # t roomy for ctx caption / best-match label
-    if (!is.null(es)) p <- p %>% plotly::layout(yaxis2 = env_axis_spec(es$layer, show = TRUE))
+    if (!is.null(es)) p <- p %>% plotly::layout(yaxis2 = env_axis_spec(es$layer, show = TRUE, unit_label = ulab))
     p
   })
 
