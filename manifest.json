@@ -3248,22 +3248,25 @@
       "checksum": "47dbc051e5ea51a5fdb7b618e7acd8c4"
     },
     "global.R": {
-      "checksum": "8d8c4857f6a0409489f91474123f4910"
+      "checksum": "5939dc334b3fd8b9d604d57860d4993e"
     },
     "R/helpers.R": {
       "checksum": "7385b090daf2859658450c02610b3c97"
+    },
+    "R/report_pdf.R": {
+      "checksum": "26051af6b58937aa9ddbb24899318201"
     },
     "R/site_metadata.R": {
       "checksum": "dd998c7eb8763e4ae1f33c060ed8364a"
     },
     "server.R": {
-      "checksum": "69deb7308d7a047667a762947dedaa9d"
+      "checksum": "942b3d7f4a7fa24d1a0a3a2826dada31"
     },
     "ui.R": {
-      "checksum": "f6fcdaeac16da159f2555e38f273818a"
+      "checksum": "2610d4355696d7483f059e1dee8123fd"
     },
     "www/app.js": {
-      "checksum": "d9e924548bfa08d0b5c96efc6c1700e5"
+      "checksum": "cf9fef6bdba15afc099cfb388b811ea9"
     },
     "www/confirm.js": {
       "checksum": "c05030299121b6bb32e2794f0decb120"
@@ -3281,7 +3284,7 @@
       "checksum": "03caa0fdc9353ecf3495715d7e5f11f5"
     },
     "www/styles.css": {
-      "checksum": "7ee0613cad480f7ceea10e6bd16b2a8c"
+      "checksum": "6d26b59c17cdd925248f064de6b30a3b"
     }
   },
   "users": null

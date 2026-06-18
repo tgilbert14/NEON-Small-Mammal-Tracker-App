@@ -239,6 +239,10 @@ DDL <- list(
   muted = "#6b7a89", bg = "#eef2f8", paper = "#ffffff", line = "#dbe2ec"
 )
 
+# Server-side PDF report generator (sourced after DDL — its page geometry/palette
+# `PG` is built from DDL at source time). Replaces the old browser-print card.
+source("R/report_pdf.R", local = FALSE)
+
 app_theme <- bs_theme(
   version = 5,
   bg = "#ffffff", fg = DDL$ink,
