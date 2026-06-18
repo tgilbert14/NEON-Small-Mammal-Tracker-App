@@ -474,8 +474,10 @@ ui <- bslib::page_sidebar(
           tags$span(class = "rl-sep", "·"),
           tags$span(class = "rl-label", style = "letter-spacing:0;text-transform:none;",
                     "by total captures (15+ → Legendary)")),
+        uiOutput("leaderBanner"),
+        uiOutput("famePodium"),
         div(class = "tab-intro", bs_icon("hand-index-thumb"),
-            " Tap any row to open that animal's dossier — measurements, home range, capture history, and a shareable card."),
+            " Tap any row (or a podium card) to open that animal's dossier — measurements, home range, capture history, and a shareable card."),
         spin(DT::DTOutput("leaderboard"))
       ),
 

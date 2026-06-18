@@ -980,11 +980,14 @@ server <- function(input, output, session) {
     v <- rv$lb_view; req(v)
     cat_key <- input$leaderCat %||% "captures"
 
-    medal <- function(rank) paste0("#", rank)
+    mdl3 <- c("\U0001F947", "\U0001F948", "\U0001F949")   # gold / silver / bronze
+    medal <- function(rank) if (rank <= 3)
+      sprintf("<span class='medal'>%s</span> %d", mdl3[rank], rank) else paste0("#", rank)
     rar_badge <- function(tier) {
       m <- lapply(tier, rarity_meta)
       vapply(seq_along(tier), function(i) sprintf(
-        "<span class='tag-badge' style='background:%s;border-color:%s;color:#fff'>%s %s</span>",
+        "<span class='tag-badge%s' style='background:%s;border-color:%s;color:#fff'>%s %s</span>",
+        if (tier[i] == "Legendary") " is-legendary" else "",
         m[[i]]$color, m[[i]]$color, m[[i]]$icon, tier[i]), character(1))
     }
     chonk_badge <- function(tier, pct) {
@@ -1017,6 +1020,51 @@ server <- function(input, output, session) {
                                             targets = c(0, 2, 3, 4, 5, 6, 7, 8, 9))),
                      language = list(search = "", searchPlaceholder = "filter individuals…"))
     )
+  })
+
+  # category-switch banner: names the current leader so re-ranking has a payoff
+  output$leaderBanner <- renderUI({
+    v <- rv$lb_view; req(v); if (nrow(v) == 0) return(NULL)
+    cat_key <- input$leaderCat %||% "captures"; lead <- v[1, ]
+    lab <- switch(cat_key, captures = "most-caught", weight = "heaviest",
+                  career = "longest-tenured", roam = "furthest-roaming", chonk = "chonkiest", "top")
+    val <- switch(cat_key,
+      captures = paste0(fmt_int(lead$captures), " captures"),
+      weight   = ifelse(is.na(lead$max_weight), "—", paste0(lead$max_weight, " g")),
+      career   = ifelse(lead$career_days > 0, paste0(lead$career_days, " days"), "—"),
+      roam     = ifelse(is.na(lead$roam_m), "—", paste0(lead$roam_m, " m")),
+      chonk    = ifelse(is.na(lead$chonk_pct), "—", paste0(round(lead$chonk_pct), "% weight-for-species")),
+      "")
+    insight_banner("trophy-fill", tone = "gold",
+      HTML(sprintf("The <b>%s</b> animal at this site is <span class='ci-hero'>%s</span> (<i>%s</i>) — %s.",
+        lab, lead$short, lead$scientificName, val)))
+  })
+
+  # top-3 podium (olympic layout: 2nd · 1st-raised · 3rd), clickable to dossiers
+  output$famePodium <- renderUI({
+    v <- rv$lb_view; req(v); if (nrow(v) == 0) return(NULL)
+    cat_key <- input$leaderCat %||% "captures"
+    big_stat <- function(r) switch(cat_key,
+      captures = paste0(fmt_int(r$captures), " caps"),
+      weight   = ifelse(is.na(r$max_weight), "—", paste0(r$max_weight, " g")),
+      career   = ifelse(r$career_days > 0, paste0(r$career_days, " d"), "—"),
+      roam     = ifelse(is.na(r$roam_m), "—", paste0(r$roam_m, " m")),
+      chonk    = ifelse(is.na(r$chonk_pct), "—", paste0(round(r$chonk_pct), "%")),
+      paste0(fmt_int(r$captures), " caps"))
+    top <- utils::head(v, 3)
+    pos_order <- if (nrow(top) >= 3) c(2L, 1L, 3L) else seq_len(nrow(top))
+    cards <- lapply(pos_order, function(i) {
+      r <- top[i, ]; rm <- rarity_meta(r$rarity)
+      div(class = paste0("podium-card podium-", i, if (r$rarity == "Legendary") " is-legendary" else ""),
+        style = sprintf("--rc:%s", rm$color),
+        onclick = sprintf("Shiny.setInputValue('modalPick','%s',{priority:'event'})", r$tagID),
+        div(class = "podium-medal", c("\U0001F947", "\U0001F948", "\U0001F949")[i]),
+        div(class = "podium-emoji", r$emoji),
+        div(class = "podium-id", r$short),
+        div(class = "podium-stat", big_stat(r)),
+        div(class = "podium-sp", em(r$scientificName)))
+    })
+    div(class = "podium", cards)
   })
 
   # ---- bio repository links ----------------------------------------------
@@ -1058,10 +1106,30 @@ server <- function(input, output, session) {
     rm <- rarity_meta(row$rarity[1])
     nick <- if (!is.na(row$nickname[1])) row$nickname[1] else "small mammal"
 
-    stat <- function(value, label) div(class = "ds-stat",
-      div(class = "ds-stat-v", value), div(class = "ds-stat-l", label))
-
+    # numeric stat tiles animate via the shared count-up engine (data-target +
+    # optional unit suffix); non-numeric tiles (home plot) render plain.
+    stat <- function(label, target = NA, suffix = "", fallback = "—") {
+      v <- if (length(target) == 1 && !is.na(target) && is.finite(target))
+        tags$span(class = "count-up", `data-target` = target, `data-suffix` = suffix, "0")
+      else fallback
+      div(class = "ds-stat", div(class = "ds-stat-v", v), div(class = "ds-stat-l", label))
+    }
     fmt_date <- function(x) if (is.na(x)) "—" else format(x, "%b %Y")
+
+    # one computed "story" sentence, with the lead stat ranked against peers
+    lb <- rv$lb; ntot <- nrow(lb)
+    cap_rank <- sum(lb$captures > row$captures[1], na.rm = TRUE) + 1L
+    n_tied_top <- sum(lb$captures == row$captures[1], na.rm = TRUE)   # don't crown two tied animals
+    rank_phrase <- if (cap_rank == 1 && n_tied_top == 1) "the most-caught individual at this site"
+      else if (cap_rank == 1) sprintf("tied for most-caught at this site (%d-way)", n_tied_top)
+      else if (cap_rank <= max(2, ceiling(0.05 * ntot))) sprintf("in the top %d%% by captures here", max(1L, round(100 * cap_rank / ntot)))
+      else sprintf("#%d of %d by captures here", cap_rank, ntot)
+    art <- if (grepl("^[AEIOU]", row$rarity[1])) "an" else "a"
+    ci_tone <- switch(row$rarity[1], Legendary = "gold", Epic = "terra", Rare = "navy", Uncommon = "pine", "muted")
+    story <- sprintf("<b>%s</b> is %s <b>%s</b> resident — caught <span class='ci-hero'>%s</span> times%s, %s.",
+      row$short[1], art, row$rarity[1], fmt_int(row$captures[1]),
+      if (row$career_days[1] > 0) sprintf(" over %s days", fmt_int(row$career_days[1])) else "",
+      rank_phrase)
 
     div(class = "dossier-card", style = sprintf("--rarity:%s; --rglow:%s;", rm$color, rm$glow),
       div(class = "ds-left",
@@ -1080,13 +1148,14 @@ server <- function(input, output, session) {
                  bs_icon("question-circle-fill"), " ID uncertain")
         ),
         div(class = "ds-sci", em(row$scientificName[1])),
+        insight_banner("stars", tone = ci_tone, HTML(story)),
         div(class = "ds-stats",
-          stat(row$captures[1], "captures"),
-          stat(ifelse(row$career_days[1] > 0, paste0(row$career_days[1], "d"), "—"), "career span"),
-          stat(row$n_traps[1], "traps used"),
-          stat(ifelse(is.na(row$mdm_m[1]), "—", paste0(row$mdm_m[1], "m")), "max move"),
-          stat(ifelse(is.na(row$avg_weight[1]), "—", paste0(row$avg_weight[1], "g")), "avg weight"),
-          stat(row$home_plot[1], "home plot")
+          stat("captures", target = row$captures[1]),
+          stat("career span", target = if (row$career_days[1] > 0) row$career_days[1] else NA, suffix = "d"),
+          stat("traps used", target = row$n_traps[1]),
+          stat("max move", target = row$mdm_m[1], suffix = "m"),
+          stat("avg weight", target = row$avg_weight[1], suffix = "g"),
+          stat("home plot", fallback = row$home_plot[1])
         ),
         div(class = "ds-meta",
           span(bs_icon("calendar-event"), " First seen ", tags$b(fmt_date(row$first_seen[1]))),

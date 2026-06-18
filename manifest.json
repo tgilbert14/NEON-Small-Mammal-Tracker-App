@@ -3260,13 +3260,13 @@
       "checksum": "dd998c7eb8763e4ae1f33c060ed8364a"
     },
     "server.R": {
-      "checksum": "529b97fabcd973a9a6f5ff5d0b29fa5d"
+      "checksum": "1264cd737dc26a1217963d06d5c058c9"
     },
     "ui.R": {
-      "checksum": "d7f6335f0280c5eeaedcce54532d3c14"
+      "checksum": "3750d597fc423f3ad6518b405c921846"
     },
     "www/app.js": {
-      "checksum": "cf9fef6bdba15afc099cfb388b811ea9"
+      "checksum": "27b51557f767db76b5b387aff1f0efe3"
     },
     "www/confirm.js": {
       "checksum": "c05030299121b6bb32e2794f0decb120"
@@ -3284,7 +3284,7 @@
       "checksum": "03caa0fdc9353ecf3495715d7e5f11f5"
     },
     "www/styles.css": {
-      "checksum": "20b97f494b8df165232c89bd88f610b5"
+      "checksum": "37224206061a92a501fcd83b44fbc15b"
     }
   },
   "users": null

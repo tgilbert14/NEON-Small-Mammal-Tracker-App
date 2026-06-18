@@ -851,3 +851,43 @@ table.dataTable tbody tr:active { background: #dfe8f4 !important; }
 
 /* counters pop in */
 .count-up { display: inline-block; }
+
+/* ---- Hall of Fame podium (top-3, olympic: 2nd · 1st-raised · 3rd) ------ */
+.podium { display: flex; justify-content: center; align-items: flex-end; gap: 14px; margin: 4px 0 16px; }
+.podium-card { flex: 1 1 0; max-width: 230px; min-width: 0; text-align: center; cursor: pointer;
+  border: 1px solid var(--line); border-top: 4px solid var(--rc, var(--muted)); border-radius: 14px;
+  padding: 14px 12px 12px; background: var(--paper); box-shadow: 0 4px 14px -8px rgba(12, 35, 75, .3);
+  transition: transform .15s, box-shadow .15s; animation: podiumRise .5s cubic-bezier(.2, .7, .3, 1) both; }
+.podium-card:hover { transform: translateY(-4px); box-shadow: 0 10px 24px -10px rgba(12, 35, 75, .45); }
+.podium-1 { padding-top: 22px; box-shadow: 0 6px 22px -8px var(--rc); animation-delay: .18s; }
+.podium-2 { animation-delay: 0s; } .podium-3 { animation-delay: .09s; }
+.podium-medal { font-size: 26px; line-height: 1; }
+.podium-1 .podium-medal { font-size: 32px; }
+.podium-emoji { font-size: 34px; line-height: 1.15; }
+.podium-id { font-family: "Jura", monospace; font-weight: 800; color: var(--ink); font-size: 14px; margin-top: 2px; }
+.podium-stat { font-weight: 800; color: var(--rc, var(--ink)); font-size: 15px; }
+.podium-1 .podium-stat { font-size: 18px; }
+.podium-sp { font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@keyframes podiumRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+[data-bs-theme="dark"] .podium-card { background: #16213a; }
+.leader-dt .medal { font-size: 15px; }
+@media (max-width: 560px) { .podium-sp { display: none; } .podium-emoji { font-size: 28px; } .podium { gap: 8px; } }
+
+/* ---- Legendary living shimmer (capped to the top tier only) ----------- */
+.tag-badge.is-legendary, .podium-card.is-legendary { position: relative; overflow: hidden; }
+.tag-badge.is-legendary::after, .podium-card.is-legendary::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .55) 50%, transparent 70%);
+  transform: translateX(-130%); animation: legShimmer 2.8s ease-in-out infinite; }
+@keyframes legShimmer { 0% { transform: translateX(-130%); } 55%, 100% { transform: translateX(130%); } }
+
+/* dossier rarity badge "card-pull" pop on open */
+.dossier-card .glow-badge { animation: badgePop .5s cubic-bezier(.2, .8, .3, 1.2) both; }
+@keyframes badgePop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+
+/* ---- reduced-motion: kill every decorative animation (incl. the float
+   that previously ran unconditionally on .ds-emoji) -------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .ds-emoji, .podium-card, .dossier-card .glow-badge { animation: none !important; }
+  .tag-badge.is-legendary::after, .podium-card.is-legendary::after { animation: none; opacity: 0; }
+}
