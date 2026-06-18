@@ -1724,7 +1724,21 @@ server <- function(input, output, session) {
     s <- cc$series
     # cap any infinite upper bound for plotting (shouldn't occur post-roll-up, but be safe)
     s$hi[!is.finite(s$hi)] <- s$N[!is.finite(s$hi)] * 2
-    es <- env_sel()
+    # Overlay an environmental driver. Honour the sidebar pick if the user made
+    # one; otherwise AUTO-overlay the BEST-correlated driver at its best lag (the
+    # winner from the ranking above) — but only when the link is real (|r| >= 0.2)
+    # — so the "which driver does this track?" answer plays out in action here.
+    es <- env_sel(); best_label <- NULL
+    if (is.null(es) && !is.null(rv$env)) {
+      ca <- env_corr_all(rv$data, rv$env)
+      if (!is.null(ca) && nrow(ca) && !is.na(ca$r[1]) && abs(ca$r[1]) >= 0.2) {
+        w <- ca[1, ]
+        es <- list(layer = w$layer, lag = as.integer(w$lag), env = rv$env,
+                   demo = identical(attr(rv$env, "source"), "demo"))
+        best_label <- sprintf("best match: %s%s", w$label,
+          if (w$lag == 0) " (same month)" else sprintf(" (lag %d mo)", w$lag))
+      }
+    }
     p <- plot_ly()
     if (!is.null(es))   # env area first → soft context behind the abundance band
       p <- add_env_overlay(p, es$env, es$layer, es$lag, yaxis = "y2",
@@ -1744,9 +1758,15 @@ server <- function(input, output, session) {
         marker = list(size = 7, color = "#0C234B"),
         customdata = ~round(100 * p),
         hovertemplate = "%{x|%b %Y}<br>N̂ %{y} · p̂ %{customdata}%<extra></extra>")
+    # the auto-best label rides its OWN line (y=1.12) so it can't collide with the
+    # right-anchored ctx note; coloured to match the shaded driver + its y2 axis
+    annos <- if (!is.null(best_label)) list(list(text = best_label,
+        x = 0, y = 1.12, xref = "paper", yref = "paper", xanchor = "left", yanchor = "bottom",
+        showarrow = FALSE, font = list(color = ENV_LAYERS[[es$layer]]$color, size = 11))) else list()
     p <- plotly_theme(p) %>% plotly::layout(
       xaxis = list(title = ""), yaxis = list(title = "animals on the grid(s)", rangemode = "tozero"),
-      margin = list(l = 50, r = 30, t = 48, b = 40)) %>% ctx_anno()   # t roomy for ctx caption
+      margin = list(l = 50, r = 30, t = if (!is.null(best_label)) 72 else 48, b = 40),
+      annotations = annos) %>% ctx_anno()   # t roomy for ctx caption / best-match label
     if (!is.null(es)) p <- p %>% plotly::layout(yaxis2 = env_axis_spec(es$layer, show = TRUE))
     p
   })
