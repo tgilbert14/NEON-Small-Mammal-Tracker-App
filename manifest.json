@@ -3260,10 +3260,10 @@
       "checksum": "dd998c7eb8763e4ae1f33c060ed8364a"
     },
     "server.R": {
-      "checksum": "9d0b2bbf6b6200379611390b40f9e641"
+      "checksum": "918c3b746482704f5b6f352558bcaad7"
     },
     "ui.R": {
-      "checksum": "9bd4544c974de30da05d62e8f0e6eedc"
+      "checksum": "fd2aa5a93221ae3503871544f6c716e7"
     },
     "www/app.js": {
       "checksum": "cf9fef6bdba15afc099cfb388b811ea9"
@@ -3284,7 +3284,7 @@
       "checksum": "03caa0fdc9353ecf3495715d7e5f11f5"
     },
     "www/styles.css": {
-      "checksum": "c2b951f021118a6e8bcafdd8dc21cc7b"
+      "checksum": "29a011a33ca8ffaa894b20c1a06de0a0"
     }
   },
   "users": null

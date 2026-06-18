@@ -374,7 +374,6 @@ ui <- bslib::page_sidebar(
             h4("Defensible population signals"),
             p("Minimum Number Known Alive (MNKA) and catch-per-unit-effort are honest abundance indices; the accumulation curve shows whether trapping ran long enough to find every species."))
         ),
-        uiOutput("envCorrNote"),
         conditionalPanel("output.hasEnv == true",
           card(full_screen = TRUE,
             card_head("bar-chart-steps", "Which environmental driver does this population track best?",
@@ -383,6 +382,7 @@ ui <- bslib::page_sidebar(
                 p("Bars show that best correlation (sign = direction); the label is the lag at which it peaks. The longest bar is the signal this population follows most closely — the others are candidate co-drivers."),
                 p(class = "pop-caveat", bs_icon("exclamation-triangle"),
                   " A longer bar isn't proof of cause: drivers correlate with each other, and scanning many lags can flag a strong match by chance. Treat this as a ranking of leads to investigate."))),
+            uiOutput("envCorrNote"),
             spin(plotlyOutput("envDriverRank", height = "300px")))),
         card(full_screen = TRUE,
           card_head("incognito", "Detection-corrected abundance",
