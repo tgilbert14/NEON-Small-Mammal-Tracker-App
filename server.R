@@ -1173,7 +1173,7 @@ server <- function(input, output, session) {
       div(class = "ds-main",
         div(class = "ds-id", row$short[1], span(class = "ds-nick", nick),
           if (isTRUE(row$tag_suspect[1]))
-            span(class = "ds-warn", title = "Career exceeds plausible lifespan or has a long gap — possibly a reused ear tag",
+            span(class = "ds-warn", title = "This capture history can't be one animal — it was recorded at two plots on the same day, or spans longer than these species live. Likely a tag-number mix-up or data-entry error; verify the record.",
                  bs_icon("exclamation-triangle-fill"), " verify tag"),
           if (isTRUE(row$id_uncertain[1]))
             span(class = "ds-warn", title = "This tag was recorded under more than one species",
@@ -1934,11 +1934,11 @@ server <- function(input, output, session) {
       "</div>", collapse = "")
     insight_banner("hourglass-split", tone = "muted", HTML(paste0(
       "<b>Longest we confirmed an individual alive</b> — how old the single longest-tracked animal ",
-      "was when last caught (caught 3+ times). A <b>floor</b>, not a lifespan: it can't climb past ",
-      "~1.7 yr (careers beyond ~1.5 yr are set aside as probable reused ear tags), animals still ",
-      "alive or that left the grid aren't counted (absence isn't death), and species we trap more ",
-      "often reach higher floors just from more chances — so read each as its own floor, not a ranking. ",
-      "True lifespans run far longer; the captive maxima shown for scale are several times these figures.",
+      "was when last caught (caught 3+ times; NEON keeps a tag for the animal's life, so these are real ",
+      "recapture spans). A <b>floor</b>, not a lifespan: animals still alive, or that left the trapping ",
+      "grid, aren't counted (absence isn't death), the record only spans the years sampled here, and ",
+      "species we trap more often reach higher floors just from more chances — so read each as its own ",
+      "floor, not a ranking. The captive maxima shown for scale run several times these wild figures.",
       "<div class='lsp-list'>", rows, "</div>")))
   })
 

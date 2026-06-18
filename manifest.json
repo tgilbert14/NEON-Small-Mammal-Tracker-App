@@ -3251,7 +3251,7 @@
       "checksum": "162d6bde4c29749d2211ec8370b07f14"
     },
     "R/helpers.R": {
-      "checksum": "883a4a50c816025c1ad8a1611e3e40f0"
+      "checksum": "60ea4d05a95e48e379728af5bc2983bc"
     },
     "R/report_pdf.R": {
       "checksum": "5779ddada0c41621862c3a75e279808b"
@@ -3260,10 +3260,10 @@
       "checksum": "dd998c7eb8763e4ae1f33c060ed8364a"
     },
     "server.R": {
-      "checksum": "4bfb8ebb7cb19ece6c99056e521d4a64"
+      "checksum": "6f12ae21ce1e2b04e64a42e6405be5cd"
     },
     "ui.R": {
-      "checksum": "467c63ec91b8b132b8857ceeade95991"
+      "checksum": "d6c6793a9e71008fec26e0ba5b7aafc3"
     },
     "www/app.js": {
       "checksum": "27b51557f767db76b5b387aff1f0efe3"
