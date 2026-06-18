@@ -191,11 +191,15 @@ new_page <- function(page_i, title, footer_full = FALSE) {
   grid.newpage()
   pushViewport(viewport(width = unit(PG$cw, "in"), height = unit(PG$ch, "in"), name = "content"))
   if (page_i > 1) {
-    grid.text(ascii(title), x = unit(0, "npc"), y = gy(0), just = c("left", "top"),
+    # truncate a long site label so the running header never collides with the
+    # right-corner title (e.g. UNDE = "University of Notre Dame Environmental
+    # Research Center" used to run straight into it).
+    hl <- ascii(title); if (nchar(hl) > 50) hl <- paste0(substr(hl, 1, 49), "…")
+    grid.text(hl, x = unit(0, "npc"), y = gy(0), just = c("left", "top"),
               gp = gpar(fontsize = 10, fontface = "bold", col = PG$navy))
     grid.text("NEON Small Mammal Report Card", x = unit(1, "npc"), y = gy(0),
               just = c("right", "top"), gp = gpar(fontsize = 8.5, col = PG$muted))
-    grid.lines(x = unit(c(0, 1), "npc"), y = gy(0.22), gp = gpar(col = PG$line, lwd = 1))
+    grid.lines(x = unit(c(0, 1), "npc"), y = gy(0.24), gp = gpar(col = PG$line, lwd = 1))
   }
   ftxt <- if (footer_full)
     paste(FOOT, "MNKA = Minimum Number Known Alive (Krebs 1966); Hill numbers (Jost 2006);",
