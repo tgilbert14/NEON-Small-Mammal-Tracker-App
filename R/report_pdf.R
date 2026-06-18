@@ -341,7 +341,7 @@ render_report_pdf <- function(file, d, label, is_demo = FALSE, cc = NULL) {
                                paste0(fmt_int(cr$career_days), " d")))) }
     y <- draw_table(c("", "Species", "Value"), nrows, colx = c(0.00, 0.24, 0.66),
                     yTop = y, faces = c(2, 3, 1), repeat_header = function() { new_page(3, label, TRUE); 0.5 })
-    y <- draw_para(paste("Career length excludes likely reused ear-tags (career > 550 d or a > 300 d gap)."),
+    y <- draw_para(paste("Career length excludes only records that can't be one animal (same tag at two plots in a day, or a span beyond any wild lifespan); genuine multi-year careers are kept."),
                    y, 8, PG$muted)
   }
   if (has_gg) {
