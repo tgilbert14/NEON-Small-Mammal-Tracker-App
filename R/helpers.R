@@ -932,12 +932,13 @@ add_env_overlay <- function(p, env, layer, lag = 0, yaxis = "y3", xlim = NULL,
   nm <- meta$label
   if (lag) nm <- sprintf("%s · lag %d mo", nm, as.integer(lag))
   if (demo) nm <- paste0(nm, " (demo)")
+  dig <- meta$dig %||% 0                      # round the hover value (no 5-decimal %)
   plotly::add_trace(p, data = e, x = ~date, y = ~.v, yaxis = yaxis,
     type = "scatter", mode = "lines", fill = "tozeroy",
     name = nm, legendgroup = "env",
     line = list(color = meta$color, width = 1.6, shape = "spline"),
     fillcolor = paste0(meta$color, "1f"),
-    hovertemplate = paste0(meta$label, "<br>%{x|%b %Y}: %{y} ", meta$unit, "<extra></extra>"))
+    hovertemplate = paste0(meta$label, "<br>%{x|%b %Y}: %{y:.", dig, "f} ", meta$unit, "<extra></extra>"))
 }
 
 # Layout spec for an env overlay's axis. `show` toggles the tick labels/title
