@@ -899,10 +899,14 @@ server <- function(input, output, session) {
     d <- rv$data; req(d)
     sp <- species_summary(d); if (is.null(sp) || nrow(sp) == 0) return(NULL)
     tot <- sum(sp$individuals, na.rm = TRUE)
-    share <- if (tot > 0) round(100 * sp$individuals[1] / tot) else 0
+    # species_summary is sorted by CAPTURES; pick the row with the most
+    # INDIVIDUALS, since the banner's claim is a share "of individuals"
+    # (in a re-trap-heavy system most-trapped != most-abundant).
+    dom <- sp[which.max(sp$individuals), ]
+    share <- if (tot > 0) round(100 * dom$individuals / tot) else 0
     insight_banner("collection", tone = "navy",
-      HTML(sprintf("The <b><i>%s</i></b> dominates this site — <span class='ci-hero'>%s%%</span> of individuals (%s of %s).",
-        sp$scientificName[1], share, fmt_int(sp$individuals[1]), fmt_int(tot))))
+      HTML(sprintf("The <b><i>%s</i></b> is the most abundant here — <span class='ci-hero'>%s%%</span> of individuals (%s of %s).",
+        dom$scientificName, share, fmt_int(dom$individuals), fmt_int(tot))))
   })
 
   output$hillInsight <- renderUI({
