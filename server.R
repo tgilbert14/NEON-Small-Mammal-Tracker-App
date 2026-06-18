@@ -1489,7 +1489,7 @@ server <- function(input, output, session) {
       marker = list(colors = unname(col[as.character(tab$stage)]), line = list(color = "#ffffff", width = 2)),
       textinfo = "percent", textposition = "inside", insidetextorientation = "horizontal",
       textfont = list(color = "#ffffff", size = 13),
-      hovertemplate = "<b>%{label}</b><br>%{value:,} individuals · %{percent:.0%}<extra></extra>") %>%
+      hovertemplate = "<b>%{label}</b><br>%{value:,} individuals · %{percent:.0%} of handled<extra></extra>") %>%
       plotly::layout(title = list(text = "Life stage", font = list(color = if (is_dark()) "#c3cedd" else "#344049", size = 14)),
         paper_bgcolor = "rgba(0,0,0,0)", showlegend = TRUE,
         legend = list(orientation = "h", y = -0.05, x = 0.5, xanchor = "center", font = list(size = 11)),
@@ -1622,15 +1622,25 @@ server <- function(input, output, session) {
     ad <- flag_repro(dplyr::filter(d, !is.na(.data$tagID), .data$lifeStage == "adult", !is.na(.data$date)))
     if (nrow(ad) == 0) return(note_plot("No adult reproductive data", "\U0001F423"))
     ad$mon <- as.integer(format(ad$date, "%m"))
-    by_m <- ad %>% dplyr::group_by(.data$mon) %>% dplyr::summarise(
+    # Dedup to one row per (INDIVIDUAL, calendar month): an animal counts once a
+    # month no matter how often it was caught, and is "breeding" if it bred at
+    # >=1 capture that month. Counting capture-rows would inflate both the n and
+    # the proportion via recaptures — the same pseudo-replication this batch
+    # removes from the donuts/violin, so the n and the >=5 gate mean ANIMALS.
+    im <- ad %>% dplyr::group_by(.data$tagID, .data$mon) %>% dplyr::summarise(
+      sex = mode_chr(.data$sex),
+      bred_m = as.integer(any(.data$repro == "breeding male", na.rm = TRUE)),
+      repr_f = as.integer(any(.data$repro %in% c("pregnant female", "lactating/receptive female"), na.rm = TRUE)),
+      .groups = "drop")
+    by_m <- im %>% dplyr::group_by(.data$mon) %>% dplyr::summarise(
       males = sum(.data$sex == "M", na.rm = TRUE),
       females = sum(.data$sex == "F", na.rm = TRUE),
-      breeding_m = sum(.data$repro == "breeding male", na.rm = TRUE),
-      repro_f = sum(.data$repro %in% c("pregnant female", "lactating/receptive female"), na.rm = TRUE),
+      breeding_m = sum(.data$bred_m[.data$sex == "M"], na.rm = TRUE),
+      repro_f = sum(.data$repr_f[.data$sex == "F"], na.rm = TRUE),
       .groups = "drop")
     # complete to all 12 months so a NOT-SAMPLED month is an explicit gap (NA),
     # never silently bridged or read as a true 0%. And SUPPRESS months with <5
-    # sexed adults — a 1-of-1 "100% breeding" must not draw like 30-of-30.
+    # sexed adult INDIVIDUALS — a 1-of-1 "100% breeding" must not draw like 30-of-30.
     by_m <- dplyr::left_join(data.frame(mon = 1:12), by_m, by = "mon")
     for (cc in c("males", "females", "breeding_m", "repro_f")) by_m[[cc]][is.na(by_m[[cc]])] <- 0
     by_m$pm <- ifelse(by_m$males >= 5, round(100 * by_m$breeding_m / by_m$males), NA)
