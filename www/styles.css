@@ -105,13 +105,34 @@ body {
 .pop-caveat .bi { color: var(--gold, #c9a300); }
 
 /* population<->environment correlation readout (Population tab) */
-.env-corr { display: flex; gap: 9px; align-items: flex-start; border-radius: 10px;
-  padding: 11px 14px; margin: 0 0 14px; font-size: 13.5px; line-height: 1.5; }
-.env-corr .bi { margin-top: 2px; flex: none; font-size: 17px; }
+@keyframes corrFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.env-corr { text-align: center; border-radius: 12px; padding: 14px 18px 13px;
+  margin: 0 0 14px; animation: corrFadeIn .3s ease; }
 .env-corr-strong { background: #eef6f0; border: 1px solid #cfe6d6; color: #21503a; }
-.env-corr-strong .bi { color: var(--pine, #1a7f37); }
+.env-corr-strong .corr-head .bi { color: var(--pine, #1a7f37); }
 .env-corr-mild { background: #f3f6fb; border: 1px solid var(--line); color: #3a4654; }
-.env-corr-mild .bi { color: var(--muted); }
+.env-corr-mild .corr-head .bi { color: var(--muted); }
+
+.corr-head  { font-size: 13px; font-weight: 700; letter-spacing: .2px; margin-bottom: 9px; }
+.corr-head .bi { font-size: 15px; vertical-align: middle; margin-right: 2px; }
+.corr-stats { display: flex; justify-content: center; align-items: center;
+  flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+.corr-foot  { font-size: 12.5px; line-height: 1.8; }
+.corr-dot   { color: var(--muted); opacity: .55; padding: 0 1px; }
+.corr-demo-note { font-size: 11px; opacity: .6; margin-left: 3px; }
+
+.corr-chip { display: inline-flex; align-items: center; border-radius: 5px;
+  padding: 1px 8px 2px; font-size: 12.5px; font-weight: 700; white-space: nowrap;
+  line-height: 1.65; letter-spacing: .1px; }
+.chip-driver { background: rgba(0,0,0,.09); }
+.chip-sig    { background: #c3e6cb; color: #155724; }
+.chip-mod    { background: #ffeeba; color: #7d5a00; }
+.chip-weak   { background: #dee2e6; color: #495057; }
+.chip-r      { background: rgba(0,0,0,.08); font-family: monospace; font-size: 12px; }
+.chip-n      { background: rgba(0,0,0,.05); font-weight: 600; }
+.chip-lag    { background: #e0d6f5; color: #5a3f8a; }
+.chip-pos    { background: #c3e6cb; color: #155724; }
+.chip-neg    { background: #f5c6cb; color: #721c24; }
 
 .or-divider { display: flex; align-items: center; text-align: center; color: var(--muted); margin: 12px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; }
 .or-divider::before, .or-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); margin: 0 10px; }

@@ -3260,7 +3260,7 @@
       "checksum": "dd998c7eb8763e4ae1f33c060ed8364a"
     },
     "server.R": {
-      "checksum": "3466e25c65c3982f73c13b0cb27fb911"
+      "checksum": "9d0b2bbf6b6200379611390b40f9e641"
     },
     "ui.R": {
       "checksum": "9bd4544c974de30da05d62e8f0e6eedc"
@@ -3284,7 +3284,7 @@
       "checksum": "03caa0fdc9353ecf3495715d7e5f11f5"
     },
     "www/styles.css": {
-      "checksum": "4c813dfb32c3b7d22aa43bea51959ea8"
+      "checksum": "c2b951f021118a6e8bcafdd8dc21cc7b"
     }
   },
   "users": null
