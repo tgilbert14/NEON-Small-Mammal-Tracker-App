@@ -1,17 +1,17 @@
 name: Refresh NEON data bundle
 
-# Monthly rebuild of the per-site MAMMAL .rds bundles (data/sites/*.rds), then
-# redeploy.
+# Monthly rebuild of the per-site MAMMAL .rds bundles (data/sites/*.rds) PLUS a
+# light top-up of the environmental overlays (data/env/*.rds), then redeploy.
 # Runs late on the FIRST SATURDAY NIGHT of each month (~11pm Arizona time) so the
 # brief redeploy lands off-peak. NEON publishes on a lag, so a monthly pull keeps
 # the bundled "database" current.
 #
-# NOTE: the environmental-overlay bundle (data/env/*.rds, the "Compare with
-# environment" layers) is NOT built here. That pull — especially soil water
-# content (DP1.00094.001), a very-high-volume 30-min sensor product — is too
-# heavy/slow for CI (it ran 1h37m and was canceled before deploy). Build it
-# manually when needed:  Rscript scripts/refresh_env_data.R  then commit
-# data/env/. The app ships a demo overlay as a graceful fallback meanwhile.
+# ENV OVERLAYS: the full 13-year precip/temperature/fruiting history is built
+# ONCE, offline, via `Rscript scripts/refresh_env_data.R` (committed to data/env/).
+# This workflow only TOPS IT UP each month — SMT_ENV_RECENT_MONTHS re-pulls the
+# last ~14 months and merges them in — so it stays current without the heavy full
+# pull. Soil water (DP1.00094.001) and RH are intentionally NOT built (the
+# high-volume products that made a full pull run 1h37m and get canceled).
 #
 # REQUIRES three repo secrets (Settings → Secrets and variables → Actions):
 #   SHINYAPPS_NAME    your shinyapps account name   (e.g. t-lama)
@@ -93,7 +93,22 @@ jobs:
           rm -f data/sites/*.rds
           Rscript scripts/refresh_data.R
 
-      # Deploy right after the MAMMAL bundle is rebuilt.
+      # Environmental overlays (precip / temperature / fruiting) — a LIGHT monthly
+      # TOP-UP: SMT_ENV_RECENT_MONTHS re-pulls only the last ~14 months and merges
+      # into the committed data/env bundle (the full 13-year history is built once,
+      # offline). Temp uses timeIndex=30; no soil/RH (the high-volume products that
+      # made a full pull too heavy for CI). Time-boxed + non-fatal so it can never
+      # stall or block the deploy below.
+      - name: Top up the environmental overlays (recent months)
+        if: ${{ github.event.inputs.skip_download != 'true' }}
+        continue-on-error: true
+        timeout-minutes: 40
+        env:
+          SMT_ENV_RECENT_MONTHS: "14"
+        run: |
+          Rscript scripts/refresh_env_data.R
+
+      # Deploy right after the bundles are rebuilt (ships fresh mammal + env).
       - name: Deploy to shinyapps.io
         env:
           SHINYAPPS_NAME:   ${{ secrets.SHINYAPPS_NAME }}
@@ -109,17 +124,17 @@ jobs:
         with:
           add-paths: |
             data/sites
+            data/env
           branch: auto/data-refresh
           delete-branch: true
-          commit-message: "data: monthly NEON refresh"
+          commit-message: "data: monthly NEON refresh (mammal + env top-up)"
           title: "data: monthly NEON refresh"
           body: |
-            Automated monthly re-pull of NEON small-mammal box-trapping data
-            (`DP1.10072.001`) into `data/sites/*.rds`.
+            Automated monthly refresh:
+            - small-mammal box-trapping (`DP1.10072.001`) → `data/sites/*.rds` (full re-pull)
+            - environmental overlays (precip / temp / fruiting) → `data/env/*.rds`
+              (recent-months top-up merged into the committed history)
 
             The live app has already been redeployed from this data — merging
-            this PR just keeps the committed bundle (and local runs) in sync.
-
-            (Environmental overlays in `data/env/` are built manually via
-            `scripts/refresh_env_data.R`, not in this workflow.)
+            this PR just keeps the committed bundles (and local runs) in sync.
           labels: automated, data

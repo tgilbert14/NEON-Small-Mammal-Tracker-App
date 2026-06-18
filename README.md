@@ -127,19 +127,26 @@ measured at the **same site** — behind the population and seasonality charts (
 abundance, breeding phenology), with a **lead-time (lag) slider** so you can shift a driver forward and
 watch, say, a rain pulse line up under the rodent boom it feeds months later. Available layers:
 
-| Layer | NEON product | Aggregation |
-| --- | --- | --- |
-| Precipitation | `DP1.00044.001` (weighing gauge) | monthly sum (mm) |
-| Air temperature | `DP1.00002.001` (single-aspirated) | monthly mean/min/max (°C) |
-| Relative humidity | `DP1.00098.001` | monthly mean (%) |
-| Soil moisture | `DP1.00094.001` | monthly mean (% vol) |
-| Plants fruiting | `DP1.10055.001` (phenology) | monthly % of individuals in fruit |
+| Layer | NEON product | Aggregation | Site coverage |
+| --- | --- | --- | --- |
+| Precipitation | `DP1.00044.001` (weighing gauge) | monthly sum (mm) | 19 / 46 |
+| Air temperature | `DP1.00002.001` (single-aspirated) | monthly mean/min/max (°C) | 46 / 46 |
+| Plants fruiting | `DP1.10055.001` (phenology) | monthly % of individuals in fruit | 41 / 46 |
 
 Each layer is pre-aggregated to **one value per site-month** and bundled as a tiny `data/env/<SITE>.rds`
-(a few KB) by `scripts/refresh_env_data.R`, mirroring the mammal bundle. Where a site has no real env
-bundle, the app falls back to a small, clearly-badged **illustrative demo** series
-(`data-sample/env_demo.csv`, JORN + SRER) so the feature is demonstrable — it is **not** NEON data and
-the UI says so. Run `scripts/refresh_env_data.R` to populate the real per-site overlays.
+(a few KB) by `scripts/refresh_env_data.R`, mirroring the mammal bundle and shipped with the app — so
+the overlays are **real NEON data**, not a demo. Coverage varies by product: NEON publishes the
+Precipitation product at only ~24 sites observatory-wide (19 of our 46 mammal sites), so precip is
+genuinely absent at the rest. The picker only offers a layer when that site actually has data for it
+(`env_layer_choices()`), so a missing layer simply doesn't appear — the feature never shows an empty
+overlay. Where a site lacks an env bundle entirely, the app falls back to a small, clearly-badged
+**illustrative demo** series (`data-sample/env_demo.csv`).
+
+The build is deliberately scoped to these three layers: precipitation and fruiting are *lead* drivers
+(they precede rodent booms), and air temperature is pulled with `timeIndex = 30` so only the 30-minute
+table is downloaded. Relative humidity and **soil moisture** were dropped — soil water is a
+very-high-volume 30-minute product that made a full pull too heavy for CI; the env bundle is therefore
+built **offline** (run `scripts/refresh_env_data.R`, then commit `data/env/`), not in the monthly Action.
 
 ## Run it locally
 

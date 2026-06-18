@@ -1466,8 +1466,12 @@ server <- function(input, output, session) {
     # showlegend = TRUE, the rest share its legendgroup. (Phantom all-NA legend
     # traces get silently dropped by plotly/subplot, which is why this is robust.)
     seen <- new.env(parent = emptyenv())
+    labcol <- if (is_dark()) "#cfe0f5" else "#16386e"   # readable in both themes
     mk <- function(pl, first) {
       dd <- ds[ds$plotID == pl, ]
+      ymax <- suppressWarnings(max(dd$count, na.rm = TRUE))
+      if (!is.finite(ymax) || ymax <= 0) ymax <- 1
+      xleft <- suppressWarnings(min(dd$date, na.rm = TRUE))
       p <- plot_ly()
       for (s in unique(dd$scientificName)) {
         sd <- dd[dd$scientificName == s, ]
@@ -1477,13 +1481,17 @@ server <- function(input, output, session) {
           marker = list(size = 5, color = pal[[s]]), line = list(width = 1.5, color = pal[[s]]),
           hovertemplate = paste0(pl, "<br>%{x|%b %Y}: %{y}<extra></extra>"))
       }
+      # Per-panel plotID label as a TEXT TRACE in the panel's own data space, sat
+      # in headroom above the data. A layout annotation with xref="x domain" is
+      # NOT remapped per-panel by subplot() — every label collapses onto the first
+      # panel (you see only one) — but a trace stays bound to its own panel. The
+      # widened y-range gives the label clear space above the lines.
+      p <- p %>% add_trace(x = xleft, y = ymax * 1.12, type = "scatter", mode = "text",
+        text = pl, textposition = "middle right", cliponaxis = FALSE,
+        textfont = list(color = labcol, size = 10), showlegend = FALSE, hoverinfo = "skip")
       p %>% plotly::layout(
-        annotations = list(list(text = pl, x = 0.02, y = 1.0, xref = "x domain",
-          yref = "y domain", xanchor = "left", yanchor = "bottom", showarrow = FALSE,
-          font = list(color = "#16386e", size = 11), bgcolor = "rgba(255,255,255,0.78)",
-          borderpad = 2)),
         xaxis = list(gridcolor = "rgba(31,42,48,0.06)"),
-        yaxis = list(gridcolor = "rgba(31,42,48,0.06)"))
+        yaxis = list(gridcolor = "rgba(31,42,48,0.06)", range = c(0, ymax * 1.25)))
     }
     sub <- lapply(seq_along(plots), function(i) mk(plots[i], i == 1))
     plotly::subplot(sub, nrows = ceiling(length(plots) / 2), shareX = TRUE, shareY = FALSE,
@@ -1671,17 +1679,19 @@ server <- function(input, output, session) {
         name = if (isTRUE(sa$unstable)) sprintf("Chao1 ≥ %d (lower bound)", sa$chao1)
                else sprintf("Chao1 ≈ %d", sa$chao1),
         line = list(color = "#AB0520", width = 1.5, dash = "dash"), hoverinfo = "skip")
-    anno_txt <- if (isTRUE(sa$unstable))
-        sprintf("observed %d species · shaded = Chao1 interval, very wide (only %d doubleton%s)",
-                sa$sobs, sa$f2, ifelse(sa$f2 == 1, "", "s"))
-      else sprintf("observed %d species · shaded = Chao1 95%% CI (%d–%d)",
-                   sa$sobs, sa$chao_lo, sa$chao_hi)
+    # Short, left-anchored, AND on its own line ABOVE the right-anchored
+    # "SITE · years" corner note (ctx sits at y=1.03; this rides higher at y=1.13)
+    # so the two never collide even on a narrow phone-width card. Just the headline
+    # count — the Chao1 estimate, its interval, and the (wide/unstable) flag all
+    # live in the legend (band_name + the dashed-line name), and the doubleton
+    # caveat is in the info popover, so the subtitle stays short enough never to clip.
+    anno_txt <- sprintf("observed %d species", sa$sobs)
     plotly_theme(p) %>% plotly::layout(
       xaxis = list(title = "trapping bouts (months)"),
       yaxis = list(title = "cumulative species", range = c(0, cap + 1), rangemode = "tozero"),
-      margin = list(l = 50, r = 30, t = 64, b = 40),
+      margin = list(l = 50, r = 30, t = 84, b = 40),
       annotations = list(list(text = anno_txt,
-        x = 0, y = 1.05, xref = "paper", yref = "paper", xanchor = "left", yanchor = "bottom",
+        x = 0, y = 1.13, xref = "paper", yref = "paper", xanchor = "left", yanchor = "bottom",
         showarrow = FALSE, font = list(color = "#6b7a85", size = 11)))) %>% ctx_anno()
   })
 
