@@ -91,7 +91,7 @@ chart, and tap-any-statistic ranked breakdowns.
 | Metric | Definition |
 | --- | --- |
 | Captures | Times an individual (ear-tag ID) was handled in the window. |
-| Career span | Days between an individual's first and last capture (flagged when it exceeds plausible lifespan — a likely reused tag). |
+| Career span | Days between an individual's first and last capture. These desert rodents genuinely live 1–3.5 yr, so long careers are kept as real; only a history that can't be one animal (the same tag at two plots on a single day, or a span beyond any wild lifespan) is flagged `verify tag`. |
 | Roam radius / Max move | Mean displacement from, and maximum distance between, capture locations (traps are 10 m apart). A grid-bounded dispersion index, not a true home-range area. |
 | Chonk Index | Adult weight percentile within species. NEON rarely records body length and hind-foot barely scales with mass in these taxa, so a Scaled Mass Index would mostly rank noise — the body-size map shows the real relationship where it exists. |
 | MNKA / CPUE | Minimum Number Known Alive (Krebs 1966) and captures per 100 trap-nights — transparent abundance indices. |
@@ -103,7 +103,9 @@ chart, and tap-any-statistic ranked breakdowns.
 Methods reviewed against Peig & Green (2009), Krebs (1966), Gotelli & Colwell (2001), Chao (1987),
 Chao & Chiu (2016), and Otis et al. (1978). Chao1 is a lower-bound estimator, not a prediction of true
 richness; genus-only and ambiguous identifications are excluded from richness and diversity. NEON
-ear-tag numbers can be reused across years (the obvious cases are flagged), and an empty trap means
+keeps a tag on one animal for life and does not recycle tag numbers (a number is unique within a
+site), so a multi-year career is a real long-lived individual — we flag only the rare impossible
+history (e.g. the same tag at two plots on a single day), not long careers. An empty trap means
 "not detected," not "absent."
 
 ![About and methods](assets/about.png)

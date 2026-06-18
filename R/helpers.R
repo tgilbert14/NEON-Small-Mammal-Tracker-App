@@ -319,14 +319,6 @@ max_dist_moved <- function(tx, ty) {
   round(max(d) * 10, 1)
 }
 
-# Largest gap (days) between an individual's consecutive captures — feeds the
-# tag-reuse suspicion flag.
-max_gap_days <- function(dates) {
-  dates <- sort(dates[!is.na(dates)])
-  if (length(dates) < 2) return(NA_integer_)
-  as.integer(max(diff(dates)))
-}
-
 # ---------------------------------------------------------------------------
 # build_leaderboard(): one row per individual with every metric the UI ranks.
 # ---------------------------------------------------------------------------
@@ -428,8 +420,8 @@ leaderboard_by <- function(lb, category = c("captures", "weight", "career", "roa
     captures = "captures", weight = "max_weight", career = "career_days",
     roam = "roam_m", chonk = "chonk_pct")
   out <- lb[!is.na(lb[[key]]), ]
-  # for the "career" board, hide the obvious tag-reuse artifacts so the ranking
-  # is honest; everywhere else keep all rows
+  # for the "career" board, hide the few impossible histories (same-day two-plot
+  # or beyond-lifespan span) so the ranking is honest; everywhere else keep all rows
   if (category == "career") out <- out[!out$tag_suspect, ]
   ord <- if (category == "chonk")
     order(-out[[key]], -out$max_weight) else order(-out[[key]])
@@ -564,15 +556,13 @@ genus_of <- function(sci) sub("^([A-Za-z]+).*$", "\\1", sci)
 # Per-species "longest confirmed time alive" — a right-censored FLOOR, NOT a
 # lifespan. The longest age-at-last-capture (approx_age_years = conservative
 # age-at-first-capture + career span) among non-tag-suspect individuals with >=3
-# captures, where >=5 such individuals exist. It is DOUBLY bounded:
-#  - biased LOW (right-censored): animals still alive or that left the grid are
-#    uncounted, and absence != death (death vs permanent emigration are
-#    indistinguishable here);
-#  - ceiling-capped: the tag-reuse guard sets aside any career >550 d (~1.5 yr)
-#    as a probable recycled ear tag, so this floor cannot exceed ~1.7 yr no matter
-#    how long an animal really lived — which is exactly why the abundant species
-#    pin near that value. We therefore present it as "longest confirmed alive,"
-#    not a lifespan, and show the AnAge captive max for scale.
+# captures, where >=5 such individuals exist. Biased LOW: animals still alive or
+# that left the grid are uncounted, absence != death (death vs permanent
+# emigration are indistinguishable), the record only spans the years sampled, and
+# it's the single longest individual so more-trapped species reach higher floors.
+# NEON keeps a tag on one animal for life (no number reuse; unique within a site),
+# so a multi-year career is a REAL long-lived individual — we trust it and show
+# the AnAge captive max alongside for scale.
 # (Restricting to juvenile-first animals — verified — collapses this to ~0.4 yr:
 # young-first animals are caught repeatedly in one season then gone, while the
 # long-tracked individuals are ~96-100% adult-first. Their approx_age_years uses

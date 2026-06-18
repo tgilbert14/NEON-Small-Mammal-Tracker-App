@@ -3251,16 +3251,16 @@
       "checksum": "162d6bde4c29749d2211ec8370b07f14"
     },
     "R/helpers.R": {
-      "checksum": "60ea4d05a95e48e379728af5bc2983bc"
+      "checksum": "edd0296275fb14a9517cca1815f4ab99"
     },
     "R/report_pdf.R": {
-      "checksum": "5779ddada0c41621862c3a75e279808b"
+      "checksum": "74592c970ab4ad000171527af9750530"
     },
     "R/site_metadata.R": {
       "checksum": "dd998c7eb8763e4ae1f33c060ed8364a"
     },
     "server.R": {
-      "checksum": "6f12ae21ce1e2b04e64a42e6405be5cd"
+      "checksum": "2571c8e4c30946ca22166044a9de8a3d"
     },
     "ui.R": {
       "checksum": "d6c6793a9e71008fec26e0ba5b7aafc3"

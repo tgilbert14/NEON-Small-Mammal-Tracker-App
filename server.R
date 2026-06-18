@@ -1148,9 +1148,9 @@ server <- function(input, output, session) {
 
     # approximate-age tile — a plain string (it carries a ~ / ≥ glyph the count-up
     # animator can't render). "~X.X yr" only for animals first caught young;
-    # "≥X.X yr" (left-censored minimum) for adult/unknown-first. Suppressed for
-    # tag-reuse suspects: a recycled-tag "career" is two animals, so any age is
-    # fiction — the existing "verify tag" chip already explains why.
+    # "≥X.X yr" (left-censored minimum) for adult/unknown-first. Suppressed when
+    # tag_suspect: an impossible history (same-day two-plot, or a beyond-lifespan
+    # span) isn't one animal, so any age is fiction — the "verify tag" chip says why.
     age_val <- row$approx_age_years[1]
     age_tile <- if (!isTRUE(row$tag_suspect[1]) && length(age_val) == 1 && !is.na(age_val) && is.finite(age_val)) {
       pre <- if (isTRUE(row$age_is_minimum[1])) "≥" else "~"
@@ -1591,7 +1591,7 @@ server <- function(input, output, session) {
       return(insight_banner("geo-fill", tone = "navy",
         "No between-grid recaptures: every tagged animal stayed on its home grid (high site fidelity)."))
     insight_banner("share-fill", tone = "navy",
-      HTML(sprintf("<span class='ci-hero'>%d</span> of %d tagged individuals were recaptured across <b>2+ grids</b>. Toggle <b>recapture movement</b> (top-right) to see the links — curved lines connect successive capture plots, <i>not</i> tracked routes, and a link across a long time gap can reflect a reused ear tag.",
+      HTML(sprintf("<span class='ci-hero'>%d</span> of %d tagged individuals were recaptured across <b>2+ grids</b>. Toggle <b>recapture movement</b> (top-right) to see the links — curved lines connect successive capture plots, <i>not</i> tracked routes, and a long gap between the two just means the animal went undetected in between.",
         rf$n_movers, rf$n_tagged)))
   })
 
@@ -2269,7 +2269,7 @@ server <- function(input, output, session) {
       div(class = "about-card",
         h4(bs_icon("clipboard-data"), " Metrics"),
         tags$ul(
-          tags$li(tags$b("Career span"), " — days between first and last capture. Spans > 520 d or with a > 200 d gap are flagged ", tags$b("verify tag"), " (likely a reused ear tag = two animals)."),
+          tags$li(tags$b("Career span"), " — days between first and last capture (these desert rodents genuinely live 1–3.5 yr, so long careers are real). Only a history that can't be one animal — the same tag at two plots on a single day, or a span beyond any wild lifespan — is flagged ", tags$b("verify tag"), "."),
           tags$li(tags$b("Roam radius"), " — mean displacement of captures from the trap-grid centroid (a grid-bounded dispersion index, not a true home-range area)."),
           tags$li(tags$b("Max move"), " — the largest distance between any two captures (MDM)."),
           tags$li(tags$b("MNKA"), " — Minimum Number Known Alive (Krebs 1966): a transparent abundance ", tags$em("index"), ", shown with captures / 100 trap-nights (CPUE)."),
@@ -2283,10 +2283,10 @@ server <- function(input, output, session) {
       div(class = "about-card",
         h4(bs_icon("share-fill"), " Between-grid movement"),
         p("The Plot map can overlay ", tags$b("recapture connectivity"), " — curved arcs linking trapping grids where the same tagged animals were recaptured, thicker where more individuals made that move. It shows site fidelity vs. inter-grid movement that the per-grid dots can't."),
-        p(class = "caveat", bs_icon("exclamation-triangle"), " Mark-recapture, ", tags$b("not"), " telemetry: an arc means \"caught here, then there,\" not a tracked route, and a link across a long gap can reflect a reused tag.")),
+        p(class = "caveat", bs_icon("exclamation-triangle"), " Mark-recapture, ", tags$b("not"), " telemetry: an arc means \"caught here, then there,\" not a tracked route — and a long gap between the two captures just means the animal went undetected in between.")),
       div(class = "about-card",
         h4(bs_icon("exclamation-diamond"), " Caveats"),
-        p("NEON ear-tag numbers can be reused across years (we flag the obvious cases). A trap that caught nothing means \"not detected,\" not \"absent.\" This is a data-exploration toy, not an authoritative population analysis — but the metrics are built to be defensible."),
+        p("NEON keeps a tag on one animal for life and doesn't recycle tag numbers (a number is unique within a site), so a multi-year capture career is a real long-lived individual, not a tag mix-up — we flag only the rare history that can't be one animal (e.g. the same tag at two plots on a single day). A trap that caught nothing means \"not detected,\" not \"absent.\" This is a data-exploration toy, not an authoritative population analysis — but the metrics are built to be defensible."),
         p("Reviewed for scientific soundness with input from a wildlife-monitoring methods audit (Peig & Green 2009; Krebs 1966; Gotelli & Colwell 2001; NEON DP1.10072.001 User Guide)."),
         p(bs_icon("envelope"), " ", tags$a(href = "mailto:tsgilbert@arizona.edu", "tsgilbert@arizona.edu"),
           " · ", tags$a(href = "https://data.neonscience.org/data-products/DP1.10072.001",
