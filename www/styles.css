@@ -367,7 +367,8 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .si-dot { width: 13px; height: 13px; border-radius: 50%; display: inline-block;
   border: 1.5px solid #fff; box-shadow: 0 0 0 1px var(--line); }
 
-.picker-actions { text-align: center; margin: 14px 0 6px; }
+.picker-actions { display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 12px; margin: 16px 0 6px; }
 .picker-tour { text-align: center; margin: 2px 0 4px; }
 .picker-tour a { font-size: 12.5px; font-weight: 600; color: var(--sky); text-decoration: none; }
 .picker-tour a:hover { color: var(--pine); text-decoration: underline; }

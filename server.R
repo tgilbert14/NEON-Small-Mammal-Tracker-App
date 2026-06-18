@@ -1059,13 +1059,13 @@ server <- function(input, output, session) {
       return(note_plot("Not enough adult weights<br>for this species to rank", "\U0001F9CA"))
     plot_ly(type = "indicator", mode = "gauge+number+delta",
       value = pct,
-      number = list(suffix = "", font = list(color = "#1f2a30", size = 46)),
+      number = list(suffix = "", font = list(color = "#1f2a30", size = 40)),
       delta = list(reference = 50, suffix = " vs typical",
         increasing = list(color = "#1a7f37"), decreasing = list(color = "#2f7fb5"),
         font = list(size = 13)),
       title = list(text = sprintf("<b>%s</b><br><span style='font-size:12px;color:#6b7a85'>adult weight percentile vs %s</span>",
                                   row$chonk_tier[1], row$scientificName[1]),
-                   font = list(color = "#1f2a30", size = 18)),
+                   font = list(color = "#1f2a30", size = 16)),
       gauge = list(
         axis = list(range = list(0, 100), tickcolor = "#6b7a85", tickfont = list(color = "#6b7a85")),
         bar = list(color = "#0C234B", thickness = 0.28),
@@ -1079,7 +1079,7 @@ server <- function(input, output, session) {
         threshold = list(line = list(color = "#AB0520", width = 3), thickness = 0.8, value = 50))
     ) %>% plotly::layout(paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)",
                          font = list(color = "#344049", family = "Rubik"),
-                         margin = list(t = 70, b = 10, l = 30, r = 30)) %>%
+                         margin = list(t = 48, b = 26, l = 30, r = 30)) %>%
       plotly::config(displayModeBar = FALSE)
   })
 

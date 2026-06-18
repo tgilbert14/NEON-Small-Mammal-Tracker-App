@@ -223,7 +223,7 @@ ui <- bslib::page_sidebar(
           actionButton("demoBtn2", tagList(bs_icon("stars"), " Or jump straight into the Jornada demo"),
                        class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')"),
           actionButton("compareBtn", tagList(bs_icon("bar-chart-steps"), " Compare two sites"),
-                       class = "btn-outline-dark btn-lg ms-2")),
+                       class = "btn-outline-dark btn-lg")),
         div(class = "picker-tour",
           tags$a(href = "#", onclick = "smtTour();return false;",
                  bs_icon("signpost-2"), " Take a 30-second tour")),
