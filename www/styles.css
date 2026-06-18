@@ -199,6 +199,23 @@ body {
   .ec-dir { margin-left: 0; flex-basis: 100%; }
 }
 
+/* compact "answer up front" banner atop a data-heavy chart card (insight_banner) */
+.chart-insight { display: flex; align-items: center; gap: 9px; margin: 0 0 12px;
+  padding: 9px 13px; border: 1px solid var(--line); border-left: 4px solid var(--ci-rail, var(--muted));
+  border-radius: 9px; background: linear-gradient(180deg, #f4f8fd 0%, var(--paper) 100%);
+  font-size: 13.5px; line-height: 1.4; color: var(--ink); animation: ecReveal .3s ease; }
+.chart-insight > .bi { font-size: 17px; color: var(--ci-rail, var(--muted)); flex: none; }
+.chart-insight .ci-text { min-width: 0; }
+.chart-insight b { font-weight: 800; }
+.ci-hero { font-weight: 800; color: var(--ci-rail, var(--ink)); }
+.ci-navy { --ci-rail: #0C234B; } .ci-pine { --ci-rail: #1a7f37; }
+.ci-gold { --ci-rail: #c9a300; } .ci-terra { --ci-rail: #AB0520; }
+.ci-muted { --ci-rail: var(--muted); }
+[data-bs-theme="dark"] .chart-insight { background: linear-gradient(180deg, #1b2942 0%, var(--paper) 100%); }
+[data-bs-theme="dark"] .ci-navy { --ci-rail: #5a8fd0; } [data-bs-theme="dark"] .ci-pine { --ci-rail: #5fcf86; }
+[data-bs-theme="dark"] .ci-gold { --ci-rail: var(--gold-ink); } [data-bs-theme="dark"] .ci-terra { --ci-rail: #ff7a8a; }
+@media (max-width: 560px) { .chart-insight { font-size: 12.5px; padding: 8px 11px; } }
+
 .or-divider { display: flex; align-items: center; text-align: center; color: var(--muted); margin: 12px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; }
 .or-divider::before, .or-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); margin: 0 10px; }
 

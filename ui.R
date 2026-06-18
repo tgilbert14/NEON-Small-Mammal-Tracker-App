@@ -253,6 +253,7 @@ ui <- bslib::page_sidebar(
             info_pop("Species composition",
               p("How many ", tags$b("captures"), " (bar length) and ", tags$b("individuals"), " (label) each species contributed."),
               p("Brighter bars = caught more times per animal (a \"trap-happy\" species)."))),
+          uiOutput("speciesBarInsight"),
           div(class = "chart-hint", bs_icon("hand-index-thumb"), " Tap a bar for that species' full breakdown."),
           spin(plotlyOutput("speciesBar", height = "440px"))),
         # the plain-English story sits underneath
@@ -318,6 +319,7 @@ ui <- bslib::page_sidebar(
               info_pop("Species accumulation",
                 p("As more trapping bouts accumulate, how many ", tags$b("species"), " have been found? When the curve flattens, you've probably found them all. Genus-only IDs (\"X sp.\") are excluded so an unidentified catch isn't counted as its own species."),
                 p("The dashed ", tags$b("Chao1"), " line is a ", tags$b("bias-corrected minimum estimate"), " of true richness — a floor that includes species not yet caught — shown with a 95% interval. When ", tags$em("doubletons"), " (species caught as exactly 2 individuals) are scarce it's unstable and flagged as a lower bound (Chao 1987; Gotelli & Colwell 2001)."))),
+            uiOutput("accumInsight"),
             spin(plotlyOutput("accumPlot", height = "440px")))
         ),
         conditionalPanel("input.envLayer && input.envLayer != 'none'",
@@ -351,6 +353,7 @@ ui <- bslib::page_sidebar(
                 tags$li(tags$b("q = 2"), " — ", tags$b("inverse Simpson"), ": the effective number of ", tags$em("dominant"), " species.")),
               p("They always shrink (q0 ≥ q1 ≥ q2). When q1 sits close to q0 the community is ", tags$b("even"), "; when it drops far below, a few species ", tags$b("dominate"), "."),
               p(tags$em("Abundance = distinct individuals per species, so a much-recaptured animal isn't counted twice. Hill 1973; Jost 2006; Chao et al. 2014.")))),
+          uiOutput("hillInsight"),
           layout_columns(col_widths = c(7, 5),
             spin(plotlyOutput("hillPlot", height = "260px")),
             uiOutput("hillNote"))),
@@ -375,6 +378,7 @@ ui <- bslib::page_sidebar(
               p(tags$span(style="color:#2f7fb5", "● breeding males"), " (scrotal) and ",
                 tags$span(style="color:#c2255c", "● reproductive females"), " (pregnant or lactating)."),
               p("Peaks reveal the breeding season; the dip shows the off-season."))),
+          uiOutput("phenoInsight"),
           spin(plotlyOutput("phenoPlot", height = "320px")))
       ),
 

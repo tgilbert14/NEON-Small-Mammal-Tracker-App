@@ -892,6 +892,60 @@ server <- function(input, output, session) {
             lapply(site_insights(d, rv$lb), function(s) tags$li(HTML(s))))
   })
 
+  # ---- "answer up front" banners for the data-heavy charts ----------------
+  # Each leads its chart card with one plain-English finding, the way the
+  # population driver card does. They read the same helpers the charts do.
+  output$speciesBarInsight <- renderUI({
+    d <- rv$data; req(d)
+    sp <- species_summary(d); if (is.null(sp) || nrow(sp) == 0) return(NULL)
+    tot <- sum(sp$individuals, na.rm = TRUE)
+    share <- if (tot > 0) round(100 * sp$individuals[1] / tot) else 0
+    insight_banner("collection", tone = "navy",
+      HTML(sprintf("The <b><i>%s</i></b> dominates this site — <span class='ci-hero'>%s%%</span> of individuals (%s of %s).",
+        sp$scientificName[1], share, fmt_int(sp$individuals[1]), fmt_int(tot))))
+  })
+
+  output$hillInsight <- renderUI({
+    d <- rv$data; req(d)
+    hn <- hill_numbers(d); if (hn$n_sp == 0) return(NULL)
+    if (is.na(hn$even)) return(insight_banner("diagram-3-fill", tone = "muted",
+      HTML(sprintf("<span class='ci-hero'>%s</span> species recorded at this site.", hn$n_sp))))
+    verdict <- if (hn$even >= 0.75) "an even community"
+      else if (hn$even >= 0.5) "a moderately even community"
+      else if (hn$even >= 0.3) "an uneven community — a few species dominate"
+      else "a highly skewed community — one or two species dominate"
+    insight_banner("diagram-3-fill", tone = if (hn$even >= 0.5) "pine" else "gold",
+      HTML(sprintf("This is <b>%s</b>: <span class='ci-hero'>%s</span> species seen, but only about <b>%s</b> are common.",
+        verdict, hn$n_sp, format(hn$q1, nsmall = 1))))
+  })
+
+  output$accumInsight <- renderUI({
+    d <- rv$data; req(d)
+    sa <- tryCatch(species_accum(d), error = function(e) NULL); if (is.null(sa)) return(NULL)
+    complete <- sa$sobs >= 0.85 * sa$chao1
+    est <- if (isTRUE(sa$unstable)) sprintf("at least <b>%s</b>", sa$chao1)
+           else sprintf("<span class='ci-hero'>%s</span> (95%% CI %s–%s)", sa$chao1, sa$chao_lo, sa$chao_hi)
+    insight_banner("graph-up", tone = if (complete) "pine" else "gold",
+      HTML(sprintf("Found <span class='ci-hero'>%s</span> species; Chao1 estimates %s are really here — sampling looks %s.",
+        sa$sobs, est, if (complete) "close to complete" else "like it's still missing a rare species or two")))
+  })
+
+  output$phenoInsight <- renderUI({
+    d <- rv$data; req(d)
+    bm <- repro_by_month(d); if (is.null(bm)) return(NULL)
+    pkm <- if (any(!is.na(bm$pm))) bm$mon[which.max(replace(bm$pm, is.na(bm$pm), -1))] else NA
+    pkf <- if (any(!is.na(bm$pf))) bm$mon[which.max(replace(bm$pf, is.na(bm$pf), -1))] else NA
+    if (is.na(pkm) && is.na(pkf)) return(insight_banner("calendar-heart", tone = "muted",
+      "Too few sexed adults per month to read a clear breeding season here."))
+    segs <- character(0)
+    if (!is.na(pkm)) segs <- c(segs, sprintf("males in <span class='ci-hero'>%s</span> (%d%%)",
+      month.abb[pkm], as.integer(bm$pm[bm$mon == pkm])))
+    if (!is.na(pkf)) segs <- c(segs, sprintf("reproductive females in <span class='ci-hero'>%s</span> (%d%%)",
+      month.abb[pkf], as.integer(bm$pf[bm$mon == pkf])))
+    insight_banner("calendar-heart", tone = "navy",
+      HTML(paste0("Breeding peaks — ", paste(segs, collapse = ", "), ".")))
+  })
+
   output$meetLocals <- renderUI({
     d <- rv$data; req(d)
     s <- utils::head(species_summary(d), 6)
@@ -1619,32 +1673,10 @@ server <- function(input, output, session) {
   # ---- breeding phenology -------------------------------------------------
   output$phenoPlot <- renderPlotly({
     d <- rv$data; req(d)
-    ad <- flag_repro(dplyr::filter(d, !is.na(.data$tagID), .data$lifeStage == "adult", !is.na(.data$date)))
-    if (nrow(ad) == 0) return(note_plot("No adult reproductive data", "\U0001F423"))
-    ad$mon <- as.integer(format(ad$date, "%m"))
-    # Dedup to one row per (INDIVIDUAL, calendar month): an animal counts once a
-    # month no matter how often it was caught, and is "breeding" if it bred at
-    # >=1 capture that month. Counting capture-rows would inflate both the n and
-    # the proportion via recaptures — the same pseudo-replication this batch
-    # removes from the donuts/violin, so the n and the >=5 gate mean ANIMALS.
-    im <- ad %>% dplyr::group_by(.data$tagID, .data$mon) %>% dplyr::summarise(
-      sex = mode_chr(.data$sex),
-      bred_m = as.integer(any(.data$repro == "breeding male", na.rm = TRUE)),
-      repr_f = as.integer(any(.data$repro %in% c("pregnant female", "lactating/receptive female"), na.rm = TRUE)),
-      .groups = "drop")
-    by_m <- im %>% dplyr::group_by(.data$mon) %>% dplyr::summarise(
-      males = sum(.data$sex == "M", na.rm = TRUE),
-      females = sum(.data$sex == "F", na.rm = TRUE),
-      breeding_m = sum(.data$bred_m[.data$sex == "M"], na.rm = TRUE),
-      repro_f = sum(.data$repr_f[.data$sex == "F"], na.rm = TRUE),
-      .groups = "drop")
-    # complete to all 12 months so a NOT-SAMPLED month is an explicit gap (NA),
-    # never silently bridged or read as a true 0%. And SUPPRESS months with <5
-    # sexed adult INDIVIDUALS — a 1-of-1 "100% breeding" must not draw like 30-of-30.
-    by_m <- dplyr::left_join(data.frame(mon = 1:12), by_m, by = "mon")
-    for (cc in c("males", "females", "breeding_m", "repro_f")) by_m[[cc]][is.na(by_m[[cc]])] <- 0
-    by_m$pm <- ifelse(by_m$males >= 5, round(100 * by_m$breeding_m / by_m$males), NA)
-    by_m$pf <- ifelse(by_m$females >= 5, round(100 * by_m$repro_f / by_m$females), NA)
+    # deduped to one row per (individual, calendar month), completed to 12 months,
+    # <5-sexed-adult months suppressed — shared with the phenology answer-banner.
+    by_m <- repro_by_month(d)
+    if (is.null(by_m)) return(note_plot("No adult reproductive data", "\U0001F423"))
     mlab <- month.abb[by_m$mon]
     p <- plot_ly()
     # seasonal climatology of the chosen env layer, behind the breeding curves
@@ -1842,10 +1874,15 @@ server <- function(input, output, session) {
     pct <- function(x) if (is.na(x)) "—" else paste0(round(100 * x), "%")
     chip <- function(v, lab, col) div(class = "detect-chip", style = sprintf("--dc:%s", col),
       div(class = "detect-v", v), div(class = "detect-l", lab))
-    div(class = "detect-head",
-      chip(pct(cc$mean_p),      "per-night detection (p̂)", "#0C234B"),
-      chip(pct(cc$mean_detect), "of population caught / bout", "#2f7fb5"),
-      chip(cc$n_estimable,      sprintf("estimable bouts (of %d)", cc$n_bouts), "#1a7f37"))
+    lead <- if (!is.na(cc$mean_detect))
+      insight_banner("incognito", tone = "navy",
+        HTML(sprintf("Traps caught about <span class='ci-hero'>%s</span> of the animals present per bout — the gap between the navy estimate and the grey known-alive line is everything they missed.",
+          paste0(round(100 * cc$mean_detect), "%")))) else NULL
+    tagList(lead,
+      div(class = "detect-head",
+        chip(pct(cc$mean_p),      "per-night detection (p̂)", "#0C234B"),
+        chip(pct(cc$mean_detect), "of population caught / bout", "#2f7fb5"),
+        chip(cc$n_estimable,      sprintf("estimable bouts (of %d)", cc$n_bouts), "#1a7f37")))
   })
 
   # The driver overlaid on the detection plot: the sidebar pick if any, else the

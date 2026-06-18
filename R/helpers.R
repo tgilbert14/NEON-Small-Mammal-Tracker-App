@@ -569,6 +569,34 @@ species_accum <- function(d, perms = 40) {
 # Abundance = distinct INDIVIDUALS per species (not captures), so a heavily
 # re-trapped animal isn't double-counted.
 # ---------------------------------------------------------------------------
+## Monthly breeding phenology, deduped to one row per (individual, calendar
+## month) so recaptures don't inflate the n or the proportion (matches the
+## donut/violin dedup discipline). Completed to all 12 months — an unsampled
+## month is an explicit NA gap; months with <5 sexed adults -> NA (suppressed).
+## Returns a 12-row tibble(mon, males, females, breeding_m, repro_f, pm, pf) or
+## NULL. Shared by the phenology chart AND its answer-banner so they can't drift.
+repro_by_month <- function(d) {
+  ad <- flag_repro(dplyr::filter(d, !is.na(.data$tagID), .data$lifeStage == "adult", !is.na(.data$date)))
+  if (nrow(ad) == 0) return(NULL)
+  ad$mon <- as.integer(format(ad$date, "%m"))
+  im <- ad %>% dplyr::group_by(.data$tagID, .data$mon) %>% dplyr::summarise(
+    sex = mode_chr(.data$sex),
+    bred_m = as.integer(any(.data$repro == "breeding male", na.rm = TRUE)),
+    repr_f = as.integer(any(.data$repro %in% c("pregnant female", "lactating/receptive female"), na.rm = TRUE)),
+    .groups = "drop")
+  by_m <- im %>% dplyr::group_by(.data$mon) %>% dplyr::summarise(
+    males = sum(.data$sex == "M", na.rm = TRUE),
+    females = sum(.data$sex == "F", na.rm = TRUE),
+    breeding_m = sum(.data$bred_m[.data$sex == "M"], na.rm = TRUE),
+    repro_f = sum(.data$repr_f[.data$sex == "F"], na.rm = TRUE),
+    .groups = "drop")
+  by_m <- dplyr::left_join(data.frame(mon = 1:12), by_m, by = "mon")
+  for (cc in c("males", "females", "breeding_m", "repro_f")) by_m[[cc]][is.na(by_m[[cc]])] <- 0
+  by_m$pm <- ifelse(by_m$males >= 5, round(100 * by_m$breeding_m / by_m$males), NA)
+  by_m$pf <- ifelse(by_m$females >= 5, round(100 * by_m$repro_f / by_m$females), NA)
+  by_m
+}
+
 hill_numbers <- function(d) {
   h <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$scientificName))
   h <- species_level_only(h)                       # same species list as richness/Chao1
@@ -765,6 +793,13 @@ site_insights <- function(d, lb = NULL, cs = NULL) {
   sp <- species_summary(d)
   out <- character(0)
 
+  # scope line first, so a shared/screenshotted insight list is self-describing
+  if (!is.null(cs$date_min) && !is.na(cs$date_min))
+    out <- c(out, sprintf(
+      "This snapshot spans <b>%s – %s</b>: <b>%s</b> individuals of <b>%s</b> species across <b>%s</b> plots.",
+      format(cs$date_min, "%b %Y"), format(cs$date_max, "%b %Y"),
+      fmt_int(cs$individuals), cs$species, cs$plots))
+
   if (nrow(sp) > 0) {
     top <- sp[1, ]
     nn <- if (!is.na(top$nickname)) sprintf(" (the %s)", top$nickname) else ""
@@ -775,7 +810,7 @@ site_insights <- function(d, lb = NULL, cs = NULL) {
       hv <- sp[which.max(replace(sp$avg_weight, is.na(sp$avg_weight), -Inf)), ]
       if (is.finite(hv$avg_weight) && hv$scientificName != top$scientificName)
         out <- c(out, sprintf(
-          "The heaviest species caught is the <b><i>%s</i></b>, averaging about <b>%s g</b> — many times the weight of the little pocket mice.",
+          "The heaviest species caught is the <b><i>%s</i></b>, averaging about <b>%s g</b> — one of the larger-bodied species at this site.",
           hv$scientificName, hv$avg_weight))
     }
   }
@@ -800,11 +835,15 @@ site_insights <- function(d, lb = NULL, cs = NULL) {
     fmt_int(cs$trap_nights), cs$plots))
 
   sa <- tryCatch(species_accum(d), error = function(e) NULL)
-  if (!is.null(sa))
+  if (!is.null(sa)) {
+    est <- if (isTRUE(sa$unstable))
+      sprintf("at least <b>%s</b> (a soft lower bound — too few twice-seen species to pin down)", sa$chao1)
+    else sprintf("about <b>%s</b> (95%% CI %s–%s)", sa$chao1, sa$chao_lo, sa$chao_hi)
     out <- c(out, sprintf(
-      "<b>%s species</b> were found; a Chao1 estimate suggests about <b>%s</b> are really present — sampling looks %s.",
-      sa$sobs, sa$chao1,
+      "<b>%s species</b> were found; a Chao1 estimate suggests %s are really present — sampling looks %s.",
+      sa$sobs, est,
       if (sa$sobs >= 0.85 * sa$chao1) "close to complete" else "like it may still be missing a rare species or two"))
+  }
 
   if (cs$n_male + cs$n_female > 0) {
     skew <- if (cs$n_male > cs$n_female * 1.2) "male-skewed"
