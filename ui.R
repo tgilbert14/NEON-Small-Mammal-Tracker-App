@@ -313,6 +313,7 @@ ui <- bslib::page_sidebar(
                 p(tags$b("MNKA"), " (Minimum Number Known Alive) counts how many individuals were ", tags$em("known"), " to be alive each month — caught that month, or before ", tags$em("and"), " after. A transparent abundance index (Krebs 1966)."),
                 p("The dotted grey line (", tags$b("right axis"), ") is ", tags$b("catch per effort"), " — captures per 100 ", tags$b("trap-nights"), ". A trap-night is one trap set out for one night, computed from ", tags$em("this site's own data"), " (the actual traps set × the nights they ran) — so a smaller grid or fewer nights doesn't skew it, and it does ", tags$em("not"), " assume a fixed 100-trap grid. Sprung or disturbed traps count as half a trap-night (Nelson & Clark 1973)."),
                 p("It's a relative-abundance ", tags$b("index"), " for comparing sites and trends — not a population estimate (it doesn't correct for detectability; that's what the detection-corrected abundance tab is for)."))),
+            uiOutput("mnkaInsight"),
             spin(plotlyOutput("mnkaPlot", height = "440px"))),
           card(full_screen = TRUE,
             card_head("graph-up", "Species accumulation",

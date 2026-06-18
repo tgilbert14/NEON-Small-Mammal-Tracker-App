@@ -927,7 +927,7 @@ server <- function(input, output, session) {
     d <- rv$data; req(d)
     sa <- tryCatch(species_accum(d), error = function(e) NULL); if (is.null(sa)) return(NULL)
     complete <- sa$sobs >= 0.85 * sa$chao1
-    est <- if (isTRUE(sa$unstable)) sprintf("at least <b>%s</b>", sa$chao1)
+    est <- if (isTRUE(sa$unstable)) sprintf("at least <b>%s</b> (only %d species seen twice — a soft floor)", sa$chao1, sa$f2)
            else sprintf("<span class='ci-hero'>%s</span> (95%% CI %s–%s)", sa$chao1, sa$chao_lo, sa$chao_hi)
     insight_banner("graph-up", tone = if (complete) "pine" else "gold",
       HTML(sprintf("Found <span class='ci-hero'>%s</span> species; Chao1 estimates %s are really here — sampling looks %s.",
@@ -1770,6 +1770,12 @@ server <- function(input, output, session) {
   })
 
   # ---- MNKA + catch-per-effort -------------------------------------------
+  output$mnkaInsight <- renderUI({
+    d <- rv$data; req(d)
+    insight_banner("people-fill", tone = "navy",
+      HTML("<b>MNKA</b> (per plot, left axis) counts individuals known alive each month; the dotted <b>site-total catch-per-effort</b> (right axis) is a different quantity — they're on separate scales and can move apart, so read each on its own axis."))
+  })
+
   output$mnkaPlot <- renderPlotly({
     d <- rv$data; req(d)
     mn <- mnka_series(d)
@@ -1783,12 +1789,17 @@ server <- function(input, output, session) {
     if (!is.null(es))
       p <- add_env_overlay(p, es$env, es$layer, es$lag, yaxis = "y3",
                            xlim = range(mn$date, na.rm = TRUE), demo = es$demo)
+    max_tn <- max(mn$trap_nights, na.rm = TRUE)
     for (i in seq_along(plots)) {
       pl <- plots[i]; dd <- mn[mn$plotID == pl, ]
+      # marker size tracks trap-EFFORT: a low-effort month reads as a smaller,
+      # more tentative point (MNKA isn't effort-normalized, so this is the only
+      # honest "how hard did we look that month" cue).
+      msz <- 4 + 7 * (dd$trap_nights / max_tn)
       p <- p %>% add_trace(data = dd, x = ~date, y = ~mnka, type = "scatter", mode = "lines+markers",
         name = pl, legendgroup = pl, line = list(color = plot_cols[i], width = 2),
-        marker = list(size = 5, color = plot_cols[i]),
-        hovertemplate = paste0(pl, "<br>%{x|%b %Y}<br>MNKA: %{y}<extra></extra>"))
+        marker = list(size = msz, color = plot_cols[i]), customdata = round(dd$trap_nights),
+        hovertemplate = paste0(pl, "<br>%{x|%b %Y}<br>MNKA: %{y} · %{customdata} trap-nights<extra></extra>"))
     }
     # site-total CPUE companion line on a secondary axis
     site <- mn %>% dplyr::group_by(.data$date) %>%
@@ -1798,16 +1809,28 @@ server <- function(input, output, session) {
       mode = "lines", name = "site total, per 100 trap-nights",
       line = list(color = "rgba(31,42,48,0.55)", width = 2, dash = "dot"),
       hovertemplate = "%{x|%b %Y}<br>%{y} captures per 100 trap-nights<extra></extra>")
+    # Shaded "no sampling" bands behind long pauses (>~4 months between sampled
+    # months — e.g. the COVID-2020 hiatus): the line stays continuous (clean) but
+    # a labelled band names the gap, so a bridged segment is never read as a real
+    # trend through months that weren't surveyed.
+    sdates <- sort(unique(mn$date))
+    gi <- if (length(sdates) > 1) which(as.numeric(diff(sdates)) > 124) else integer(0)
+    bands <- lapply(gi, function(k) list(type = "rect", xref = "x", yref = "paper",
+      x0 = sdates[k], x1 = sdates[k + 1], y0 = 0, y1 = 1, layer = "below",
+      fillcolor = "rgba(120,130,140,0.13)", line = list(width = 0)))
+    band_lbls <- lapply(gi, function(k) list(text = "no sampling",
+      x = sdates[k] + (sdates[k + 1] - sdates[k]) / 2, y = 0.5, xref = "x", yref = "paper",
+      showarrow = FALSE, font = list(color = "#9aa7b5", size = 10, family = "Rubik")))
     p <- plotly_theme(p) %>% plotly::layout(
-      yaxis  = list(title = "MNKA (individuals known alive)", color = "#16386e"),
+      yaxis  = list(title = "MNKA (individuals known alive)", color = "#16386e", rangemode = "tozero"),
       yaxis2 = list(title = "captures per 100 trap-nights (site total)", color = "#7a8896",
-                    overlaying = "y", side = "right", gridcolor = "rgba(0,0,0,0)"),
+                    overlaying = "y", side = "right", gridcolor = "rgba(0,0,0,0)", rangemode = "tozero"),
       xaxis  = list(title = "", showspikes = TRUE, spikemode = "across",
                     spikethickness = 1, spikecolor = "#7a8896", spikedash = "dot"),
-      hovermode = "x", margin = list(t = 44),
-      annotations = list(list(text = "⋯ dotted = catch-per-effort (right axis)",
+      hovermode = "x", margin = list(t = 44), shapes = bands,
+      annotations = c(list(list(text = "⋯ dotted = catch-per-effort (right axis)",
         x = 0, y = 1.08, xref = "paper", yref = "paper", xanchor = "left", yanchor = "bottom",
-        showarrow = FALSE, font = list(color = "#7a8896", size = 11, family = "Rubik")))) %>% ctx_anno()
+        showarrow = FALSE, font = list(color = "#7a8896", size = 11, family = "Rubik"))), band_lbls)) %>% ctx_anno()
     # hidden y3 for the env area: pure background context (y2 already holds CPUE)
     if (!is.null(es))
       p <- p %>% plotly::layout(yaxis3 = c(env_axis_spec(es$layer, show = FALSE),
@@ -1856,7 +1879,7 @@ server <- function(input, output, session) {
     # caveat is in the info popover, so the subtitle stays short enough never to clip.
     anno_txt <- sprintf("observed %d species", sa$sobs)
     plotly_theme(p) %>% plotly::layout(
-      xaxis = list(title = "trapping bouts (months)"),
+      xaxis = list(title = "trapping bouts (sampling order, resampled)"),
       yaxis = list(title = "cumulative species", range = c(0, cap + 1), rangemode = "tozero"),
       margin = list(l = 50, r = 30, t = 84, b = 40),
       annotations = list(list(text = anno_txt,
