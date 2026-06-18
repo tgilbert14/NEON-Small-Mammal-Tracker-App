@@ -1591,8 +1591,46 @@ server <- function(input, output, session) {
       return(insight_banner("geo-fill", tone = "navy",
         "No between-grid recaptures: every tagged animal stayed on its home grid (high site fidelity)."))
     insight_banner("share-fill", tone = "navy",
-      HTML(sprintf("<span class='ci-hero'>%d</span> of %d tagged individuals were recaptured across <b>2+ grids</b>. Toggle <b>recapture movement</b> (top-right) to see the links — curved lines connect successive capture plots, <i>not</i> tracked routes, and a long gap between the two just means the animal went undetected in between.",
-        rf$n_movers, rf$n_tagged)))
+      HTML(sprintf("<span class='ci-hero'>%d</span> of %d tagged individuals were recaptured across <b>2+ grids</b>. Toggle <b>recapture movement</b> (top-right) to see the links — curved lines connect successive capture plots, <i>not</i> tracked routes, and a long gap between the two just means the animal went undetected in between. <a href='#' class='inspect-link' onclick=\"Shiny.setInputValue('showMovers', Math.random(), {priority:'event'}); return false;\">Inspect these %d &raquo;</a>",
+        rf$n_movers, rf$n_tagged, rf$n_movers)))
+  })
+
+  # QC inspector — list each cross-grid mover's capture history so a user can
+  # judge "one real mover" vs "two animals sharing a tag" (a sex/species change
+  # across captures, or a same-day two-plot record, is the tell).
+  observeEvent(input$showMovers, {
+    d <- rv$data; rf <- recap_flow(); req(d, !is.null(rf))
+    cap <- inspect_captures(d, rf$movers)
+    if (is.null(cap) || !nrow(cap)) {
+      showNotification("No cross-grid movers to inspect here.", type = "message"); return()
+    }
+    blocks <- lapply(split(cap, factor(cap$short, levels = unique(cap$short))), function(g) {
+      sexes <- unique(g$sex[g$sex %in% c("M", "F")])
+      spp   <- unique(g$scientificName[!is.na(g$scientificName)])
+      sameday <- any(tapply(g$plotID, g$date, function(p) length(unique(p))) > 1, na.rm = TRUE)
+      tells <- c(if (length(sexes) > 1) "sex changes", if (length(spp) > 1) "species changes",
+                 if (isTRUE(sameday)) "same day at 2 plots — physically impossible")
+      div(class = "mover-block",
+        div(class = "mover-head", tags$b(g$short[1]), " · ", em(spp[1]),
+          tags$span(class = "mover-n", sprintf(" %d captures, %d plots", nrow(g), dplyr::n_distinct(g$plotID))),
+          if (length(tells))
+            tags$span(class = "mover-warn", bs_icon("exclamation-triangle-fill"),
+                      paste0(" ", paste(tells, collapse = "; "), " → likely two animals"))),
+        tags$table(class = "inspect-tbl",
+          tags$thead(tags$tr(lapply(c("Date", "Plot", "Species", "Sex", "Stage"), tags$th))),
+          tags$tbody(lapply(seq_len(nrow(g)), function(i)
+            tags$tr(
+              tags$td(format(g$date[i], "%Y-%m-%d")), tags$td(g$plotID[i]),
+              tags$td(em(g$scientificName[i])),
+              tags$td(ifelse(is.na(g$sex[i]), "?", g$sex[i])),
+              tags$td(ifelse(is.na(g$lifeStage[i]), "?", g$lifeStage[i])))))))
+    })
+    showModal(modalDialog(
+      title = tagList(bs_icon("share-fill"), " Individuals caught at 2+ grids"),
+      size = "l", easyClose = TRUE, footer = modalButton("Close"),
+      p(class = "inspect-note", HTML("NEON keeps a tag on one animal for life and doesn't reuse numbers, so most of these are <b>real</b> long-distance movers. But a tag whose <b>sex</b> or <b>species</b> changes across captures, or that shows up at two plots on the <b>same day</b>, is more likely two animals sharing a number — those are flagged below for you to verify against the field records.")),
+      div(class = "movers-wrap", blocks)
+    ))
   })
 
   # teal AGGREGATE layer — redraws only when the toggle or base map changes
@@ -1889,10 +1927,10 @@ server <- function(input, output, session) {
     # measure contains values flagged as possible data-entry errors (beyond
     # median±5·MAD). The flagged value is KEPT — its raw min–max rides in the
     # tooltip for field QC — but it's excluded from the median and the p5–p95 range.
-    cell <- function(med, lo, hi, n, nflag, rmin, rmax, unit, min_n = 3) {
+    cell <- function(med, lo, hi, n, nflag, rmin, rmax, unit, sp, meas, min_n = 3) {
       warn <- ifelse(!is.na(nflag) & nflag > 0,
-        sprintf(" <span class='mz-flag' title='%s value(s) here are beyond the plausible adult range (raw %s–%s %s) — kept for your QC, but excluded from the median and the 5th–95th-percentile range shown'>&#9888;</span>",
-                format(nflag, big.mark = ","), rmin, rmax, unit),
+        sprintf(" <span class='mz-flag' style='cursor:pointer' onclick=\"Shiny.setInputValue('showOutliers','%s||%s||'+Math.random(),{priority:'event'})\" title='%s value(s) beyond the plausible adult range (raw %s–%s %s) — click to inspect &amp; verify. Kept in the data but excluded from the median and the 5th–95th-percentile range.'>&#9888;</span>",
+                sp, meas, format(nflag, big.mark = ","), rmin, rmax, unit),
         "")
       ifelse(is.na(med) | n < min_n, "<span class='muted'>—</span>",
         sprintf("<b>%s</b> <span class='mz-rng'>[%s–%s]</span> <span class='mz-n'>n=%s</span>%s",
@@ -1901,15 +1939,42 @@ server <- function(input, output, session) {
     df <- tibble::tibble(
       Species = sprintf("<span class='ind-cell'><span class='ind-emoji'>%s</span><span class='ind-id'><i>%s</i></span></span>", m$emoji, m$scientificName),
       Indiv = m$n_ind,
-      `Weight (g)`    = cell(m$w_med,  m$w_lo,  m$w_hi,  m$w_n,  m$w_nflag,  m$w_min,  m$w_max,  "g"),
-      `Hindfoot (mm)` = cell(m$hf_med, m$hf_lo, m$hf_hi, m$hf_n, m$hf_nflag, m$hf_min, m$hf_max, "mm"),
-      `Tail (mm)`     = cell(m$tl_med, m$tl_lo, m$tl_hi, m$tl_n, m$tl_nflag, m$tl_min, m$tl_max, "mm"),
-      `Ear (mm)`      = cell(m$el_med, m$el_lo, m$el_hi, m$el_n, m$el_nflag, m$el_min, m$el_max, "mm"))
+      `Weight (g)`    = cell(m$w_med,  m$w_lo,  m$w_hi,  m$w_n,  m$w_nflag,  m$w_min,  m$w_max,  "g",  m$scientificName, "weight"),
+      `Hindfoot (mm)` = cell(m$hf_med, m$hf_lo, m$hf_hi, m$hf_n, m$hf_nflag, m$hf_min, m$hf_max, "mm", m$scientificName, "hindfoot"),
+      `Tail (mm)`     = cell(m$tl_med, m$tl_lo, m$tl_hi, m$tl_n, m$tl_nflag, m$tl_min, m$tl_max, "mm", m$scientificName, "tail"),
+      `Ear (mm)`      = cell(m$el_med, m$el_lo, m$el_hi, m$el_n, m$el_nflag, m$el_min, m$el_max, "mm", m$scientificName, "ear"))
     DT::datatable(df, escape = FALSE, rownames = FALSE, selection = "none",
       class = "compact stripe hover nowrap leader-dt",
       options = list(pageLength = 12, dom = "tip", scrollX = TRUE,
         columnDefs = list(list(className = "dt-center", targets = 1:5)),
         language = list(search = "", searchPlaceholder = "filter species…")))
+  })
+
+  # QC inspector — clicking a measurement's ⚠ lists the exact flagged captures so
+  # a field tech can verify the record (the value stays in the data either way).
+  observeEvent(input$showOutliers, {
+    d <- rv$data; req(d)
+    parts <- strsplit(input$showOutliers, "\\|\\|")[[1]]
+    if (length(parts) < 2) return()
+    sp <- parts[1]; measure <- parts[2]
+    fc <- flagged_measure_captures(d, sp, measure)
+    if (is.null(fc) || !nrow(fc)) { showNotification("No flagged values to inspect.", type = "message"); return() }
+    unit <- if (measure == "weight") "g" else "mm"
+    mlab <- c(weight = "weight", hindfoot = "hind-foot length",
+              tail = "tail length", ear = "ear length")[[measure]]
+    showModal(modalDialog(
+      title = tagList(bs_icon("exclamation-triangle-fill"), sprintf(" Possible %s errors — %s", mlab, sp)),
+      size = "m", easyClose = TRUE, footer = modalButton("Close"),
+      p(class = "inspect-note", HTML(sprintf("Adult %s median here is <b>%s %s</b>. The records below fall far outside the plausible adult range (beyond median ± 5×MAD) — most likely data-entry errors. They are <b>kept in the data</b> but excluded from the median and the 5th–95th-percentile range; verify them against the field sheets.",
+        mlab, round(fc$median[1], 1), unit))),
+      tags$table(class = "inspect-tbl",
+        tags$thead(tags$tr(lapply(c("Tag", "Date", "Plot", sprintf("Value (%s)", unit), "Sex"), tags$th))),
+        tags$tbody(lapply(seq_len(nrow(fc)), function(i)
+          tags$tr(
+            tags$td(fc$short[i]), tags$td(format(fc$date[i], "%Y-%m-%d")),
+            tags$td(fc$plotID[i]), tags$td(tags$b(fc$value[i])),
+            tags$td(ifelse(is.na(fc$sex[i]), "?", fc$sex[i]))))))
+    ))
   })
 
   # ---- minimum known lifespan (a right-censored FLOOR, not a lifespan) -----

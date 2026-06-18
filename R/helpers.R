@@ -657,6 +657,7 @@ recapture_edges <- function(d) {
     }
   }
   base <- list(edges = NULL, n_movers = length(unique(movers)),
+               movers = unique(movers),
                n_tagged = n_tagged, n_plots = n_plots, max_pair_m = span, cen = cen)
   if (!length(rows)) return(base)
   pr <- do.call(rbind, rows)
@@ -667,6 +668,50 @@ recapture_edges <- function(d) {
     lat0 = ca$lat, lng0 = ca$lng, lat1 = cb$lat, lng1 = cb$lng,
     n_movers = agg$n_movers, stringsAsFactors = FALSE)
   base
+}
+
+# Capture-level detail for a set of individuals — feeds the QC "inspect" modals.
+# Ordered by tag then date, with the per-capture fields a user needs to judge
+# whether a tag is one animal or a mix-up: date, plot, species, sex, life stage.
+inspect_captures <- function(d, tags) {
+  if (is.null(d) || !length(tags)) return(NULL)
+  # same population recapture_edges() used to flag movers (needs a plot + coords),
+  # so the modal's plot count / same-day check can't disagree with the map.
+  h <- dplyr::filter(d, .data$tagID %in% tags, !is.na(.data$date), !is.na(.data$plotID),
+                     !is.na(.data$decimalLatitude), !is.na(.data$decimalLongitude))
+  if (!nrow(h)) return(NULL)
+  h %>% dplyr::arrange(.data$tagID, .data$date) %>%
+    dplyr::transmute(short = short_tag(.data$tagID),
+                     date = .data$date, plotID = .data$plotID,
+                     scientificName = .data$scientificName,
+                     sex = .data$sex, lifeStage = .data$lifeStage)
+}
+
+# The actual captures whose body measurement was flagged as a possible error
+# (beyond median +/- 5*MAD among this species' adults — same rule as
+# species_measurements()), so the QC modal can list the exact records to verify.
+# Returns a data frame (short, date, plot, value, sex) or NULL.
+flagged_measure_captures <- function(d, sp, measure) {
+  col <- switch(measure, weight = "weight", hindfoot = "hindfootLength",
+                tail = "tailLength", ear = "earLength", NULL)
+  if (is.null(col) || is.null(d)) return(NULL)
+  # species_level_only() so this draws from the exact same adult pool as
+  # species_measurements()'s nflag() — the flag rule must agree or the count
+  # here won't match the ⚠ tooltip's count.
+  h <- species_level_only(dplyr::filter(d, !is.na(.data$tagID), .data$scientificName == sp,
+                          .data$lifeStage %in% "adult"))
+  if (is.null(h) || !nrow(h)) return(NULL)
+  v <- h[[col]]; keep <- is.finite(v) & v > 0
+  h <- h[keep, , drop = FALSE]; v <- v[keep]
+  if (length(v) < 3) return(NULL)
+  m <- stats::median(v); s <- max(stats::mad(v), 0.1 * m)
+  if (!is.finite(s) || s <= 0) return(NULL)
+  flag <- abs(v - m) > 5 * s
+  if (!any(flag)) return(NULL)
+  data.frame(short = short_tag(h$tagID[flag]),
+             date = h$date[flag], plotID = h$plotID[flag],
+             value = round(v[flag], 1), sex = h$sex[flag],
+             median = m, stringsAsFactors = FALSE)
 }
 
 # Quadratic-Bezier arc points between two lon/lat endpoints (a curved connector,

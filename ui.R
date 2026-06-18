@@ -252,9 +252,25 @@ ui <- bslib::page_sidebar(
             h4("Defensible population signals"),
             p("Minimum Number Known Alive (MNKA) and catch-per-unit-effort are honest abundance indices; the accumulation curve shows whether trapping ran long enough to find every species."))
         ),
-        # "Compare with environment" lives HERE (moved off the sidebar) so it's
-        # discoverable right where its overlays appear. Hidden until the site has
-        # env data; choices + show/hide are driven server-side by id.
+        conditionalPanel("output.hasEnv == true",
+          card(full_screen = TRUE,
+            card_head("bar-chart-steps", "Which environmental driver does this population track best?",
+              info_pop("Driver comparison",
+                p("For every co-located driver, we scan lags 0–12 months and keep the ", tags$b("strongest correlation"), " with monthly catch-per-effort."),
+                p("Bars show that best correlation (sign = direction); the label is the lag at which it peaks. The longest bar is the signal this population follows most closely — the others are candidate co-drivers."),
+                p(tags$b("Reading the r-value:"), " r runs from -1 to +1 and measures how tightly two things move together — near the ends they rise and fall in near-lockstep, near 0 they barely relate. The ", tags$b("sign is the direction"), ": “+” means more driver → more animals, “−” means more driver → fewer."),
+                p("It is ", tags$b("not"), " the percentage of the population explained — that is ", tags$b("r²"), ", the square of r (so r = -0.50 means about a quarter, 0.25, of the month-to-month swings line up). With only a handful of months and many lags scanned, read r as a ", tags$b("lead worth a closer look"), " — not a proven cause."),
+                p(class = "pop-caveat", bs_icon("exclamation-triangle"),
+                  " A longer bar isn't proof of cause: drivers correlate with each other, and scanning many lags can flag a strong match by chance. Treat this as a ranking of leads to investigate."))),
+            uiOutput("envCorrNote"),
+            spin(plotlyOutput("envDriverRank", height = "300px")),
+            div(class = "env-pick-hint",
+              bs_icon("arrow-down-circle"),
+              " Pick a driver just below to overlay it on the ", tags$b("population trend"),
+              " and watch the abundance rise and fall with it."))),
+        # "Compare with environment" lives right above the abundance chart it
+        # overlays (moved off the sidebar, then down here next to its target).
+        # Hidden until the site has env data; choices + show/hide driven by id.
         hidden(div(id = "envPickerWrap", class = "env-pop-bar",
           div(class = "env-pop-row",
             div(class = "env-pop-sel",
@@ -280,18 +296,6 @@ ui <- bslib::page_sidebar(
               div(class = "env-lag-hint", "0 = same month · 3 = driver 3 months earlier"))),
           uiOutput("envSourceNote")
         )),
-        conditionalPanel("output.hasEnv == true",
-          card(full_screen = TRUE,
-            card_head("bar-chart-steps", "Which environmental driver does this population track best?",
-              info_pop("Driver comparison",
-                p("For every co-located driver, we scan lags 0–12 months and keep the ", tags$b("strongest correlation"), " with monthly catch-per-effort."),
-                p("Bars show that best correlation (sign = direction); the label is the lag at which it peaks. The longest bar is the signal this population follows most closely — the others are candidate co-drivers."),
-                p(tags$b("Reading the r-value:"), " r runs from -1 to +1 and measures how tightly two things move together — near the ends they rise and fall in near-lockstep, near 0 they barely relate. The ", tags$b("sign is the direction"), ": “+” means more driver → more animals, “−” means more driver → fewer."),
-                p("It is ", tags$b("not"), " the percentage of the population explained — that is ", tags$b("r²"), ", the square of r (so r = -0.50 means about a quarter, 0.25, of the month-to-month swings line up). With only a handful of months and many lags scanned, read r as a ", tags$b("lead worth a closer look"), " — not a proven cause."),
-                p(class = "pop-caveat", bs_icon("exclamation-triangle"),
-                  " A longer bar isn't proof of cause: drivers correlate with each other, and scanning many lags can flag a strong match by chance. Treat this as a ranking of leads to investigate."))),
-            uiOutput("envCorrNote"),
-            spin(plotlyOutput("envDriverRank", height = "300px")))),
         card(full_screen = TRUE,
           card_head("incognito", "Detection-corrected abundance",
             info_pop("Detection-corrected abundance", placement = "left",
