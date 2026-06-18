@@ -348,7 +348,14 @@ build_leaderboard <- function(d) {
                          a <- safe_date_min(.data$date); b <- safe_date_max(.data$date)
                          if (is.na(a) || is.na(b)) NA_integer_ else as.integer(b - a)
                        },
-      max_gap_days   = max_gap_days(.data$date),
+      # spatial impossibility: the same tag at >1 plot on a SINGLE day = two
+      # animals sharing a number (plots are km apart, beyond a heteromyid's daily
+      # move). Within a site NEON tag numbers are unique, so this — not a long
+      # career — is the real "two animals" signal.
+      spatial_conflict = { ok <- !is.na(.data$date) & !is.na(.data$plotID)
+                           if (sum(ok) < 2L) FALSE
+                           else any(tapply(.data$plotID[ok], .data$date[ok],
+                                           function(p) length(unique(p))) > 1L) },
       n_traps        = dplyr::n_distinct(.data$trapCoordinate[!is.na(.data$trapCoordinate)]),
       plots_visited  = dplyr::n_distinct(.data$plotID[!is.na(.data$plotID)]),
       avg_weight     = round(safe_mean(.data$weight), 1),
@@ -378,11 +385,17 @@ build_leaderboard <- function(d) {
       nickname = species_nickname(.data$scientificName),
       rarity   = rarity_tier(.data$captures),
       career_days = dplyr::if_else(is.na(.data$career_days), 0L, .data$career_days),
-      # Tag-reuse guard (conservative, so it doesn't fire on NEON's normal
-      # seasonal winter gaps): a "career" beyond what these small heteromyids/
-      # cricetids plausibly live (~550 d ≈ 1.5 yr) OR a gap of a full missed
-      # year+ (>300 d) is almost certainly a recycled ear-tag = two animals.
-      tag_suspect = (.data$career_days > 550) | (!is.na(.data$max_gap_days) & .data$max_gap_days > 300),
+      # Identity-QA flag — NOT "reused tag". NEON does not recycle tag numbers; a
+      # tag is applied once and kept for life, and tag numbers are unique within a
+      # site (the app loads one site at a time, so group_by(tagID) is already
+      # site-scoped). A 1.5–3.5 yr career is NORMAL for these desert heteromyids
+      # (D. merriami reaches ≥3.5 yr in the wild — Zeng & Brown 1987), so we must
+      # NOT flag long careers. We flag only a history that can't be ONE valid
+      # animal: a same-day two-plot record (spatially impossible), or a span
+      # beyond any wild career for these genera (>5 yr; genus maxima ~3.5–5 yr).
+      # Seasonal detection gaps are NOT flagged — desert rodents routinely go a
+      # full year undetected (a detection artifact, not reuse). See Fauna review.
+      tag_suspect = .data$spatial_conflict | (.data$career_days > 1825),
       id_uncertain = .data$n_species_ids > 1,
       # APPROX AGE (decimal years) = career span + a coarse estimate of how old
       # the animal already was at first capture. Genus-level heteromyid offsets
@@ -569,11 +582,14 @@ genus_of <- function(sci) sub("^([A-Za-z]+).*$", "\\1", sci)
 # over-claim. One row per qualifying species-level taxon.
 min_known_lifespan <- function(lb) {
   if (is.null(lb) || !nrow(lb)) return(NULL)
-  if (!all(c("approx_age_years", "captures", "tag_suspect") %in% names(lb)))
+  if (!all(c("approx_age_years", "captures", "tag_suspect", "id_uncertain") %in% names(lb)))
     return(NULL)
   q <- dplyr::filter(lb,
     .data$captures >= 3,
     !.data$tag_suspect,
+    # exclude tags recorded under >1 species — an ambiguous-ID animal shouldn't
+    # anchor a species' longevity (Fauna ranks a species flip the weakest signal).
+    !(.data$id_uncertain %in% TRUE),
     is.finite(.data$approx_age_years),
     !is.na(.data$scientificName))
   q <- species_level_only(q)
