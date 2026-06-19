@@ -307,6 +307,20 @@ server <- function(input, output, session) {
                                      lb$emoji, lb$short, lb$scientificName, lb$captures))
     updateSelectizeInput(session, "indiv", choices = c("Pick a tagID…" = "", ch), server = TRUE)
     updateSelectizeInput(session, "indivHR", choices = c("Pick an individual…" = "", ch), server = TRUE)
+    # Size Lab scatter filters: species (default all) + plot (default all).
+    # Build the choices from the MEASURED subset (individuals with both a weight
+    # and a hind-foot) — the same set the scatter plots — so picking any species
+    # or plot can never land on an empty chart.
+    meas <- lb[is.finite(lb$avg_hf) & is.finite(lb$avg_weight) &
+               lb$avg_hf > 0 & lb$avg_weight > 0 & !is.na(lb$scientificName), , drop = FALSE]
+    sp_u <- sort(unique(meas$scientificName))
+    updateSelectInput(session, "scatterSpecies",
+                      choices = c(list("All species" = "all"), as.list(stats::setNames(sp_u, sp_u))),
+                      selected = "all")
+    pl_u <- sort(unique(meas$home_plot[!is.na(meas$home_plot)]))
+    updateSelectInput(session, "scatterPlot",
+                      choices = c(list("All plots" = "all"), as.list(stats::setNames(pl_u, pl_u))),
+                      selected = "all")
     nav_select("tabs", "overview")
     session$sendCustomMessage("countUp", list())
     session$sendCustomMessage("loadDone", list())   # hide the loading overlay
@@ -520,10 +534,14 @@ server <- function(input, output, session) {
     # keep BOTH pickers (sidebar + the inline Home-Range one) in lockstep
     if (!identical(input$indiv, tag))   updateSelectizeInput(session, "indiv",   selected = tag)
     if (!identical(input$indivHR, tag)) updateSelectizeInput(session, "indivHR", selected = tag)
-    if (navigate) nav_select("tabs", "dossier")
-    row <- rv$lb[rv$lb$tagID == tag, ]
-    if (nrow(row) && row$rarity[1] %in% c("Epic", "Legendary")) {
-      session$sendCustomMessage("confetti", list(big = row$rarity[1] == "Legendary"))
+    # Confetti is a "you arrived at a star's dossier" celebration — only on an
+    # active navigate (sidebar / leaderboard / dossier), NOT on the quiet in-place
+    # picks (Size Lab QC chip, Home-Range inline picker), which set navigate=FALSE.
+    if (navigate) {
+      nav_select("tabs", "dossier")
+      row <- rv$lb[rv$lb$tagID == tag, ]
+      if (nrow(row) && row$rarity[1] %in% c("Epic", "Legendary"))
+        session$sendCustomMessage("confetti", list(big = row$rarity[1] == "Legendary"))
     }
   }
 
@@ -542,6 +560,15 @@ server <- function(input, output, session) {
     i <- input$leaderboard_rows_selected
     if (length(i) && !is.null(rv$lb_view)) pick_individual(rv$lb_view$tagID[i])
   })
+
+  # Size Lab: tapping "Open QC history card" on a pinned scatter card selects
+  # that individual (without leaving the tab) and scrolls its QC card into view.
+  observeEvent(input$qcCardRequest, {
+    tag <- input$qcCardRequest
+    if (is.null(tag) || !nzchar(tag)) return()
+    pick_individual(tag, navigate = FALSE)
+    session$sendCustomMessage("smtRevealQc", list())
+  }, ignoreInit = TRUE)
 
   # pick a random standout individual (shared by the sidebar + dossier buttons)
   surprise_pick <- function() {
@@ -566,6 +593,7 @@ server <- function(input, output, session) {
   observeEvent(input$goMap,        nav_select("tabs", "map"))
   observeEvent(input$goCommunity,  nav_select("tabs", "community"))
   observeEvent(input$goPopulation, nav_select("tabs", "population"))
+  observeEvent(input$goSizeLab,    nav_select("tabs", "sizelab"))
   observeEvent(input$goFame,       nav_select("tabs", "fame"))
   observeEvent(input$goRange, {    # heatmap/replay need an individual — pick the star
     ensure_individual(); nav_select("tabs", "homerange")
@@ -1392,6 +1420,282 @@ server <- function(input, output, session) {
       yaxis = list(title = "Weight (g)"),
       annotations = note, hovermode = "closest")
   })
+
+  # =========================================================================
+  # SIZE LAB — the interactive body-size scatter (one dot per individual,
+  # coloured by species) + the downloadable per-rodent QC history card.
+  # Tap a dot to pin its card (pincards.js); the card's chip selects the
+  # individual, which renders its QC history card below.
+  # =========================================================================
+  output$bodyScatter <- renderPlotly({
+    lb <- rv$lb; d <- rv$data; req(lb, d)
+    # the measurable universe: individuals with BOTH a weight and a hind-foot
+    measured <- dplyr::filter(lb, is.finite(.data$avg_hf), is.finite(.data$avg_weight),
+                              .data$avg_hf > 0, .data$avg_weight > 0, !is.na(.data$scientificName))
+    if (nrow(measured) == 0)
+      return(note_plot("No individuals at this site have both a weight<br>and a hind-foot measurement — nothing to map.", "\U0001F4CF"))
+    pts <- measured
+    one_sp <- !is.null(input$scatterSpecies) && nzchar(input$scatterSpecies) && input$scatterSpecies != "all"
+    if (one_sp) pts <- pts[pts$scientificName == input$scatterSpecies, ]
+    if (!is.null(input$scatterPlot) && nzchar(input$scatterPlot) && input$scatterPlot != "all")
+      pts <- pts[!is.na(pts$home_plot) & pts$home_plot == input$scatterPlot, ]
+    if (isTRUE(input$scatterAdults)) pts <- pts[pts$lifeStage %in% "adult", ]
+    if (nrow(pts) == 0)
+      return(note_plot("No individuals match these filters.<br>Widen the species / plot / adults filters.", "\U0001F50D"))
+
+    pal <- rv$pal %||% make_species_pal(d)
+    n_species_shown <- length(unique(pts$scientificName))
+
+    # per-individual pin-card HTML carried in plotly customdata (read back in
+    # pincards.js on plotly_click). Built on the FULL filtered set BEFORE the
+    # downsample so the gold-diamond lookup keeps a tip even if it's sampled out.
+    cap_lbl <- ifelse(pts$captures == 1, " cap", " caps")
+    age <- ifelse(!is.na(pts$approx_age_years) & !(pts$tag_suspect %in% TRUE),
+                  paste0(ifelse(pts$age_is_minimum %in% TRUE, "≥", "~"), pts$approx_age_years, " yr"), "")
+    statline <- paste0(
+      pts$captures, cap_lbl,
+      ifelse(pts$career_days > 0, paste0(" · ", pts$career_days, "d"), ""),
+      ifelse(is.na(pts$chonk_pct), "", paste0(" · chonk ", round(pts$chonk_pct), "%ile")),
+      ifelse(nzchar(age), paste0(" · ", age), ""),
+      ifelse(is.na(pts$avg_weight), "", paste0(" · ", round(pts$avg_weight, 1), "g")),
+      ifelse(is.na(pts$avg_hf), "", paste0(" · ", round(pts$avg_hf, 1), "mm")))
+    warn <- ifelse(pts$tag_suspect %in% TRUE,
+      "<br/><span class='smt-pin-rar' style='color:#ffb3a7'>⚠ verify tag</span>",
+      ifelse(pts$id_uncertain %in% TRUE,
+        "<br/><span class='smt-pin-rar' style='color:#ffd9a7'>⚠ ID uncertain</span>", ""))
+    pts$tip <- paste0(
+      "<span class='smt-pin-emoji'>", pts$emoji, "</span> <b>", pts$short, "</b> ",
+      "<span class='smt-pin-rar'>", pts$rarity, "</span><br/>",
+      "<em>", pts$scientificName, "</em><br/>",
+      "<span class='smt-pin-stats'>", statline, "</span>", warn,
+      "<br/><span class='smt-open' role='button' tabindex='0' data-tag='", pts$tagID,
+        "'>\U0001F50D Open QC history card &rarr;</span>",
+      "<br/><em class='smt-pin-hint'>Tap the dot to pin this card</em>")
+
+    full_pts <- pts                          # pre-downsample (single-species stats + diamond)
+    if (nrow(pts) > 1500) { set.seed(7); pts <- pts[sort(sample.int(nrow(pts), 1500)), ] }
+
+    # theme-aware greys so every mark stays legible on the dark navy background
+    muted_col <- if (is_dark()) "#9fb0c4" else "#6b7a85"
+    quad_col  <- if (is_dark()) "#7e8da0" else "#9aa6b2"
+    fit_col   <- if (is_dark()) "rgba(210,220,235,0.6)" else "rgba(31,42,48,0.45)"
+    # past ~a dozen species a horizontal legend wraps into an unreadable wall on a
+    # phone — drop it and lean on hover/tap (the pin card names the species).
+    show_leg  <- n_species_shown <= 12
+
+    p <- plot_ly()
+    for (s in sort(unique(pts$scientificName))) {
+      sub <- pts[pts$scientificName == s, ]
+      col <- if (s %in% names(pal)) pal[[s]] else "#16386e"
+      p <- p %>% add_trace(data = sub, x = ~avg_hf, y = ~avg_weight,
+        type = "scatter", mode = "markers", name = s, customdata = ~tip, showlegend = show_leg,
+        marker = list(color = col, size = 9, opacity = 0.82,
+                      line = list(color = "#ffffff", width = 0.6)),
+        text = ~paste0(short, " · ", scientificName),
+        hovertemplate = "%{text}<br>%{x} mm · %{y} g<extra></extra>")
+    }
+
+    # Be explicit about the life-stage scope: the dot is a mean over an animal's
+    # captures, and "Adults only" filters by MODAL stage (so the mean still pools
+    # whatever stages that animal was caught at) — say so rather than imply the
+    # dot is a clean adult body size.
+    scope_note <- if (isTRUE(input$scatterAdults))
+      "each dot = an adult-classified animal's mean across its captures · a QC map, not a body-condition index"
+    else
+      "each dot = one animal's mean across all captures (life stages pooled) · a QC map, not a body-condition index"
+    ann <- list(list(text = scope_note,
+      x = 0, y = 1.08, xref = "paper", yref = "paper", showarrow = FALSE, xanchor = "left",
+      font = list(color = muted_col, size = 11)))
+    if (!show_leg)
+      ann[[length(ann) + 1L]] <- list(text = "↳ many species shown — hover or tap a dot for its species",
+        x = 0, y = 1.14, xref = "paper", yref = "paper", showarrow = FALSE, xanchor = "left",
+        font = list(color = muted_col, size = 11))
+    shapes <- list()
+
+    if (one_sp) {
+      sp <- input$scatterSpecies
+      # median crosshairs + body-shape quadrant labels, computed from the FULL
+      # (pre-sample) single-species set so the "typical" split reflects the whole
+      # population, not a 1500-row subsample. (Cross-species quadrants are
+      # meaningless — species occupy different size niches — so single-species only.)
+      if (nrow(full_pts) >= 6) {
+        mx <- stats::median(full_pts$avg_hf); my <- stats::median(full_pts$avg_weight)
+        shapes <- list(
+          list(type = "line", xref = "x", yref = "paper", x0 = mx, x1 = mx, y0 = 0, y1 = 1,
+               line = list(color = quad_col, dash = "dot", width = 1)),
+          list(type = "line", xref = "paper", yref = "y", x0 = 0, x1 = 1, y0 = my, y1 = my,
+               line = list(color = quad_col, dash = "dot", width = 1)))
+        xr <- range(full_pts$avg_hf); yr <- range(full_pts$avg_weight)
+        px <- diff(xr) * 0.02; py <- diff(yr) * 0.02
+        qlab <- function(x, y, t, xa, ya) list(text = t, x = x, y = y, xref = "x", yref = "y",
+          showarrow = FALSE, xanchor = xa, yanchor = ya, font = list(color = quad_col, size = 10.5))
+        ann <- c(ann, list(
+          qlab(xr[2] - px, yr[2] - py, "BIG & LEGGY",  "right", "top"),
+          qlab(xr[1] + px, yr[2] - py, "ROLY-POLY",    "left",  "top"),
+          qlab(xr[2] - px, yr[1] + py, "LEGGY",        "right", "bottom"),
+          qlab(xr[1] + px, yr[1] + py, "POCKET-SIZED", "left",  "bottom")))
+      }
+      # The adult size–mass fit line is only honest when the DOTS are adults — an
+      # adult-calibrated line over juvenile dots would read them as "underweight".
+      # So draw it only with "Adults only" on, fit on those adult dots, label adult.
+      if (isTRUE(input$scatterAdults)) {
+        ss <- species_scaling(d); srow <- ss[ss$scientificName == sp, ]
+        if (nrow(srow) == 1 && !is.na(srow$b) && nrow(full_pts) > 1) {
+          a  <- mean(log(full_pts$avg_weight)) - srow$b * mean(log(full_pts$avg_hf))
+          lx <- seq(min(full_pts$avg_hf), max(full_pts$avg_hf), length.out = 40)
+          p <- p %>% add_trace(x = lx, y = exp(a + srow$b * log(lx)), type = "scatter", mode = "lines",
+            name = sprintf("adult size–mass fit (r=%.2f)", srow$r), hoverinfo = "skip",
+            line = list(color = fit_col, width = 2, dash = "dash"))
+        } else {
+          ann[[length(ann) + 1L]] <- list(
+            text = "↳ hind-foot barely predicts mass in this species — read position, not a line",
+            x = 0, y = 1.20, xref = "paper", yref = "paper", showarrow = FALSE, xanchor = "left",
+            font = list(color = muted_col, size = 11))
+        }
+      } else {
+        ann[[length(ann) + 1L]] <- list(
+          text = "↳ tick “Adults only” to add the adult size–mass fit line",
+          x = 0, y = 1.20, xref = "paper", yref = "paper", showarrow = FALSE, xanchor = "left",
+          font = list(color = muted_col, size = 11))
+      }
+    }
+
+    # the individual currently being tracked, as the gold "this animal" diamond.
+    # Look it up in the FULL (pre-sample) filtered set so it never vanishes to the
+    # downsample, and give it the same customdata so a tap on it pins its card.
+    tag <- rv$tag
+    if (!is.null(tag)) {
+      ir <- full_pts[full_pts$tagID == tag, ]
+      if (nrow(ir) == 1)
+        p <- p %>% add_trace(x = ir$avg_hf, y = ir$avg_weight, type = "scatter", mode = "markers",
+          name = "★ tracking", showlegend = TRUE, customdata = ir$tip,
+          marker = list(symbol = "diamond", size = 17, color = "#c9a300",
+                        line = list(color = "#ffffff", width = 1.6)),
+          hovertemplate = paste0("tracking ", ir$short[1], "<br>%{x} mm · %{y} g<extra></extra>"))
+    }
+
+    # the site/year caption, folded into the annotation list (not via ctx_anno's
+    # add_annotations, which appends a fresh copy on every reactive re-render —
+    # this scatter re-renders on every filter change, so that would stack copies)
+    if (!is.null(rv$ctx))
+      ann[[length(ann) + 1L]] <- list(text = rv$ctx, x = 1, y = 1.03,
+        xref = "paper", yref = "paper", xanchor = "right", yanchor = "bottom",
+        showarrow = FALSE,
+        font = list(color = if (is_dark()) "#9fb0c4" else "#6b7a89", size = 11, family = "Rubik"))
+
+    plotly_theme(p) %>% plotly::layout(
+      xaxis = list(title = "Hind-foot length (mm)"),
+      yaxis = list(title = "Weight (g)"),
+      # taller top margin so the stacked y=1.08–1.20 captions don't clip the
+      # inherited t=48 (matches the t=72/84 precedent elsewhere in this file)
+      margin = list(l = 55, r = 30, t = 96, b = 46),
+      annotations = ann, shapes = shapes, hovermode = "closest")
+  })
+
+  # ---- the QC history card (the downloadable per-rodent "field record") ----
+  output$qcHistoryCard <- renderUI({
+    tag <- rv$tag
+    if (is.null(tag)) return(div(class = "qc-empty",
+      div(class = "qc-empty-icon", "\U0001F50D"),
+      h4("Pick an animal to open its QC history card"),
+      p("Tap a dot on the scatter above and choose ", tags$b("“Open QC history card”"),
+        " — or use ", tags$b("“Track an individual”"), " in the sidebar. You'll get every capture's measurements plus automatic data-quality flags, and you can download the card or the raw history.")))
+    lb <- rv$lb; row <- lb[lb$tagID == tag, ]; req(nrow(row) == 1)
+    d <- rv$data
+    hist <- individual_history(d, tag)
+    flags <- individual_qc_flags(hist, row)
+    rmeta <- rarity_meta(row$rarity[1])   # not `rm` — that shadows base::rm()
+
+    tile <- function(v, l) div(class = "qc-tile", div(class = "qc-tile-v", v), div(class = "qc-tile-l", l))
+    yr <- function(x) if (is.na(x)) "" else format(x, "%Y")
+    span_yr <- paste(na.omit(unique(c(yr(row$first_seen[1]), yr(row$last_seen[1])))), collapse = "–")
+    age_txt <- if (!is.na(row$approx_age_years[1]) && !isTRUE(row$tag_suspect[1]))
+      paste0(ifelse(isTRUE(row$age_is_minimum[1]), "≥", "~"), row$approx_age_years[1], "y") else "—"
+    chonk_txt <- if (is.na(row$chonk_pct[1])) "—" else paste0(round(row$chonk_pct[1]), "%")
+    home_txt  <- if (is.na(row$home_plot[1])) "—" else row$home_plot[1]
+
+    flag_ic <- c(high = "exclamation-octagon-fill", warn = "exclamation-triangle-fill", info = "info-circle-fill")
+    flags_ui <- if (length(flags) == 0)
+      div(class = "qc-flag clean",
+        span(class = "qc-flag-ic", bs_icon("check-circle-fill")),
+        span(HTML("<b>No QC flags.</b> This individual's capture history is internally consistent — measurements, sex, life stage and movement all hold together.")))
+    else tagList(lapply(flags, function(f)
+      div(class = paste("qc-flag", f$level),
+        span(class = "qc-flag-ic", bs_icon(flag_ic[[f$level]] %||% "info-circle-fill")),
+        span(HTML(f$text)))))
+
+    cap_tbl <- if (is.null(hist) || !nrow(hist)) p(class = "qc-cap-note", "No dated captures to list.") else {
+      fnum <- function(x) ifelse(is.na(x) | !is.finite(x), "—", formatC(round(x, 1), format = "f", digits = 1))
+      fchr <- function(x) ifelse(is.na(x) | x == "", "—", as.character(x))
+      tagList(
+        p(class = "qc-cap-note", sprintf("%d capture%s · weight & hind-foot are taken at nearly every handling; tail & ear far less often (— = not recorded).",
+          nrow(hist), ifelse(nrow(hist) == 1, "", "s"))),
+        div(class = "qc-cap-scroll",
+          tags$table(class = "inspect-tbl",
+            tags$thead(tags$tr(lapply(
+              c("Date", "Plot", "Trap", "Stage", "Sex", "Wt (g)", "HF (mm)", "Tail (mm)", "Ear (mm)"), tags$th))),
+            tags$tbody(lapply(seq_len(nrow(hist)), function(i) tags$tr(
+              tags$td(format(hist$date[i], "%Y-%m-%d")),
+              tags$td(fchr(hist$plotID[i])),
+              tags$td(fchr(hist$trapCoordinate[i])),
+              tags$td(fchr(hist$lifeStage[i])),
+              tags$td(fchr(hist$sex[i])),
+              tags$td(fnum(hist$weight[i])),
+              tags$td(fnum(hist$hindfootLength[i])),
+              tags$td(fnum(hist$tailLength[i])),
+              tags$td(fnum(hist$earLength[i]))))))))
+    }
+
+    div(
+      div(id = "qcCardNode", class = "qc-card", `data-short` = row$short[1],
+          style = sprintf("--rc:%s;", rmeta$color),
+        div(class = "qc-head",
+          span(class = "qc-emoji", row$emoji[1]),
+          div(
+            div(class = "qc-id", row$short[1],
+              if (isTRUE(row$tag_suspect[1])) span(class = "ds-warn", bs_icon("exclamation-triangle-fill"), " verify tag"),
+              if (isTRUE(row$id_uncertain[1])) span(class = "ds-warn", bs_icon("question-circle-fill"), " ID uncertain")),
+            div(class = "qc-sci", em(row$scientificName[1]))),
+          div(class = "qc-head-badges",
+            glow_badge(paste(rmeta$icon, row$rarity[1]), rmeta$color, rmeta$glow),
+            tags$span(style = "color:var(--muted);font-size:12px;",
+                      mode_chr(d$siteID), if (nzchar(span_yr)) paste0(" · ", span_yr)))),
+        div(class = "qc-tiles",
+          tile(row$captures[1], "captures"),
+          tile(if (row$career_days[1] > 0) paste0(row$career_days[1], "d") else "—", "career"),
+          tile(age_txt, "approx age"),
+          tile(chonk_txt, "chonk %ile"),
+          tile(if (is.na(row$avg_weight[1])) "—" else paste0(round(row$avg_weight[1], 1), "g"), "avg wt"),
+          tile(if (is.na(row$avg_hf[1])) "—" else paste0(round(row$avg_hf[1], 1), "mm"), "avg HF"),
+          tile(home_txt, "home plot")),
+        div(class = "qc-section-h", bs_icon("clipboard-check"), " Data-quality check"),
+        flags_ui,
+        div(class = "qc-section-h", bs_icon("clock-history"), " Every capture (the meso measurements)"),
+        cap_tbl,
+        p(class = "qc-cap-note", style = "margin-top:8px",
+          bs_icon("info-circle"), " A flag means “verify against the datasheet”, not “wrong” — legitimate causes exist (a field sexing error vs a real one, lactation mass vs a typo). Gaps between captures are NEON's seasonal sampling cadence, not death.")),
+      div(class = "qc-toolbar",
+        tags$button(class = "smt-snap-btn", type = "button", onclick = "smtSaveQcCard()",
+                    bsicons::bs_icon("download"), " Save QC card (PNG)"),
+        downloadButton("qcHistoryCsv", "Download history (CSV)", class = "smt-clear-btn"),
+        tags$span(class = "sizelab-hint", style = "margin-left:0", "a downloadable field record for QC")))
+  })
+
+  # raw capture history as a CSV (the analysis-ready companion to the QC card)
+  output$qcHistoryCsv <- downloadHandler(
+    filename = function() {
+      tg <- rv$tag %||% "individual"
+      sprintf("NEON-SmallMammal-QC_%s_%s.csv",
+              gsub("[^A-Za-z0-9]+", "-", short_tag(tg)), format(Sys.Date(), "%Y%m%d"))
+    },
+    content = function(file) {
+      tag <- rv$tag; req(tag)
+      h <- individual_history(rv$data, tag); req(!is.null(h), nrow(h) > 0)
+      out <- data.frame(tagID = tag, short = short_tag(tag), h, stringsAsFactors = FALSE)
+      utils::write.csv(out, file, row.names = FALSE, na = "")
+    },
+    contentType = "text/csv"
+  )
 
   # ---- capture history table ---------------------------------------------
   output$capHistory <- DT::renderDT({

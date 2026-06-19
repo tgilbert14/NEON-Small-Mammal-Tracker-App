@@ -789,7 +789,7 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .land-feat-d { font-size: 12px; color: var(--muted); line-height: 1.4; }
 
 /* ---- Overview home-nav buttons (Girth-style) -------------------------- */
-.home-nav { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin: 6px 2px 18px; }
+.home-nav { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; margin: 6px 2px 18px; }
 @media (max-width: 1100px) { .home-nav { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 620px)  { .home-nav { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 400px)  { .home-nav { grid-template-columns: 1fr; } }
@@ -938,4 +938,123 @@ table.dataTable tbody tr:active { background: #dfe8f4 !important; }
 @media (prefers-reduced-motion: reduce) {
   .ds-emoji, .podium-card, .dossier-card .glow-badge { animation: none !important; }
   .tag-badge.is-legendary::after, .podium-card.is-legendary::after { animation: none; opacity: 0; }
+  .smt-pin.smt-pulse { animation: none !important; }
 }
+
+/* =========================================================================
+   SIZE LAB — interactive body-size scatter, tap-to-pin cards, QC history card.
+   The pin cards mirror the Girth Index navy-card + gold-leader-line motif; the
+   QC card is the per-rodent "field record" (the 247-profile analog).
+   ========================================================================= */
+
+/* the scatter box is the positioning context for pins + the leader-line layer */
+.smt-pinnable { position: relative; }
+svg.smt-pin-lines {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; overflow: visible; z-index: 5;
+}
+
+/* the pinned hover card (navy, gold-edged, draggable, scalable) */
+.smt-pin {
+  position: absolute; z-index: 6; max-width: 250px;
+  background: rgba(12, 35, 75, 0.97); color: #fff;
+  border: 2px solid var(--gold); border-radius: 10px;
+  padding: 9px 12px 12px; font-size: 12.5px; line-height: 1.42;
+  box-shadow: 0 12px 32px rgba(12, 35, 75, 0.38);
+  cursor: grab; transform-origin: top left; touch-action: none;
+}
+.smt-pin:active { cursor: grabbing; }
+.smt-pin b { color: #fff; }
+.smt-pin em { color: #cfd9e8; font-style: italic; }
+.smt-pin-emoji { font-size: 20px; line-height: 1; }
+.smt-pin-rar { font-size: 11px; color: var(--gold); font-weight: 600; }
+.smt-pin-stats { color: #aebfd6; font-size: 11.5px; }
+.smt-pin .smt-open {
+  display: inline-block; margin-top: 7px; padding: 2px 9px;
+  color: #0C234B; background: var(--gold); border-radius: 6px;
+  font-weight: 600; font-size: 11.5px; cursor: pointer;
+}
+.smt-pin .smt-open:hover { background: #ffe04d; }
+.smt-pin-close {
+  position: absolute; top: 1px; right: 6px; background: none; border: none;
+  color: #cfd9e8; font-size: 17px; line-height: 1; cursor: pointer; padding: 0;
+}
+.smt-pin-close:hover { color: #fff; }
+.smt-pin-resize {
+  position: absolute; right: 2px; bottom: 2px; width: 18px; height: 18px;
+  cursor: nwse-resize; touch-action: none; opacity: 0.5;
+  background: linear-gradient(135deg, transparent 50%, var(--gold) 50%);
+  border-radius: 0 0 8px 0;
+}
+.smt-pin-resize:hover { opacity: 1; }
+@keyframes smtPulse {
+  0%, 100% { box-shadow: 0 12px 32px rgba(12, 35, 75, 0.38); }
+  50% { box-shadow: 0 0 0 4px var(--gold), 0 12px 32px rgba(12, 35, 75, 0.5); }
+}
+.smt-pin.smt-pulse { animation: smtPulse 0.5s ease 2; }
+
+/* tab-head controls + the scatter toolbar */
+.sizelab-controls { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+.sizelab-controls .form-group, .sizelab-controls .shiny-input-container { margin-bottom: 0; }
+.sizelab-adults { padding-bottom: 6px; }
+.sizelab-toolbar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px;
+}
+.smt-snap-btn, .smt-clear-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 8px; padding: 6px 13px; font-weight: 600; font-size: 13px; cursor: pointer;
+}
+.smt-snap-btn { background: var(--pine); color: #fff; border: none; }
+.smt-snap-btn:hover { background: var(--pine2); }
+.smt-clear-btn { background: transparent; color: var(--pine); border: 1px solid var(--line); }
+.smt-clear-btn:hover { background: var(--bg); }
+.sizelab-hint { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+
+/* ---- the QC history card (the downloadable per-rodent field record) ----- */
+.qc-card {
+  background: linear-gradient(162deg, #ffffff 0%, #f3f6fb 100%);
+  border: 1px solid var(--line); border-top: 4px solid var(--pine);
+  border-radius: 12px; padding: 18px 20px;
+  box-shadow: 0 8px 28px var(--shadow); position: relative; overflow: hidden;
+}
+.qc-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.qc-emoji { font-size: 36px; line-height: 1; }
+.qc-id { font-size: 23px; font-weight: 800; color: var(--ink); }
+.qc-id .ds-warn { font-size: 12px; margin-left: 6px; }
+.qc-sci { font-style: italic; color: var(--muted); font-size: 14px; }
+.qc-head-badges { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.qc-tiles { display: flex; gap: 12px; flex-wrap: wrap; margin: 14px 0 4px; }
+.qc-tile {
+  background: var(--bg); border-radius: 9px; padding: 8px 14px;
+  text-align: center; min-width: 84px;
+}
+.qc-tile-v { font-size: 21px; font-weight: 800; color: var(--pine); }
+.qc-tile-l { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.qc-flags { display: flex; flex-direction: column; gap: 7px; margin: 14px 0; }
+.qc-flag {
+  display: flex; gap: 9px; align-items: flex-start; padding: 9px 12px;
+  border-radius: 9px; font-size: 13px; line-height: 1.4; border-left: 4px solid;
+}
+.qc-flag .qc-flag-ic { flex: 0 0 auto; margin-top: 1px; }
+.qc-flag.high { background: #fdecea; border-color: var(--terra); color: #7a1d12; }
+.qc-flag.warn { background: #fff6e0; border-color: var(--gold); color: #6b5300; }
+.qc-flag.info { background: #eef3fb; border-color: var(--sky); color: #243a52; }
+.qc-flag.clean { background: #e8f5ec; border-color: var(--green); color: #1a5e2e; }
+.qc-section-h { font-size: 13px; font-weight: 700; color: var(--ink); margin: 14px 0 6px; }
+.qc-cap-note { color: var(--muted); font-size: 12px; margin: 4px 0 8px; }
+.qc-cap-scroll { max-height: 360px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.qc-toolbar { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+.qc-cell-flag { color: var(--terra); font-weight: 700; }   /* a measurement worth a second look */
+.qc-empty { text-align: center; padding: 38px 18px; color: var(--muted); }
+.qc-empty-icon { font-size: 42px; margin-bottom: 8px; }
+.qc-empty h4 { color: var(--ink); }
+
+/* reuse the inspect-tbl look for the capture table inside the QC card */
+.qc-card .inspect-tbl { width: 100%; }
+
+/* dark theme: deepen the card surfaces (flag chips stay vivid, they're meant to pop) */
+[data-bs-theme="dark"] .qc-card { background: linear-gradient(162deg, #1c2941 0%, #16213a 100%); }
+[data-bs-theme="dark"] .qc-flag.high { background: #3a1c19; color: #f3b6ad; }
+[data-bs-theme="dark"] .qc-flag.warn { background: #352c12; color: #ecd28a; }
+[data-bs-theme="dark"] .qc-flag.info { background: #16263c; color: #a9c6e6; }
+[data-bs-theme="dark"] .qc-flag.clean { background: #163224; color: #9fd9b3; }
