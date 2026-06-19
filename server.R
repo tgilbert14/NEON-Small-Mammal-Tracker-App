@@ -1481,6 +1481,25 @@ server <- function(input, output, session) {
     full_pts <- pts                          # pre-downsample (single-species stats + diamond)
     if (nrow(pts) > 1500) { set.seed(7); pts <- pts[sort(sample.int(nrow(pts), 1500)), ] }
 
+    # S5: deterministic sub-pixel jitter so individuals that round to identical
+    # (hind-foot, weight) coords fan out and each stays individually tappable
+    # (hind-foot is whole-mm, so a busy species otherwise stacks into one un-pickable
+    # blob). Keyed on tagID -> stable across renders, no global-RNG touch; the hover
+    # and the pin card still report each animal's TRUE measured means.
+    .jit <- function(tags, amp, salt) {
+      if (!length(tags) || !is.finite(amp) || amp <= 0) return(rep(0, length(tags)))
+      h <- vapply(paste0(tags, salt), function(s) { z <- utf8ToInt(s); (sum(z * seq_along(z)) %% 997) / 997 }, numeric(1))
+      (h - 0.5) * 2 * amp
+    }
+    rng_x <- suppressWarnings(diff(range(pts$avg_hf, na.rm = TRUE)))
+    rng_y <- suppressWarnings(diff(range(pts$avg_weight, na.rm = TRUE)))
+    amp_x <- if (is.finite(rng_x) && rng_x > 0) rng_x * 0.012 else 0
+    amp_y <- if (is.finite(rng_y) && rng_y > 0) rng_y * 0.012 else 0
+    pts$jx <- pts$avg_hf + .jit(pts$tagID, amp_x, "x")
+    pts$jy <- pts$avg_weight + .jit(pts$tagID, amp_y, "y")
+    pts$hovtxt <- paste0(pts$short, " \U00B7 ", pts$scientificName, "<br>",
+                         round(pts$avg_hf, 1), " mm \U00B7 ", round(pts$avg_weight, 1), " g")
+
     # theme-aware greys so every mark stays legible on the dark navy background
     muted_col <- if (is_dark()) "#9fb0c4" else "#6b7a85"
     quad_col  <- if (is_dark()) "#7e8da0" else "#9aa6b2"
@@ -1493,12 +1512,12 @@ server <- function(input, output, session) {
     for (s in sort(unique(pts$scientificName))) {
       sub <- pts[pts$scientificName == s, ]
       col <- if (s %in% names(pal)) pal[[s]] else "#16386e"
-      p <- p %>% add_trace(data = sub, x = ~avg_hf, y = ~avg_weight,
+      p <- p %>% add_trace(data = sub, x = ~jx, y = ~jy,
         type = "scatter", mode = "markers", name = s, customdata = ~tip, showlegend = show_leg,
         marker = list(color = col, size = 9, opacity = 0.82,
                       line = list(color = "#ffffff", width = 0.6)),
-        text = ~paste0(short, " · ", scientificName),
-        hovertemplate = "%{text}<br>%{x} mm · %{y} g<extra></extra>")
+        text = ~hovtxt,                                  # carries the TRUE mm/g (markers are jittered)
+        hovertemplate = "%{text}<extra></extra>")
     }
 
     # Be explicit about the life-stage scope: the dot is a mean over an animal's
@@ -1545,16 +1564,26 @@ server <- function(input, output, session) {
       # adult-calibrated line over juvenile dots would read them as "underweight".
       # So draw it only with "Adults only" on, fit on those adult dots, label adult.
       if (isTRUE(input$scatterAdults)) {
-        ss <- species_scaling(d); srow <- ss[ss$scientificName == sp, ]
-        if (nrow(srow) == 1 && !is.na(srow$b) && nrow(full_pts) > 1) {
-          a  <- mean(log(full_pts$avg_weight)) - srow$b * mean(log(full_pts$avg_hf))
-          lx <- seq(min(full_pts$avg_hf), max(full_pts$avg_hf), length.out = 40)
-          p <- p %>% add_trace(x = lx, y = exp(a + srow$b * log(lx)), type = "scatter", mode = "lines",
-            name = sprintf("adult size–mass fit (r=%.2f)", srow$r), hoverinfo = "skip",
+        # S4: fit on the DOTS ACTUALLY SHOWN (per-individual adult means, respecting
+        # the plot filter) and label with THEIR r — so the line + r describe what's on
+        # screen, not a different (all-plots, per-capture) population. SMA (sd-ratio)
+        # slope on true coords, same gate as before (n>=15 & |r|>=0.3).
+        fp <- full_pts[is.finite(full_pts$avg_hf) & is.finite(full_pts$avg_weight) &
+                       full_pts$avg_hf > 0 & full_pts$avg_weight > 0, , drop = FALSE]
+        lw <- log(fp$avg_weight); lh <- log(fp$avg_hf)
+        rr <- if (nrow(fp) >= 15 && stats::sd(lh) > 0 && stats::sd(lw) > 0)
+                suppressWarnings(stats::cor(lh, lw)) else NA_real_
+        if (is.finite(rr) && abs(rr) >= 0.3) {
+          b <- stats::sd(lw) / stats::sd(lh) * sign(rr)
+          a <- mean(lw) - b * mean(lh)
+          lx <- seq(min(fp$avg_hf), max(fp$avg_hf), length.out = 40)
+          p <- p %>% add_trace(x = lx, y = exp(a + b * log(lx)), type = "scatter", mode = "lines",
+            name = sprintf("adult size–mass fit (r=%.2f)", rr), hoverinfo = "skip", inherit = FALSE,
             line = list(color = fit_col, width = 2, dash = "dash"))
         } else {
           ann[[length(ann) + 1L]] <- list(
-            text = "↳ hind-foot barely predicts mass in this species — read position, not a line",
+            text = if (nrow(fp) < 15) "↳ too few adults here to fit a size–mass line"
+                   else "↳ hind-foot barely predicts mass in these adults — read position, not a line",
             x = 0, y = 1.20, xref = "paper", yref = "paper", showarrow = FALSE, xanchor = "left",
             font = list(color = muted_col, size = 11))
         }
@@ -1573,11 +1602,15 @@ server <- function(input, output, session) {
     if (!is.null(tag)) {
       ir <- full_pts[full_pts$tagID == tag, ]
       if (nrow(ir) == 1)
-        p <- p %>% add_trace(x = ir$avg_hf, y = ir$avg_weight, type = "scatter", mode = "markers",
+        # jitter by the SAME per-tag amount as its species dot so the diamond sits
+        # on it (not beside it); hover still reports the true measured means.
+        p <- p %>% add_trace(x = ir$avg_hf + .jit(ir$tagID, amp_x, "x"),
+          y = ir$avg_weight + .jit(ir$tagID, amp_y, "y"), type = "scatter", mode = "markers",
           name = "★ tracking", showlegend = TRUE, customdata = ir$tip,
           marker = list(symbol = "diamond", size = 17, color = "#c9a300",
                         line = list(color = "#ffffff", width = 1.6)),
-          hovertemplate = paste0("tracking ", ir$short[1], "<br>%{x} mm · %{y} g<extra></extra>"))
+          hovertemplate = paste0("tracking ", ir$short[1], "<br>",
+            round(ir$avg_hf[1], 1), " mm · ", round(ir$avg_weight[1], 1), " g<extra></extra>"))
     }
 
     # the site/year caption, folded into the annotation list (not via ctx_anno's
