@@ -115,21 +115,36 @@
       ln.remove(); dot.remove(); pin.remove();
     });
 
-    /* drag-to-move (clamped so a fat-thumb drag can't fling the card off-box) */
+    /* drag-to-move (clamped so a fat-thumb drag can't fling the card off-box).
+       A 4px move threshold (S8): a near-miss TAP — e.g. a few px off the QC chip —
+       never engages the drag or preventDefaults, so the intended click still fires.
+       move/up/cancel bound on WINDOW + capture released (S7): a pointerup off the
+       card (scroll-steal, edge swipe, pointercancel) can never leave it stuck. */
     pin.addEventListener("pointerdown", function (ev) {
       if (ev.target.closest("a, .smt-pin-close, .smt-open, .smt-pin-resize")) return;
-      ev.preventDefault();
-      try { pin.setPointerCapture(ev.pointerId); } catch (e) {}
       var sx = ev.clientX - pin.offsetLeft, sy = ev.clientY - pin.offsetTop;
+      var startX = ev.clientX, startY = ev.clientY, dragging = false;
       function mv(em) {
+        if (!dragging) {
+          if (Math.abs(em.clientX - startX) < 4 && Math.abs(em.clientY - startY) < 4) return;
+          dragging = true;
+          try { pin.setPointerCapture(ev.pointerId); } catch (e) {}
+        }
+        em.preventDefault();
         var nb = pin.__box.getBoundingClientRect();
         pin.style.left = Math.max(4, Math.min(em.clientX - sx, nb.width - 40)) + "px";
         pin.style.top = Math.max(4, Math.min(em.clientY - sy, nb.height - 28)) + "px";
         updateLine(pin);
       }
-      function up() { pin.removeEventListener("pointermove", mv); pin.removeEventListener("pointerup", up); }
-      pin.addEventListener("pointermove", mv);
-      pin.addEventListener("pointerup", up);
+      function up() {
+        window.removeEventListener("pointermove", mv);
+        window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", up);
+        try { pin.releasePointerCapture(ev.pointerId); } catch (e) {}
+      }
+      window.addEventListener("pointermove", mv);
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", up);
     });
 
     /* grip-to-resize via scale() (clientX throughout, matching drag, so a
@@ -143,9 +158,15 @@
         var s = Math.min(2.4, Math.max(0.5, startScale + (em.clientX - startX) / baseW));
         pin.__scale = s; pin.style.transform = "scale(" + s + ")"; updateLine(pin);
       }
-      function up() { grip.removeEventListener("pointermove", mv); grip.removeEventListener("pointerup", up); }
-      grip.addEventListener("pointermove", mv);
-      grip.addEventListener("pointerup", up);
+      function up() {
+        window.removeEventListener("pointermove", mv);
+        window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", up);
+        try { grip.releasePointerCapture(ev.pointerId); } catch (e) {}
+      }
+      window.addEventListener("pointermove", mv);
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", up);
     });
     grip.addEventListener("dblclick", function () {
       pin.__scale = 1; pin.style.transform = ""; updateLine(pin);

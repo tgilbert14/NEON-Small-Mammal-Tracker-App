@@ -3260,7 +3260,7 @@
       "checksum": "dd998c7eb8763e4ae1f33c060ed8364a"
     },
     "server.R": {
-      "checksum": "c7e2f0271873b6dceca0cefba017fe4f"
+      "checksum": "aab712dc6b01d173e2c1cf3e4d69b056"
     },
     "ui.R": {
       "checksum": "06c23dc1ff0e52075aa12b33ebf05c34"
@@ -3272,7 +3272,7 @@
       "checksum": "c05030299121b6bb32e2794f0decb120"
     },
     "www/pincards.js": {
-      "checksum": "f4a5175eb943f85af06a72ca50ce6489"
+      "checksum": "5c994c45e1a84d964ebb9dc22319fd3b"
     },
     "www/images/nyan-cat.gif": {
       "checksum": "7d5d665f92c09858439458678bc879a4"
@@ -3287,7 +3287,7 @@
       "checksum": "03caa0fdc9353ecf3495715d7e5f11f5"
     },
     "www/styles.css": {
-      "checksum": "55b42d834b509bae1b9688199e4af7f2"
+      "checksum": "45f1edea853f8df6e09930c2390d0a8c"
     }
   },
   "users": null

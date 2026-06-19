@@ -970,7 +970,7 @@ svg.smt-pin-lines {
 .smt-pin-rar { font-size: 11px; color: var(--gold); font-weight: 600; }
 .smt-pin-stats { color: #aebfd6; font-size: 11.5px; }
 .smt-pin .smt-open {
-  display: inline-block; margin-top: 7px; padding: 2px 9px;
+  display: inline-flex; align-items: center; min-height: 30px; margin-top: 7px; padding: 7px 12px;
   color: #0C234B; background: var(--gold); border-radius: 6px;
   font-weight: 600; font-size: 11.5px; cursor: pointer;
 }
