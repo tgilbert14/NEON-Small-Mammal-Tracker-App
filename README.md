@@ -73,6 +73,21 @@ size–mass line drawn only where the relationship is statistically real.
 
 ![Body-size map](assets/JORN_bodysizemap.png)
 
+**Size Lab — an interactive QC workbench.** Every individual at the site on one **body-size map**
+(hind-foot length × weight, coloured by species). **Pick a species** (and plot) to add its median
+crosshairs and an adult size–mass fit line — drawn *only* where length really predicts mass. **Tap any
+dot to pin its card**, drag it around, and open the **QC history card** for that animal: every capture's
+measurements plus **automatic, ranked data-quality flags** (phrased *"verify, not wrong"* — a same-tag-at-
+two-plots impossibility, a backward life-stage, an implausible weight jump, a sex flip…). Then **download
+the works** — the whole map with the pins baked in, the QC card as a PNG, or the animal's full capture
+history as **CSV metadata** (an analysis-ready field record). Framed throughout as a *QC / morphometric
+map, not a body-condition index* — a dot far from its species' cloud flags an unusual or mistyped record,
+not "fitness."
+
+![Size Lab — interactive body-size map with pinned profile cards](assets/neon-bodysize-lab.png)
+
+![QC history card — every-capture measurements with automatic data-quality flags, downloadable as PNG + CSV](assets/neon-qc-299915.png)
+
 **Community body-size profile.** The weight distribution of every species at a site, lightest to
 heaviest, with the selected animal marked.
 
