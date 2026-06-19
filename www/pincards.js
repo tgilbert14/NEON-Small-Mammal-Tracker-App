@@ -264,12 +264,37 @@
     snap(node, "neon-qc-" + short.replace(/[^A-Za-z0-9]+/g, "") + ".png");
   };
 
+  /* Scroll the QC card into view once it renders. Hard-won points:
+     • The #qcHistoryCard uiOutput wrapper is display:contents (bslib fill layout) —
+       no box, so scrolling IT is a no-op. Scroll the actual rendered card
+       (#qcCardNode), polling ~2.5s for it (it re-renders async after the server
+       selects the individual).
+     • behavior:"auto" (instant), NOT "smooth": the scroll happens in a NESTED bslib
+       container (the window itself doesn't scroll — scrollHeight == clientHeight) and
+       smooth scrollIntoView silently no-ops there. Instant is reliable + respects
+       reduced-motion by definition.
+     Driven from the chip click (below) — client-side, no dependence on a server
+     round-trip message — so it can't silently no-op. */
+  function revealQcCard() {
+    var tries = 0;
+    (function go() {
+      var n = document.getElementById("qcCardNode");
+      if (n && n.getBoundingClientRect().height > 1) {
+        n.scrollIntoView({ behavior: "auto", block: "start" });
+        return;
+      }
+      if (++tries < 50) setTimeout(go, 50);
+    })();
+  }
+
   /* tap (or keyboard-activate) a highlighted "Open QC history card" chip inside a
-     pinned card -> ask the server to select that individual + render its QC card */
+     pinned card -> select that individual server-side + scroll its QC card into view */
   function openChip(el) {
     if (!el || !window.Shiny) return;
     var tag = el.getAttribute("data-tag");
-    if (tag) Shiny.setInputValue("qcCardRequest", tag, { priority: "event" });
+    if (!tag) return;
+    Shiny.setInputValue("qcCardRequest", tag, { priority: "event" });
+    revealQcCard();
   }
   document.addEventListener("click", function (e) {
     var el = e.target.closest(".smt-open");
@@ -299,25 +324,10 @@
   (function registerReveal() {
     try {
       if (window.Shiny && Shiny.addCustomMessageHandler) {
-        Shiny.addCustomMessageHandler("smtRevealQc", function () {
-          var reduce = window.matchMedia &&
-            window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-          // Scroll the QC card into view. NB the #qcHistoryCard uiOutput wrapper is
-          // display:contents (bslib fill layout) — it has NO box, so scrolling to it
-          // is a no-op. Target the actual rendered card (#qcCardNode), or the empty
-          // state (.qc-empty), once it exists AND has laid out (height > 1). The card
-          // re-renders async after pick_individual(), so poll briefly (~1.8s) instead
-          // of firing once on a fixed delay (the earlier single-shot fired too early).
-          var tries = 0;
-          (function go() {
-            var n = document.getElementById("qcCardNode") || document.querySelector(".qc-empty");
-            if (n && n.getBoundingClientRect().height > 1) {
-              n.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-              return;
-            }
-            if (++tries < 30) setTimeout(go, 60);
-          })();
-        });
+        // Backup path: the chip click (openChip) already scrolls client-side; the
+        // server also fires this after selecting the individual. Same reliable
+        // instant-scroll-to-#qcCardNode helper.
+        Shiny.addCustomMessageHandler("smtRevealQc", function () { revealQcCard(); });
         return;
       }
     } catch (e) { return; }   // never let a duplicate/late registration kill binding
