@@ -6,6 +6,42 @@
       "runtimeExecutable": "C:\\Program Files\\R\\R-4.5.2\\bin\\Rscript.exe",
       "runtimeArgs": ["-e", "shiny::runApp('.', port=8188, host='127.0.0.1', launch.browser=FALSE)"],
       "port": 8188
+    },
+    {
+      "name": "gbt",
+      "runtimeExecutable": "C:\\Program Files\\R\\R-4.5.2\\bin\\Rscript.exe",
+      "runtimeArgs": ["-e", "shiny::runApp('C:/Users/tsgil/OneDrive/Documents/VGS - R/NEON-Ground-Beetle-Tracker', port=8189, host='127.0.0.1', launch.browser=FALSE)"],
+      "port": 8189
+    },
+    {
+      "name": "pde",
+      "runtimeExecutable": "C:\\Program Files\\R\\R-4.5.2\\bin\\Rscript.exe",
+      "runtimeArgs": ["-e", "shiny::runApp('C:/Users/tsgil/OneDrive/Documents/VGS - R/NEON-Plant-Diversity', port=8190, host='127.0.0.1', launch.browser=FALSE)"],
+      "port": 8190
+    },
+    {
+      "name": "vst",
+      "runtimeExecutable": "C:\\Program Files\\R\\R-4.5.2\\bin\\Rscript.exe",
+      "runtimeArgs": ["-e", "shiny::runApp('C:/Users/tsgil/OneDrive/Documents/VGS - R/NEON-Veg-Structure', port=8191, host='127.0.0.1', launch.browser=FALSE)"],
+      "port": 8191
+    },
+    {
+      "name": "brd",
+      "runtimeExecutable": "C:\\Program Files\\R\\R-4.5.2\\bin\\Rscript.exe",
+      "runtimeArgs": ["-e", "shiny::runApp('C:/Users/tsgil/OneDrive/Documents/VGS - R/NEON-Breeding-Birds', port=8192, host='127.0.0.1', launch.browser=FALSE)"],
+      "port": 8192
+    },
+    {
+      "name": "phe",
+      "runtimeExecutable": "C:\\Program Files\\R\\R-4.5.2\\bin\\Rscript.exe",
+      "runtimeArgs": ["-e", "shiny::runApp('C:/Users/tsgil/OneDrive/Documents/VGS - R/NEON-Plant-Phenology', port=8193, host='127.0.0.1', launch.browser=FALSE)"],
+      "port": 8193
+    },
+    {
+      "name": "dcr",
+      "runtimeExecutable": "C:\\Program Files\\R\\R-4.5.2\\bin\\Rscript.exe",
+      "runtimeArgs": ["-e", "shiny::runApp('C:/Users/tsgil/OneDrive/Documents/VGS - R/NEON-Driver-Cascade', port=8194, host='127.0.0.1', launch.browser=FALSE)"],
+      "port": 8194
     }
   ]
 }

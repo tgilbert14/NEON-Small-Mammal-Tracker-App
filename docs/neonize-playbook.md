@@ -157,5 +157,69 @@ invent the product-native ones the research surfaces.
 
 ---
 
-*Living doc. The plant-diversity sibling (DP1.10058.001) is the first full NEONize built against
-this playbook; its research + design decisions are folded into §2f and §3 above.*
+## 6. Deployment & maintenance — the full lifecycle (dev → deploy → self-update)
+
+The suite has **migrated off shinyapps.io to Posit Connect Cloud with a GIT-BACKED deploy**.
+This is now the standard; shinyapps.io (small-mammal reference) is legacy and slated to follow.
+
+**Deploy model (the new standard — Connect Cloud, git-backed):**
+- The app lives on Connect Cloud, pointed at the GitHub repo + its watched branch. **A push to the
+  watched branch IS the deploy** — Connect Cloud auto-republishes. So there are **no shinyapps.io
+  secrets, no `rsconnect/` dir, and no `deploy.R` step** (those are the legacy shinyapps path).
+- Required in-repo: a lean **`manifest.json`** (`rsconnect::writeManifest()`; bundle-only, keep
+  `neonUtilities` OUT via the computed-package-name trick), the committed `data/` bundles, and a
+  `docs/index.html` GitHub Pages showcase whose `APP_URL` points at the live Connect Cloud app.
+- Branch naming is split across the suite (`main` vs `master`) — each workflow must push to the
+  branch its own Connect Cloud app watches. Standardize new repos on `main`.
+
+**Auto-refresh + self-deploy (`.github/workflows/refresh-data.yml`) — copy this shape:**
+- **Schedule (identical across the suite):** `cron: "0 6 * * 0"` (Sunday 06:00 UTC = Saturday 23:00
+  America/Phoenix, off-peak), with a **gate job** that proceeds only on the **first Saturday of the
+  month** (`dow=6 && day<=7`, `TZ=America/Phoenix`) — cron can't say "first Saturday", so fire weekly
+  and gate. `workflow_dispatch` with a `skip_download` input always proceeds (fast redeploy test).
+- **Flow:** gate → checkout → `setup-r` + deps → fetch raw + rebuild `data/sites/*.rds` (+ any
+  overlays) → **commit/push to the watched branch (= the deploy on Connect Cloud)** → optionally open
+  a data-refresh PR. Time-box + `continue-on-error` the heavy/optional steps so they can't block the
+  deploy. `NEON_TOKEN` is an optional secret (anonymous works, slower).
+- **Two deploy triggers seen in the wild — prefer auto-push:** (a) *auto* — push refreshed data
+  straight to the watched branch (mammal/bird/phe/plant). (b) *PR-merge* — open a PR a human merges
+  (veg) — this is NOT self-deploying; convert to auto-push unless a review gate is wanted.
+
+**Derived/master apps (e.g. Driver Cascade):** their bundle is built FROM sibling repos' bundles, so
+CI must obtain them — `git clone --depth 1` each sibling repo (use the real slugs, not dir names:
+NEON-Small-Mammal-Tracker-App, NEON-Plant-Diversity, NEON-Breeding-Birds,
+NEON-Plant-Phenology-Explorer, NEON-Vegetation-Structure-Explorer, NEON-Ground-Beetle-Tracker),
+copy their `data/`, run the build script, commit the derived `.rds`. A master app needs a **GitHub
+remote + a Connect Cloud app** before any of this works.
+
+## 7. Per-app readiness checklist (audit every app against this)
+
+Data bundles: `data/sites/*.rds` present + valid (loadable, non-empty) · `data/site_index.rds`
+(picker) · `data-sample/demo.rds` (instant demo) · all git-tracked · refreshed within the cadence.
+Automation: `.github/workflows/refresh-data.yml` on the **standard schedule** · self-deploys via
+**auto-push** (not PR-merge) · `manifest.json` present · GitHub **remote** exists · `docs/index.html`
+`APP_URL` is live. NEONization: cover/landing splash · **in-app sibling links** + `docs` cross-promo
+grid covering the WHOLE suite · mobile-responsive CSS (`@media`, prefers-reduced-motion) · **QC-flag
+system** (§ below) · metadata/codebook view · comprehensive downloads (CSV + card PNG + report PDF) ·
+entity pin-cards · current shared chrome (styles.css + app.js + pincards.js).
+
+**The QC-flag system (gold standard — every app gets it; first ported to birds):** `<entity>_qc()` →
+ranked *"verify, not wrong"* flags (high/warn/info) + the EXACT offending rows behind each; surfaced
+on the entity profile INSIDE the export node (PNG captures it); each flag **clickable → inspector
+table** of offending rows + per-flag CSV; a full **QC-report CSV** (`<entity>_qc_report()`); clean
+path shows a green reassurance. Tune thresholds **data-derived + domain-grounded** (ask the domain
+agent) and validate on contrasting sites so it never cries wolf (target ~0 high on clean NEON data).
+CSS class convention: standardize on `.qc-flag-<level>` (not `.qc-flag.<level>`). Full recipe +
+bird thresholds: memory `neonize-qc-flag-pattern`.
+
+**Sibling links + cover page:** maintain ONE registry of the suite (name · emoji · tagline · DPID ·
+github.io showcase URL · live Connect Cloud URL) and render it both in `docs/index.html` (the
+`.series-grid`) AND in-app (an "Explore the NEON series" block in About/footer). When a new app ships,
+add it to the registry so EVERY sibling links to it (Breeding Birds + Driver Cascade were missing).
+
+---
+
+*Living doc. Plant-diversity (DP1.10058.001) was the first full NEONize; birds/phenology/veg/cascade
+followed. §6–7 added from the suite-wide automation+bundle audit (the Connect-Cloud git-backed deploy
+migration, the shared off-peak schedule, the QC-flag generalization). Keep the **Cody** subagent
+(hosting/CI) and a future **neonize** subagent in sync with §6–7.*
