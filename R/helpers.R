@@ -714,6 +714,114 @@ flagged_measure_captures <- function(d, sp, measure) {
              median = m, stringsAsFactors = FALSE)
 }
 
+# ---------------------------------------------------------------------------
+# individual_history(): every capture event for ONE tagged animal, ordered by
+# date, with all the body measurements ("meso" morphometrics) + field context a
+# QC reviewer needs. Unlike inspect_captures() (which requires coords, for the
+# map-consistent mover modal) this keeps EVERY dated capture so the card never
+# silently drops a record. Missing columns degrade to NA so a live-fetched table
+# with a different shape can't error the card.
+# ---------------------------------------------------------------------------
+individual_history <- function(d, tag) {
+  if (is.null(d) || is.null(tag) || length(tag) != 1 || is.na(tag) || tag == "") return(NULL)
+  h <- dplyr::filter(d, .data$tagID == tag, !is.na(.data$date))
+  if (!nrow(h)) return(NULL)
+  need <- c("plotID", "trapCoordinate", "lifeStage", "sex", "scientificName",
+            "weight", "hindfootLength", "tailLength", "earLength", "totalLength",
+            "recapture", "fate")
+  for (cc in need) if (!cc %in% names(h)) h[[cc]] <- NA
+  h[order(h$date), c("date", need), drop = FALSE]
+}
+
+# ---------------------------------------------------------------------------
+# individual_qc_flags(): the ranked QC signals for one animal's capture history,
+# returned as a list of list(level, text). Ranking follows the Fauna review —
+# the most reliable error signals first (same-tag-two-plots, stage regression,
+# beyond-lifespan span = "high"), the suggestive ones after (sex flip, weight
+# jump = "warn"; hindfoot jitter, species change = "info"). Every flag is phrased
+# as "verify", not "wrong": legitimate causes exist for the lower-ranked ones.
+# `hist` = individual_history(d, tag); `lb_row` = the build_leaderboard() row.
+# ---------------------------------------------------------------------------
+individual_qc_flags <- function(hist, lb_row) {
+  flags <- list()
+  add <- function(level, text) flags[[length(flags) + 1L]] <<- list(level = level, text = text)
+  if (is.null(hist) || !nrow(hist)) return(flags)
+  has_row <- !is.null(lb_row) && nrow(lb_row) == 1
+  fi <- function(x) format(x, big.mark = ",")
+
+  # Caught once -> there are no recaptures to cross-check, so the consistency
+  # checks below never run. Say that, rather than falling through to a green
+  # "all consistent" that would over-claim a check that never happened.
+  if (nrow(hist) < 2) {
+    add("info", "Caught once — there are no recaptures to cross-check, so the consistency flags below don't apply.")
+    return(flags)
+  }
+
+  # 1 — same tag, two plots, same day: spatially impossible (highest-confidence).
+  if (has_row && isTRUE(lb_row$spatial_conflict[1]))
+    add("high", "Recorded at two plots on the same day — physically impossible for one animal (plots are hundreds of metres apart). Almost always a tag-number mix-up or data-entry error.")
+
+  # 2 — life stage moving backward across DISTINCT dates. Collapse same-day rows
+  #     to that day's most-advanced stage first, so a same-day (adult, juvenile)
+  #     pair (or a two-plot-one-day record) can't be misread as a regression.
+  ord <- c(juvenile = 1L, subadult = 2L, adult = 3L)
+  hs <- data.frame(date = hist$date, st = ord[as.character(hist$lifeStage)])
+  hs <- hs[!is.na(hs$st) & !is.na(hs$date), , drop = FALSE]
+  if (nrow(hs) >= 2) {
+    per_day <- tapply(hs$st, as.character(hs$date), max)
+    per_day <- per_day[order(as.Date(names(per_day)))]
+    if (length(per_day) >= 2 && any(diff(per_day) < 0))
+      add("high", "Life stage moves backward (adult → a younger stage) on a later date — biologically impossible; check the staging on the datasheet.")
+  }
+
+  # 3 — career span beyond any wild lifespan for these genera (>5 yr).
+  if (has_row && isTRUE(lb_row$career_days[1] > 1825))
+    add("high", sprintf("Career span of %s days exceeds any wild lifespan for these species (>5 yr) — verify the tag number isn't shared between two animals.", fi(lb_row$career_days[1])))
+
+  # 4 — sex flip across recaptures: field sexing is error-prone, so flag (don't condemn).
+  sx <- unique(hist$sex[hist$sex %in% c("M", "F")])
+  if (length(sx) > 1)
+    add("warn", "Sex was recorded as both M and F across captures. Field sexing is error-prone (especially non-reproductive animals), so this is worth a check — not necessarily an error.")
+
+  # 5 — implausible weight jump: percent change FROM THE PRIOR capture (a fixed,
+  #     reproducible baseline — not pmin, which would inflate the %), over a real
+  #     interval of >=1 day and <=30 days, and ONLY when the prior capture was an
+  #     adult — a juvenile/subadult can legitimately add >30% mass in under a
+  #     month, so the flag would otherwise just relabel normal growth as a typo.
+  ww <- hist[is.finite(hist$weight) & hist$weight > 0, c("date", "weight", "lifeStage"), drop = FALSE]
+  if (nrow(ww) >= 2) {
+    ww <- ww[order(ww$date), ]
+    prevw <- ww$weight[-nrow(ww)]; nextw <- ww$weight[-1]
+    dd <- as.numeric(diff(ww$date))
+    young <- ww$lifeStage[-nrow(ww)] %in% c("juvenile", "subadult")
+    pct <- (nextw - prevw) / prevw * 100
+    bad <- which(is.finite(pct) & abs(pct) > 30 & dd >= 1 & dd <= 30 & !young)
+    if (length(bad)) {
+      i <- bad[which.max(abs(pct[bad]))]
+      add("warn", sprintf("Weight changed %+.0f%% from the prior capture (%.1f → %.1f g) in %d day%s (%s → %s) — a swing this fast in an adult can be a transposed digit; check it against the capture table and reproductive state.",
+        pct[i], prevw[i], nextw[i], dd[i], ifelse(dd[i] == 1, "", "s"),
+        format(ww$date[i], "%Y-%m-%d"), format(ww$date[i + 1], "%Y-%m-%d")))
+    }
+  }
+
+  # 6 — hind-foot spread among ADULT recaptures: foot length is near-fixed in
+  #     adults, so a wide spread usually reflects measurement differences. Use a
+  #     >3 mm threshold (above mm-rounding jitter) and require >=3 adult captures
+  #     so one odd remeasure on a 2-capture animal doesn't over-fire.
+  ad <- hist[hist$lifeStage %in% "adult" & is.finite(hist$hindfootLength) & hist$hindfootLength > 0, , drop = FALSE]
+  if (nrow(ad) >= 3) {
+    rng <- diff(range(ad$hindfootLength))
+    if (rng > 3)
+      add("info", sprintf("Hind-foot length spans %.0f mm across %d adult recaptures. Adult foot length is near-fixed, so a spread this wide usually reflects measurement differences (ruler vs caliper, a different tech, foot flex) rather than growth.", rng, nrow(ad)))
+  }
+
+  # 7 — same tag, more than one species ID: weakest signal (congener swaps are common).
+  if (has_row && isTRUE(lb_row$id_uncertain[1]))
+    add("info", "This tag was recorded under more than one species. Within-genus swaps are common and low-concern; a cross-genus change is worth verifying (NEON reconciles IDs later via its identification history).")
+
+  flags
+}
+
 # Quadratic-Bezier arc points between two lon/lat endpoints (a curved connector,
 # so a line on a satellite tile never reads as a walked straight route). `bow`
 # offsets the control point perpendicular to the chord.
