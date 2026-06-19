@@ -53,12 +53,25 @@ these from the flagship and adapt the data layer:
 ### 2c. Shared analysis helpers — port the defensible ones
 From `R/helpers.R`: `species_level_only()` (drop genus-only/morphospecies before any richness), `make_species_pal()` (one color per species across all charts), Hill numbers / `species_accum()` (rarefaction + Chao1 w/ CI), `mode_chr()`, `safe_*()` NA-safe reducers, the n-gate idioms. The diversity family ports to almost any taxon product.
 
-### 2d. The Size Lab pin-card system — the signature interactive
-`www/pincards.js` + the plotly `customdata` pattern (see `size-lab-feature` memory). Tap a dot →
-pin a draggable/resizable card with a gold leader line; download the chart with pins baked in
-(html-to-image); a chip on the card opens a downloadable per-entity QC record. **It is plotly,
-not ggiraph.** Reusable for any "position entities in a 2-D space, pick one, inspect it" view.
-Carry the hard-won gotchas (§4).
+### 2d. The interactive-downloadable-plot funnel — the signature every app gets
+The Size Lab (`www/pincards.js` + the plotly `customdata` pattern; see `size-lab-feature` memory) is
+the template for **the one interactive every NEONize app should ship**: a "position entities in a
+2-D space → pick one → inspect → take it with you" funnel. The full funnel, in order:
+
+1. **Position** every entity (individual / plot / species / taxon — the product's unit) on one chart,
+   coloured by a meaningful class, with **a filter (species/site/etc.) and an honest, gated overlay**
+   (a fit line drawn *only* where the relationship is real; framed as what it IS, e.g. "a QC map, not
+   a body-condition index").
+2. **Click → pin a profile card** (draggable/resizable, gold leader line anchored to DATA coords).
+3. **Chip on the card → a per-entity profile / QC record** (`output$…Card` + `individual_qc_flags()`
+   analog: ranked, *"verify not wrong"* data-quality flags). **Scroll it into view** on open (custom
+   message → scroll the rendered card node, §4).
+4. **Download the works:** the chart with pins baked in (html-to-image PNG), the profile/QC card
+   (PNG), and the raw per-entity record as **analysis-ready CSV metadata** (`downloadHandler`).
+
+**It is plotly, not ggiraph** (the apps are already plotly; no second rendering stack). This funnel —
+click-for-profile, QC checks, downloadable plot + card + metadata — is a **default deliverable**, not a
+one-off; map it to each product's unit. Carry the hard-won gotchas (§4).
 
 ### 2e. Report PDF — `R/report_pdf.R`
 Base `grid`/`grDevices` `cairo_pdf` (no LaTeX/Chrome), streamed by a `downloadHandler`. Re-theme
@@ -112,6 +125,9 @@ This is exactly how the Size Lab and the plant-diversity sibling were built.
 - **`validate(need())` doesn't display in some widget outputs** (stale output persists) — return a real message-chart/empty-state instead.
 - **`asset_url()` bakes the cache-bust version at app start** (ui is an object, built once) — a running server serves the old `?v=` after you edit a `www/` file; **restart** to pick up JS/CSS changes in preview.
 - **html-to-image over WebGL fails** — force SVG (`scatter`, not `scattergl`/`toWebGL`) for any chart you want to export; `Plotly.Plots.resize(gd)` before `toPng` (a tab that rendered hidden can be 0-sized); strip live animation classes before capture.
+- **Register pin-binding listeners BEFORE any aux handler in the IIFE.** A `Shiny.addCustomMessageHandler(...)` (or any statement) placed near the top of `pincards.js`, before the `DOMContentLoaded`/`shown.bs.tab` bind listeners, can throw during head-eval and abort the IIFE so binding never registers — tap-to-pin silently dead, with **no captured console error** (the throw predates the preview's console hook). Put the binding listeners first; put aux handlers last and `try`-guarded. (Caught verifying the Size Lab scroll fix — it had killed the whole pin layer.)
+- **The `dataSig` pin-clear must ignore the highlight/"tracking" trace.** Selecting an entity appends a gold highlight trace (N→N+1); a trace-count-based signature flips and wipes every pin the instant the user opens a profile from a pin (the happy path). Filter the highlight trace out of the signature.
+- **Scroll-into-view: target the rendered card node, NOT the uiOutput wrapper.** A bslib `uiOutput` in a fill layout is `display:contents` — it has **no box**, so `scrollIntoView` on `#…Output` is a silent no-op. Scroll the actual rendered child (`#…CardNode` / the empty-state node), polling until it exists AND has `height > 1` (the card re-renders async after the select). (The Size Lab scroll bug: a fixed-delay scroll to the wrapper did nothing.)
 - **Never pool repeated visits as independent samples.** NEON re-surveys the same plots/quadrats yearly. Pooling years into a richness / rarefaction / Chao estimate treats one quadrat's 7 visits as 7 spatial samples — it inflates richness ~2× and the incidence-unit count several-fold, and conflates spatial with temporal turnover. Compute snapshot metrics on **one survey per unit** (a `latest_snapshot()`); reserve the multi-year table for the explicit time-series. (Caught by the plant-app review.)
 - **Area-scaled metrics (density, per-ha, cover share) must be scoped to the population actually sampled over that area.** NEON nested-samples small stems / fine scales over a SMALLER area than the headline area variable — dividing everything by the big area biases the small classes low (a flat curve that's a sampling artifact, not biology). Scope to the protocol threshold (e.g. trees ≥10 cm DBH over `totalSampledAreaTrees`) and label it. Quadratic/RMS stats (QMD) must be POOLED (`sqrt(ΣD²/Σn)`), never a mean of per-unit RMS values (Jensen). (Veg-app review blocker.)
 - **One fixed output id, not one-per-entity.** A `renderPlotly`/`renderUI` registered under a per-row id (`output[[paste0("spark_", id)]]`) accumulates a new binding for every entity the user opens (a slow leak). Use a single fixed output that reads the selected-entity reactive.

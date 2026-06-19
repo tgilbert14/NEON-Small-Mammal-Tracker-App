@@ -302,10 +302,21 @@
         Shiny.addCustomMessageHandler("smtRevealQc", function () {
           var reduce = window.matchMedia &&
             window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-          setTimeout(function () {
+          // Scroll the QC card into view. NB the #qcHistoryCard uiOutput wrapper is
+          // display:contents (bslib fill layout) — it has NO box, so scrolling to it
+          // is a no-op. Target the actual rendered card (#qcCardNode), or the empty
+          // state (.qc-empty), once it exists AND has laid out (height > 1). The card
+          // re-renders async after pick_individual(), so poll briefly (~1.8s) instead
+          // of firing once on a fixed delay (the earlier single-shot fired too early).
+          var tries = 0;
+          (function go() {
             var n = document.getElementById("qcCardNode") || document.querySelector(".qc-empty");
-            if (n) n.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-          }, 140);
+            if (n && n.getBoundingClientRect().height > 1) {
+              n.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+              return;
+            }
+            if (++tries < 30) setTimeout(go, 60);
+          })();
         });
         return;
       }
