@@ -99,5 +99,15 @@ if (length(summary_rows)) {
   res <- do.call(rbind, summary_rows)
   cat(sprintf("\nDone. %d new sites, total %.1f MB.\n", nrow(res), sum(res$mb)))
 }
-cat(sprintf("Bundle now has %d/%d sites.\n",
-            length(list.files(out_dir, pattern = "\\.rds$")), length(sites)))
+n_ok <- length(list.files(out_dir, pattern = "\\.rds$"))
+cat(sprintf("Bundle now has %d/%d sites.\n", n_ok, length(sites)))
+
+# Mass-failure guard: the workflow `rm -f data/sites/*.rds` BEFORE this runs, then
+# deploys + opens a data PR after. If a bad NEON-pull day left us with far too few
+# bundles, stop() here so the job fails and neither the deploy nor the (now
+# deletion-heavy) PR step runs — far safer than shipping/committing a shrunken set.
+# Per-site failures are already skipped above; this only trips on a mass failure.
+floor_n <- max(30L, as.integer(ceiling(0.75 * length(sites))))
+if (n_ok < floor_n)
+  stop(sprintf("Only %d/%d site bundles built (< %d) — aborting before deploy/PR so a mass NEON-pull failure can't ship or commit a shrunken dataset.",
+               n_ok, length(sites), floor_n))
