@@ -321,6 +321,12 @@ server <- function(input, output, session) {
     updateSelectInput(session, "scatterPlot",
                       choices = c(list("All plots" = "all"), as.list(stats::setNames(pl_u, pl_u))),
                       selected = "all")
+    # Captures-over-time plot picker: every plot with captures (not just home plots),
+    # default to the site total.
+    tp_u <- sort(unique(rv$data$plotID[!is.na(rv$data$plotID)]))
+    updateSelectInput(session, "plotTrendPlot",
+                      choices = c(list("All plots (site total)" = "all"), as.list(stats::setNames(tp_u, tp_u))),
+                      selected = "all")
     nav_select("tabs", "overview")
     session$sendCustomMessage("countUp", list())
     session$sendCustomMessage("loadDone", list())   # hide the loading overlay
@@ -2112,70 +2118,49 @@ server <- function(input, output, session) {
 
   output$plotTrend <- renderPlotly({
     d <- rv$data; req(d)
-    ds <- d %>% dplyr::filter(!is.na(.data$tagID), !is.na(.data$scientificName), !is.na(.data$ym)) %>%
-      dplyr::group_by(.data$plotID, .data$scientificName, .data$ym) %>%
+    sel <- input$plotTrendPlot %||% "all"
+    ds <- d %>% dplyr::filter(!is.na(.data$tagID), !is.na(.data$scientificName), !is.na(.data$ym))
+    if (!identical(sel, "all") && nzchar(sel)) ds <- ds[ds$plotID %in% sel, , drop = FALSE]
+    if (nrow(ds) == 0) return(note_plot("No dated captures to chart for this plot", "\U0001F4C8"))
+    # ONE panel: captures by species per month, summed across the chosen scope —
+    # all plots (the site total) by default, or a single plot from the picker.
+    # Replaces the old 8-panel small-multiples (one mini-chart per plot + a 25-line
+    # legend) — same data, far less clutter; the dropdown drills into a plot.
+    ds <- ds %>% dplyr::group_by(.data$scientificName, .data$ym) %>%
       dplyr::summarise(count = dplyr::n(), .groups = "drop")
-    if (nrow(ds) == 0) return(note_plot("No dated captures to chart", "\U0001F4C8"))
     ds$date <- as.Date(paste0(ds$ym, "-01"))
-    # declutter: keep only the species with a meaningful number of captures so
-    # the small-multiples + legend stay readable (rare one-offs add noise)
+    # keep species with a meaningful number of captures so the legend stays readable
     keep_sp <- ds %>% dplyr::group_by(.data$scientificName) %>%
       dplyr::summarise(tot = sum(.data$count), .groups = "drop") %>%
       dplyr::filter(.data$tot >= 5) %>% dplyr::pull(.data$scientificName)
     if (length(keep_sp) == 0) keep_sp <- unique(ds$scientificName)
     ds <- ds[ds$scientificName %in% keep_sp, ]
     pal <- rv$pal %||% make_species_pal(d)
-    allsp <- sort(unique(ds$scientificName))
-    plots <- sort(unique(ds$plotID))
-    # ONE shared y-scale across panels: a 3-capture plot and a 40-capture plot
-    # must NOT peak at the same height (free axes manufactured a false "all plots
-    # alike" read). gymax drives both the shared range and the label headroom.
-    gymax <- suppressWarnings(max(ds$count, na.rm = TRUE))
-    if (!is.finite(gymax) || gymax <= 0) gymax <- 1
-
-    # facet-like layout, one mini time-series per plot. The legend is built from
-    # the REAL data traces: each species' FIRST trace (in any panel) carries
-    # showlegend = TRUE, the rest share its legendgroup. (Phantom all-NA legend
-    # traces get silently dropped by plotly/subplot, which is why this is robust.)
-    seen <- new.env(parent = emptyenv())
-    labcol <- if (is_dark()) "#cfe0f5" else "#16386e"   # readable in both themes
-    mk <- function(pl, first) {
-      dd <- ds[ds$plotID == pl, ]
-      ymax <- gymax                              # shared scale across all panels
-      xleft <- suppressWarnings(min(dd$date, na.rm = TRUE))
-      p <- plot_ly()
-      for (s in unique(dd$scientificName)) {
-        sd <- dd[dd$scientificName == s, ]
-        show <- is.null(seen[[s]]); if (show) assign(s, TRUE, envir = seen)
-        p <- p %>% add_trace(data = sd, x = ~date, y = ~count, type = "scatter",
-          mode = "lines+markers", name = s, legendgroup = s, showlegend = show,
-          marker = list(size = 5, color = pal[[s]]), line = list(width = 1.5, color = pal[[s]]),
-          hovertemplate = paste0(pl, "<br>%{x|%b %Y}: %{y}<extra></extra>"))
-      }
-      # Per-panel plotID label as a TEXT TRACE in the panel's own data space, sat
-      # in headroom above the data. A layout annotation with xref="x domain" is
-      # NOT remapped per-panel by subplot() — every label collapses onto the first
-      # panel (you see only one) — but a trace stays bound to its own panel. The
-      # widened y-range gives the label clear space above the lines.
-      p <- p %>% add_trace(x = xleft, y = ymax * 1.12, type = "scatter", mode = "text",
-        text = pl, textposition = "middle right", cliponaxis = FALSE,
-        textfont = list(color = labcol, size = 10), showlegend = FALSE, hoverinfo = "skip")
-      p %>% plotly::layout(
-        xaxis = list(gridcolor = "rgba(31,42,48,0.06)"),
-        yaxis = list(gridcolor = "rgba(31,42,48,0.06)", range = c(0, ymax * 1.25)))
+    scope_lbl <- if (identical(sel, "all") || !nzchar(sel)) "all plots \U00B7 site total"
+                 else paste0("plot ", sel)
+    p <- plot_ly()
+    for (s in sort(unique(ds$scientificName))) {
+      sd <- ds[ds$scientificName == s, ]
+      p <- p %>% add_trace(data = sd, x = ~date, y = ~count, type = "scatter",
+        mode = "lines+markers", name = s,
+        marker = list(size = 6, color = pal[[s]]), line = list(width = 2, color = pal[[s]]),
+        hovertemplate = paste0("<b>", s, "</b><br>%{x|%b %Y}: %{y} captures<extra></extra>"))
     }
-    sub <- lapply(seq_along(plots), function(i) mk(plots[i], i == 1))
-    plotly::subplot(sub, nrows = ceiling(length(plots) / 2), shareX = TRUE, shareY = TRUE,
-                    titleX = FALSE, margin = 0.05) %>%
-      plotly::layout(paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)",
-                     font = list(color = "#344049", family = "Rubik"),
-                     margin = list(t = 44, b = 72), showlegend = TRUE,
-                     hoverlabel = list(bgcolor = "rgba(12,35,75,0.96)", bordercolor = "#FFD200",
-                       font = list(color = "#ffffff", family = "Rubik", size = 13)),
-                     legend = list(orientation = "h", x = 0.5, xanchor = "center",
-                                   y = -0.08, yanchor = "top", font = list(size = 10),
-                                   itemsizing = "constant", bgcolor = "rgba(255,255,255,0.6)")) %>%
-      ctx_anno() %>%
+    # Both captions go through layout(annotations=...) (REPLACES wholesale), NOT
+    # add_annotations()/ctx_anno() (which APPEND and so stack a fresh copy on every
+    # filter re-render of this same plotly div — the documented accumulation trap).
+    cap_col <- if (is_dark()) "#9fb0c4" else "#6b7a89"
+    anns <- list(list(text = scope_lbl, x = 0, y = 1.03, xref = "paper", yref = "paper",
+      xanchor = "left", yanchor = "bottom", showarrow = FALSE,
+      font = list(color = cap_col, size = 11.5, family = "Rubik")))
+    if (!is.null(rv$ctx))
+      anns[[length(anns) + 1L]] <- list(text = rv$ctx, x = 1, y = 1.03, xref = "paper", yref = "paper",
+        xanchor = "right", yanchor = "bottom", showarrow = FALSE,
+        font = list(color = cap_col, size = 11, family = "Rubik"))
+    plotly_theme(p) %>% plotly::layout(
+      xaxis = list(title = ""),
+      yaxis = list(title = "captures", rangemode = "tozero"),
+      annotations = anns) %>%
       plotly::config(displayModeBar = FALSE)
   })
 
