@@ -1113,6 +1113,34 @@ svg.smt-pin-lines {
   box-shadow: 0 16px 34px rgba(0,0,0,.35), 0 0 0 1px rgba(45,212,191,.30);
 }
 
+/* ---- DARK "info-box" surfaces on the LIGHT page (the cascade look) ---------- *
+ * The app defaults to light, but the prominent info boxes — the stat value-boxes
+ * and the site-header band — wear the dark desert-night command-band scheme with
+ * light text + the per-stat accent rail, in BOTH modes. */
+.stat-card {
+  background: linear-gradient(180deg, #15294f 0%, #0e1d40 100%) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  border-top: 3px solid var(--accent) !important;
+  box-shadow: 0 12px 28px -12px rgba(3,8,20,.6) !important;
+}
+.stat-card .stat-value { color: #ffffff !important; }
+.stat-card .stat-title { color: #9fb0cf !important; }
+.stat-card .stat-sub   { color: #8fd2f2 !important; }
+.stat-card:hover { box-shadow: 0 18px 36px rgba(0,0,0,.5), 0 0 0 1px rgba(45,212,191,.35) !important; }
+
+.hero-site {
+  background: linear-gradient(120deg, #15425f 0%, #0b1733 70%) !important;
+  color: #eaf2ff !important; padding: 10px 15px; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.10); box-shadow: 0 10px 26px -12px rgba(3,8,20,.5);
+}
+.hero-site .hero-site-label { color: #ffffff !important; }
+.hero-site .hero-site-range { color: #9fb0cf !important; border-left-color: rgba(255,255,255,.18) !important; }
+.hero-site .hero-site-hint  { color: #9fb0cf !important; }
+.hero-site .hero-site-hint .bi { color: #ffd24a !important; }
+.hero-site .demo-pill {
+  background: rgba(255,210,74,.16) !important; color: #ffd24a !important; border-color: var(--gold) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-hero::before, .brand-mark, .app-emoji,
   .stat-card::before, .home-btn::before, .local-card::before { animation: none !important; }
