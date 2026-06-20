@@ -530,11 +530,38 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .driver-popover.driverjs-theme .driver-popover-prev-btn { background: var(--bg); color: var(--pine); }
 .driver-popover.driverjs-theme .driver-popover-arrow { border-color: var(--paper); }
 
-/* a11y / no-JS fallback list */
-.picker-list { margin: 12px auto 0; max-width: 920px; text-align: left; }
-.picker-list > summary { cursor: pointer; font-weight: 700; color: var(--pine); font-size: 13.5px; padding: 6px 2px; }
-.picker-list-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 18px; margin-top: 10px; }
-.picker-list-link { display: block; padding: 5px 8px; border-radius: 8px; color: var(--ink); font-size: 13px; text-decoration: none; }
+/* "Browse all N sites" — collapsible (closed by default) full-site list */
+.picker-list { margin: 14px auto 0; max-width: 920px; text-align: left; }
+/* kill the native disclosure triangle so our chevron is the only marker */
+.picker-list > summary { list-style: none; }
+.picker-list > summary::-webkit-details-marker { display: none; }
+/* the summary, styled as a centered pill/button */
+.picker-list-summary {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: max-content; min-height: 40px; margin: 0 auto;
+  padding: 8px 18px; cursor: pointer; user-select: none;
+  font-weight: 700; font-size: 13.5px; color: var(--pine);
+  background: linear-gradient(180deg, var(--bg) 0%, var(--paper) 100%);
+  border: 1px solid var(--line); border-radius: 999px;
+  box-shadow: 0 4px 14px -10px var(--shadow);
+  transition: color .15s ease, border-color .15s ease, box-shadow .15s ease, background .15s ease; }
+.picker-list-summary:hover {
+  color: var(--pine2); border-color: var(--pine);
+  box-shadow: 0 6px 18px -10px var(--shadow); }
+.picker-list > summary:focus-visible { outline: none; }
+.picker-list > summary:focus-visible .picker-list-summary {
+  border-color: var(--pine); box-shadow: 0 0 0 3px var(--shadow); }
+.pls-label { display: inline-flex; align-items: center; gap: 7px; }
+.pls-chevron { display: inline-flex; transition: transform .2s ease; color: var(--pine); opacity: .85; }
+.picker-list[open] .pls-chevron { transform: rotate(180deg); }
+/* the expanded body: scrolls rather than pushing the page */
+.picker-list-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 18px;
+  margin-top: 12px; padding: 10px 12px;
+  max-height: 320px; overflow-y: auto;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--paper); }
+.picker-list-link { display: block; padding: 6px 9px; border-radius: 8px; color: var(--ink); font-size: 13px; text-decoration: none; }
 .picker-list-link:hover { background: var(--bg); color: var(--pine); }
 .picker-list-link b { color: var(--pine); }
 .pll-meta { color: var(--muted); font-size: 11.5px; }

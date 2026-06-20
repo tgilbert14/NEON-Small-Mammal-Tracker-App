@@ -169,7 +169,10 @@ ui <- bslib::page_sidebar(
             grps$group_label[i])))
       ord <- idx[order(idx$name), ]
       fallback <- tags$details(class = "picker-list",
-        tags$summary(tagList(bs_icon("list-ul"), " Browse all ", nrow(ord), " sites as a list")),
+        tags$summary(class = "picker-list-summary",
+          tags$span(class = "pls-label", bs_icon("list-ul"),
+                    tagList(" Browse all ", nrow(ord), " sites")),
+          tags$span(class = "pls-chevron", bs_icon("chevron-down"))),
         div(class = "picker-list-grid",
           lapply(seq_len(nrow(ord)), function(i)
             tags$a(class = "picker-list-link", href = "#",
