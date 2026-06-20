@@ -20,10 +20,13 @@ suppressPackageStartupMessages(library(grid))
 # fallback either way. Probe once at source time.
 PDF_DEV <- if (isTRUE(capabilities("cairo"))) grDevices::cairo_pdf else grDevices::pdf
 
+# The PDF prints on WHITE PAPER, so its palette stays the LIGHT Girth-Index house
+# colors — DELIBERATELY decoupled from DDL (which goes desert-night for the dark-default
+# app; reading DDL here would print near-white ink on white = invisible).
 PG <- list(w = 8.5, h = 11, margin = 0.75, lineH = 0.165,
-           navy = DDL$navy, navy2 = DDL$navy2, gold = DDL$gold, gold2 = DDL$gold2,
-           cardinal = DDL$cardinal, sky = DDL$sky, green = DDL$green,
-           ink = DDL$ink, muted = DDL$muted, line = DDL$line,
+           navy = "#0C234B", navy2 = "#16386e", gold = "#FFD200", gold2 = "#c9a300",
+           cardinal = "#AB0520", sky = "#2f7fb5", green = "#1a7f37",
+           ink = "#1c2733", muted = "#6b7a89", line = "#dbe2ec",
            tint = "#eef2f8", zebra = "#f6f8fc")
 PG$cw <- PG$w - 2 * PG$margin      # 7.0in content width
 PG$ch <- PG$h - 2 * PG$margin      # 9.5in content height

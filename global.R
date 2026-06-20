@@ -233,24 +233,29 @@ fetch_neon_mam <- function(site, start_date, end_date, provisional = FALSE) {
 #   gold    #FFD200  highlight(legendary, badges, accents)
 #   sky     #2f7fb5  info
 #   ink     #1c2733  / muted #6b7a89 / bg #eef2f8
+# Desert-night creative system (matches the DDL suite cover). Key NAMES kept (server.R
+# references DDL$sky/$gold2/etc.), VALUES remapped to the desert palette so the charts
+# re-theme from one edit. The app DEFAULTS to dark (ui.R input_dark_mode mode="dark").
 DDL <- list(
-  navy = "#0C234B", navy2 = "#16386e", cardinal = "#AB0520", gold = "#FFD200",
-  gold2 = "#c9a300", sky = "#2f7fb5", green = "#1a7f37", ink = "#1c2733",
-  muted = "#6b7a89", bg = "#eef2f8", paper = "#ffffff", line = "#dbe2ec"
+  navy = "#0e1d40", navy2 = "#1b2e5c", cardinal = "#fb8a7e", gold = "#ffd24a",
+  gold2 = "#e0b43a", sky = "#43b8e8", green = "#5fb56a", ink = "#eaf2ff",
+  muted = "#9fb0cf", bg = "#070d1f", paper = "#0e1d40", line = "rgba(255,255,255,0.12)"
 )
 
-# Server-side PDF report generator (sourced after DDL — its page geometry/palette
-# `PG` is built from DDL at source time). Replaces the old browser-print card.
+# Server-side PDF report generator (sourced after DDL). Its palette `PG` is now
+# DECOUPLED from DDL (it prints on white paper, so it stays the light house colors).
 source("R/report_pdf.R", local = FALSE)
 
+# Light "desert-day" base (shown if the user toggles light). DARK is the default +
+# showcase; styles.css [data-bs-theme="dark"] carries the full desert-night system.
 app_theme <- bs_theme(
   version = 5,
-  bg = "#ffffff", fg = DDL$ink,
-  primary = DDL$navy, secondary = DDL$cardinal,
-  success = DDL$green, info = DDL$sky, warning = DDL$gold, danger = DDL$cardinal,
+  bg = "#ffffff", fg = "#16243a",
+  primary = "#149086", secondary = "#e0685a",
+  success = "#3f9a52", info = "#2f8fc4", warning = "#d6a31c", danger = "#e0685a",
   base_font    = font_google("Rubik"),
   heading_font = font_google("Rubik"),
-  "border-radius" = "10px"
+  "border-radius" = "12px"
 )
 
 # ---- static asset cache-busting -------------------------------------------
@@ -285,11 +290,16 @@ insight_banner <- function(icon, ..., tone = "navy") {
     bsicons::bs_icon(icon), div(class = "ci-text", ...))
 }
 
-# A clean tinted pill/badge (rarity & chonk tags) for the light theme.
-glow_badge <- function(label, color = "#0C234B", glow = color) {
+# A clean tinted pill/badge (rarity & chonk tags). Auto-picks DARK text on a bright
+# fill (gold/teal/coral) and white on a dark fill, so it reads in both themes.
+glow_badge <- function(label, color = "#149086", glow = color) {
+  txt <- tryCatch({
+    rc <- grDevices::col2rgb(color)
+    if ((0.299*rc[1] + 0.587*rc[2] + 0.114*rc[3]) / 255 > 0.6) "#16243a" else "#ffffff"
+  }, error = function(e) "#ffffff")
   span(
     class = "glow-badge",
-    style = sprintf("color:#fff; background:%s; border-color:%s;", color, color),
+    style = sprintf("color:%s; background:%s; border-color:%s;", txt, color, color),
     label
   )
 }

@@ -148,14 +148,15 @@ rarity_tier <- function(captures) {
   )
 }
 
-# Tier colors for the Girth light theme (solid fills, white text on top).
+# Rarity tier colors — desert-night ladder (glow_badge auto-picks dark text on the
+# bright fills). MUST stay in lockstep with the legend in www/confirm.js.
 rarity_meta <- function(tier) {
   lut <- list(
-    Legendary = list(color = "#c9a300", glow = "#c9a300", icon = "⭐"),  # deep gold
-    Epic      = list(color = "#AB0520", glow = "#AB0520", icon = "\U0001F48E"),  # cardinal
-    Rare      = list(color = "#16386e", glow = "#16386e", icon = "\U0001F535"),  # navy
-    Uncommon  = list(color = "#1a7f37", glow = "#1a7f37", icon = "\U0001F7E2"),  # green
-    Common    = list(color = "#6b7280", glow = "#6b7280", icon = "▫")
+    Legendary = list(color = "#ffd24a", glow = "#ffd24a", icon = "⭐"),  # gold
+    Epic      = list(color = "#fb8a7e", glow = "#fb8a7e", icon = "\U0001F48E"),  # coral
+    Rare      = list(color = "#2dd4bf", glow = "#2dd4bf", icon = "\U0001F535"),  # teal
+    Uncommon  = list(color = "#5fb56a", glow = "#5fb56a", icon = "\U0001F7E2"),  # green
+    Common    = list(color = "#9fb0cf", glow = "#9fb0cf", icon = "▫")
   )
   lut[[tier]] %||% lut$Common
 }

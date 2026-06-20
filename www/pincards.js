@@ -25,7 +25,7 @@
   function bgColor() {
     var dark = document.documentElement.getAttribute("data-bs-theme") === "dark" ||
                document.body.getAttribute("data-bs-theme") === "dark";
-    return dark ? "#16213a" : "#ffffff";
+    return dark ? "#0e1d40" : "#ffffff";
   }
 
   /* map a data point (dx, dy) to box-relative pixels via plotly's live axes, so
@@ -100,12 +100,12 @@
     var layer = linesLayer(box);
     var ln = document.createElementNS(NS, "line");
     ln.setAttribute("x1", a.ax); ln.setAttribute("y1", a.ay);
-    ln.setAttribute("stroke", "#FFD200"); ln.setAttribute("stroke-width", "2.5");
+    ln.setAttribute("stroke", "#ffd24a"); ln.setAttribute("stroke-width", "2.5");
     ln.setAttribute("stroke-linecap", "round");
     layer.appendChild(ln);
     var dot = document.createElementNS(NS, "circle");
     dot.setAttribute("cx", a.ax); dot.setAttribute("cy", a.ay); dot.setAttribute("r", "4.5");
-    dot.setAttribute("fill", "#FFD200"); dot.setAttribute("stroke", "#0C234B");
+    dot.setAttribute("fill", "#ffd24a"); dot.setAttribute("stroke", "#070d1f");
     dot.setAttribute("stroke-width", "1.5");
     layer.appendChild(dot);
     pin.__line = ln; pin.__dot = dot;
