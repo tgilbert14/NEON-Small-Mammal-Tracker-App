@@ -1,31 +1,21 @@
 name: Refresh NEON data bundle
 
-# Monthly rebuild of the per-site MAMMAL .rds bundles (data/sites/*.rds) PLUS a
-# light top-up of the environmental overlays (data/env/*.rds), then redeploy.
-# Runs late on the FIRST SATURDAY NIGHT of each month (~11pm Arizona time) so the
-# brief redeploy lands off-peak. NEON publishes on a lag, so a monthly pull keeps
-# the bundled "database" current.
+# Monthly rebuild of the per-site MAMMAL .rds bundles (data/sites/*.rds) + a light
+# top-up of the environmental overlays (data/env/*.rds) + the site index, then a
+# DIRECT PUSH to main. Runs late on the FIRST SATURDAY NIGHT of each month (~11pm
+# Arizona time) so any republish lands off-peak. NEON publishes on a lag, so a
+# monthly pull keeps the bundled "database" current.
 #
-# ENV OVERLAYS: the full 13-year precip/temperature/fruiting history is built
-# ONCE, offline, via `Rscript scripts/refresh_env_data.R` (committed to data/env/).
-# This workflow only TOPS IT UP each month — SMT_ENV_RECENT_MONTHS re-pulls the
-# last ~14 months and merges them in — so it stays current without the heavy full
-# pull. Soil water (DP1.00094.001) and RH are intentionally NOT built (the
-# high-volume products that made a full pull run 1h37m and get canceled).
+# DEPLOY = git push to main. Posit Connect Cloud watches this repo and auto-
+# republishes on every push to main — no shinyapps secrets, no rsconnect deploy
+# (matching the WaterChem / Plant / Beetle / Veg siblings). The old shinyapps.io
+# path (scripts/deploy.R + rsconnect/shinyapps.io/) is retired and unused.
 #
-# REQUIRES three repo secrets (Settings → Secrets and variables → Actions):
-#   SHINYAPPS_NAME    your shinyapps account name   (e.g. t-lama)
-#   SHINYAPPS_TOKEN   shinyapps.io token            (Account → Tokens)
-#   SHINYAPPS_SECRET  shinyapps.io secret
-# You can also trigger it manually from the Actions tab (workflow_dispatch);
-# tick "skip_download" there to redeploy the already-committed bundle in ~3 min
-# (handy for testing the deploy without a full 57-minute NEON re-pull).
-#
-# FLOW: rebuild bundle → DEPLOY first (so a git issue can never block the
-# deploy) → open/update a PR with the refreshed bundle. `main` is a protected
-# branch (PRs only), so the bot can't push to it directly; it raises a PR you
-# merge at your leisure instead. Merging is optional for the live app — each
-# run already deploys from the freshly-downloaded data on the runner.
+# REQUIRES one optional repo secret (Settings → Secrets and variables → Actions):
+#   NEON_TOKEN   a free NEON API token (raises the rate limit; pulls work without
+#                it, just slower).
+# Trigger manually from the Actions tab (workflow_dispatch); tick "skip_download"
+# to just rebuild the index from the committed bundles (fast, no NEON re-pull).
 
 on:
   schedule:
@@ -36,13 +26,12 @@ on:
   workflow_dispatch:
     inputs:
       skip_download:
-        description: "Skip the NEON re-pull and deploy the committed bundle (fast test)"
+        description: "Skip the NEON re-pull; just rebuild the index from committed bundles (fast test)"
         type: boolean
         default: false
 
 permissions:
-  contents: write          # commit the refreshed bundle to the PR branch
-  pull-requests: write     # open/update the data-refresh PR
+  contents: write          # push the refreshed bundle to main -> Connect Cloud redeploys
 
 jobs:
   # Gate: only the FIRST Saturday night (Arizona time) runs the heavy refresh.
@@ -72,8 +61,12 @@ jobs:
     needs: gate
     if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-latest
+    env:
+      NEON_TOKEN: ${{ secrets.NEON_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}   # push to main -> Connect Cloud auto-redeploys
 
       - uses: r-lib/actions/setup-r@v2
         with:
@@ -83,11 +76,11 @@ jobs:
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
           packages: >
-            neonUtilities, dplyr, tibble, tidyr, stringr, rsconnect,
+            neonUtilities, dplyr, tibble, tidyr, stringr,
             shiny, bslib, bsicons, plotly, leaflet, DT, shinyjs,
             shinycssloaders, RColorBrewer, htmltools, cpp11
 
-      - name: Rebuild the per-site bundle (full re-pull)
+      - name: Rebuild the per-site bundle (full NEON re-pull)
         if: ${{ github.event.inputs.skip_download != 'true' }}
         run: |
           rm -f data/sites/*.rds
@@ -96,45 +89,33 @@ jobs:
       # Environmental overlays (precip / temperature / fruiting) — a LIGHT monthly
       # TOP-UP: SMT_ENV_RECENT_MONTHS re-pulls only the last ~14 months and merges
       # into the committed data/env bundle (the full 13-year history is built once,
-      # offline). Temp uses timeIndex=30; no soil/RH (the high-volume products that
-      # made a full pull too heavy for CI). Time-boxed + non-fatal so it can never
-      # stall or block the deploy below.
+      # offline). Time-boxed + non-fatal so it can never stall or block the push.
       - name: Top up the environmental overlays (recent months)
         if: ${{ github.event.inputs.skip_download != 'true' }}
         continue-on-error: true
         timeout-minutes: 40
         env:
           SMT_ENV_RECENT_MONTHS: "14"
+        run: Rscript scripts/refresh_env_data.R
+
+      # Rebuild the site index (per-site summary + mean detection p̂ + species
+      # ranges) from the committed bundles — always, so the index stays in lock-step
+      # with the data on both the full-pull and skip-download paths.
+      - name: Rebuild the site index
+        run: Rscript scripts/build_site_index.R
+
+      # Commit + push refreshed data DIRECTLY to main — THIS is the deploy: the push
+      # makes Connect Cloud auto-republish (no human merge in the loop, matching the
+      # siblings). Guarded so it no-ops cleanly when nothing changed.
+      - name: Commit & push refreshed data to main
         run: |
-          Rscript scripts/refresh_env_data.R
-
-      # Deploy right after the bundles are rebuilt (ships fresh mammal + env).
-      - name: Deploy to shinyapps.io
-        env:
-          SHINYAPPS_NAME:   ${{ secrets.SHINYAPPS_NAME }}
-          SHINYAPPS_TOKEN:  ${{ secrets.SHINYAPPS_TOKEN }}
-          SHINYAPPS_SECRET: ${{ secrets.SHINYAPPS_SECRET }}
-        run: |
-          Rscript -e 'rsconnect::setAccountInfo(Sys.getenv("SHINYAPPS_NAME"), Sys.getenv("SHINYAPPS_TOKEN"), Sys.getenv("SHINYAPPS_SECRET")); source("scripts/deploy.R")'
-
-      # Land the refreshed bundle on main via a PR (re-uses one branch/PR each
-      # run, so they don't pile up). Skips cleanly when nothing changed.
-      - name: Open/update data-refresh PR
-        uses: peter-evans/create-pull-request@v6
-        with:
-          add-paths: |
-            data/sites
-            data/env
-          branch: auto/data-refresh
-          delete-branch: true
-          commit-message: "data: monthly NEON refresh (mammal + env top-up)"
-          title: "data: monthly NEON refresh"
-          body: |
-            Automated monthly refresh:
-            - small-mammal box-trapping (`DP1.10072.001`) → `data/sites/*.rds` (full re-pull)
-            - environmental overlays (precip / temp / fruiting) → `data/env/*.rds`
-              (recent-months top-up merged into the committed history)
-
-            The live app has already been redeployed from this data — merging
-            this PR just keeps the committed bundles (and local runs) in sync.
-          labels: automated, data
+          git config user.name  "neon-data-bot"
+          git config user.email "neon-data-bot@users.noreply.github.com"
+          git add -A data data-sample
+          if git diff --cached --quiet; then
+            echo "No data changes — nothing to commit or deploy."
+          else
+            git commit -m "data: monthly NEON small-mammal refresh (mammal + env top-up + index) [bot]"
+            git push origin HEAD:main
+            echo "Pushed refreshed data to main — Connect Cloud will redeploy."
+          fi

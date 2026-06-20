@@ -434,6 +434,13 @@ server <- function(input, output, session) {
     sp_line <- if (!is.na(row$top_species[1]))
       sprintf("<div class='pm-pop-sp'>Most caught: <i>%s</i>%s</div>", row$top_species[1],
               if (!is.na(row$nickname[1])) sprintf(" (%s)", row$nickname[1]) else "") else ""
+    # detection completeness: one understated labelled number, present only where
+    # this site has an estimable closed-capture bout (mean_p), so a raw cross-site
+    # count is read against how well the traps actually detect here (~0.57 closed-
+    # canopy temperate vs ~0.95 deserts). Absent — not "—" — where unavailable.
+    det_line <- if (!is.na(row$mean_p[1]))
+      sprintf("<div class='pm-pop-det' title='Mean per-night detection probability across this site&rsquo;s estimable closed-capture bouts — see the Population tab&rsquo;s detection card.'>detection ~%d%%/night</div>",
+              round(100 * row$mean_p[1])) else ""
     yrs <- if (!is.na(row$year_min[1]) && !is.na(row$year_max[1]))
       sprintf("<div class='sp-years'>Sampled %d&ndash;%d</div>", row$year_min[1], row$year_max[1]) else ""
     htmltools::HTML(sprintf(
@@ -441,7 +448,7 @@ server <- function(input, output, session) {
          <div class='pm-pop-t'>%s %s <span class='sp-code'>(%s)</span></div>
          <div class='pm-pop-s'>%s</div>
          <div class='pm-pop-n'><b>%s</b> captures &middot; <b>%s</b> individuals &middot; <b>%s</b> species</div>
-         %s%s
+         %s%s%s
          <div class='sp-actions'>
            <button type='button' class='sp-btn sp-go' onclick=\"smtLoadStart('%s \\u2014 loading\\u2026');Shiny.setInputValue('siteExplore','%s',{priority:'event'});\">Explore this site &rarr;</button>
            <button type='button' class='sp-btn sp-info' onclick=\"Shiny.setInputValue('siteInfo','%s',{priority:'event'});\">About this site</button>
@@ -449,7 +456,7 @@ server <- function(input, output, session) {
        </div>",
       row$emoji[1], row$name[1], code, where,
       format(row$captures[1], big.mark = ","), format(row$individuals[1], big.mark = ","),
-      row$species[1], sp_line, yrs, row$name[1], code, code))
+      row$species[1], sp_line, det_line, yrs, row$name[1], code, code))
   }
 
   site_info_modal <- function(code) {
@@ -494,7 +501,15 @@ server <- function(input, output, session) {
             stat(row$captures[1], "captures"),
             stat(row$individuals[1], "individuals"),
             stat(row$species[1], "species")),
-          div(class = "si-row si-star", "Most caught: ", star)),
+          div(class = "si-row si-star", "Most caught: ", star),
+          # detection completeness — present only where an estimable closed-capture
+          # bout exists. Qualifies the raw counts above (deserts ~0.95, closed-
+          # canopy temperate ~0.57), with the detail on hover, not always-on text.
+          if (!is.na(row$mean_p[1]))
+            div(class = "si-row si-det",
+              title = "Mean per-night detection probability across this site’s estimable closed-capture bouts — full breakdown on the Population tab’s detection card.",
+              bs_icon("incognito"), HTML(sprintf(" Traps detect ~<b>%d%%</b> of animals present per night",
+                round(100 * row$mean_p[1]))))),
         div(class = "si-sec",
           div(class = "si-h", "Ecological family"),
           div(class = "si-row si-fam",

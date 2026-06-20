@@ -33,6 +33,16 @@ rows <- lapply(files, function(f) {
   n_cap <- nrow(caps)
   if (n_cap == 0) return(NULL)
 
+  # mean per-night detection probability (p̂) across this site's estimable
+  # closed-capture bouts — the SAME number the detection card shows as
+  # cc$mean_p. Built from the cleaned bundle through the same machinery the app
+  # runs (clean_mam -> closed_capture_series), so the picker can promote
+  # cross-site detection completeness without re-scanning a bundle on boot.
+  # NA where no bout is estimable (all single-night / too few recaptures).
+  mean_p <- tryCatch(closed_capture_series(clean_mam(d))$mean_p,
+                     error = function(e) NA_real_)
+  if (is.null(mean_p) || length(mean_p) != 1) mean_p <- NA_real_
+
   # species-level only (drop genus-only "X sp." / ambiguous "A/B") so richness
   # and the dominant-species color match the rest of the app (helpers.R)
   caps_sp  <- species_level_only(caps[!is.na(caps$scientificName), , drop = FALSE])
@@ -55,6 +65,7 @@ rows <- lapply(files, function(f) {
     captures    = n_cap,
     individuals = length(unique(caps$tagID)),
     species     = length(unique(caps_sp$scientificName)),
+    mean_p      = mean_p,
     top_species = top_sp %||% NA_character_,
     top_caps    = if (length(sp_tab)) as.integer(sp_tab[1]) else NA_integer_,
     nickname    = species_nickname(top_sp) %||% NA_character_,
@@ -74,7 +85,7 @@ saveRDS(idx, "data/site_index.rds", compress = "xz")
 cat(sprintf("Wrote data/site_index.rds: %d sites, %s captures total, %d species groups.\n",
             nrow(idx), format(sum(idx$captures), big.mark = ","),
             length(unique(idx$group_key))))
-print(idx[, c("site","captures","species","top_species","group_label")], n = nrow(idx))
+print(idx[, c("site","captures","species","mean_p","top_species","group_label")], n = nrow(idx))
 
 # ---------------------------------------------------------------------------
 # species_ranges.rds — the national "where does each species live?" map data.

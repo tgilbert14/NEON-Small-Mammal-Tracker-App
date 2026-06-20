@@ -6,10 +6,10 @@ turning 46 field sites of capture records into maps, charts, and individual prof
 
 [![Shiny](https://img.shields.io/badge/built%20with-Shiny-1f9bcf?logo=rstudio)](https://shiny.posit.co/)
 [![R](https://img.shields.io/badge/R-%E2%89%A5%204.0-276DC3?logo=r)](https://www.r-project.org/)
-[![Live App](https://img.shields.io/badge/live-shinyapps.io-75AADB)](https://t-lama.shinyapps.io/RatTrapHistory/)
+[![Live App](https://img.shields.io/badge/live-Posit%20Connect%20Cloud-1f9bcf)](https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/)
 [![Data](https://img.shields.io/badge/data-NEON%20DP1.10072.001-1a7f37)](https://data.neonscience.org/data-products/DP1.10072.001)
 
-**Live app:** <https://t-lama.shinyapps.io/RatTrapHistory/>
+**Live app:** <https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/> — hosted on **Posit Connect Cloud**, which auto-republishes on every push to `main` (matching the sibling NEON apps).
 
 ![Species composition for a NEON site](assets/JORN_captures.png)
 
@@ -33,7 +33,7 @@ technicians getting to know the species at their site.
 colored by the most-caught mammal family — with a "by site / by species" toggle, an accessible list
 fallback, and a one-tap load. A 30-second guided tour points out the rest.
 
-**Explore by species.** Pick any of 140+ species and the map redraws to just the sites where it's
+**Explore by species.** Pick any of 145 species and the map redraws to just the sites where it's
 caught, sized by local abundance — a live national range map.
 
 **Detection-corrected abundance.** Closed-capture estimates per trapping bout (Schnabel for ≥3
