@@ -45,8 +45,8 @@ document.addEventListener("DOMContentLoaded", function () {
 // ---- confetti on legendary / epic finds ----------------------------------
 function rodentConfetti(big) {
   if (typeof confetti !== "function") return;
-  // Desert Data Labs desert-night palette (teal / coral / gold + bright accents).
-  const colors = ["#2dd4bf", "#fb8a7e", "#ffd24a", "#5eead4", "#43b8e8"];
+  // Desert Data Labs desert-night palette (azure blue / coral / gold + bright accents).
+  const colors = ["#38a8e8", "#ffd24a", "#fb8a7e", "#7cc8f5", "#5cc6f5"];
   const burst = (opts) => confetti(Object.assign({ colors, disableForReducedMotion: true }, opts));
   burst({ particleCount: big ? 140 : 70, spread: big ? 100 : 70, origin: { y: 0.3 }, startVelocity: 42 });
   if (big) {
@@ -113,7 +113,7 @@ function smtSaveCard() {
     })
     .catch(function () {
       if (typeof Swal !== "undefined") Swal.fire({ icon: "error", title: "Couldn't save the card",
-        text: "Try again, or screenshot it instead.", confirmButtonColor: "#149086" });
+        text: "Try again, or screenshot it instead.", confirmButtonColor: "#1f78c4" });
     });
 }
 

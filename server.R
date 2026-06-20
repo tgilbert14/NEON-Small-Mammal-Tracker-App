@@ -26,7 +26,7 @@ server <- function(input, output, session) {
       margin = list(l = 50, r = 30, t = 48, b = 40),   # t roomy enough for the ctx caption
       # desert-night tooltips: teal-edged dark card on dark, deep-teal on light
       hoverlabel = list(bgcolor = if (dark) "rgba(14,29,64,0.96)" else "rgba(20,46,72,0.96)",
-        bordercolor = if (dark) "#2dd4bf" else "#149086",
+        bordercolor = if (dark) "#38a8e8" else "#1f78c4",
         font = list(color = "#ffffff", family = "Rubik", size = 13))
     ) %>%
       plotly::config(displayModeBar = FALSE, responsive = TRUE)
@@ -873,7 +873,7 @@ server <- function(input, output, session) {
                      class = "hero-report"),
         span(class = "hero-site-hint", bs_icon("hand-index"), " tap any stat for the full ranking")),
       div(class = "stat-grid",
-        vb(cs$total_captures, "Captures",      "bullseye",        "#2dd4bf", "captures",
+        vb(cs$total_captures, "Captures",      "bullseye",        "#38a8e8", "captures",
            tip = "Total times an animal was caught & handled — click to see captures by plot."),
         vb(cs$individuals,    "Individuals",   "fingerprint",     "#43b8e8", "individuals",
            tip = "Distinct animals (unique ear-tag IDs) — click for the most-caught individuals."),
@@ -1303,8 +1303,8 @@ server <- function(input, output, session) {
     p <- p %>% add_trace(
       data = df, x = ~date, y = ~weight, name = "Weight (g)",
       type = "scatter", mode = "lines+markers",
-      line = list(color = "#2dd4bf", width = 2), marker = list(color = "#2dd4bf", size = 8),
-      hovertemplate = "%{x|%b %d, %Y}<br><span style='color:#2dd4bf'>●</span> Weight: %{y} g<extra></extra>")
+      line = list(color = "#38a8e8", width = 2), marker = list(color = "#38a8e8", size = 8),
+      hovertemplate = "%{x|%b %d, %Y}<br><span style='color:#38a8e8'>●</span> Weight: %{y} g<extra></extra>")
     p <- p %>% add_trace(
       data = df, x = ~date, y = ~hindfootLength, name = "Hind foot (mm)", yaxis = "y2",
       type = "scatter", mode = "lines+markers",
@@ -1321,7 +1321,7 @@ server <- function(input, output, session) {
     }
 
     plotly_theme(p) %>% plotly::layout(
-      yaxis  = list(title = "Weight (g)", color = "#2dd4bf"),
+      yaxis  = list(title = "Weight (g)", color = "#38a8e8"),
       yaxis2 = list(title = "Hind foot (mm)", color = "#fb8a7e", overlaying = "y",
                     side = "right", gridcolor = "rgba(0,0,0,0)"),
       xaxis  = list(title = ""), hovermode = "x unified", annotations = ann)
@@ -1345,7 +1345,7 @@ server <- function(input, output, session) {
                    font = list(color = "#1f2a30", size = 16)),
       gauge = list(
         axis = list(range = list(0, 100), tickcolor = "#6b7a85", tickfont = list(color = "#6b7a85")),
-        bar = list(color = "#2dd4bf", thickness = 0.28),
+        bar = list(color = "#38a8e8", thickness = 0.28),
         bgcolor = "rgba(0,0,0,0)", borderwidth = 0,
         steps = list(
           list(range = c(0, 20),  color = "#e3eef0"),
@@ -1384,7 +1384,7 @@ server <- function(input, output, session) {
         text = ~scientificName)
     # the focal species cloud, colored by life stage
     if (nrow(focal) > 0) {
-      stage_col <- c(adult = "#2dd4bf", subadult = "#fb8a7e", juvenile = "#9bd24a", unknown = "#6c757d")
+      stage_col <- c(adult = "#38a8e8", subadult = "#fb8a7e", juvenile = "#9bd24a", unknown = "#6c757d")
       focal$stg <- ifelse(focal$lifeStage %in% names(stage_col), focal$lifeStage, "unknown")
       for (st in intersect(c("adult","subadult","juvenile","unknown"), unique(focal$stg))) {
         sub <- focal[focal$stg == st, ]
@@ -1512,7 +1512,7 @@ server <- function(input, output, session) {
     p <- plot_ly()
     for (s in sort(unique(pts$scientificName))) {
       sub <- pts[pts$scientificName == s, ]
-      col <- if (s %in% names(pal)) pal[[s]] else "#2dd4bf"
+      col <- if (s %in% names(pal)) pal[[s]] else "#38a8e8"
       p <- p %>% add_trace(data = sub, x = ~jx, y = ~jy,
         type = "scatter", mode = "markers", name = s, customdata = ~tip, showlegend = show_leg,
         marker = list(color = col, size = 9, opacity = 0.82,
@@ -1783,7 +1783,7 @@ server <- function(input, output, session) {
     # rainbow implied ordered categories on what is just a count, and failed CVD.
     empty <- if (dark) "#1b2942" else "#f0f3ee"
     ramp  <- if (dark) list(c(0, empty), c(0.001, "#244468"), c(0.5, "#3f7fc4"), c(1, "#7dc0f0"))
-             else      list(c(0, empty), c(0.001, "#cfddf0"), c(0.5, "#4f8fc4"), c(1, "#2dd4bf"))
+             else      list(c(0, empty), c(0.001, "#cfddf0"), c(0.5, "#4f8fc4"), c(1, "#38a8e8"))
     zword <- if (blurred) "Density" else "Captures"
 
     p <- plot_ly(x = LETTERS[1:10], y = 1:10, z = z, type = "heatmap",
@@ -1827,9 +1827,9 @@ server <- function(input, output, session) {
     p <- frames %>%
       plot_ly() %>%
       add_trace(x = ~tx, y = ~ty, frame = ~frame, type = "scatter", mode = "lines+markers",
-        line = list(color = "rgba(45,212,191,0.5)", width = 2),
+        line = list(color = "rgba(56,168,232,0.5)", width = 2),
         marker = list(size = ~pmax(8, 18 - age * 2), color = ~age,
-          colorscale = list(c(0, "#e0b43a"), c(1, "#2dd4bf")), showscale = FALSE,
+          colorscale = list(c(0, "#e0b43a"), c(1, "#38a8e8")), showscale = FALSE,
           line = list(color = "#ffffff", width = 1)),
         text = ~paste0("Trap ", LETTERS[tx], ty, "<br>", lab),
         hovertemplate = "%{text}<extra></extra>")
@@ -1841,7 +1841,7 @@ server <- function(input, output, session) {
         showlegend = FALSE) %>%
       plotly::animation_opts(frame = 700, transition = 300, redraw = FALSE) %>%
       plotly::animation_slider(currentvalue = list(prefix = "Capture ",
-        font = list(color = "#2dd4bf"))) %>%
+        font = list(color = "#38a8e8"))) %>%
       plotly::animation_button(label = "▶ Play")
   })
 
@@ -1880,7 +1880,7 @@ server <- function(input, output, session) {
         label = lapply(txt, htmltools::HTML),
         labelOptions = labelOptions(textsize = "13px", direction = "auto",
           style = list("background" = "#1f2937", "color" = "#eef3f8", "font-family" = "Inter",
-                       "border-color" = "rgba(45,212,191,0.5)", "border-radius" = "8px"))) %>%
+                       "border-color" = "rgba(56,168,232,0.5)", "border-radius" = "8px"))) %>%
       # always-on plot name tags so the grid is legible at a glance
       addLabelOnlyMarkers(data = plot_tot, ~lng, ~lat, label = ~plotID,
         labelOptions = labelOptions(noHide = TRUE, direction = "top", textOnly = TRUE, offset = c(0, -14),
@@ -2084,7 +2084,7 @@ server <- function(input, output, session) {
     if (nrow(per) == 0) return(note_plot("No handled animals to profile", "\U0001F423"))
     # FIX: pin life-stage order + named colors so a stage always gets the same color
     lvls <- c("juvenile", "subadult", "adult", "unknown")
-    col  <- c(juvenile = "#9bd24a", subadult = "#fb8a7e", adult = "#2dd4bf", unknown = "#6c757d")
+    col  <- c(juvenile = "#9bd24a", subadult = "#fb8a7e", adult = "#38a8e8", unknown = "#6c757d")
     per$stage <- factor(ifelse(!is.na(per$lifeStage) & per$lifeStage %in% lvls, per$lifeStage, "unknown"), levels = lvls)
     tab <- as.data.frame(table(per$stage)); names(tab) <- c("stage", "n")
     tab <- tab[tab$n > 0, , drop = FALSE]
@@ -2112,7 +2112,7 @@ server <- function(input, output, session) {
       lab = factor(c("q=2 · dominant", "q=1 · common", "q=0 · richness"),
                    levels = c("q=2 · dominant", "q=1 · common", "q=0 · richness")),
       val = c(hn$q2, hn$q1, hn$q0),
-      col = c("#5fb56a", "#43b8e8", "#2dd4bf"))
+      col = c("#5fb56a", "#43b8e8", "#38a8e8"))
     plot_ly(df, x = ~val, y = ~lab, type = "bar", orientation = "h",
       marker = list(color = ~col, line = list(color = "#ffffff", width = 1)),
       text = ~sprintf("%.1f", val), textposition = "outside",
@@ -2138,7 +2138,7 @@ server <- function(input, output, session) {
       div(class = "hill-v", v), div(class = "hill-l", lab), div(class = "hill-s", sub))
     div(class = "hill-note",
       div(class = "hill-tiles",
-        tile(hn$q0, "richness", "all species", "#2dd4bf"),
+        tile(hn$q0, "richness", "all species", "#38a8e8"),
         tile(hn$q1, "common", "exp(Shannon)", "#43b8e8"),
         tile(hn$q2, "dominant", "inv. Simpson", "#5fb56a")),
       div(class = "hill-even",
@@ -2353,7 +2353,7 @@ server <- function(input, output, session) {
     p <- plot_ly()
     for (s in ord) {
       sub <- w[w$scientificName == s, ]
-      col <- pal[[s]] %||% "#2dd4bf"
+      col <- pal[[s]] %||% "#38a8e8"
       p <- p %>% plotly::add_trace(
         y = sub$weight, x = rep(s, nrow(sub)), type = "violin", name = s,
         scalemode = "width", spanmode = "hard", points = FALSE,
@@ -2436,7 +2436,7 @@ server <- function(input, output, session) {
       x = sdates[k] + (sdates[k + 1] - sdates[k]) / 2, y = 0.5, xref = "x", yref = "paper",
       showarrow = FALSE, font = list(color = "#9aa7b5", size = 10, family = "Rubik")))
     p <- plotly_theme(p) %>% plotly::layout(
-      yaxis  = list(title = "MNKA (individuals known alive)", color = "#2dd4bf", rangemode = "tozero"),
+      yaxis  = list(title = "MNKA (individuals known alive)", color = "#38a8e8", rangemode = "tozero"),
       yaxis2 = list(title = "captures per 100 trap-nights (site total)", color = "#7a8896",
                     overlaying = "y", side = "right", gridcolor = "rgba(0,0,0,0)", rangemode = "tozero"),
       xaxis  = list(title = "", showspikes = TRUE, spikemode = "across",
@@ -2472,8 +2472,8 @@ server <- function(input, output, session) {
         fillcolor = "rgba(22,56,110,0.14)", line = list(width = 0),
         name = "±1 SD (resampling)", hoverinfo = "skip") %>%
       add_trace(x = cv$bouts, y = cv$richness, type = "scatter", mode = "lines+markers",
-        name = "species found", line = list(color = "#2dd4bf", width = 3),
-        marker = list(size = 6, color = "#2dd4bf"),
+        name = "species found", line = list(color = "#38a8e8", width = 3),
+        marker = list(size = 6, color = "#38a8e8"),
         hovertemplate = "after %{x} bouts<br>%{y:.1f} species<extra></extra>") %>%
       # Chao1 CI band — capped at `cap` for display, now NAMED in the legend
       add_trace(x = c(range(cv$bouts), rev(range(cv$bouts))),
@@ -2521,7 +2521,7 @@ server <- function(input, output, session) {
           paste0(round(100 * cc$mean_detect), "%")))) else NULL
     tagList(lead,
       div(class = "detect-head",
-        chip(pct(cc$mean_p),      "per-night detection (p̂)", "#2dd4bf"),
+        chip(pct(cc$mean_p),      "per-night detection (p̂)", "#38a8e8"),
         chip(pct(cc$mean_detect), "of population caught / bout", "#43b8e8"),
         chip(cc$n_estimable,      sprintf("estimable bouts (of %d)", cc$n_bouts), "#5fb56a")))
   })
@@ -2593,8 +2593,8 @@ server <- function(input, output, session) {
         marker = list(size = 5, color = "#8a97a8"),
         hovertemplate = "%{x|%b %Y}<br>MNKA %{y}<extra></extra>") %>%
       add_trace(data = s, x = ~date, y = ~N, type = "scatter", mode = "lines+markers",
-        name = "estimated abundance (N̂)", line = list(color = "#2dd4bf", width = 3),
-        marker = list(size = 7, color = "#2dd4bf"),
+        name = "estimated abundance (N̂)", line = list(color = "#38a8e8", width = 3),
+        marker = list(size = 7, color = "#38a8e8"),
         customdata = ~round(100 * p),
         hovertemplate = "%{x|%b %Y}<br>N̂ %{y} · p̂ %{customdata}%<extra></extra>")
     # the auto-best label rides its OWN line (y=1.12) so it can't collide with the

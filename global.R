@@ -238,7 +238,7 @@ fetch_neon_mam <- function(site, start_date, end_date, provisional = FALSE) {
 # re-theme from one edit. The app DEFAULTS to dark (ui.R input_dark_mode mode="dark").
 DDL <- list(
   navy = "#0e1d40", navy2 = "#1b2e5c", cardinal = "#fb8a7e", gold = "#ffd24a",
-  gold2 = "#e0b43a", sky = "#43b8e8", green = "#5fb56a", ink = "#eaf2ff",
+  gold2 = "#e0b43a", sky = "#5cc6f5", green = "#5fb56a", ink = "#eaf2ff",
   muted = "#9fb0cf", bg = "#070d1f", paper = "#0e1d40", line = "rgba(255,255,255,0.12)"
 )
 
@@ -251,7 +251,7 @@ source("R/report_pdf.R", local = FALSE)
 app_theme <- bs_theme(
   version = 5,
   bg = "#ffffff", fg = "#16243a",
-  primary = "#149086", secondary = "#e0685a",
+  primary = "#1f78c4", secondary = "#e0685a",
   success = "#3f9a52", info = "#2f8fc4", warning = "#d6a31c", danger = "#e0685a",
   base_font    = font_google("Rubik"),
   heading_font = font_google("Rubik"),
@@ -292,7 +292,7 @@ insight_banner <- function(icon, ..., tone = "navy") {
 
 # A clean tinted pill/badge (rarity & chonk tags). Auto-picks DARK text on a bright
 # fill (gold/teal/coral) and white on a dark fill, so it reads in both themes.
-glow_badge <- function(label, color = "#149086", glow = color) {
+glow_badge <- function(label, color = "#1f78c4", glow = color) {
   txt <- tryCatch({
     rc <- grDevices::col2rgb(color)
     if ((0.299*rc[1] + 0.587*rc[2] + 0.114*rc[3]) / 255 > 0.6) "#16243a" else "#ffffff"

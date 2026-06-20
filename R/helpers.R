@@ -154,7 +154,7 @@ rarity_meta <- function(tier) {
   lut <- list(
     Legendary = list(color = "#ffd24a", glow = "#ffd24a", icon = "⭐"),  # gold
     Epic      = list(color = "#fb8a7e", glow = "#fb8a7e", icon = "\U0001F48E"),  # coral
-    Rare      = list(color = "#2dd4bf", glow = "#2dd4bf", icon = "\U0001F535"),  # teal
+    Rare      = list(color = "#38a8e8", glow = "#38a8e8", icon = "\U0001F535"),  # azure blue
     Uncommon  = list(color = "#5fb56a", glow = "#5fb56a", icon = "\U0001F7E2"),  # green
     Common    = list(color = "#9fb0cf", glow = "#9fb0cf", icon = "▫")
   )

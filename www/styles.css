@@ -8,13 +8,13 @@
 /* Variable names kept for low churn; VALUES are the Girth Index house palette:
    --pine = navy (primary), --terra = cardinal (accent), --gold = gold.       */
 :root {                                  /* light "desert-day" (toggle fallback) */
-  --pine: #149086;   --pine2: #0f6f66;     /* primary -> deep teal */
+  --pine: #1f78c4;   --pine2: #1a5f9c;     /* primary -> azure blue */
   --terra: #e0685a;  --cardinal: #e0685a;  /* accent  -> coral */
   --gold: #d6a31c;   --gold-ink: #9a7314;
   --sky: #2f8fc4;    --green: #3f9a52;
   --ink: #16243a;    --muted: #5a6a82;
   --bg: #eef3fb;     --paper: #ffffff; --line: #d6e0ee;
-  --shadow: rgba(20, 144, 134, 0.10);
+  --shadow: rgba(31, 120, 196, 0.12);
 }
 
 /* =========================================================================
@@ -23,17 +23,17 @@
    so every component that reads them re-themes to the cover's creative system.
    ========================================================================= */
 [data-bs-theme="dark"] {
-  --pine: #2dd4bf;  --pine2: #5eead4;          /* primary -> teal */
+  --pine: #38a8e8;  --pine2: #7cc8f5;          /* primary -> azure blue */
   --terra: #fb8a7e; --cardinal: #fb8a7e;       /* accent  -> coral */
   --gold: #ffd24a;  --gold-ink: #ffd24a;
-  --sky: #43b8e8;   --green: #5fb56a;
+  --sky: #5cc6f5;   --green: #5fb56a;
   --ink: #eaf2ff;   --muted: #9fb0cf;
   --bg: #070d1f;    --paper: #0e1d40;  --line: rgba(255,255,255,0.12);
   --shadow: rgba(0, 0, 0, 0.5);
 }
 [data-bs-theme="dark"] body {
   background:
-    radial-gradient(1100px 520px at 8% -8%, rgba(45,212,191,0.12), transparent 60%),
+    radial-gradient(1100px 520px at 8% -8%, rgba(56,168,232,0.12), transparent 60%),
     radial-gradient(900px 460px at 102% 2%, rgba(251,138,126,0.10), transparent 55%),
     radial-gradient(900px 600px at 50% 120%, rgba(255,210,74,0.06), transparent 60%),
     linear-gradient(180deg, #070d1f 0%, #05080f 100%);
@@ -47,11 +47,11 @@
 [data-bs-theme="dark"] .hr-indiv-lab,
 [data-bs-theme="dark"] .stat-sub,
 [data-bs-theme="dark"] .tab-intro .bi,
-[data-bs-theme="dark"] .chart-hint .bi { color: #5eead4 !important; }
+[data-bs-theme="dark"] .chart-hint .bi { color: #7cc8f5 !important; }
 [data-bs-theme="dark"] .deck-foot code { color: #cfe0f5; background: #14274a; }
-[data-bs-theme="dark"] .deck-foot a:hover { color: #5eead4; }
+[data-bs-theme="dark"] .deck-foot a:hover { color: #7cc8f5; }
 [data-bs-theme="dark"] .bio-links a { background: #0b1733; color: var(--muted); }
-[data-bs-theme="dark"] .bio-links a:hover { background: #13244a; color: #5eead4; border-color: rgba(255,255,255,0.22); }
+[data-bs-theme="dark"] .bio-links a:hover { background: #13244a; color: #7cc8f5; border-color: rgba(255,255,255,0.22); }
 /* card header on dark: deep navy surface, teal-token accents, --ink text */
 [data-bs-theme="dark"] .card-header { background: #13294f !important; }
 /* form controls + selectize on dark */
@@ -224,7 +224,7 @@ body {
 .chart-insight .ci-text { min-width: 0; }
 .chart-insight b { font-weight: 800; }
 .ci-hero { font-weight: 800; color: var(--ci-rail, var(--ink)); }
-.ci-navy { --ci-rail: #2dd4bf; } .ci-pine { --ci-rail: #5fb56a; }
+.ci-navy { --ci-rail: #38a8e8; } .ci-pine { --ci-rail: #5fb56a; }
 .ci-gold { --ci-rail: #e0b43a; } .ci-terra { --ci-rail: #fb8a7e; }
 .ci-muted { --ci-rail: var(--muted); }
 [data-bs-theme="dark"] .chart-insight { background: linear-gradient(180deg, #1b2942 0%, var(--paper) 100%); }
@@ -1074,7 +1074,7 @@ svg.smt-pin-lines {
 .app-hero {
   position: relative; overflow: hidden;
   background: radial-gradient(125% 150% at 16% -12%, #15425f 0%, #0b1733 46%, #070d1f 100%) !important;
-  box-shadow: 0 18px 46px rgba(3,8,20,.45), inset 0 0 0 1px rgba(45,212,191,.18) !important;
+  box-shadow: 0 18px 46px rgba(3,8,20,.45), inset 0 0 0 1px rgba(56,168,232,.18) !important;
 }
 .app-hero > * { position: relative; z-index: 1; }
 .app-hero::before {           /* drifting starfield */
@@ -1090,7 +1090,7 @@ svg.smt-pin-lines {
 .app-hero::after {            /* teal/coral/gold nebula */
   content:""; position:absolute; inset:0; z-index:0; pointer-events:none; opacity:.6;
   background:
-    radial-gradient(48px 48px at 10% 26%, rgba(45,212,191,.18), transparent 70%),
+    radial-gradient(48px 48px at 10% 26%, rgba(56,168,232,.18), transparent 70%),
     radial-gradient(66px 66px at 86% 16%, rgba(251,138,126,.14), transparent 70%),
     radial-gradient(54px 54px at 64% 94%, rgba(255,210,74,.12), transparent 70%);
 }
@@ -1110,7 +1110,7 @@ svg.smt-pin-lines {
 .stat-card:hover::before, .home-btn:hover::before, .local-card:hover::before { animation: smtSheen .85s ease; }
 .stat-card:hover, .home-btn:hover, .local-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 16px 34px rgba(0,0,0,.35), 0 0 0 1px rgba(45,212,191,.30);
+  box-shadow: 0 16px 34px rgba(0,0,0,.35), 0 0 0 1px rgba(56,168,232,.30);
 }
 
 /* ---- DARK "info-box" surfaces on the LIGHT page (the cascade look) ---------- *
@@ -1126,7 +1126,7 @@ svg.smt-pin-lines {
 .stat-card .stat-value { color: #ffffff !important; }
 .stat-card .stat-title { color: #9fb0cf !important; }
 .stat-card .stat-sub   { color: #8fd2f2 !important; }
-.stat-card:hover { box-shadow: 0 18px 36px rgba(0,0,0,.5), 0 0 0 1px rgba(45,212,191,.35) !important; }
+.stat-card:hover { box-shadow: 0 18px 36px rgba(0,0,0,.5), 0 0 0 1px rgba(56,168,232,.35) !important; }
 
 .hero-site {
   background: linear-gradient(120deg, #15425f 0%, #0b1733 70%) !important;
