@@ -782,7 +782,19 @@ server <- function(input, output, session) {
     hn <- hill_numbers(d)
     sp <- utils::head(species_summary(d), 5)
     yrs <- range(d$year[is.finite(d$year)])
+    # detection-corrected read so the cross-site comparison carries the
+    # correction the app computes everywhere else: per-site mean p̂ (how well
+    # this biome's traps catch what's present) + the mean monthly N̂ across
+    # estimable bouts. The 2x p̂ spread (HARV ~0.57 temperate vs JORN ~0.95
+    # desert) is exactly what makes a raw cross-site count a detection statement,
+    # not a density one — so we surface it AND gate the winner-highlight on it.
+    cc <- tryCatch(closed_capture_series(d), error = function(e) NULL)
+    nhat_pm <- if (!is.null(cc) && !is.null(cc$series) && nrow(cc$series) > 0)
+                 round(mean(cc$series$N, na.rm = TRUE)) else NA_real_
     res <- list(site = site, label = site_label(site), cs = cs, hn = hn, sp = sp,
+                p_hat = if (!is.null(cc)) cc$mean_p else NA_real_,
+                detect = if (!is.null(cc)) cc$mean_detect else NA_real_,
+                nhat_pm = nhat_pm,
                 years = if (all(is.finite(yrs))) yrs else c(NA, NA))
     cmp_cache[[site]] <- res
     res
@@ -801,15 +813,34 @@ server <- function(input, output, session) {
     if (is.null(pa) || is.null(pb)) return(div(class = "compare-hint", bs_icon("exclamation-triangle"),
       " One of those sites isn't in the offline bundle."))
 
-    # winner-aware metric row: higher value gets a subtle highlight
-    row <- function(lab, va, vb, fmt = function(x) format(x, big.mark = ","), higher = TRUE, tip = NULL) {
-      hl <- if (is.na(va) || is.na(vb) || va == vb) c("", "")
+    # Detection differs materially between these two sites? A >= ~1.25x spread in
+    # mean p̂ (or one site un-estimable) means a raw count head-to-head is mostly a
+    # trapability statement — so we SUPPRESS the winner-highlight on the raw
+    # detection-sensitive rows (captures / individuals / trap-nights) and mark
+    # them so the green never invites "more captures = more animals" across biomes.
+    pa_p <- pa$p_hat; pb_p <- pb$p_hat
+    det_mismatch <- is.na(pa_p) || is.na(pb_p) ||
+      (max(pa_p, pb_p) / max(min(pa_p, pb_p), 1e-9)) >= 1.25
+
+    # winner-aware metric row: higher value gets a subtle highlight. `gate=TRUE`
+    # rows (raw counts) drop the highlight when detection differs materially, and
+    # carry a clickable ⓘ that opens the detection-vs-abundance explainer modal.
+    row <- function(lab, va, vb, fmt = function(x) format(x, big.mark = ","),
+                    higher = TRUE, tip = NULL, gate = FALSE) {
+      suppress <- gate && det_mismatch
+      hl <- if (suppress || is.na(va) || is.na(vb) || va == vb) c("", "")
             else if ((va > vb) == higher) c("cmp-win", "") else c("", "cmp-win")
+      afford <- if (suppress)
+        tags$span(class = "cmp-det-flag", onclick = "Shiny.setInputValue('cmpDetWhy', Math.random(), {priority:'event'})",
+                  title = "Reflects detection as well as abundance — why isn't this a winner?",
+                  bs_icon("info-circle"))
+      else if (!is.null(tip)) info_pop(lab, p(tip))
       tags$tr(
-        tags$td(class = "cmp-lab", lab, if (!is.null(tip)) info_pop(lab, p(tip))),
+        tags$td(class = "cmp-lab", lab, afford),
         tags$td(class = paste("cmp-val", hl[1]), fmt(va)),
         tags$td(class = paste("cmp-val", hl[2]), fmt(vb)))
     }
+    pfmt <- function(x) if (is.na(x)) "—" else format(round(x, 2), nsmall = 2)
     sp_list <- function(p) tags$div(class = "cmp-splist",
       lapply(seq_len(nrow(p$sp)), function(i)
         tags$div(class = "cmp-sp", span(p$sp$emoji[i]), em(p$sp$scientificName[i]),
@@ -821,21 +852,54 @@ server <- function(input, output, session) {
           tags$th(div(class = "cmp-head", pa$site), div(class = "cmp-head-sub", pa$cs$plots, " plots")),
           tags$th(div(class = "cmp-head", pb$site), div(class = "cmp-head-sub", pb$cs$plots, " plots")))),
         tags$tbody(
-          row("Captures", pa$cs$total_captures, pb$cs$total_captures),
-          row("Individuals", pa$cs$individuals, pb$cs$individuals),
+          row("Captures", pa$cs$total_captures, pb$cs$total_captures, gate = TRUE),
+          row("Individuals", pa$cs$individuals, pb$cs$individuals, gate = TRUE),
           row("Species (richness)", pa$cs$species, pb$cs$species),
           row("Effective common species", pa$hn$q1, pb$hn$q1, fmt = function(x) format(x, nsmall = 1),
               tip = "Hill q1 = exp(Shannon): the effective number of common species. Higher = more diverse."),
           row("Evenness (0–1)", pa$hn$even, pb$hn$even, fmt = function(x) format(x, nsmall = 2),
               tip = "How evenly captures spread across species. Near 1 = even; low = a few species dominate."),
           row("Recapture rate", pa$cs$recap_rate, pb$cs$recap_rate, fmt = function(x) paste0(x, "%")),
-          row("Trap-nights (effort)", pa$cs$trap_nights, pb$cs$trap_nights))),
+          row("Trap-nights (effort)", pa$cs$trap_nights, pb$cs$trap_nights, gate = TRUE),
+          # the detection-corrected read — the apples-to-apples cross-site numbers:
+          # how completely each biome's traps catch what's present, and the mean
+          # detection-corrected monthly abundance. These carry the correction the
+          # raw counts above do not.
+          row("Detection p̂ (per night)", pa$p_hat, pb$p_hat, fmt = pfmt,
+              tip = "Mean per-night capture probability from the closed-capture (Schnabel/Chapman) estimates. Deserts run high (~0.6+); closed-canopy temperate sites run low — so a raw count undercounts temperate sites worse."),
+          row("Mean N̂ per month", pa$nhat_pm, pb$nhat_pm, fmt = function(x) if (is.na(x)) "—" else format(x, big.mark = ","),
+              tip = "Mean detection-corrected abundance per month across estimable (multi-night) bouts — the cross-biome comparison the raw captures can't make honestly."))),
       div(class = "compare-species",
         div(class = "cmp-col", div(class = "cmp-col-h", "Top species — ", pa$site), sp_list(pa)),
         div(class = "cmp-col", div(class = "cmp-col-h", "Top species — ", pb$site), sp_list(pb))),
       div(class = "compare-foot", bs_icon("info-circle"),
-        " Higher value highlighted per row. Diversity uses Hill numbers over distinct individuals; richness is the raw species count.")
+        " Higher value highlighted per row. Diversity uses Hill numbers over distinct individuals; richness is the raw species count.",
+        if (det_mismatch) tagList(" These two sites' detection differs",
+          tags$a(href = "#", class = "cmp-why",
+                 onclick = "Shiny.setInputValue('cmpDetWhy', Math.random(), {priority:'event'}); return false;",
+                 " — why raw counts aren't compared", bs_icon("info-circle"))))
     )
+  })
+
+  # detection-vs-abundance explainer — opened from the ⓘ on a raw-count row or the
+  # compare footer. Reuses the app's modalDialog chrome (no always-on wall of text).
+  observeEvent(input$cmpDetWhy, {
+    showModal(modalDialog(
+      title = tagList(bs_icon("incognito"), " Detection is not abundance"),
+      easyClose = TRUE, size = "m", footer = modalButton("Got it"),
+      div(class = "rank-modal-sub",
+        "Raw captures, individuals, and trap-nights count what the traps caught — which depends on how ",
+        tags$b("detectable"), " the animals are, not just how many there are."),
+      tags$p("Detection completeness swings about 2x across biomes: closed-canopy temperate sites (e.g. HARV) catch only ",
+        tags$b("~57%"), " of the animals present per bout (mean p̂ ≈ 0.30), while open deserts (e.g. JORN) catch ",
+        tags$b("~95%"), " (mean p̂ ≈ 0.63). So an uncorrected count undercounts temperate sites far worse than deserts."),
+      tags$p("That's why the green winner-highlight is ", tags$b("suppressed"),
+        " on captures / individuals / trap-nights when these two sites' detection differs materially: “more captures” there would be a trapability statement, not an abundance one."),
+      tags$p(class = "rank-modal-insight", style = "margin-top:10px",
+        bs_icon("lightbulb"), " For an apples-to-apples cross-biome read, use the ",
+        tags$b("Detection p̂"), " and ", tags$b("Mean N̂ per month"),
+        " rows below — those carry the closed-capture correction this app computes everywhere else.")
+    ))
   })
 
   output$compareOut <- renderUI({
@@ -2511,10 +2575,25 @@ server <- function(input, output, session) {
 
   output$detectHead <- renderUI({
     cc <- detect_cc()
-    if (is.null(cc) || is.null(cc$series) || nrow(cc$series) == 0) return(NULL)
+    if (is.null(cc)) return(NULL)
     pct <- function(x) if (is.na(x)) "—" else paste0(round(100 * x), "%")
     chip <- function(v, lab, col) div(class = "detect-chip", style = sprintf("--dc:%s", col),
       div(class = "detect-v", v), div(class = "detect-l", lab))
+    # single-night (k=1) share — these bouts are MNKA/CPUE-only BY DESIGN (no
+    # within-bout recapture to detection-correct), so a sparse N̂ series reads as
+    # a sampling-design fact, not missing data.
+    sn <- cc$n_single %||% NA_integer_
+    sn_pct <- if (!is.na(sn) && (cc$n_bouts %||% 0) > 0) round(100 * sn / cc$n_bouts) else NA_real_
+    # No estimable bouts: still surface the single-night share so an all-k=1 site
+    # reads "index-only by design" — the case where that message matters most.
+    if (is.null(cc$series) || nrow(cc$series) == 0) {
+      if (is.na(sn_pct)) return(NULL)
+      return(tagList(
+        div(class = "detect-head",
+          chip(paste0(sn_pct, "%"), "single-night (index-only)", "#9aa7b4")),
+        div(style = "font-size:.82rem; opacity:.72; margin-top:6px; max-width:48ch;",
+          "Every bout here is single-night, so abundance is index-only (MNKA/CPUE) by design — there's no within-bout recapture to detection-correct.")))
+    }
     lead <- if (!is.na(cc$mean_detect))
       insight_banner("incognito", tone = "navy",
         HTML(sprintf("Traps caught about <span class='ci-hero'>%s</span> of the animals present per bout — the gap between the navy estimate and the grey known-alive line is everything they missed.",
@@ -2523,7 +2602,9 @@ server <- function(input, output, session) {
       div(class = "detect-head",
         chip(pct(cc$mean_p),      "per-night detection (p̂)", "#38a8e8"),
         chip(pct(cc$mean_detect), "of population caught / bout", "#43b8e8"),
-        chip(cc$n_estimable,      sprintf("estimable bouts (of %d)", cc$n_bouts), "#5fb56a")))
+        chip(cc$n_estimable,      sprintf("estimable bouts (of %d)", cc$n_bouts), "#5fb56a"),
+        if (!is.na(sn_pct))
+          chip(paste0(sn_pct, "%"), "single-night (index-only)", "#9aa7b4")))
   })
 
   # The driver overlaid on the detection plot: the sidebar pick if any, else the
@@ -2638,6 +2719,117 @@ server <- function(input, output, session) {
     contentType = "application/pdf"
   )
 
+  # ---- tidy analysis-ready exports (FAIR) ---------------------------------
+  # A small downloads suite for reproducibility: the cleaned per-capture table,
+  # the monthly MNKA/CPUE/N̂ series, and a column codebook. Lives in the About
+  # tab (a deliberate navigation, never an always-on wall) so the default view
+  # stays clean. Filenames are site-stamped so a folder of them stays legible.
+  export_slug <- function() {
+    gsub("(^-|-$)", "", gsub("[^A-Za-z0-9]+", "-", rv$label %||% "site"))
+  }
+
+  # (a) cleaned site capture table — one row per capture/handling event, the
+  #     analysis-ready columns with NEON-native names + our derived effort/IDs.
+  output$dlCapturesCsv <- downloadHandler(
+    filename = function() sprintf("NEON-SmallMammal_captures_%s_%s.csv",
+                                  export_slug(), format(Sys.Date(), "%Y%m%d")),
+    content = function(file) {
+      d <- rv$data; req(d)
+      keep <- intersect(c(
+        "siteID","plotID","date","ym","year","tagID","short","taxonID",
+        "scientificName","nativeStatusCode","sex","lifeStage","weight",
+        "hindfootLength","tailLength","earLength","totalLength","trapCoordinate",
+        "recapture","fate","trapStatus","trap_effort","is_capture","remarks"),
+        names(d))
+      out <- d[, keep, drop = FALSE]
+      out <- out[order(out$date, out$plotID, out$tagID), , drop = FALSE]
+      utils::write.csv(out, file, row.names = FALSE, na = "")
+    },
+    contentType = "text/csv"
+  )
+
+  # (b) monthly site-total series: MNKA + CPUE (from mnka_series, summed to the
+  #     site) joined to the detection-corrected N̂ / p̂ (from the closed-capture
+  #     series) by month. The exact numbers behind the Population & Detection tabs.
+  output$dlSeriesCsv <- downloadHandler(
+    filename = function() sprintf("NEON-SmallMammal_monthly-series_%s_%s.csv",
+                                  export_slug(), format(Sys.Date(), "%Y%m%d")),
+    content = function(file) {
+      d <- rv$data; req(d)
+      ms <- mnka_series(d)
+      validate(need(!is.null(ms) && nrow(ms) > 0, "No estimable monthly series for this site."))
+      site_m <- ms %>% dplyr::group_by(.data$ym) %>%
+        dplyr::summarise(
+          mnka        = sum(.data$mnka, na.rm = TRUE),
+          captures    = sum(.data$captures, na.rm = TRUE),
+          trap_nights = round(sum(.data$trap_nights, na.rm = TRUE), 1),
+          cpue_per100tn = round(100 * sum(.data$captures, na.rm = TRUE) /
+                                  sum(.data$trap_nights, na.rm = TRUE), 1),
+          n_plots     = dplyr::n_distinct(.data$plotID),
+          .groups = "drop")
+      cc <- tryCatch(detect_cc(), error = function(e) NULL)
+      if (!is.null(cc) && !is.null(cc$series) && nrow(cc$series) > 0) {
+        dc <- cc$series %>% dplyr::transmute(.data$ym,
+          Nhat = round(.data$N, 1), Nhat_lo = round(.data$lo, 1),
+          Nhat_hi = ifelse(is.finite(.data$hi), round(.data$hi, 1), NA_real_),
+          p_hat = .data$p)
+        site_m <- dplyr::left_join(site_m, dc, by = "ym")
+      } else {
+        site_m$Nhat <- NA_real_; site_m$Nhat_lo <- NA_real_
+        site_m$Nhat_hi <- NA_real_; site_m$p_hat <- NA_real_
+      }
+      site_m <- data.frame(siteID = mode_chr(d$siteID), site_m[order(site_m$ym), ],
+                           stringsAsFactors = FALSE)
+      utils::write.csv(site_m, file, row.names = FALSE, na = "")
+    },
+    contentType = "text/csv"
+  )
+
+  # (c) column codebook — units + the captures-vs-handled-and-measured NA
+  #     convention, so a downstream analyst can read the two CSVs above without
+  #     guessing. The weight ~23% / hindfoot ~28% NA is unmeasured recaptures &
+  #     empty-trap rows, NOT data error — stated here in the metadata, once.
+  output$dlCodebookCsv <- downloadHandler(
+    filename = function() sprintf("NEON-SmallMammal_codebook_%s.csv",
+                                  format(Sys.Date(), "%Y%m%d")),
+    content = function(file) {
+      cb <- data.frame(
+        file = c(
+          rep("captures", 14), rep("monthly-series", 9)),
+        column = c(
+          "siteID","plotID","date","tagID","scientificName","sex","lifeStage",
+          "weight","hindfootLength","trapCoordinate","recapture","trapStatus",
+          "trap_effort","is_capture",
+          "siteID","ym","mnka","captures","trap_nights","cpue_per100tn",
+          "Nhat","p_hat","n_plots"),
+        units = c(
+          "NEON 4-letter code","NEON plot ID","ISO date (YYYY-MM-DD)",
+          "ear-tag ID (unique within site, lifelong)","Latin binomial",
+          "M / F / U","juvenile / subadult / adult","grams","millimetres",
+          "trap grid cell (e.g. A1)","Y/N — NEON cross-bout recapture flag",
+          "NEON trap-status code","trap-nights (1; sprung/disturbed = 0.5; not-set = 0)",
+          "TRUE if an animal was handled (has a tagID)",
+          "NEON 4-letter code","month (YYYY-MM)",
+          "Minimum Number Known Alive (Krebs 1966), summed across plots",
+          "handling events that month","trap-nights of effort that month",
+          "captures per 100 trap-nights (within-site index)",
+          "detection-corrected abundance (Schnabel/Chapman); blank where un-estimable",
+          "per-night detection probability (Model M0)","distinct plots sampled"),
+        note = c(
+          "","","","","NEON DP1.10072.001 taxonomy","7.6% NA (not sexed)","",
+          "NA = unmeasured: recaptures are often not re-weighed, and empty-trap rows carry no animal (~23% NA overall — convention, not error)",
+          "NA = unmeasured (~28% NA overall — same convention as weight)",
+          "","carries cross-BOUT history; within-bout recapture status is recomputed for the estimators","Nelson & Clark 1973 half-trap-night rule","","",
+          "","","an INDEX, not a census — counts animals known alive, not corrected for detection",
+          "raw count of handling events that month (a numerator, no denominator)","","captures per 100 trap-nights — a within-site relative index, NOT a cross-site density (detection differs by biome)",
+          "blank for single-night / low-recapture months that can't be detection-corrected (about half of bouts are single-night by design)",
+          "0–1; deserts run high, closed-canopy temperate sites low",""),
+        stringsAsFactors = FALSE)
+      utils::write.csv(cb, file, row.names = FALSE, na = "")
+    },
+    contentType = "text/csv"
+  )
+
   # ---- about --------------------------------------------------------------
   output$aboutPanel <- renderUI({
     div(class = "about-wrap",
@@ -2672,6 +2864,19 @@ server <- function(input, output, session) {
         h4(bs_icon("share-fill"), " Between-grid movement"),
         p("The Plot map can overlay ", tags$b("recapture connectivity"), " — curved arcs linking trapping grids where the same tagged animals were recaptured, thicker where more individuals made that move. It shows site fidelity vs. inter-grid movement that the per-grid dots can't."),
         p(class = "caveat", bs_icon("exclamation-triangle"), " Mark-recapture, ", tags$b("not"), " telemetry: an arc means \"caught here, then there,\" not a tracked route — and a long gap between the two captures just means the animal went undetected in between.")),
+      div(class = "about-card",
+        h4(bs_icon("download"), " Download the data"),
+        p("Take this site's records as tidy, analysis-ready CSVs — every column documented in the codebook so they're reproducible without guessing."),
+        div(class = "about-dl",
+          downloadButton("dlCapturesCsv", tagList(bs_icon("table"), " Site capture table (CSV)"),
+                         class = "smt-clear-btn"),
+          downloadButton("dlSeriesCsv", tagList(bs_icon("graph-up"), " Monthly MNKA / CPUE / N̂ series (CSV)"),
+                         class = "smt-clear-btn"),
+          downloadButton("dlCodebookCsv", tagList(bs_icon("book"), " Column codebook (CSV)"),
+                         class = "smt-clear-btn")),
+        p(class = "caveat", style = "margin-top:10px", bs_icon("info-circle"),
+          " A blank measurement (weight ~23%, hind foot ~28% of rows) is an ", tags$b("unmeasured recapture or empty-trap row"),
+          ", not an error — recaptures are often not re-weighed. The codebook states each column's units and this NA convention.")),
       div(class = "about-card",
         h4(bs_icon("exclamation-diamond"), " Caveats"),
         p("NEON keeps a tag on one animal for life and doesn't recycle tag numbers (a number is unique within a site), so a multi-year capture career is a real long-lived individual, not a tag mix-up — we flag only the rare history that can't be one animal (e.g. the same tag at two plots on a single day). A trap that caught nothing means \"not detected,\" not \"absent.\" This is a data-exploration toy, not an authoritative population analysis — but the metrics are built to be defensible."),

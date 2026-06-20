@@ -590,6 +590,12 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .cmp-sp-n { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
 .compare-foot { font-size: 11.5px; color: var(--muted); margin-top: 12px; }
 .compare-foot .bi { color: var(--gold-ink); }
+/* clickable ⓘ that replaces the winner-highlight on detection-sensitive raw
+   rows when the two sites' detection differs — signals "ask why", not "winner" */
+.cmp-det-flag { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; padding: 6px; margin: -6px 0 -6px 2px; color: var(--gold-ink); cursor: pointer; }
+.cmp-det-flag:hover { color: var(--cardinal); }
+.compare-foot .cmp-why { color: var(--pine); font-weight: 600; text-decoration: none; cursor: pointer; }
+.compare-foot .cmp-why:hover { text-decoration: underline; }
 @media (max-width: 640px) {
   .compare-pickers, .compare-species { grid-template-columns: 1fr; }
 }
@@ -751,6 +757,8 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .about-card .caveat { color: var(--pine); font-size: 12.5px; }
 .about-card code { color: var(--pine); background: var(--bg); padding: 1px 5px; border-radius: 5px; }
 .about-card a { color: var(--pine); font-weight: 600; }
+.about-dl { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.about-dl .smt-clear-btn { width: 100%; justify-content: flex-start; text-align: left; }
 
 /* ---- overview: meet the locals ---------------------------------------- */
 .section-title { font-weight: 800; color: var(--pine); font-size: 18px; margin: 20px 4px 12px; display: flex; align-items: center; gap: 8px; }

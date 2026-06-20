@@ -331,7 +331,6 @@ build_leaderboard <- function(d) {
     dplyr::group_by(.data$tagID) %>%
     dplyr::summarise(
       scientificName = mode_chr(.data$scientificName),
-      n_species_ids  = dplyr::n_distinct(.data$scientificName[!is.na(.data$scientificName)]),
       home_plot      = mode_chr(.data$plotID),
       captures       = dplyr::n(),
       n_recap        = sum(.data$recapture %in% c("Y", "y"), na.rm = TRUE),
@@ -365,6 +364,20 @@ build_leaderboard <- function(d) {
       mdm_m          = max_dist_moved(.data$tx, .data$ty),
       .groups = "drop"
     )
+
+  # n_species_ids: distinct scientificName per tag, from the RAW capture rows.
+  # MUST live OUTSIDE the summarise() above — there `scientificName =
+  # mode_chr(.data$scientificName)` reassigns (shadows) the source column, so a
+  # same-call `n_distinct(.data$scientificName)` sees the length-1 modal scalar and
+  # collapses to 1 for EVERY animal, silently disabling the multi-species-tag QC
+  # flag (individual_qc_flags #7) and the ambiguous-ID exclusion in
+  # min_known_lifespan(). Computed independently here so it can't be re-shadowed.
+  nsp <- base %>%
+    dplyr::filter(!is.na(.data$scientificName)) %>%
+    dplyr::group_by(.data$tagID) %>%
+    dplyr::summarise(n_species_ids = dplyr::n_distinct(.data$scientificName), .groups = "drop")
+  ind <- dplyr::left_join(ind, nsp, by = "tagID")
+  ind$n_species_ids <- dplyr::coalesce(ind$n_species_ids, 0L)   # all-NA-name tags → 0 (matches n_distinct of empty)
 
   cond <- compute_condition(d)
   ind <- dplyr::left_join(ind,
@@ -1116,8 +1129,12 @@ closed_capture_series <- function(d, bouts = NULL) {
   if (is.null(bouts) || nrow(bouts) == 0) return(NULL)
   est <- dplyr::filter(bouts, .data$status %in% c("ok", "low-precision", "detection near-complete"),
                        is.finite(.data$N))
+  # single-night (k=1) bouts can carry NO within-bout recapture, so Schnabel/
+  # Chapman can never run on them — they're MNKA/CPUE-only BY DESIGN, not missing
+  # data. Surface the count so a sparse N̂ series reads as a sampling-design fact.
+  n_single <- sum(bouts$status == "single-night", na.rm = TRUE)
   if (nrow(est) == 0)
-    return(list(series = NULL, n_bouts = nrow(bouts),
+    return(list(series = NULL, n_bouts = nrow(bouts), n_single = n_single,
                 n_estimable = 0, mean_p = NA_real_, mean_detect = NA_real_))
   series <- est %>% dplyr::group_by(.data$ym) %>%
     dplyr::summarise(
@@ -1134,7 +1151,8 @@ closed_capture_series <- function(d, bouts = NULL) {
       p  = round(.data$capt / .data$ckN, 3),
       date = as.Date(paste0(.data$ym, "-01"))) %>%
     dplyr::arrange(.data$date)
-  list(series = series, n_bouts = nrow(bouts), n_estimable = nrow(est),
+  list(series = series, n_bouts = nrow(bouts), n_single = n_single,
+       n_estimable = nrow(est),
        mean_p = round(stats::weighted.mean(est$p, est$k * est$N), 3),
        mean_detect = round(stats::weighted.mean(pmin(est$mnka / est$N, 1), est$N), 3))
 }

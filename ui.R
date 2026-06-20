@@ -307,7 +307,8 @@ ui <- bslib::page_sidebar(
               tags$ul(
                 tags$li(tags$b("k ≥ 3 nights"), " → Schnabel estimator; ", tags$b("k = 2"), " → Chapman. Single-night grids can't be estimated (that's what MNKA/CPUE are for)."),
                 tags$li("p̂ is the ", tags$b("per-night detection probability"), " (Model M0): the share of present animals we'd expect to catch on any one night."),
-                tags$li("We hide the estimate when there are ", tags$b("fewer than 3 within-bout recaptures"), " — too few to be stable.")),
+                tags$li("We hide the estimate when there are ", tags$b("fewer than 3 within-bout recaptures"), " — too few to be stable."),
+                tags$li("N̂ is ", tags$b("animals on the sampled grid(s)"), ", ", tags$em("not"), " a per-hectare density — a true density needs spatially-explicit capture-recapture (SECR), which a single 10×10 grid per plot can't support, so we deliberately decline it.")),
               p(tags$em("The math assumes the population didn't change over the bout and every animal is equally catchable — real animals aren't, so read this as a defensible index, not a census. Schnabel 1938; Chapman 1951; Otis et al. 1978."))),
             div(class = "detect-head-right",
               conditionalPanel("output.detectTempActive == true",
