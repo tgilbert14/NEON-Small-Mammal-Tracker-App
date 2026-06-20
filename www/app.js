@@ -53,7 +53,35 @@ function rodentConfetti(big) {
     setTimeout(() => burst({ particleCount: 80, angle: 60, spread: 70, origin: { x: 0 } }), 180);
     setTimeout(() => burst({ particleCount: 80, angle: 120, spread: 70, origin: { x: 1 } }), 320);
   }
+  mascotCheer(big);
 }
+
+// ---- mascot celebration: a little mouse hops up + fades on a legendary/epic find
+function mascotCheer(big) {
+  try {
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    var src = document.querySelector("#loadOverlay .mascot");
+    if (!src) return;
+    var wrap = document.createElement("div");
+    wrap.className = "mascot-cheer";
+    wrap.appendChild(src.cloneNode(true));
+    document.body.appendChild(wrap);
+    setTimeout(function () { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }, 1700);
+  } catch (e) {}
+}
+
+// ---- first-visit: the splash mascot waves hello once (localStorage-gated) ----
+document.addEventListener("DOMContentLoaded", function () {
+  try {
+    if (localStorage.getItem("smtMascotSeen") === "1") return;
+    var g = document.querySelector(".splash-guide");
+    if (g) {
+      g.classList.add("wave");
+      localStorage.setItem("smtMascotSeen", "1");
+      setTimeout(function () { g.classList.remove("wave"); }, 3300);
+    }
+  } catch (e) {}
+});
 
 // ---- loading overlay (opaque, indeterminate) -----------------------------
 // A site load is one synchronous blocking call whose duration we can't know,

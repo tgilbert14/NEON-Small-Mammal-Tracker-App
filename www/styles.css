@@ -854,6 +854,50 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .load-card { background: var(--paper); border-radius: 16px; padding: 28px 34px; width: min(440px, 90vw);
   text-align: center; box-shadow: 0 24px 60px -16px rgba(12,35,75,.28); border-top: 5px solid var(--gold); }
 .load-spin { font-size: 44px; animation: float 2.2s ease-in-out infinite; }
+
+/* ============ in-app mascot — loader · splash guide · celebration ============ */
+.mascot { display:block; width:100%; height:auto; overflow:visible; }
+.mascot-ear-l, .mascot-ear-r { transform-box:fill-box; transform-origin:50% 88%; }
+.mascot-eyes { transform-box:fill-box; transform-origin:center; }
+@keyframes mascotBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes mascotEarL { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-9deg); } }
+@keyframes mascotEarR { 0%,100% { transform: rotate(0); } 50% { transform: rotate(9deg); } }
+@keyframes mascotBlink { 0%,92%,100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+/* loader: the mouse bobs + wiggles its ears + blinks while data loads */
+.load-spin.mascot-spin { font-size:0; width:92px; height:auto; margin:0 auto 6px; animation:none; }
+.mascot-spin .mascot { animation: mascotBob 1.5s ease-in-out infinite; }
+.mascot-spin .mascot-ear-l { animation: mascotEarL 1.5s ease-in-out infinite; }
+.mascot-spin .mascot-ear-r { animation: mascotEarR 1.5s ease-in-out infinite; }
+.mascot-spin .mascot-eyes { animation: mascotBlink 3.4s ease-in-out infinite; }
+/* splash guide: a friendly nudge in the corner while no site is loaded */
+.splash-guide { position:fixed; right:18px; bottom:16px; z-index:30; display:flex; align-items:flex-end; gap:6px; pointer-events:none; }
+.splash-guide .sg-mascot { width:74px; flex:none; }
+.splash-guide .sg-mascot .mascot { animation: mascotBob 2.6s ease-in-out infinite; }
+.splash-guide .sg-mascot .mascot-ear-l { animation: mascotEarL 2.6s ease-in-out infinite; }
+.splash-guide .sg-mascot .mascot-ear-r { animation: mascotEarR 2.6s ease-in-out infinite; }
+.splash-guide .sg-mascot .mascot-eyes { animation: mascotBlink 4.2s ease-in-out infinite; }
+.splash-guide .sg-bubble { margin-bottom:34px; background:var(--paper); border:1px solid var(--line); color:var(--pine);
+  font-size:12.5px; font-weight:700; padding:6px 11px; border-radius:12px 12px 2px 12px;
+  box-shadow:0 8px 20px -8px var(--shadow); white-space:nowrap; }
+.splash-guide.wave .sg-mascot { transform-box:fill-box; transform-origin:50% 90%; animation: mascotWave 1s ease 3; }
+@keyframes mascotWave { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
+/* celebration: a mouse hops up + fades on a legendary/epic find */
+.mascot-cheer { position:fixed; left:50%; bottom:7%; width:118px; z-index:5000; pointer-events:none;
+  transform:translateX(-50%); animation: mascotCheerPop 1.7s ease forwards; }
+@keyframes mascotCheerPop {
+  0% { opacity:0; transform:translate(-50%,42px) scale(.6); }
+  20% { opacity:1; transform:translate(-50%,-12px) scale(1.06); }
+  45% { transform:translate(-50%,-34px) scale(1); }
+  72% { transform:translate(-50%,-24px) scale(1); }
+  100% { opacity:0; transform:translate(-50%,-66px) scale(.9); }
+}
+@media (max-width:640px) { .splash-guide { display:none; } }
+@media (prefers-reduced-motion: reduce) {
+  .mascot-spin .mascot, .mascot-spin .mascot-ear-l, .mascot-spin .mascot-ear-r, .mascot-spin .mascot-eyes,
+  .splash-guide .sg-mascot .mascot, .splash-guide .sg-mascot .mascot-ear-l, .splash-guide .sg-mascot .mascot-ear-r,
+  .splash-guide .sg-mascot .mascot-eyes, .splash-guide.wave .sg-mascot { animation:none !important; }
+  .mascot-cheer { display:none; }
+}
 .load-title { font-weight: 800; color: var(--pine); font-size: 20px; margin-top: 6px; }
 .load-site { color: var(--pine); font-weight: 700; font-size: 14px; margin: 2px 0 18px; }
 .load-bar { position: relative; height: 8px; background: #e2e8f2; border-radius: 20px; overflow: hidden; }

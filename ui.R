@@ -117,7 +117,7 @@ ui <- bslib::page_sidebar(
   # ---- full-screen loading overlay (shown client-side on Load click) -----
   div(id = "loadOverlay", class = "load-overlay",
     div(class = "load-card",
-      div(class = "load-spin", "\U0001F43E"),
+      div(class = "load-spin mascot-spin", MASCOT_MOUSE),
       div(class = "load-title", "Loading site data"),
       div(id = "loadSite", class = "load-site"),
       div(class = "load-bar"),
@@ -141,7 +141,11 @@ ui <- bslib::page_sidebar(
   # species_choices() are globals (global.R, sourced before ui.R). Visibility is
   # toggled via shinyjs show/hide("splash"); the server keeps output$pickerMap
   # + its leafletProxy marker swaps.
-  div(id = "splash", local({
+  div(id = "splash",
+    div(class = "splash-guide",
+      div(class = "sg-bubble", "Pick a site to start!"),
+      div(class = "sg-mascot", MASCOT_MOUSE)),
+    local({
     idx <- SITE_INDEX
     if (is.null(idx) || nrow(idx) == 0) {
       div(class = "splash",

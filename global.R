@@ -309,3 +309,19 @@ fmt_range <- function(a, b) {
   if (is.null(a) || is.null(b) || is.na(a) || is.na(b)) return("")
   sprintf("%s → %s", format(a, "%b %Y"), format(b, "%b %Y"))
 }
+
+# The app mascot — a flat (no-gradient, no-id so it's safely reusable) cute mouse
+# in the Cobalt & Gold accent. Used as the loading spinner, the splash guide, and
+# the celebration hop. Parts are classed so the CSS can wiggle ears / blink eyes.
+MASCOT_MOUSE <- htmltools::HTML(paste0(
+  '<svg class="mascot" viewBox="0 0 120 120" aria-hidden="true">',
+  '<g class="mascot-ear-l"><circle cx="42" cy="34" r="14" fill="#5aa0d8"/><circle cx="43" cy="36" r="8" fill="#ffd24a"/></g>',
+  '<g class="mascot-ear-r"><circle cx="78" cy="34" r="14" fill="#5aa0d8"/><circle cx="77" cy="36" r="8" fill="#ffd24a"/></g>',
+  '<path class="mascot-tail" d="M88,82 Q110,94 113,72" fill="none" stroke="#5a93c8" stroke-width="4" stroke-linecap="round"/>',
+  '<ellipse cx="60" cy="66" rx="32" ry="33" fill="#5aa0d8"/>',
+  '<ellipse cx="60" cy="76" rx="20" ry="22" fill="#eaf2ff"/>',
+  '<g stroke="#dcebfa" stroke-width="1.2" stroke-linecap="round" opacity=".85"><path d="M52,72 L24,68"/><path d="M52,78 L24,80"/><path d="M68,72 L96,68"/><path d="M68,78 L96,80"/></g>',
+  '<path d="M55,70 Q60,68 65,70 Q62,77 60,77 Q58,77 55,70 Z" fill="#fb8a7e"/>',
+  '<g class="mascot-eyes"><circle cx="50" cy="60" r="6.5" fill="#0a1a2e"/><circle cx="70" cy="60" r="6.5" fill="#0a1a2e"/>',
+  '<circle cx="48" cy="57.5" r="2.4" fill="#ffffff"/><circle cx="68" cy="57.5" r="2.4" fill="#ffffff"/></g>',
+  '</svg>'))
