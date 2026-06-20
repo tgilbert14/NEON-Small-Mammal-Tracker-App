@@ -238,13 +238,15 @@
     @media (max-width:760px){ .flybird{ width:150px; top:-2px; right:-8px; opacity:.75 } }
     @media (max-width:430px){ .flybird{ display:none } }
 
-    /* interactive: pointer-follow, 3D tilt, tap-bounce */
+    /* interactive: pointer-follow, 3D tilt, bashful tap-reaction */
     .flybird { pointer-events:auto; cursor:pointer }
     .flybird .tiltwrap { transition: transform .14s ease-out; transform-style:preserve-3d; will-change:transform }
     .flybird .eyes > circle { transition: transform .12s ease-out; transform: translate(var(--lx,0px), var(--ly,0px)) }
-    .flybird.react .bird { animation: cbBoing .52s ease }
-    .flybird.react .spark { animation: cbFlare .52s ease }
-    @keyframes cbBoing { 0%{ transform:scale(1,1) } 28%{ transform:scale(1.13,.87) } 55%{ transform:scale(.93,1.09) } 78%{ transform:scale(1.03,.97) } 100%{ transform:scale(1,1) } }
+    .flybird.react .eyes { animation: cbShy .62s ease }
+    .flybird.react .bird { animation: cbDuck .62s ease }
+    .flybird.react .spark { animation: cbFlare .62s ease }
+    @keyframes cbShy { 0%,100%{ transform:scaleY(1) } 16%,74%{ transform:scaleY(.1) } }
+    @keyframes cbDuck { 0%,100%{ transform:scale(1,1) } 26%{ transform:translateY(4px) scale(1.07,.88) } 60%{ transform:scale(.97,1.04) } }
     @keyframes cbFlare { 0%,100%{ opacity:.5; transform:scale(1) } 40%{ opacity:1; transform:scale(2) } }
 
     @media (prefers-reduced-motion: reduce){
@@ -525,7 +527,7 @@
       }
       fb.addEventListener('pointerdown', function(){
         fb.classList.remove('react'); void fb.offsetWidth; fb.classList.add('react');
-        setTimeout(function(){ fb.classList.remove('react'); }, 540);
+        setTimeout(function(){ fb.classList.remove('react'); }, 680);
       });
     }
     var nums = document.querySelectorAll('.stat .n');
