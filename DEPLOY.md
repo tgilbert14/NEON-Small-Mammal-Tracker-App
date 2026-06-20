@@ -1,10 +1,13 @@
 # Deploy & migration runbook
 
-The app is currently live on **shinyapps.io** at
-<https://t-lama.shinyapps.io/RatTrapHistory/> (legacy `rsconnect/shinyapps.io/` record).
-**shinyapps.io is being retired (end of 2026)** — do not invest there. This is the plan to
-move it, mirroring the WaterChem Analyte Viewer migration (a hosted app + a GitHub-Pages
-landing/redirect with an og card and a cold-start pre-warm).
+**Migrated to Posit Connect Cloud (June 2026).** The app is now live on Connect Cloud at
+<https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/>, deployed git-backed
+from this repo (`manifest.json`) and **auto-republishing on every push to `main`** — exactly like
+the sibling NEON apps. The CI (`.github/workflows/refresh-data.yml`) pushes the monthly data
+refresh straight to `main`; no shinyapps secrets, no `deploy.R`. The old shinyapps.io target
+(`t-lama.shinyapps.io/RatTrapHistory`, retiring end of 2026) has been retired and its
+`scripts/deploy.R` + `rsconnect/shinyapps.io/` record removed. The notes below document the
+migration that was performed (and the Shinylive option, kept for reference).
 
 ## The shape of the move
 

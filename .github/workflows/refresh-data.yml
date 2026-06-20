@@ -9,7 +9,7 @@ name: Refresh NEON data bundle
 # DEPLOY = git push to main. Posit Connect Cloud watches this repo and auto-
 # republishes on every push to main — no shinyapps secrets, no rsconnect deploy
 # (matching the WaterChem / Plant / Beetle / Veg siblings). The old shinyapps.io
-# path (scripts/deploy.R + rsconnect/shinyapps.io/) is retired and unused.
+# path (scripts/deploy.R + rsconnect/shinyapps.io/) has been removed.
 #
 # REQUIRES one optional repo secret (Settings → Secrets and variables → Actions):
 #   NEON_TOKEN   a free NEON API token (raises the rate limit; pulls work without
