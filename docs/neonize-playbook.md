@@ -133,6 +133,7 @@ This is exactly how the Size Lab and the plant-diversity sibling were built.
 - **One fixed output id, not one-per-entity.** A `renderPlotly`/`renderUI` registered under a per-row id (`output[[paste0("spark_", id)]]`) accumulates a new binding for every entity the user opens (a slow leak). Use a single fixed output that reads the selected-entity reactive.
 - **Cover/percentage SHARES need a structural-zero denominator** (divide by all sampled units, not only where-present) — present-only means inflate patchy categories and distort the share. And a headline metric must use **one shared function** in the bundler and the app, or the picker and the hero will show different numbers for the same thing.
 - **dplyr `summarise()` sees earlier newly-created columns** — `richness = mean(richness)` then `sd = sd(richness)` makes sd operate on the scalar mean (→ NA). Compute the spread before the reassignment.
+- **A `DTOutput` (or any htmlwidget) in a *full-width* card inside a bslib fill-container collapses to width 0** and never draws — only a `&nbsp;` placeholder, NO error logged, the widget payload arrives but DataTables can't init at 0 px. The fill flex column shrink-wraps the `shinycssloaders` spinner wrapper to nothing (same root cause as the map_picker leaflet-0-width bug). Fix: drop `spin()` and wrap in a plain `div(class="…-wrap", style/​CSS width:100%, DTOutput(id, width="100%"))`. DTs in `layout_columns` are fine (the grid gives width); only bare full-width cards bite. **Do NOT "fix" it with `outputOptions(suspendWhenHidden=FALSE)`** — that makes it worse: the DT then computes while the tab is hidden (0 px) and won't redraw on reveal. Leave default suspension so it computes on first reveal at real width (like the working `invTable`).
 - **Adversarially verify the DIFF with a fresh agent** every time — it has caught real regressions on every session it was run (incl. the plant app's year-pooling blocker and the Size Lab's dead-after-re-render blocker).
 
 ---
@@ -154,6 +155,37 @@ reusable hover-card builder, the narrative-insight generator, the config-driven 
 
 For each new product, map these to the product's unit and KEEP the ones that stay honest;
 invent the product-native ones the research surfaces.
+
+### The Expected-vs-Observed QC module (the EcoPlot recipe — reusable)
+
+A transferable pattern for any NEON organismal product whose `taxonID`/code is a registry
+symbol with an external *"what should be here"* authority. First built for **Plant Diversity**
+(DP1.10058.001): resolve each site's coordinates → its NRCS **Ecological Site** reference plant
+community (offline via Soil Data Access), then compare it to what NEON observed.
+
+- **Build-time location→reference-list join frozen to `.rds`.** `scripts/build_expected_lists.R`
+  (raw SDA REST — no `soilDB`) writes `data/expected/<SITE>.rds`; the deployed app makes **zero**
+  federal API calls. A second build (`build_plant_authority.R`) freezes the USDA PLANTS nativity +
+  synonym authority to `data/authority/plants_lookup.rds`. Both are public domain.
+- **Three-bucket framing, completeness-NEVER-red as a hard rule:** A confirmed (green) / C
+  observed-not-expected = the review lane (clay; split introduced vs native-not-in-reference) / B
+  expected-but-absent = completeness (neutral). NEON samples a tiny area, so "expected but absent"
+  is non-detection or a real state-transition — frame it as completeness or ecology, **never** as
+  missing data or error. The inverse over-claim (treating the reference list as truth the data must
+  match) is scientifically wrong.
+- **Exact symbol join, not fuzzy.** NEON taxonomy *is* USDA PLANTS, so `taxonID` = the `plantsym`
+  SDA returns = the symbol USDA's API takes. Collapse synonyms to the accepted symbol first (else a
+  synonym fakes an "unmatched" QC signal). Drop SDA aggregate codes (`2FA`, genus-level) before
+  comparing. Run on `species_level_only(latest_snapshot())`, never the year-pooled table.
+- **Surface the coarse-ID rate FIRST.** Share of records resolved only to genus/family/kingdom
+  frames every other flag (coarse IDs can't match a species-level reference list). Direct count, no
+  inference — zero false positives.
+- **Publish the match rate + a provenance row** distinguishing fetch-failure from genuine-empty (the
+  difference between an honest empty state and a fake "0% detected"). Every name-join ships its rate.
+- **Three clickable + downloadable bucket tables + a combined report CSV**, info-dot on every card,
+  plain-English framing literally on the page, EDIT citation deep-link (the canonical worked example
+  is **SRER** → `R041XC318AZ`). Fast-follows: out-of-range flag once USDA's distribution endpoint is
+  pinned; fan-out to all sites; colour the picker markers by MLRA / `% detected`.
 
 ---
 
