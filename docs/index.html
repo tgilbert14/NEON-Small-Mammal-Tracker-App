@@ -238,9 +238,19 @@
     @media (max-width:760px){ .flybird{ width:150px; top:-2px; right:-8px; opacity:.75 } }
     @media (max-width:430px){ .flybird{ display:none } }
 
+    /* interactive: pointer-follow, 3D tilt, tap-bounce */
+    .flybird { pointer-events:auto; cursor:pointer }
+    .flybird .tiltwrap { transition: transform .14s ease-out; transform-style:preserve-3d; will-change:transform }
+    .flybird .eyes > circle { transition: transform .12s ease-out; transform: translate(var(--lx,0px), var(--ly,0px)) }
+    .flybird.react .bird { animation: cbBoing .52s ease }
+    .flybird.react .spark { animation: cbFlare .52s ease }
+    @keyframes cbBoing { 0%{ transform:scale(1,1) } 28%{ transform:scale(1.13,.87) } 55%{ transform:scale(.93,1.09) } 78%{ transform:scale(1.03,.97) } 100%{ transform:scale(1,1) } }
+    @keyframes cbFlare { 0%,100%{ opacity:.5; transform:scale(1) } 40%{ opacity:1; transform:scale(2) } }
+
     @media (prefers-reduced-motion: reduce){
       .sky::before, .launch, .ccore, .constel.lit .cnode-orb, .constel.lit .ctraces line, .frung.pip-on::before { animation:none !important }
       .flybird, .flybird .halo, .flybird .bird, .flybird .eyes, .flybird .ear-l, .flybird .ear-r, .flybird .tail, .flybird .spark { animation:none !important }
+      .flybird .tiltwrap, .flybird .eyes > circle { transition:none !important; transform:none !important }
       .launch::after { display:none }
     }
   </style>
@@ -252,6 +262,7 @@
   <header class="hero">
     <div class="wrap">
       <div class="flybird" aria-hidden="true">
+        <div class="tiltwrap">
         <svg viewBox="0 0 300 250" role="img" aria-label="A cute round desert mouse">
           <defs>
             <radialGradient id="cbHalo" cx="50%" cy="48%" r="55%">
@@ -311,6 +322,7 @@
             <circle class="spark s2" cx="240" cy="158" r="2.4" fill="#ffe6a0" />
           </g>
         </svg>
+        </div>
       </div>
       <span class="brand">
         <svg viewBox="0 0 100 100" aria-hidden="true">
@@ -493,6 +505,49 @@
         i++;
       }, 900);
     })();
+  </script>
+  <script>
+  (function(){
+    var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var fb = document.querySelector('.flybird');
+    if(fb){
+      var tilt = fb.querySelector('.tiltwrap');
+      if(!reduce){
+        window.addEventListener('pointermove', function(e){
+          var r = fb.getBoundingClientRect();
+          var cx = r.left + r.width/2, cy = r.top + r.height*0.42;
+          var dx = Math.max(-1,Math.min(1,(e.clientX-cx)/240));
+          var dy = Math.max(-1,Math.min(1,(e.clientY-cy)/240));
+          if(tilt) tilt.style.transform = 'perspective(640px) rotateY('+(dx*9).toFixed(1)+'deg) rotateX('+(-dy*7).toFixed(1)+'deg)';
+          fb.style.setProperty('--lx',(dx*2.6).toFixed(1)+'px');
+          fb.style.setProperty('--ly',(dy*2.1).toFixed(1)+'px');
+        }, {passive:true});
+      }
+      fb.addEventListener('pointerdown', function(){
+        fb.classList.remove('react'); void fb.offsetWidth; fb.classList.add('react');
+        setTimeout(function(){ fb.classList.remove('react'); }, 540);
+      });
+    }
+    var nums = document.querySelectorAll('.stat .n');
+    if(nums.length && 'IntersectionObserver' in window){
+      var run = function(el){
+        var raw0 = el.textContent.trim(), pre='';
+        if(raw0.charAt(0)==='~'||raw0.charAt(0)==='≈'){ pre=raw0.charAt(0); raw0=raw0.slice(1); }
+        var i=0, np='';
+        while(i<raw0.length){ var c=raw0.charAt(i); if((c>='0'&&c<='9')||c===','||c==='.'){ np+=c; i++; } else break; }
+        if(!np || reduce) return;
+        var rest = raw0.slice(i), full = el.textContent.trim();
+        var target = parseFloat(np.replace(/,/g,'')); if(!isFinite(target)) return;
+        var hasComma = np.indexOf(',')>=0, dec=(np.split('.')[1]||'').length;
+        var dur=950, t0=performance.now();
+        function fmt(v){ var s = dec? v.toFixed(dec) : (hasComma? Math.round(v).toLocaleString() : String(Math.round(v))); return pre+s+rest; }
+        function tick(now){ var t=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-t,3); el.textContent=fmt(target*e); if(t<1) requestAnimationFrame(tick); else el.textContent=full; }
+        el.textContent=fmt(0); requestAnimationFrame(tick);
+      };
+      var io = new IntersectionObserver(function(es){ es.forEach(function(en){ if(en.isIntersecting){ io.unobserve(en.target); run(en.target); } }); }, {threshold:.5});
+      nums.forEach(function(n){ io.observe(n); });
+    }
+  })();
   </script>
 </body>
 
