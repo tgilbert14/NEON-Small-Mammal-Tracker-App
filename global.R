@@ -94,7 +94,7 @@ species_choices <- function() {
   s <- s[s$sites >= 2, , drop = FALSE]
   split_lab <- split(
     stats::setNames(s$scientificName,
-      sprintf("%s %s — %d sites", s$emoji, s$scientificName, s$sites)),
+      sprintf("%s %s · %d sites", s$emoji, s$scientificName, s$sites)),
     s$group_label)
   lapply(split_lab, as.list)
 }

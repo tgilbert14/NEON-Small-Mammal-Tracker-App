@@ -122,13 +122,13 @@ species_blurb <- function(scientificName) {
     Dipodomys   = "Kangaroo rats hop on huge hind feet, carry seeds in cheek pouches, and can live without ever drinking water.",
     Chaetodipus = "Spiny pocket mice stuff seeds into fur-lined cheek pouches and sleep away cold spells in torpor.",
     Perognathus = "Silky pocket mice are tiny seed-hoarders that go dormant underground through the worst of winter.",
-    Peromyscus  = "Deer mice are wide-eyed climbers found almost everywhere in North America — the classic field-trap regular.",
+    Peromyscus  = "Deer mice are wide-eyed climbers found almost everywhere in North America, the classic field-trap regular.",
     Reithrodontomys = "Harvest mice are thumb-sized seed-eaters that weave little grass nests above the ground.",
-    Onychomys   = "Grasshopper mice are carnivores that hunt scorpions and insects — and howl like tiny wolves.",
+    Onychomys   = "Grasshopper mice are carnivores that hunt scorpions and insects, and howl like tiny wolves.",
     Neotoma     = "Woodrats (pack rats) build huge stick middens and famously swap any shiny object for what they carry.",
     Microtus    = "Voles are stout grass-eaters whose boom-and-bust population cycles drive whole food webs.",
     Sigmodon    = "Cotton rats breed fast and graze grasses; their numbers can explode after a wet season.",
-    Sylvilagus  = "Cottontail rabbits freeze, then bolt in a zig-zag — a favorite meal for nearly every desert predator.",
+    Sylvilagus  = "Cottontail rabbits freeze, then bolt in a zig-zag, a favorite meal for nearly every desert predator.",
     Tamias      = "Chipmunks are striped, cheek-pouched seed-hoarders busy stocking their burrows for winter.",
     Spermophilus = "Ground squirrels are burrowing sun-baskers that sound the alarm with sharp whistles.",
     Onychomys_  = ""
@@ -767,13 +767,13 @@ individual_qc_flags <- function(hist, lb_row) {
   # checks below never run. Say that, rather than falling through to a green
   # "all consistent" that would over-claim a check that never happened.
   if (nrow(hist) < 2) {
-    add("info", "Caught once — there are no recaptures to cross-check, so the consistency flags below don't apply.")
+    add("info", "Caught once, so there are no recaptures to cross-check and the consistency flags below don't apply.")
     return(flags)
   }
 
   # 1 — same tag, two plots, same day: spatially impossible (highest-confidence).
   if (has_row && isTRUE(lb_row$spatial_conflict[1]))
-    add("high", "Recorded at two plots on the same day — physically impossible for one animal (plots are hundreds of metres apart). Almost always a tag-number mix-up or data-entry error.")
+    add("high", "Recorded at two plots on the same day, which is physically impossible for one animal (plots are hundreds of metres apart). Almost always a tag-number mix-up or data-entry error.")
 
   # 2 — life stage moving backward across DISTINCT dates. Collapse same-day rows
   #     to that day's most-advanced stage first, so a same-day (adult, juvenile)
@@ -785,17 +785,17 @@ individual_qc_flags <- function(hist, lb_row) {
     per_day <- tapply(hs$st, as.character(hs$date), max)
     per_day <- per_day[order(as.Date(names(per_day)))]
     if (length(per_day) >= 2 && any(diff(per_day) < 0))
-      add("high", "Life stage moves backward (adult → a younger stage) on a later date — biologically impossible; check the staging on the datasheet.")
+      add("high", "Life stage moves backward (adult → a younger stage) on a later date, which is biologically impossible; check the staging on the datasheet.")
   }
 
   # 3 — career span beyond any wild lifespan for these genera (>5 yr).
   if (has_row && isTRUE(lb_row$career_days[1] > 1825))
-    add("high", sprintf("Career span of %s days exceeds any wild lifespan for these species (>5 yr) — verify the tag number isn't shared between two animals.", fi(lb_row$career_days[1])))
+    add("high", sprintf("Career span of %s days exceeds any wild lifespan for these species (>5 yr); verify the tag number isn't shared between two animals.", fi(lb_row$career_days[1])))
 
   # 4 — sex flip across recaptures: field sexing is error-prone, so flag (don't condemn).
   sx <- unique(hist$sex[hist$sex %in% c("M", "F")])
   if (length(sx) > 1)
-    add("warn", "Sex was recorded as both M and F across captures. Field sexing is error-prone (especially non-reproductive animals), so this is worth a check — not necessarily an error.")
+    add("warn", "Sex was recorded as both M and F across captures. Field sexing is error-prone (especially non-reproductive animals), so this is worth a check, not necessarily an error.")
 
   # 5 — implausible weight jump: percent change FROM THE PRIOR capture (a fixed,
   #     reproducible baseline — not pmin, which would inflate the %), over a real
@@ -812,7 +812,7 @@ individual_qc_flags <- function(hist, lb_row) {
     bad <- which(is.finite(pct) & abs(pct) > 30 & dd >= 1 & dd <= 30 & !young)
     if (length(bad)) {
       i <- bad[which.max(abs(pct[bad]))]
-      add("warn", sprintf("Weight changed %+.0f%% from the prior capture (%.1f → %.1f g) in %d day%s (%s → %s) — a swing this fast in an adult can be a transposed digit; check it against the capture table and reproductive state.",
+      add("warn", sprintf("Weight changed %+.0f%% from the prior capture (%.1f → %.1f g) in %d day%s (%s → %s); a swing this fast in an adult can be a transposed digit, so check it against the capture table and reproductive state.",
         pct[i], prevw[i], nextw[i], dd[i], ifelse(dd[i] == 1, "", "s"),
         format(ww$date[i], "%Y-%m-%d"), format(ww$date[i + 1], "%Y-%m-%d")))
     }
@@ -1198,7 +1198,7 @@ site_insights <- function(d, lb = NULL, cs = NULL) {
     top <- sp[1, ]
     nn <- if (!is.na(top$nickname)) sprintf(" (the %s)", top$nickname) else ""
     out <- c(out, sprintf(
-      "The most-trapped mammal here is the <b><i>%s</i></b>%s — <b>%s</b> individuals across <b>%s</b> captures.",
+      "The most-trapped mammal here is the <b><i>%s</i></b>%s, with <b>%s</b> individuals across <b>%s</b> captures.",
       top$scientificName, nn, fmt_int(top$individuals), fmt_int(top$captures)))
     if (nrow(sp) >= 2) {
       # only species clearing the n>=8 adult floor are eligible (avg_weight is NA
@@ -1208,7 +1208,7 @@ site_insights <- function(d, lb = NULL, cs = NULL) {
         hv <- elig[which.max(elig$avg_weight), ]
         if (hv$scientificName != top$scientificName)
           out <- c(out, sprintf(
-            "The heaviest species caught is the <b><i>%s</i></b>, with adults averaging about <b>%s g</b> (n=%s) — one of the larger-bodied species at this site.",
+            "The heaviest species caught is the <b><i>%s</i></b>, with adults averaging about <b>%s g</b> (n=%s); one of the larger-bodied species at this site.",
             hv$scientificName, hv$avg_weight, fmt_int(hv$n_adult)))
       }
     }
@@ -1217,7 +1217,7 @@ site_insights <- function(d, lb = NULL, cs = NULL) {
   if (!is.null(lb) && nrow(lb) > 0) {
     L <- lb[1, ]
     out <- c(out, sprintf(
-      "The hardest-working individual is <b>%s</b> (<i>%s</i>), caught <b>%s times</b>%s — earning a <b>%s</b> rank.",
+      "The hardest-working individual is <b>%s</b> (<i>%s</i>), caught <b>%s times</b>%s, earning a <b>%s</b> rank.",
       L$short, L$scientificName, L$captures,
       if (!is.na(L$career_days) && L$career_days > 60) sprintf(" over %s days", L$career_days) else "",
       L$rarity))
@@ -1226,8 +1226,8 @@ site_insights <- function(d, lb = NULL, cs = NULL) {
   out <- c(out, sprintf(
     "<b>%s%%</b> of captures were re-encounters of already-tagged animals%s.",
     cs$recap_rate,
-    if (cs$recap_rate >= 45) " — a high recapture rate means the same residents keep returning, so the population is well-marked"
-    else " — most animals were seen only once"))
+    if (cs$recap_rate >= 45) "; a high recapture rate means the same residents keep returning, so the population is well-marked"
+    else "; most animals were seen only once"))
 
   out <- c(out, sprintf(
     "It took roughly <b>%s trap-nights</b> across <b>%s plots</b> to gather all of this.",
@@ -1236,10 +1236,10 @@ site_insights <- function(d, lb = NULL, cs = NULL) {
   sa <- tryCatch(species_accum(d), error = function(e) NULL)
   if (!is.null(sa)) {
     est <- if (isTRUE(sa$unstable))
-      sprintf("at least <b>%s</b> (a soft lower bound — too few twice-seen species to pin down)", sa$chao1)
+      sprintf("at least <b>%s</b> (a soft lower bound, too few twice-seen species to pin down)", sa$chao1)
     else sprintf("about <b>%s</b> (95%% CI %s–%s)", sa$chao1, sa$chao_lo, sa$chao_hi)
     out <- c(out, sprintf(
-      "<b>%s species</b> were found; a Chao1 estimate suggests %s are really present — sampling looks %s.",
+      "<b>%s species</b> were found; a Chao1 estimate suggests %s are really present, so sampling looks %s.",
       sa$sobs, est,
       if (sa$sobs >= 0.85 * sa$chao1) "close to complete" else "like it may still be missing a rare species or two"))
   }
@@ -1280,7 +1280,7 @@ stat_breakdown <- function(d, lb, which) {
       metric = paste0(v$captures, " caps"),
       sub = paste0(ifelse(v$career_days > 0, paste0(v$career_days, "d career"), "single capture")))
     return(pack("Most-caught individuals", "Tap any animal to open its full dossier",
-      "These are the regulars — the animals that kept turning up in traps.", rows, "\U0001F50D"))
+      "These are the regulars: the animals that kept turning up in traps.", rows, "\U0001F50D"))
   }
   if (which == "captures") {
     cby <- d %>% dplyr::filter(!is.na(.data$tagID), !is.na(.data$plotID)) %>%
@@ -1325,7 +1325,7 @@ stat_breakdown <- function(d, lb, which) {
       name = paste0(v$emoji, "  <b>", v$short, "</b> <span class='dim'>· ", v$scientificName, "</span>"),
       metric = paste0(v$captures, " caps"),
       sub = paste0(rarity_tier(v$captures)))
-    return(pack("The Legends — caught 10+ times", "Tap any legend to open its dossier",
+    return(pack("The Legends · caught 10+ times", "Tap any legend to open its dossier",
       "These animals were exceptionally trap-happy, resident, or both.", rows, "\U0001F3C6"))
   }
   NULL

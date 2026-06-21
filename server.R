@@ -100,7 +100,7 @@ server <- function(input, output, session) {
     if (is.null(rv$env)) return(NULL)
     if (identical(attr(rv$env, "source"), "demo"))
       div(class = "env-source env-demo", bs_icon("info-circle-fill"),
-          tags$span(HTML(" <b>Demo overlay</b> — an illustrative monthly series, <b>not</b> NEON data. Run <code>scripts/refresh_env_data.R</code> to bundle the real product.")))
+          tags$span(HTML(" <b>Demo overlay</b>, an illustrative monthly series, <b>not</b> NEON data. Run <code>scripts/refresh_env_data.R</code> to bundle the real product.")))
     else
       div(class = "env-source env-real", bs_icon("patch-check-fill"),
           tags$span(" Live from co-located NEON sensors at this site."))
@@ -149,7 +149,7 @@ server <- function(input, output, session) {
           tags$span(class = "ec-strength", slabel), " link with ",
           tags$span(class = "ec-driver", tolower(sc$label))),
         div(class = paste("ec-rvalue", if (pos) "ec-sgn-pos" else "ec-sgn-neg"),
-          title = "correlation coefficient, -1 to +1 — tap the (i) above for what it means",
+          title = "correlation coefficient, -1 to +1; tap the (i) above for what it means",
           bs_icon(glyph), HTML(sprintf("r&nbsp;%+.2f", sc$r)))),
       div(class = "ec-foot",
         tags$span(class = "ec-meta", bs_icon("clock-history"),
@@ -226,9 +226,9 @@ server <- function(input, output, session) {
       plotly::event_register("plotly_click") %>%
       plotly_theme(legend = FALSE) %>%
       plotly::layout(
-        title = list(text = if (demo) "Demo overlays — illustrative" else "",
+        title = list(text = if (demo) "Demo overlays · illustrative" else "",
                      font = list(size = 11, color = "#9a7a00"), x = 0.02),
-        xaxis = list(title = "deseasonalized correlation with catch-per-effort (r) — left of 0 = inverse",
+        xaxis = list(title = "deseasonalized correlation with catch-per-effort (r) · left of 0 = inverse",
                      range = c(-1, 1), zeroline = TRUE, zerolinecolor = "rgba(31,42,48,0.35)"),
         yaxis = list(title = ""),
         margin = list(b = 84),
@@ -372,7 +372,7 @@ server <- function(input, output, session) {
         # full bundled record INSTANTLY rather than dropping to a slow live fetch.
         if (sum(!is.na(bundle$tagID)) > 0) {
           showNotification(sprintf(
-            "No captures at %s in %s–%s — showing its full bundled record instead.",
+            "No captures at %s in %s–%s, so showing its full bundled record instead.",
             site_label(site), format(as.Date(s0), "%Y"), format(as.Date(e0), "%Y")),
             type = "message", duration = 6)
           return(ingest(bundle, sprintf("%s · full record", site_label(site))))
@@ -385,7 +385,7 @@ server <- function(input, output, session) {
     if (!LIVE_FETCH) {
       session$sendCustomMessage("loadDone", list())
       showNotification(
-        if (prov) "Provisional/live data isn't available in this build — uncheck it to use the offline bundle."
+        if (prov) "Provisional/live data isn't available in this build. Uncheck it to use the offline bundle."
         else "That site & window isn't in the offline bundle. Try a wider date window.",
         type = "warning", duration = 7)
       return(invisible())
@@ -417,7 +417,7 @@ server <- function(input, output, session) {
     st  <- if (!is.null(row) && nrow(row)) row$state[1] else NULL
     if (!is.null(st) && !is.na(st)) { rv$pendingSite <- code; updateSelectInput(session, "stateSel", selected = st) }
     updateDateRangeInput(session, "dateRange", start = s0, end = e0)
-    session$sendCustomMessage("smtLoadStart", list(label = sprintf("%s — %s", code, nm)))
+    session$sendCustomMessage("smtLoadStart", list(label = sprintf("%s · %s", code, nm)))
     load_site(code, s0, e0, FALSE)
   }
   # ---- the site-choice popup + "About this site" card --------------------
@@ -439,7 +439,7 @@ server <- function(input, output, session) {
     # count is read against how well the traps actually detect here (~0.57 closed-
     # canopy temperate vs ~0.95 deserts). Absent — not "—" — where unavailable.
     det_line <- if (!is.na(row$mean_p[1]))
-      sprintf("<div class='pm-pop-det' title='Mean per-night detection probability across this site&rsquo;s estimable closed-capture bouts — see the Population tab&rsquo;s detection card.'>detection ~%d%%/night</div>",
+      sprintf("<div class='pm-pop-det' title='Mean per-night detection probability across this site&rsquo;s estimable closed-capture bouts. See the Population tab&rsquo;s detection card.'>detection ~%d%%/night</div>",
               round(100 * row$mean_p[1])) else ""
     yrs <- if (!is.na(row$year_min[1]) && !is.na(row$year_max[1]))
       sprintf("<div class='sp-years'>Sampled %d&ndash;%d</div>", row$year_min[1], row$year_max[1]) else ""
@@ -472,7 +472,7 @@ server <- function(input, output, session) {
     star <- if (!is.na(row$top_species[1]))
       HTML(sprintf("<i>%s</i>%s%s", row$top_species[1],
         if (!is.na(row$nickname[1])) sprintf(" (%s)", row$nickname[1]) else "",
-        if (!is.na(row$top_caps[1])) sprintf(" — %s captures", format(row$top_caps[1], big.mark = ",")) else ""))
+        if (!is.na(row$top_caps[1])) sprintf(" · %s captures", format(row$top_caps[1], big.mark = ",")) else ""))
       else "—"
     stat <- function(v, lab) div(class = "si-stat",
       div(class = "si-stat-n", if (is.na(v)) "—" else format(v, big.mark = ",")),
@@ -483,7 +483,7 @@ server <- function(input, output, session) {
       footer = tagList(
         modalButton("Close"),
         tags$button(type = "button", class = "btn btn-primary",
-          onclick = sprintf("smtLoadStart('%s \\u2014 loading\\u2026');Shiny.setInputValue('siteExplore','%s',{priority:'event'});",
+          onclick = sprintf("smtLoadStart('%s \\u00b7 loading\\u2026');Shiny.setInputValue('siteExplore','%s',{priority:'event'});",
                             gsub("'", "\\\\'", row$name[1]), code),
           HTML("Explore this site&rsquo;s data &rarr;"))),
       div(class = "site-info",
@@ -507,7 +507,7 @@ server <- function(input, output, session) {
           # canopy temperate ~0.57), with the detail on hover, not always-on text.
           if (!is.na(row$mean_p[1]))
             div(class = "si-row si-det",
-              title = "Mean per-night detection probability across this site’s estimable closed-capture bouts — full breakdown on the Population tab’s detection card.",
+              title = "Mean per-night detection probability across this site’s estimable closed-capture bouts. Full breakdown on the Population tab’s detection card.",
               bs_icon("incognito"), HTML(sprintf(" Traps detect ~<b>%d%%</b> of animals present per night",
                 round(100 * row$mean_p[1]))))),
         div(class = "si-sec",
@@ -694,7 +694,7 @@ server <- function(input, output, session) {
     # cause in-place so a missing/unreadable data/site_index.rds is diagnosable.
     validate(need(
       !is.null(SITE_INDEX) && nrow(SITE_INDEX) > 0,
-      "The national site map couldn't load its data (data/site_index.rds is missing or unreadable in this deployment). The rest of the app still works — pick a site, or try the demo."
+      "The national site map couldn't load its data (data/site_index.rds is missing or unreadable in this deployment). The rest of the app still works, so pick a site, or try the demo."
     ))
     leaflet(options = leafletOptions(minZoom = 2, worldCopyJump = TRUE)) %>%
       addProviderTiles("CartoDB.Positron", options = providerTileOptions(noWrap = TRUE)) %>%
@@ -751,7 +751,7 @@ server <- function(input, output, session) {
     idx <- SITE_INDEX
     if (is.null(idx)) return(setNames(neon_sites$site, neon_sites$site))
     o <- idx[order(idx$name), ]
-    setNames(o$site, sprintf("%s — %s, %s", o$site, o$name, o$state))
+    setNames(o$site, sprintf("%s · %s, %s", o$site, o$name, o$state))
   }
   observeEvent(input$compareBtn, {
     ch <- compare_site_choices()
@@ -847,7 +847,7 @@ server <- function(input, output, session) {
             else if ((va > vb) == higher) c("cmp-win", "") else c("", "cmp-win")
       afford <- if (suppress)
         tags$span(class = "cmp-det-flag", onclick = "Shiny.setInputValue('cmpDetWhy', Math.random(), {priority:'event'})",
-                  title = "Reflects detection as well as abundance — why isn't this a winner?",
+                  title = "Reflects detection as well as abundance. Why isn't this a winner?",
                   bs_icon("info-circle"))
       else if (!is.null(tip)) info_pop(lab, p(tip))
       tags$tr(
@@ -881,18 +881,18 @@ server <- function(input, output, session) {
           # detection-corrected monthly abundance. These carry the correction the
           # raw counts above do not.
           row("Detection p̂ (per night)", pa$p_hat, pb$p_hat, fmt = pfmt,
-              tip = "Mean per-night capture probability from the closed-capture (Schnabel/Chapman) estimates. Deserts run high (~0.6+); closed-canopy temperate sites run low — so a raw count undercounts temperate sites worse."),
+              tip = "Mean per-night capture probability from the closed-capture (Schnabel/Chapman) estimates. Deserts run high (~0.6+); closed-canopy temperate sites run low, so a raw count undercounts temperate sites worse."),
           row("Mean N̂ per month", pa$nhat_pm, pb$nhat_pm, fmt = function(x) if (is.na(x)) "—" else format(x, big.mark = ","),
-              tip = "Mean detection-corrected abundance per month across estimable (multi-night) bouts — the cross-biome comparison the raw captures can't make honestly."))),
+              tip = "Mean detection-corrected abundance per month across estimable (multi-night) bouts: the cross-biome comparison the raw captures can't make honestly."))),
       div(class = "compare-species",
-        div(class = "cmp-col", div(class = "cmp-col-h", "Top species — ", pa$site), sp_list(pa)),
-        div(class = "cmp-col", div(class = "cmp-col-h", "Top species — ", pb$site), sp_list(pb))),
+        div(class = "cmp-col", div(class = "cmp-col-h", "Top species · ", pa$site), sp_list(pa)),
+        div(class = "cmp-col", div(class = "cmp-col-h", "Top species · ", pb$site), sp_list(pb))),
       div(class = "compare-foot", bs_icon("info-circle"),
         " Higher value highlighted per row. Diversity uses Hill numbers over distinct individuals; richness is the raw species count.",
         if (det_mismatch) tagList(" These two sites' detection differs",
           tags$a(href = "#", class = "cmp-why",
                  onclick = "Shiny.setInputValue('cmpDetWhy', Math.random(), {priority:'event'}); return false;",
-                 " — why raw counts aren't compared", bs_icon("info-circle"))))
+                 " · why raw counts aren't compared", bs_icon("info-circle"))))
     )
   })
 
@@ -903,7 +903,7 @@ server <- function(input, output, session) {
       title = tagList(bs_icon("incognito"), " Detection is not abundance"),
       easyClose = TRUE, size = "m", footer = modalButton("Got it"),
       div(class = "rank-modal-sub",
-        "Raw captures, individuals, and trap-nights count what the traps caught — which depends on how ",
+        "Raw captures, individuals, and trap-nights count what the traps caught, which depends on how ",
         tags$b("detectable"), " the animals are, not just how many there are."),
       tags$p("Detection completeness swings about 2x across biomes: closed-canopy temperate sites (e.g. HARV) catch only ",
         tags$b("~57%"), " of the animals present per bout (mean p̂ ≈ 0.30), while open deserts (e.g. JORN) catch ",
@@ -913,7 +913,7 @@ server <- function(input, output, session) {
       tags$p(class = "rank-modal-insight", style = "margin-top:10px",
         bs_icon("lightbulb"), " For an apples-to-apples cross-biome read, use the ",
         tags$b("Detection p̂"), " and ", tags$b("Mean N̂ per month"),
-        " rows below — those carry the closed-capture correction this app computes everywhere else.")
+        " rows below: those carry the closed-capture correction this app computes everywhere else.")
     ))
   })
 
@@ -953,17 +953,17 @@ server <- function(input, output, session) {
         span(class = "hero-site-hint", bs_icon("hand-index"), " tap any stat for the full ranking")),
       div(class = "stat-grid",
         vb(cs$total_captures, "Captures",      "bullseye",        "#38a8e8", "captures",
-           tip = "Total times an animal was caught & handled — click to see captures by plot."),
+           tip = "Total times an animal was caught & handled. Click to see captures by plot."),
         vb(cs$individuals,    "Individuals",   "fingerprint",     "#43b8e8", "individuals",
-           tip = "Distinct animals (unique ear-tag IDs) — click for the most-caught individuals."),
+           tip = "Distinct animals (unique ear-tag IDs). Click for the most-caught individuals."),
         vb(cs$species,        "Species",       "diagram-3-fill",  "#5fb56a", "species",
-           tip = "Distinct species identified — click for species ranked by abundance."),
+           tip = "Distinct species identified. Click for species ranked by abundance."),
         vb(cs$recap_rate,     "Recapture rate","arrow-repeat",    "#138086", "recapture", pct = TRUE,
-           tip = "Share of captures that were re-encounters — click for recapture rate by species."),
+           tip = "Share of captures that were re-encounters. Click for recapture rate by species."),
         vb(cs$trap_nights,    "Trap-nights",   "moon-stars-fill", "#5b3a8a", "trapnights",
-           tip = "Total trapping effort — click for effort & catch-rate by plot."),
+           tip = "Total trapping effort. Click for effort & catch-rate by plot."),
         vb(cs$legendary,      "Legends (10+)", "trophy-fill",     "#e0b43a", "legends",
-           tip = "Individuals caught 10+ times — click for the full list of legends.")
+           tip = "Individuals caught 10+ times. Click for the full list of legends.")
       )
     )
   })
@@ -1034,7 +1034,7 @@ server <- function(input, output, session) {
     dom <- sp[which.max(sp$individuals), ]
     share <- if (tot > 0) round(100 * dom$individuals / tot) else 0
     insight_banner("collection", tone = "navy",
-      HTML(sprintf("The <b><i>%s</i></b> is the most abundant here — <span class='ci-hero'>%s%%</span> of individuals (%s of %s).",
+      HTML(sprintf("The <b><i>%s</i></b> is the most abundant here: <span class='ci-hero'>%s%%</span> of individuals (%s of %s).",
         dom$scientificName, share, fmt_int(dom$individuals), fmt_int(tot))))
   })
 
@@ -1045,8 +1045,8 @@ server <- function(input, output, session) {
       HTML(sprintf("<span class='ci-hero'>%s</span> species recorded at this site.", hn$n_sp))))
     verdict <- if (hn$even >= 0.75) "an even community"
       else if (hn$even >= 0.5) "a moderately even community"
-      else if (hn$even >= 0.3) "an uneven community — a few species dominate"
-      else "a highly skewed community — one or two species dominate"
+      else if (hn$even >= 0.3) "an uneven community, a few species dominate"
+      else "a highly skewed community, one or two species dominate"
     insight_banner("diagram-3-fill", tone = if (hn$even >= 0.5) "pine" else "gold",
       HTML(sprintf("This is <b>%s</b>: <span class='ci-hero'>%s</span> species seen, but only about <b>%s</b> are common.",
         verdict, hn$n_sp, format(hn$q1, nsmall = 1))))
@@ -1056,10 +1056,10 @@ server <- function(input, output, session) {
     d <- rv$data; req(d)
     sa <- tryCatch(species_accum(d), error = function(e) NULL); if (is.null(sa)) return(NULL)
     complete <- sa$sobs >= 0.85 * sa$chao1
-    est <- if (isTRUE(sa$unstable)) sprintf("at least <b>%s</b> (only %d species seen twice — a soft floor)", sa$chao1, sa$f2)
+    est <- if (isTRUE(sa$unstable)) sprintf("at least <b>%s</b> (only %d species seen twice, a soft floor)", sa$chao1, sa$f2)
            else sprintf("<span class='ci-hero'>%s</span> (95%% CI %s–%s)", sa$chao1, sa$chao_lo, sa$chao_hi)
     insight_banner("graph-up", tone = if (complete) "pine" else "gold",
-      HTML(sprintf("Found <span class='ci-hero'>%s</span> species; Chao1 estimates %s are really here — sampling looks %s.",
+      HTML(sprintf("Found <span class='ci-hero'>%s</span> species; Chao1 estimates %s are really here, so sampling looks %s.",
         sa$sobs, est, if (complete) "close to complete" else "like it's still missing a rare species or two")))
   })
 
@@ -1076,7 +1076,7 @@ server <- function(input, output, session) {
     if (!is.na(pkf)) segs <- c(segs, sprintf("reproductive females in <span class='ci-hero'>%s</span> (%d%%)",
       month.abb[pkf], as.integer(bm$pf[bm$mon == pkf])))
     insight_banner("calendar-heart", tone = "navy",
-      HTML(paste0("Breeding peaks — ", paste(segs, collapse = ", "), ".")))
+      HTML(paste0("Breeding peaks: ", paste(segs, collapse = ", "), ".")))
   })
 
   output$meetLocals <- renderUI({
@@ -1165,7 +1165,7 @@ server <- function(input, output, session) {
       chonk    = ifelse(is.na(lead$chonk_pct), "—", paste0(round(lead$chonk_pct), "% weight-for-species")),
       "")
     insight_banner("trophy-fill", tone = "gold",
-      HTML(sprintf("The <b>%s</b> animal at this site is <span class='ci-hero'>%s</span> (<i>%s</i>) — %s.",
+      HTML(sprintf("The <b>%s</b> animal at this site is <span class='ci-hero'>%s</span> (<i>%s</i>), with %s.",
         lab, lead$short, lead$scientificName, val)))
   })
 
@@ -1225,7 +1225,7 @@ server <- function(input, output, session) {
     if (is.null(tag)) return(div(class = "empty-state",
       div(class = "empty-icon", "\U0001F50D"),
       h4("Pick an animal to open its dossier"),
-      p("Every individual NEON tagged at this site has a full profile — measurements, a trap-grid home range, capture history, and a shareable card."),
+      p("Every individual NEON tagged at this site has a full profile: measurements, a trap-grid home range, capture history, and a shareable card."),
       div(class = "empty-actions",
         actionButton("goFameFromDossier", tagList(bs_icon("trophy-fill"), " Browse the Hall of Fame"),
                      class = "btn-primary"),
@@ -1255,7 +1255,7 @@ server <- function(input, output, session) {
       else sprintf("#%d of %d by captures here", cap_rank, ntot)
     art <- if (grepl("^[AEIOU]", row$rarity[1])) "an" else "a"
     ci_tone <- switch(row$rarity[1], Legendary = "gold", Epic = "terra", Rare = "navy", Uncommon = "pine", "muted")
-    story <- sprintf("<b>%s</b> is %s <b>%s</b> resident — caught <span class='ci-hero'>%s</span> times%s, %s.",
+    story <- sprintf("<b>%s</b> is %s <b>%s</b> resident, caught <span class='ci-hero'>%s</span> times%s, %s.",
       row$short[1], art, row$rarity[1], fmt_int(row$captures[1]),
       if (row$career_days[1] > 0) sprintf(" over %s days", fmt_int(row$career_days[1])) else "",
       rank_phrase)
@@ -1270,7 +1270,7 @@ server <- function(input, output, session) {
       pre <- if (isTRUE(row$age_is_minimum[1])) "≥" else "~"
       tip <- paste0("Days we knew this animal, plus an estimate of how old it already was at first ",
                     "capture (≈1 mo if first seen as a juvenile, ≈2.5 mo as a subadult). ",
-                    "≥ means first caught as an adult, so its true age is at least this — ",
+                    "≥ means first caught as an adult, so its true age is at least this; ",
                     "we can't see how old it was before we met it. Approximate to ~0.1 yr, not a birthday.")
       div(class = "ds-stat ds-stat-hint", title = tip,
           div(class = "ds-stat-v", paste0(pre, age_val, " yr")),
@@ -1287,7 +1287,7 @@ server <- function(input, output, session) {
       div(class = "ds-main",
         div(class = "ds-id", row$short[1], span(class = "ds-nick", nick),
           if (isTRUE(row$tag_suspect[1]))
-            span(class = "ds-warn", title = "This capture history can't be one animal — it was recorded at two plots on the same day, or spans longer than these species live. Likely a tag-number mix-up or data-entry error; verify the record.",
+            span(class = "ds-warn", title = "This capture history can't be one animal: it was recorded at two plots on the same day, or spans longer than these species live. Likely a tag-number mix-up or data-entry error; verify the record.",
                  bs_icon("exclamation-triangle-fill"), " verify tag"),
           if (isTRUE(row$id_uncertain[1]))
             span(class = "ds-warn", title = "This tag was recorded under more than one species",
@@ -1497,7 +1497,7 @@ server <- function(input, output, session) {
         hovertemplate = "this animal<br>%{x} mm · %{y} g<extra></extra>")
 
     note <- if (!(nrow(srow) == 1 && !is.na(srow$b)))
-      list(list(text = "↳ hind-foot barely predicts mass in this species — read position, not a line",
+      list(list(text = "↳ hind-foot barely predicts mass in this species; read position, not a line",
         x = 0, y = 1.08, xref = "paper", yref = "paper", showarrow = FALSE, xanchor = "left",
         font = list(color = "#6b7a85", size = 11))) else list()
 
@@ -1519,7 +1519,7 @@ server <- function(input, output, session) {
     measured <- dplyr::filter(lb, is.finite(.data$avg_hf), is.finite(.data$avg_weight),
                               .data$avg_hf > 0, .data$avg_weight > 0, !is.na(.data$scientificName))
     if (nrow(measured) == 0)
-      return(note_plot("No individuals at this site have both a weight<br>and a hind-foot measurement — nothing to map.", "\U0001F4CF"))
+      return(note_plot("No individuals at this site have both a weight<br>and a hind-foot measurement, so nothing to map.", "\U0001F4CF"))
     pts <- measured
     one_sp <- !is.null(input$scatterSpecies) && nzchar(input$scatterSpecies) && input$scatterSpecies != "all"
     if (one_sp) pts <- pts[pts$scientificName == input$scatterSpecies, ]
@@ -1612,7 +1612,7 @@ server <- function(input, output, session) {
       x = 0, y = 1.08, xref = "paper", yref = "paper", showarrow = FALSE, xanchor = "left",
       font = list(color = muted_col, size = 11)))
     if (!show_leg)
-      ann[[length(ann) + 1L]] <- list(text = "↳ many species shown — hover or tap a dot for its species",
+      ann[[length(ann) + 1L]] <- list(text = "↳ many species shown; hover or tap a dot for its species",
         x = 0, y = 1.14, xref = "paper", yref = "paper", showarrow = FALSE, xanchor = "left",
         font = list(color = muted_col, size = 11))
     shapes <- list()
@@ -1663,7 +1663,7 @@ server <- function(input, output, session) {
         } else {
           ann[[length(ann) + 1L]] <- list(
             text = if (nrow(fp) < 15) "↳ too few adults here to fit a size–mass line"
-                   else "↳ hind-foot barely predicts mass in these adults — read position, not a line",
+                   else "↳ hind-foot barely predicts mass in these adults; read position, not a line",
             x = 0, y = 1.20, xref = "paper", yref = "paper", showarrow = FALSE, xanchor = "left",
             font = list(color = muted_col, size = 11))
         }
@@ -1718,7 +1718,7 @@ server <- function(input, output, session) {
       div(class = "qc-empty-icon", "\U0001F50D"),
       h4("Pick an animal to open its QC history card"),
       p("Tap a dot on the scatter above and choose ", tags$b("“Open QC history card”"),
-        " — or use ", tags$b("“Track an individual”"), " in the sidebar. You'll get every capture's measurements plus automatic data-quality flags, and you can download the card or the raw history.")))
+        ", or use ", tags$b("“Track an individual”"), " in the sidebar. You'll get every capture's measurements plus automatic data-quality flags, and you can download the card or the raw history.")))
     lb <- rv$lb; row <- lb[lb$tagID == tag, ]; req(nrow(row) == 1)
     d <- rv$data
     hist <- individual_history(d, tag)
@@ -1737,7 +1737,7 @@ server <- function(input, output, session) {
     flags_ui <- if (length(flags) == 0)
       div(class = "qc-flag clean",
         span(class = "qc-flag-ic", bs_icon("check-circle-fill")),
-        span(HTML("<b>No QC flags.</b> This individual's capture history is internally consistent — measurements, sex, life stage and movement all hold together.")))
+        span(HTML("<b>No QC flags.</b> This individual's capture history is internally consistent: measurements, sex, life stage and movement all hold together.")))
     else tagList(lapply(flags, function(f)
       div(class = paste("qc-flag", f$level),
         span(class = "qc-flag-ic", bs_icon(flag_ic[[f$level]] %||% "info-circle-fill")),
@@ -1792,7 +1792,7 @@ server <- function(input, output, session) {
         div(class = "qc-section-h", bs_icon("clock-history"), " Every capture (the meso measurements)"),
         cap_tbl,
         p(class = "qc-cap-note", style = "margin-top:8px",
-          bs_icon("info-circle"), " A flag means “verify against the datasheet”, not “wrong” — legitimate causes exist (a field sexing error vs a real one, lactation mass vs a typo). Gaps between captures are NEON's seasonal sampling cadence, not death.")),
+          bs_icon("info-circle"), " A flag means “verify against the datasheet”, not “wrong”; legitimate causes exist (a field sexing error vs a real one, lactation mass vs a typo). Gaps between captures are NEON's seasonal sampling cadence, not death.")),
       div(class = "qc-toolbar",
         tags$button(class = "smt-snap-btn", type = "button", onclick = "smtSaveQcCard()",
                     bsicons::bs_icon("download"), " Save QC card (PNG)"),
@@ -1820,7 +1820,7 @@ server <- function(input, output, session) {
   output$capHistory <- DT::renderDT({
     tag <- rv$tag
     if (is.null(tag)) return(DT::datatable(
-      data.frame(` ` = "Pick an individual first — open the Hall of Fame and tap a row.", check.names = FALSE),
+      data.frame(` ` = "Pick an individual first: open the Hall of Fame and tap a row.", check.names = FALSE),
       rownames = FALSE, options = list(dom = "t", ordering = FALSE)))
     df <- ind_rows() %>%
       dplyr::transmute(
@@ -2006,15 +2006,15 @@ server <- function(input, output, session) {
     rf <- recap_flow(); if (is.null(rf)) return(NULL)
     if (rf$n_plots < 2)
       return(insight_banner("diagram-2", tone = "muted",
-        "Only one trapping grid has coordinates here — there's no between-grid movement to map."))
+        "Only one trapping grid has coordinates here, so there's no between-grid movement to map."))
     if (rf$max_pair_m < 30)
       return(insight_banner("diagram-2", tone = "muted",
-        HTML(sprintf("The grids here sit within <b>%d m</b> of each other — movement between them isn't resolvable at this scale.", round(rf$max_pair_m)))))
+        HTML(sprintf("The grids here sit within <b>%d m</b> of each other; movement between them isn't resolvable at this scale.", round(rf$max_pair_m)))))
     if (rf$n_movers == 0)
       return(insight_banner("geo-fill", tone = "navy",
         "No between-grid recaptures: every tagged animal stayed on its home grid (high site fidelity)."))
     insight_banner("share-fill", tone = "navy",
-      HTML(sprintf("<span class='ci-hero'>%d</span> of %d tagged individuals were recaptured across <b>2+ grids</b>. Toggle <b>recapture movement</b> (top-right) to see the links — curved lines connect successive capture plots, <i>not</i> tracked routes, and a long gap between the two just means the animal went undetected in between. <a href='#' class='inspect-link' onclick=\"Shiny.setInputValue('showMovers', Math.random(), {priority:'event'}); return false;\">Inspect these %d &raquo;</a>",
+      HTML(sprintf("<span class='ci-hero'>%d</span> of %d tagged individuals were recaptured across <b>2+ grids</b>. Toggle <b>recapture movement</b> (top-right) to see the links: curved lines connect successive capture plots, <i>not</i> tracked routes, and a long gap between the two just means the animal went undetected in between. <a href='#' class='inspect-link' onclick=\"Shiny.setInputValue('showMovers', Math.random(), {priority:'event'}); return false;\">Inspect these %d &raquo;</a>",
         rf$n_movers, rf$n_tagged, rf$n_movers)))
   })
 
@@ -2032,7 +2032,7 @@ server <- function(input, output, session) {
       spp   <- unique(g$scientificName[!is.na(g$scientificName)])
       sameday <- any(tapply(g$plotID, g$date, function(p) length(unique(p))) > 1, na.rm = TRUE)
       tells <- c(if (length(sexes) > 1) "sex changes", if (length(spp) > 1) "species changes",
-                 if (isTRUE(sameday)) "same day at 2 plots — physically impossible")
+                 if (isTRUE(sameday)) "same day at 2 plots, physically impossible")
       div(class = "mover-block",
         div(class = "mover-head", tags$b(g$short[1]), " · ", em(spp[1]),
           tags$span(class = "mover-n", sprintf(" %d captures, %d plots", nrow(g), dplyr::n_distinct(g$plotID))),
@@ -2051,7 +2051,7 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = tagList(bs_icon("share-fill"), " Individuals caught at 2+ grids"),
       size = "l", easyClose = TRUE, footer = modalButton("Close"),
-      p(class = "inspect-note", HTML("NEON keeps a tag on one animal for life and doesn't reuse numbers, so most of these are <b>real</b> long-distance movers. But a tag whose <b>sex</b> or <b>species</b> changes across captures, or that shows up at two plots on the <b>same day</b>, is more likely two animals sharing a number — those are flagged below for you to verify against the field records.")),
+      p(class = "inspect-note", HTML("NEON keeps a tag on one animal for life and doesn't reuse numbers, so most of these are <b>real</b> long-distance movers. But a tag whose <b>sex</b> or <b>species</b> changes across captures, or that shows up at two plots on the <b>same day</b>, is more likely two animals sharing a number; those are flagged below for you to verify against the field records.")),
       div(class = "movers-wrap", blocks)
     ))
   })
@@ -2209,10 +2209,10 @@ server <- function(input, output, session) {
     hn <- hill_numbers(d)
     if (hn$n_sp == 0) return(NULL)
     even_word <- if (is.na(hn$even)) "—"
-      else if (hn$even >= 0.75) "very even — captures are spread across many species"
+      else if (hn$even >= 0.75) "very even, captures are spread across many species"
       else if (hn$even >= 0.5)  "moderately even"
-      else if (hn$even >= 0.3)  "uneven — a few species dominate the catch"
-      else "highly skewed — one or two species dominate"
+      else if (hn$even >= 0.3)  "uneven, a few species dominate the catch"
+      else "highly skewed, one or two species dominate"
     tile <- function(v, lab, sub, col) div(class = "hill-tile", style = sprintf("--hc:%s", col),
       div(class = "hill-v", v), div(class = "hill-l", lab), div(class = "hill-s", sub))
     div(class = "hill-note",
@@ -2222,7 +2222,7 @@ server <- function(input, output, session) {
         tile(hn$q2, "dominant", "inv. Simpson", "#5fb56a")),
       div(class = "hill-even",
         bs_icon("bar-chart-steps"),
-        HTML(sprintf(" Evenness <b>%s</b> — %s.",
+        HTML(sprintf(" Evenness <b>%s</b>: %s.",
                      ifelse(is.na(hn$even), "—", format(hn$even, nsmall = 2)), even_word))),
       div(class = "hill-foot",
         sprintf("From %s individuals across %s species.",
@@ -2331,7 +2331,7 @@ server <- function(input, output, session) {
     # tooltip for field QC — but it's excluded from the median and the p5–p95 range.
     cell <- function(med, lo, hi, n, nflag, rmin, rmax, unit, sp, meas, min_n = 3) {
       warn <- ifelse(!is.na(nflag) & nflag > 0,
-        sprintf(" <span class='mz-flag' style='cursor:pointer' onclick=\"Shiny.setInputValue('showOutliers','%s||%s||'+Math.random(),{priority:'event'})\" title='%s value(s) beyond the plausible adult range (raw %s–%s %s) — click to inspect &amp; verify. Kept in the data but excluded from the median and the 5th–95th-percentile range.'>&#9888;</span>",
+        sprintf(" <span class='mz-flag' style='cursor:pointer' onclick=\"Shiny.setInputValue('showOutliers','%s||%s||'+Math.random(),{priority:'event'})\" title='%s value(s) beyond the plausible adult range (raw %s–%s %s). Click to inspect &amp; verify. Kept in the data but excluded from the median and the 5th–95th-percentile range.'>&#9888;</span>",
                 sp, meas, format(nflag, big.mark = ","), rmin, rmax, unit),
         "")
       ifelse(is.na(med) | n < min_n, "<span class='muted'>—</span>",
@@ -2365,9 +2365,9 @@ server <- function(input, output, session) {
     mlab <- c(weight = "weight", hindfoot = "hind-foot length",
               tail = "tail length", ear = "ear length")[[measure]]
     showModal(modalDialog(
-      title = tagList(bs_icon("exclamation-triangle-fill"), sprintf(" Possible %s errors — %s", mlab, sp)),
+      title = tagList(bs_icon("exclamation-triangle-fill"), sprintf(" Possible %s errors · %s", mlab, sp)),
       size = "m", easyClose = TRUE, footer = modalButton("Close"),
-      p(class = "inspect-note", HTML(sprintf("Adult %s median here is <b>%s %s</b>. The records below fall far outside the plausible adult range (beyond median ± 5×MAD) — most likely data-entry errors. They are <b>kept in the data</b> but excluded from the median and the 5th–95th-percentile range; verify them against the field sheets.",
+      p(class = "inspect-note", HTML(sprintf("Adult %s median here is <b>%s %s</b>. The records below fall far outside the plausible adult range (beyond median ± 5×MAD), most likely data-entry errors. They are <b>kept in the data</b> but excluded from the median and the 5th–95th-percentile range; verify them against the field sheets.",
         mlab, round(fc$median[1], 1), unit))),
       tags$table(class = "inspect-tbl",
         tags$thead(tags$tr(lapply(c("Tag", "Date", "Plot", sprintf("Value (%s)", unit), "Sex"), tags$th))),
@@ -2389,7 +2389,7 @@ server <- function(input, output, session) {
     ml <- min_known_lifespan(lb)
     if (is.null(ml) || !nrow(ml))
       return(insight_banner("hourglass-split", tone = "muted", HTML(paste0(
-        "Not enough recaptured individuals here to say how long animals are confirmed alive — ",
+        "Not enough recaptured individuals here to say how long animals are confirmed alive; ",
         "it needs at least 5 individuals per species, each caught 3+ times."))))
     rows <- paste0(
       "<div class='lsp-row'>",
@@ -2400,11 +2400,11 @@ server <- function(input, output, session) {
                paste0("<span class='lsp-cap'>captive max ~", ml$captive_max_yr, " yr</span>")),
       "</div>", collapse = "")
     insight_banner("hourglass-split", tone = "muted", HTML(paste0(
-      "<b>Longest we confirmed an individual alive</b> — how old the single longest-tracked animal ",
+      "<b>Longest we confirmed an individual alive</b>: how old the single longest-tracked animal ",
       "was when last caught (caught 3+ times; NEON keeps a tag for the animal's life, so these are real ",
       "recapture spans). A <b>floor</b>, not a lifespan: animals still alive, or that left the trapping ",
       "grid, aren't counted (absence isn't death), the record only spans the years sampled here, and ",
-      "species we trap more often reach higher floors just from more chances — so read each as its own ",
+      "species we trap more often reach higher floors just from more chances, so read each as its own ",
       "floor, not a ranking. The captive maxima shown for scale run several times these wild figures.",
       "<div class='lsp-list'>", rows, "</div>")))
   })
@@ -2466,7 +2466,7 @@ server <- function(input, output, session) {
   output$mnkaInsight <- renderUI({
     d <- rv$data; req(d)
     insight_banner("people-fill", tone = "navy",
-      HTML("<b>MNKA</b> (per plot, left axis) counts individuals known alive each month; the dotted <b>site-total catch-per-effort</b> (right axis) is a different quantity — they're on separate scales and can move apart, so read each on its own axis."))
+      HTML("<b>MNKA</b> (per plot, left axis) counts individuals known alive each month; the dotted <b>site-total catch-per-effort</b> (right axis) is a different quantity: they're on separate scales and can move apart, so read each on its own axis."))
   })
 
   output$mnkaPlot <- renderPlotly({
@@ -2542,7 +2542,7 @@ server <- function(input, output, session) {
     # dwarfed the curve. Cap the band for legibility, LABEL it, pin the y-axis, and
     # state the true range in the caption so it stays honest.
     cap <- min(sa$chao_hi, max(2 * sa$chao1, sa$sobs + 5))
-    band_name <- if (isTRUE(sa$unstable)) "Chao1 interval (wide — unstable)"
+    band_name <- if (isTRUE(sa$unstable)) "Chao1 interval (wide, unstable)"
                  else sprintf("Chao1 95%% CI (%d–%d)", sa$chao_lo, sa$chao_hi)
     p <- plot_ly() %>%
       add_trace(x = cv$bouts, y = cv$hi, type = "scatter", mode = "lines",
@@ -2607,11 +2607,11 @@ server <- function(input, output, session) {
         div(class = "detect-head",
           chip(paste0(sn_pct, "%"), "single-night (index-only)", "#9aa7b4")),
         div(style = "font-size:.82rem; opacity:.72; margin-top:6px; max-width:48ch;",
-          "Every bout here is single-night, so abundance is index-only (MNKA/CPUE) by design — there's no within-bout recapture to detection-correct.")))
+          "Every bout here is single-night, so abundance is index-only (MNKA/CPUE) by design: there's no within-bout recapture to detection-correct.")))
     }
     lead <- if (!is.na(cc$mean_detect))
       insight_banner("incognito", tone = "navy",
-        HTML(sprintf("Traps caught about <span class='ci-hero'>%s</span> of the animals present per bout — the gap between the navy estimate and the grey known-alive line is everything they missed.",
+        HTML(sprintf("Traps caught about <span class='ci-hero'>%s</span> of the animals present per bout: the gap between the navy estimate and the grey known-alive line is everything they missed.",
           paste0(round(100 * cc$mean_detect), "%")))) else NULL
     tagList(lead,
       div(class = "detect-head",
@@ -2712,7 +2712,7 @@ server <- function(input, output, session) {
     s <- cc$series
     lift <- if (any(s$mnka > 0)) round(100 * (sum(s$N) / sum(s$mnka) - 1)) else NA
     div(class = "detect-note", bs_icon("info-circle"),
-      HTML(sprintf(" Across estimable bouts, the corrected estimate runs about <b>%s%%</b> above the raw known-alive count — the animals the traps missed. Estimates are summed across grids per month; months with too few recaptures are omitted.",
+      HTML(sprintf(" Across estimable bouts, the corrected estimate runs about <b>%s%%</b> above the raw known-alive count: the animals the traps missed. Estimates are summed across grids per month; months with too few recaptures are omitted.",
                    ifelse(is.na(lift), "—", lift))))
   })
 
@@ -2821,7 +2821,7 @@ server <- function(input, output, session) {
           "NEON 4-letter code","NEON plot ID","ISO date (YYYY-MM-DD)",
           "ear-tag ID (unique within site, lifelong)","Latin binomial",
           "M / F / U","juvenile / subadult / adult","grams","millimetres",
-          "trap grid cell (e.g. A1)","Y/N — NEON cross-bout recapture flag",
+          "trap grid cell (e.g. A1)","Y/N · NEON cross-bout recapture flag",
           "NEON trap-status code","trap-nights (1; sprung/disturbed = 0.5; not-set = 0)",
           "TRUE if an animal was handled (has a tagID)",
           "NEON 4-letter code","month (YYYY-MM)",
@@ -2832,11 +2832,11 @@ server <- function(input, output, session) {
           "per-night detection probability (Model M0)","distinct plots sampled"),
         note = c(
           "","","","","NEON DP1.10072.001 taxonomy","7.6% NA (not sexed)","",
-          "NA = unmeasured: recaptures are often not re-weighed, and empty-trap rows carry no animal (~23% NA overall — convention, not error)",
-          "NA = unmeasured (~28% NA overall — same convention as weight)",
+          "NA = unmeasured: recaptures are often not re-weighed, and empty-trap rows carry no animal (~23% NA overall; convention, not error)",
+          "NA = unmeasured (~28% NA overall; same convention as weight)",
           "","carries cross-BOUT history; within-bout recapture status is recomputed for the estimators","Nelson & Clark 1973 half-trap-night rule","","",
-          "","","an INDEX, not a census — counts animals known alive, not corrected for detection",
-          "raw count of handling events that month (a numerator, no denominator)","","captures per 100 trap-nights — a within-site relative index, NOT a cross-site density (detection differs by biome)",
+          "","","an INDEX, not a census; counts animals known alive, not corrected for detection",
+          "raw count of handling events that month (a numerator, no denominator)","","captures per 100 trap-nights, a within-site relative index, NOT a cross-site density (detection differs by biome)",
           "blank for single-night / low-recapture months that can't be detection-corrected (about half of bouts are single-night by design)",
           "0–1; deserts run high, closed-canopy temperate sites low",""),
         stringsAsFactors = FALSE)
@@ -2857,31 +2857,31 @@ server <- function(input, output, session) {
         p("Each site ships as a pre-built, compressed bundle. An automated job re-pulls the latest published NEON records and redeploys the app ", tags$b("late on the first Saturday night of each month"), " (around 11 pm Arizona time), an off-peak window chosen so the brief redeploy never interrupts anyone mid-session."),
         p("Want the very newest records right now? Tick ", tags$b("Include provisional"), " in the sidebar for a live fetch of NEON's latest (still-unpublished) data.")),
       div(class = "about-card",
-        h4(bs_icon("calculator"), " The Chonk Index — honest version"),
-        p("It would be tempting to dress this up as a Scaled Mass Index (Peig & Green 2009), but in these desert rodents hind-foot length barely scales with mass (r ≈ 0.15 for kangaroo & pocket mice) and NEON almost never records total body length — so a standardized condition index would just rank measurement noise."),
-        p("Instead, the Chonk score is an honest ", tags$b("adult weight percentile within species"), " — a true statement (\"heavy for its kind\"). The ", tags$b("body-size map"), " on the dossier shows the actual weight × hind-foot cloud, and draws a size–mass fit line ", tags$em("only"), " for species where the relationship is real (n ≥ 15, |r| ≥ 0.3)."),
+        h4(bs_icon("calculator"), " The Chonk Index · honest version"),
+        p("It would be tempting to dress this up as a Scaled Mass Index (Peig & Green 2009), but in these desert rodents hind-foot length barely scales with mass (r ≈ 0.15 for kangaroo & pocket mice) and NEON almost never records total body length, so a standardized condition index would just rank measurement noise."),
+        p("Instead, the Chonk score is an honest ", tags$b("adult weight percentile within species"), ", a true statement (\"heavy for its kind\"). The ", tags$b("body-size map"), " on the dossier shows the actual weight × hind-foot cloud, and draws a size–mass fit line ", tags$em("only"), " for species where the relationship is real (n ≥ 15, |r| ≥ 0.3)."),
         p(class = "caveat", bs_icon("exclamation-triangle"), " Computed on adults only; species with < 4 measured adults show ", tags$b("—"), ".")),
       div(class = "about-card",
         h4(bs_icon("clipboard-data"), " Metrics"),
         tags$ul(
-          tags$li(tags$b("Career span"), " — days between first and last capture (these desert rodents genuinely live 1–3.5 yr, so long careers are real). Only a history that can't be one animal — the same tag at two plots on a single day, or a span beyond any wild lifespan — is flagged ", tags$b("verify tag"), "."),
-          tags$li(tags$b("Roam radius"), " — mean displacement of captures from the trap-grid centroid (a grid-bounded dispersion index, not a true home-range area)."),
-          tags$li(tags$b("Max move"), " — the largest distance between any two captures (MDM)."),
-          tags$li(tags$b("MNKA"), " — Minimum Number Known Alive (Krebs 1966): a transparent abundance ", tags$em("index"), ", shown with captures / 100 trap-nights (CPUE)."),
-          tags$li(tags$b("Species accumulation"), " — richness vs trapping effort (Gotelli & Colwell 2001) with a Chao1 estimate of total richness."),
-          tags$li(tags$b("Rarity"), " — a playful tier from total captures; it tracks trappability & residency, not ecological rarity."))),
+          tags$li(tags$b("Career span"), ": days between first and last capture (these desert rodents genuinely live 1–3.5 yr, so long careers are real). Only a history that can't be one animal, the same tag at two plots on a single day, or a span beyond any wild lifespan, is flagged ", tags$b("verify tag"), "."),
+          tags$li(tags$b("Roam radius"), ": mean displacement of captures from the trap-grid centroid (a grid-bounded dispersion index, not a true home-range area)."),
+          tags$li(tags$b("Max move"), ": the largest distance between any two captures (MDM)."),
+          tags$li(tags$b("MNKA"), ": Minimum Number Known Alive (Krebs 1966): a transparent abundance ", tags$em("index"), ", shown with captures / 100 trap-nights (CPUE)."),
+          tags$li(tags$b("Species accumulation"), ": richness vs trapping effort (Gotelli & Colwell 2001) with a Chao1 estimate of total richness."),
+          tags$li(tags$b("Rarity"), ": a playful tier from total captures; it tracks trappability & residency, not ecological rarity."))),
       div(class = "about-card",
         h4(bs_icon("graph-up-arrow"), " Environmental drivers"),
-        p("On the Population tab you can overlay a co-located NEON product — precipitation, air temperature, or plant flowering / green-up / fruiting — and the app reports which driver this population tracks best: a ", tags$b("deseasonalized Pearson correlation"), " scanned across 0–12-month lags, so the signal is year-to-year anomalies, not a shared summer peak."),
-        p("The ", tags$b("r"), " value runs −1…+1 (strength + direction); it is ", tags$b("not"), " the percentage of the population explained — square it (r²) for that. Driver colours are made to read naturally and colour-blind-safe: warm for a positive temperature link, cool for an inverse one; green vs. brown for vegetation."),
-        p(class = "caveat", bs_icon("exclamation-triangle"), " Correlation, not cause — drivers co-vary, and scanning many lags can flag a match by chance, so read it as a lead to investigate.")),
+        p("On the Population tab you can overlay a co-located NEON product, such as precipitation, air temperature, or plant flowering / green-up / fruiting, and the app reports which driver this population tracks best: a ", tags$b("deseasonalized Pearson correlation"), " scanned across 0–12-month lags, so the signal is year-to-year anomalies, not a shared summer peak."),
+        p("The ", tags$b("r"), " value runs −1…+1 (strength + direction); it is ", tags$b("not"), " the percentage of the population explained. Square it (r²) for that. Driver colours are made to read naturally and colour-blind-safe: warm for a positive temperature link, cool for an inverse one; green vs. brown for vegetation."),
+        p(class = "caveat", bs_icon("exclamation-triangle"), " Correlation, not cause: drivers co-vary, and scanning many lags can flag a match by chance, so read it as a lead to investigate.")),
       div(class = "about-card",
         h4(bs_icon("share-fill"), " Between-grid movement"),
-        p("The Plot map can overlay ", tags$b("recapture connectivity"), " — curved arcs linking trapping grids where the same tagged animals were recaptured, thicker where more individuals made that move. It shows site fidelity vs. inter-grid movement that the per-grid dots can't."),
-        p(class = "caveat", bs_icon("exclamation-triangle"), " Mark-recapture, ", tags$b("not"), " telemetry: an arc means \"caught here, then there,\" not a tracked route — and a long gap between the two captures just means the animal went undetected in between.")),
+        p("The Plot map can overlay ", tags$b("recapture connectivity"), ": curved arcs linking trapping grids where the same tagged animals were recaptured, thicker where more individuals made that move. It shows site fidelity vs. inter-grid movement that the per-grid dots can't."),
+        p(class = "caveat", bs_icon("exclamation-triangle"), " Mark-recapture, ", tags$b("not"), " telemetry: an arc means \"caught here, then there,\" not a tracked route, and a long gap between the two captures just means the animal went undetected in between.")),
       div(class = "about-card",
         h4(bs_icon("download"), " Download the data"),
-        p("Take this site's records as tidy, analysis-ready CSVs — every column documented in the codebook so they're reproducible without guessing."),
+        p("Take this site's records as tidy, analysis-ready CSVs, with every column documented in the codebook so they're reproducible without guessing."),
         div(class = "about-dl",
           downloadButton("dlCapturesCsv", tagList(bs_icon("table"), " Site capture table (CSV)"),
                          class = "smt-clear-btn"),
@@ -2891,10 +2891,10 @@ server <- function(input, output, session) {
                          class = "smt-clear-btn")),
         p(class = "caveat", style = "margin-top:10px", bs_icon("info-circle"),
           " A blank measurement (weight ~23%, hind foot ~28% of rows) is an ", tags$b("unmeasured recapture or empty-trap row"),
-          ", not an error — recaptures are often not re-weighed. The codebook states each column's units and this NA convention.")),
+          ", not an error; recaptures are often not re-weighed. The codebook states each column's units and this NA convention.")),
       div(class = "about-card",
         h4(bs_icon("exclamation-diamond"), " Caveats"),
-        p("NEON keeps a tag on one animal for life and doesn't recycle tag numbers (a number is unique within a site), so a multi-year capture career is a real long-lived individual, not a tag mix-up — we flag only the rare history that can't be one animal (e.g. the same tag at two plots on a single day). A trap that caught nothing means \"not detected,\" not \"absent.\" This is a data-exploration toy, not an authoritative population analysis — but the metrics are built to be defensible."),
+        p("NEON keeps a tag on one animal for life and doesn't recycle tag numbers (a number is unique within a site), so a multi-year capture career is a real long-lived individual, not a tag mix-up; we flag only the rare history that can't be one animal (e.g. the same tag at two plots on a single day). A trap that caught nothing means \"not detected,\" not \"absent.\" This is a data-exploration toy, not an authoritative population analysis, but the metrics are built to be defensible."),
         p("Reviewed for scientific soundness with input from a wildlife-monitoring methods audit (Peig & Green 2009; Krebs 1966; Gotelli & Colwell 2001; NEON DP1.10072.001 User Guide)."),
         p(bs_icon("envelope"), " ", tags$a(href = "mailto:tsgilbert@arizona.edu", "tsgilbert@arizona.edu"),
           " · ", tags$a(href = "https://data.neonscience.org/data-products/DP1.10072.001",

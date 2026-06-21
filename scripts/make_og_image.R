@@ -44,7 +44,7 @@ text(68, 396, "Tracker",            col = "white", cex = 3.5, font = 2, adj = 0)
 paw(470, 398, 16, grDevices::adjustcolor(gold, .92))
 
 # subtitle
-text(70, 322, "Tap a site on the national map and explore who lives where — home",
+text(70, 322, "Tap a site on the national map and explore who lives where: home",
      col = grDevices::adjustcolor("white", .92), cex = 1.12, adj = 0)
 text(70, 292, "ranges, diversity, and detection-corrected abundance, on real NEON data.",
      col = grDevices::adjustcolor("white", .92), cex = 1.12, adj = 0)
