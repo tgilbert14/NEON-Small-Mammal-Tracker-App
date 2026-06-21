@@ -51,7 +51,7 @@ text(70, 292, "ranges, diversity, and detection-corrected abundance, on real NEO
 
 # stat chips
 chips <- list(c("46", "field sites"), c("~178k", "captures"),
-              c("145", "species"), c("instant", "no API waits"))
+              c("145", "species"), c("real", "public data"))
 x0 <- 70; gap <- 14; w <- 250; h <- 96; y1 <- 64
 chipfill <- grDevices::adjustcolor("white", .10)
 for (i in seq_along(chips)) {

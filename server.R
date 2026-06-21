@@ -2854,7 +2854,7 @@ server <- function(input, output, session) {
           tags$code("DP1.10072.001"), ". Pick a site and date window and the app pulls every published capture, then reconstructs each individual's ", tags$b("capture career"), " from its ear-tag ID.")),
       div(class = "about-card",
         h4(bs_icon("arrow-repeat"), " How fresh is the data?"),
-        p("Each site ships as a pre-built, compressed bundle, so it loads instantly. An automated job re-pulls the latest published NEON records and redeploys the app ", tags$b("late on the first Saturday night of each month"), " (~11 pm Arizona time) — an off-peak window chosen so the brief redeploy never interrupts anyone mid-session."),
+        p("Each site ships as a pre-built, compressed bundle. An automated job re-pulls the latest published NEON records and redeploys the app ", tags$b("late on the first Saturday night of each month"), " (around 11 pm Arizona time), an off-peak window chosen so the brief redeploy never interrupts anyone mid-session."),
         p("Want the very newest records right now? Tick ", tags$b("Include provisional"), " in the sidebar for a live fetch of NEON's latest (still-unpublished) data.")),
       div(class = "about-card",
         h4(bs_icon("calculator"), " The Chonk Index — honest version"),

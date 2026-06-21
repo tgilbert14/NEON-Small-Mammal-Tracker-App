@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>NEON Small Mammal Tracker · the Explorer Suite by Desert Data Labs</title>
   <meta name="description"
-    content="Explore the mice, voles, kangaroo rats, and shrews caught and ear-tagged at research sites across the country. See which animals live where, how common they are, how big they get, and how their numbers change over time. Free, no account, pick a site and start." />
+    content="Explore the mice, voles, kangaroo rats, and shrews caught and ear-tagged at research sites across the country. See which animals live where, how common they are, how big they get, and how their numbers change over time." />
   <meta name="theme-color" content="#070d1f" />
 
   <!-- Open Graph / social card. Absolute URLs = the GitHub Pages domain for this repo. -->
@@ -14,13 +14,13 @@
   <meta property="og:url" content="https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/" />
   <meta property="og:title" content="NEON Small Mammal Tracker · Desert Data Labs" />
   <meta property="og:description"
-    content="Explore the small mammals caught and ear-tagged at research sites across the country. See which animals live where, how common they are, and how their numbers change over time. Free, pick a site and start." />
+    content="Explore the small mammals caught and ear-tagged at research sites across the country. See which animals live where, how common they are, and how their numbers change over time." />
   <meta property="og:image"
     content="https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/og-image.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="NEON Small Mammal Tracker · Desert Data Labs" />
   <meta name="twitter:description"
-    content="Explore real small-mammal data from research sites across the country. Free, pick a site and start." />
+    content="Explore real small-mammal data from research sites across the country." />
   <meta name="twitter:image"
     content="https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/og-image.png" />
 
@@ -347,8 +347,7 @@
         National Ecological Observatory Network, is a set of sites funded by the National Science
         Foundation that measure plants, animals, and climate the same way everywhere, year after year.
         This app rebuilds the trapping records so you can see which animals live where, how common they
-        are, how big they get, and how their numbers rise and fall over time. It is free, needs no
-        account, and you just <b>pick a site and start</b>.</p>
+        are, how big they get, and how their numbers rise and fall over time.</p>
 
       <div class="cta-row">
         <a id="launch" class="launch" href="https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/">
@@ -403,13 +402,13 @@
         <div class="stat"><div class="n">46</div><div class="l">research sites</div></div>
         <div class="stat"><div class="n">~178k</div><div class="l">real captures</div></div>
         <div class="stat"><div class="n">145</div><div class="l">species</div></div>
-        <div class="stat"><div class="n">instant</div><div class="l">loads right away</div></div>
+        <div class="stat"><div class="n">every year</div><div class="l">same way, same spots</div></div>
       </div>
 
       <details class="more">
         <summary>How it stays honest</summary>
         <div class="mbody">
-          Every site loads from a saved copy of the data, so it opens right away, and every view shows
+          Every site loads from a saved copy of the data, and every view shows
           the method behind the number. <b>How many animals are out there</b> starts as the count
           actually caught and ear-tagged (the minimum we know were alive). When animals are recaptured
           often enough, the app also estimates how many were probably missed by the traps, and it never
@@ -418,7 +417,7 @@
           unusual or mistyped records, not to judge an animal's fitness. Because each animal keeps one
           tag for life, an animal seen across several years is treated as the real long-lived animal it
           is. The app flags only records that cannot be true, like one tag showing up in two places on
-          the same day. <b>This is a free educational tool for exploring data. It is not affiliated with
+          the same day. <b>This is an educational tool for exploring data. It is not affiliated with
           NEON, Battelle, or the NSF.</b>
         </div>
       </details>
@@ -427,7 +426,7 @@
 
   <footer>
     <div class="wrap">
-      <a class="cta-foot" href="mailto:desertdatalabs@gmail.com?subject=NEON%20Small%20Mammal%20Tracker">Want a custom data app like these for your project?</a><br>
+      <a class="cta-foot" href="mailto:desertdatalabs@gmail.com?subject=NEON%20Small%20Mammal%20Tracker">Get in touch with Desert Data Labs →</a><br>
       Built on the NEON <a href="https://data.neonscience.org/data-products/DP1.10072.001" target="_blank" rel="noopener">Small Mammal Box Trapping</a>
       product by <b>Desert Data Labs</b> &middot; Tucson, AZ. Data: National Ecological Observatory Network
       (operated by Battelle, funded by NSF). An educational tool, not affiliated with NEON, Battelle, or the NSF.
@@ -446,7 +445,7 @@
         var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
         var killer = ctrl ? setTimeout(function () { ctrl.abort(); }, 8000) : null;
         fetch(APP_URL, { mode: "no-cors", cache: "no-store", signal: ctrl ? ctrl.signal : undefined })
-          .then(function () { if (warm) warm.textContent = "Ready when you are."; })
+          .then(function () { if (warm) warm.textContent = "The app is ready."; })
           .catch(function () { if (warm) warm.textContent = ""; })
           .finally(function () { if (killer) clearTimeout(killer); });
       } catch (e) {}

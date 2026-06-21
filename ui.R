@@ -80,11 +80,11 @@ ui <- bslib::page_sidebar(
 
     actionButton("loadBtn", tagList(bs_icon("globe-americas"), " Load this site"),
                  class = "btn-primary btn-lg w-100 load-btn", onclick = "smtLoadStart()"),
-    actionButton("demoBtn", tagList(bs_icon("stars"), " or explore the Jornada demo (instant)"),
+    actionButton("demoBtn", tagList(bs_icon("stars"), " or explore the Jornada demo"),
                  class = "btn-link btn-sm w-100 reset-demo",
                  onclick = "smtLoadStart('Jornada — demo dataset')"),
     div(class = "demo-hint", bs_icon("info-circle"),
-        " Real NEON data downloads live (≈ a minute). The demo opens instantly."),
+        " Real NEON data downloads live (≈ a minute). The demo is already bundled, so it opens without a download."),
 
     hidden(div(id = "indivPickerWrap",
       hr(class = "deck-hr"),
@@ -155,7 +155,7 @@ ui <- bslib::page_sidebar(
           p(class = "app-subtitle",
             "Meet the small mammals NEON catches across the country — what lives where, who the regulars are, and what eight years of capture records reveal.")),
         p("Pick a ", tags$b("state"), " then a ", tags$b("site"), " in the sidebar, or jump into the demo."),
-        actionButton("demoBtn2", tagList(bs_icon("stars"), " Explore the Jornada demo instantly"),
+        actionButton("demoBtn2", tagList(bs_icon("stars"), " Explore the Jornada demo"),
                      class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada — demo dataset')"))
     } else {
       g_order <- vapply(GENUS_GROUPS, function(g) g$key, character(1))
@@ -615,9 +615,9 @@ ui <- bslib::page_sidebar(
   div(class = "ddl-footer",
     div(tags$a(class = "custom-cta",
       href = "mailto:desertdatalabs@gmail.com?subject=NEON%20Small%20Mammal%20Tracker",
-      span(class = "hand", "\U0001F44B"), "Want a custom data app like this for your project?")),
+      span(class = "hand", "\U0001F44B"), "Questions or feedback? Email Desert Data Labs.")),
     p(style = "margin-top:12px",
-      HTML("Built by <strong>Desert Data Labs</strong> · Tucson, AZ · feedback, bug reports, or custom dashboards & analytics → "),
+      HTML("Built by <strong>Desert Data Labs</strong> · Tucson, AZ · feedback or bug reports → "),
       tags$a(href = "mailto:desertdatalabs@gmail.com?subject=NEON%20Small%20Mammal%20Tracker", "desertdatalabs@gmail.com")),
     p(style = "font-size:12px;opacity:.85",
       "Data: NEON Small Mammal Box Trapping (DP1.10072.001). Not affiliated with NEON, Battelle, or the NSF. An educational data-exploration tool.")
