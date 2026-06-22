@@ -173,17 +173,22 @@
     .frung + .frung { margin-top:10px }
     .frung::before { content:""; position:absolute; inset:0; pointer-events:none; opacity:.0;
       background:linear-gradient(100deg, transparent, rgba(var(--lrgb),.16), transparent); }
-    .frung.pip-on::before { animation: pip 2.4s ease-in-out; }     /* energy pulse sweeps each rung in turn */
+    .frung.pip-on::before { animation: pip 3.2s ease-in-out; }     /* energy pulse sweeps each rung in turn (slowed) */
     @keyframes pip { 0%{opacity:0; transform:translateX(-30%)} 40%{opacity:1} 100%{opacity:0; transform:translateX(30%)} }
     .frung .fmark { width:34px; height:34px; flex:0 0 auto; border-radius:9px; position:relative;
       background:rgba(var(--lrgb),.16); border:1px solid rgba(var(--lrgb),.5) }
     .frung .fmark::after { content:""; position:absolute; inset:0; margin:auto; width:12px; height:12px; border-radius:50%;
       background:var(--lc); box-shadow:0 0 12px var(--lc) }
     .frung .ftxt b { font-weight:800; font-size:1rem } .frung .ftxt span { color:var(--dim); font-size:.86rem }
-    .frung.r1 { --lc:var(--clim); --lrgb:56,168,232 }
-    .frung.r2 { --lc:var(--phen); --lrgb:95,190,240; margin-left:14px }
-    .frung.r3 { --lc:var(--prod); --lrgb:155,200,224; margin-left:28px }
-    .frung.r4 { --lc:var(--cons); --lrgb:255,210,74; margin-left:42px }
+    .frung.r1 { --lc:#38a8e8; --lrgb:56,168,232 }
+    .frung.r2 { --lc:#5cc6f5; --lrgb:92,198,245 }
+    .frung.r3 { --lc:#7cc8f5; --lrgb:124,200,245 }
+    .frung.r4 { --lc:#ffd24a; --lrgb:255,210,74 }
+    .frung.r5 { --lc:#fb8a7e; --lrgb:251,138,126 }
+    .frung.r6 { --lc:#5cc6f5; --lrgb:92,198,245 }
+    .frung.r7 { --lc:#ffd24a; --lrgb:255,210,74 }
+    .cascade-band .hl-head { margin-top:30px }
+    .lead a { color:var(--bright); text-decoration:underline; text-underline-offset:2px; text-decoration-thickness:1px }
     .farrow { color:rgba(255,255,255,.32); text-align:center; margin:2px 0 2px 17px; font-size:1.05rem }
 
     /* ---------- stats + about ---------- */
@@ -342,12 +347,9 @@
 
       <div class="eyebrow">The NEON Explorer Suite · Small Mammals</div>
       <h1>NEON Small Mammal Tracker</h1>
-      <p class="lead">Meet the mice, voles, kangaroo rats, shrews, and other small mammals that
-        field crews catch, ear-tag, and release at research sites across the country. <b>NEON</b>, the
-        National Ecological Observatory Network, is a set of sites funded by the National Science
-        Foundation that measure plants, animals, and climate the same way everywhere, year after year.
-        This app rebuilds the trapping records so you can see which animals live where, how common they
-        are, how big they get, and how their numbers rise and fall over time.</p>
+      <p class="lead">A Shiny web app for exploring the <a href="https://www.neonscience.org/" target="_blank" rel="noopener">National Ecological Observatory Network</a>'s small-mammal
+      box-trapping data. It reconstructs each captured animal's history from its ear-tag and turns 46 field
+      sites of capture records into maps, charts, and individual profiles.</p>
 
       <div class="cta-row">
         <a id="launch" class="launch" href="https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/">
@@ -383,19 +385,19 @@
   <!-- the read-flow itself: trap -> identify -> measure -> track -->
   <section class="cascade-band">
     <div class="wrap">
-      <span class="kick">What this shows you</span>
-      <h2>Every number starts with one animal in hand.</h2>
-      <p>The app does not hand you a finished chart and ask you to trust it. Each count is built up
-        from real captures, one animal at a time, and you can follow the work at every step. Here is how
-        a night of trapping becomes the numbers you explore.</p>
+      <span class="kick">What it does</span>
+      <p>The app opens to a national map of every NEON site. Tap a dot to dive in (dot size = animals caught there, color = the dominant mammal family), or flip to "by species" to map where a single animal turns up across the country. Each site loads instantly from a per-site data bundle that ships with the app (no network round-trip). From there it reconstructs each animal's capture history from its ear-tag ID, ranks the regulars, profiles individuals, estimates abundance, and maps where they were caught. A sidebar with the classic state &rarr; site &rarr; date picker is still there for power users.</p>
+      <p>It is built for two audiences: anyone curious about NEON small-mammal sampling, and new field technicians getting to know the species at their site.</p>
+
+      <h2 class="hl-head">Highlights</h2>
       <div class="flow" data-flow>
-        <div class="frung r1"><span class="fmark"></span><span class="ftxt"><b>Trap</b> &middot; <span>crews set baited live-traps (small boxes that hold the animal safely) on a grid, night after night</span></span></div>
-        <div class="farrow" aria-hidden="true">&darr;</div>
-        <div class="frung r2"><span class="fmark"></span><span class="ftxt"><b>Identify</b> &middot; <span>each animal gets a species name and a tiny ear-tag it keeps for life, so the same one is recognized if it comes back</span></span></div>
-        <div class="farrow" aria-hidden="true">&darr;</div>
-        <div class="frung r3"><span class="fmark"></span><span class="ftxt"><b>Measure</b> &middot; <span>weight, back-foot length, sex, and age are recorded, then the animal is let go</span></span></div>
-        <div class="farrow" aria-hidden="true">&darr;</div>
-        <div class="frung r4"><span class="fmark"></span><span class="ftxt"><b>Track</b> &middot; <span>those records add up to how many animals are out there and how that changes by season and year</span></span></div>
+        <div class="frung r1"><span class="fmark"></span><span class="ftxt"><b>Select-your-site map</b> &middot; <span>A national Leaflet map of all 46 bundled sites, sized by total captures and colored by the most-caught mammal family, with a "by site / by species" toggle, an accessible list fallback, and a one-tap load. A 30-second guided tour points out the rest.</span></span></div>
+        <div class="frung r2"><span class="fmark"></span><span class="ftxt"><b>Explore by species</b> &middot; <span>Pick any of 145 species and the map redraws to just the sites where it's caught, sized by local abundance: a live national range map.</span></span></div>
+        <div class="frung r3"><span class="fmark"></span><span class="ftxt"><b>Detection-corrected abundance</b> &middot; <span>Closed-capture estimates per trapping bout (Schnabel for &ge;3 nights, Chapman for 2) with a per-night detection probability, shown alongside MNKA, gated when recaptures are too few, and clamped to the minimum known alive. Defensible, with caveats shown.</span></span></div>
+        <div class="frung r4"><span class="fmark"></span><span class="ftxt"><b>Diversity profile</b> &middot; <span>Hill numbers (q0 richness, q1 effective-common, q2 effective-dominant) plus an evenness read, computed over distinct individuals.</span></span></div>
+        <div class="frung r5"><span class="fmark"></span><span class="ftxt"><b>Shareable trading cards, compare, and report cards</b> &middot; <span>Export any individual's dossier as a holographic PNG trading card, put two sites head-to-head, or print a one-page site report card to PDF.</span></span></div>
+        <div class="frung r6"><span class="fmark"></span><span class="ftxt"><b>Overview: the story of a site</b> &middot; <span>Species ranked by abundance, an automatically written plain-English summary, and quick-jump navigation to every view.</span></span></div>
+        <div class="frung r7"><span class="fmark"></span><span class="ftxt"><b>Hall of Fame: rank every individual</b> &middot; <span>A top-3 podium over a leaderboard of every animal, re-sortable by captures, weight, career length, roaming, or weight-for-its-species, with rarity tiers and a Legendary shimmer. Each dossier opens with a computed one-line "story" (the animal's standout stat ranked against its peers, like "the most-caught individual at this site") and count-up stats.</span></span></div>
       </div>
 
       <div class="stats">
@@ -512,7 +514,7 @@
         // force reflow so the animation restarts each cycle
         void el.offsetWidth; el.classList.add("pip-on");
         i++;
-      }, 900);
+      }, 1800);
     })();
   </script>
   <script>
