@@ -104,7 +104,7 @@ ui <- bslib::page_sidebar(
                  class = "btn-outline-dark btn-sm w-100"),
     div(class = "theme-toggle-row",
       tags$span(class = "theme-toggle-lab", bs_icon("circle-half"), " Theme"),
-      input_dark_mode(id = "colorMode", mode = "light")),
+      input_dark_mode(id = "colorMode", mode = "dark")),
     div(class = "deck-foot",
       bs_icon("database"), " NEON ", tags$code("DP1.10072.001"),
       br(), tags$a(href = "https://github.com/tgilbert14/NEON-Small-Mammal-Tracker-App",

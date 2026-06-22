@@ -135,110 +135,6 @@
         "Archs": "x64"
       }
     },
-    "PKI": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "PKI",
-        "Version": "0.1-15",
-        "Title": "Public Key Infrastucture for R Based on the X.509 Standard",
-        "Authors@R": "person(\"Simon\", \"Urbanek\", role=c(\"aut\",\"cre\",\"cph\"), email=\"Simon.Urbanek@r-project.org\", comment=c(\"https://urbanek.nz\", ORCID=\"0000-0003-2297-1732\"))",
-        "Maintainer": "Simon Urbanek <Simon.Urbanek@r-project.org>",
-        "Depends": "R (>= 2.9.0), base64enc",
-        "Enhances": "gmp",
-        "Description": "Public Key Infrastucture functions such as verifying certificates, RSA encription and signing which can be used to build PKI infrastructure and perform cryptographic tasks.",
-        "License": "GPL-2 | GPL-3 | file LICENSE",
-        "URL": "http://www.rforge.net/PKI",
-        "SystemRequirements": "OpenSSL library and headers (openssl-dev or\nsimilar)",
-        "NeedsCompilation": "yes",
-        "Packaged": "2025-08-19 06:20:08 UTC; rforge",
-        "Author": "Simon Urbanek [aut, cre, cph] (https://urbanek.nz, ORCID:\n    <https://orcid.org/0000-0003-2297-1732>)",
-        "Repository": "CRAN",
-        "Date/Publication": "2025-08-19 08:30:19 UTC",
-        "Built": "R 4.5.2; x86_64-w64-mingw32; 2025-11-01 00:53:05 UTC; windows",
-        "Archs": "x64",
-        "RemoteType": "standard",
-        "RemotePkgRef": "PKI",
-        "RemoteRef": "PKI",
-        "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "0.1-15"
-      }
-    },
-    "R.methodsS3": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "R.methodsS3",
-        "Version": "1.8.2",
-        "Depends": "R (>= 2.13.0)",
-        "Imports": "utils",
-        "Suggests": "codetools",
-        "Title": "S3 Methods Simplified",
-        "Authors@R": "c(person(\"Henrik\", \"Bengtsson\", role=c(\"aut\", \"cre\", \"cph\"),\n                                          email = \"henrikb@braju.com\"))",
-        "Author": "Henrik Bengtsson [aut, cre, cph]",
-        "Maintainer": "Henrik Bengtsson <henrikb@braju.com>",
-        "Description": "Methods that simplify the setup of S3 generic functions and S3 methods.  Major effort has been made in making definition of methods as simple as possible with a minimum of maintenance for package developers.  For example, generic functions are created automatically, if missing, and naming conflict are automatically solved, if possible.  The method setMethodS3() is a good start for those who in the future may want to migrate to S4.  This is a cross-platform package implemented in pure R that generates standard S3 methods.",
-        "License": "LGPL (>= 2.1)",
-        "LazyLoad": "TRUE",
-        "URL": "https://github.com/HenrikBengtsson/R.methodsS3",
-        "BugReports": "https://github.com/HenrikBengtsson/R.methodsS3/issues",
-        "NeedsCompilation": "no",
-        "Packaged": "2022-06-13 18:23:35 UTC; hb",
-        "Repository": "CRAN",
-        "Date/Publication": "2022-06-13 22:00:14 UTC",
-        "Built": "R 4.5.2; ; 2025-11-01 00:31:23 UTC; windows"
-      }
-    },
-    "R.oo": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "R.oo",
-        "Version": "1.27.1",
-        "Depends": "R (>= 2.13.0), R.methodsS3 (>= 1.8.2)",
-        "Imports": "methods, utils",
-        "Suggests": "tools",
-        "Title": "R Object-Oriented Programming with or without References",
-        "Authors@R": "c(person(\"Henrik\", \"Bengtsson\", role=c(\"aut\", \"cre\", \"cph\"),\n                                          email = \"henrikb@braju.com\"))",
-        "Author": "Henrik Bengtsson [aut, cre, cph]",
-        "Maintainer": "Henrik Bengtsson <henrikb@braju.com>",
-        "Description": "Methods and classes for object-oriented programming in R with or without references.  Large effort has been made on making definition of methods as simple as possible with a minimum of maintenance for package developers.  The package has been developed since 2001 and is now considered very stable.  This is a cross-platform package implemented in pure R that defines standard S3 classes without any tricks.",
-        "License": "LGPL (>= 2.1)",
-        "LazyLoad": "TRUE",
-        "URL": "https://henrikbengtsson.github.io/R.oo/,\nhttps://github.com/HenrikBengtsson/R.oo",
-        "BugReports": "https://github.com/HenrikBengtsson/R.oo/issues",
-        "NeedsCompilation": "no",
-        "Packaged": "2025-05-02 20:29:15 UTC; henrik",
-        "Repository": "CRAN",
-        "Date/Publication": "2025-05-02 21:00:05 UTC",
-        "Built": "R 4.5.2; ; 2025-11-01 01:45:51 UTC; windows"
-      }
-    },
-    "R.utils": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "R.utils",
-        "Version": "2.13.0",
-        "Depends": "R (>= 2.14.0), R.oo",
-        "Imports": "methods, utils, tools, R.methodsS3",
-        "Suggests": "datasets, digest (>= 0.6.10)",
-        "Title": "Various Programming Utilities",
-        "Authors@R": "c(person(\"Henrik\", \"Bengtsson\", role=c(\"aut\", \"cre\", \"cph\"),\n                                          email = \"henrikb@braju.com\"))",
-        "Author": "Henrik Bengtsson [aut, cre, cph]",
-        "Maintainer": "Henrik Bengtsson <henrikb@braju.com>",
-        "Description": "Utility functions useful when programming and developing R packages.",
-        "License": "LGPL (>= 2.1)",
-        "LazyLoad": "TRUE",
-        "URL": "https://henrikbengtsson.github.io/R.utils/,\nhttps://github.com/HenrikBengtsson/R.utils",
-        "BugReports": "https://github.com/HenrikBengtsson/R.utils/issues",
-        "NeedsCompilation": "no",
-        "Packaged": "2025-02-24 19:44:20 UTC; henrik",
-        "Repository": "CRAN",
-        "Date/Publication": "2025-02-24 21:20:02 UTC",
-        "Built": "R 4.5.3; ; 2026-03-22 02:03:57 UTC; windows"
-      }
-    },
     "R6": {
       "Source": "CRAN",
       "Repository": "https://cloud.r-project.org",
@@ -332,40 +228,6 @@
         "RemoteSha": "1.1.1"
       }
     },
-    "RcppTOML": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "RcppTOML",
-        "Type": "Package",
-        "Title": "'Rcpp' Bindings to Parser for \"Tom's Obvious Markup Language\"",
-        "Version": "0.2.3",
-        "Date": "2025-03-08",
-        "Authors@R": "c(person(\"Dirk\", \"Eddelbuettel\", role = c(\"aut\", \"cre\"), email = \"edd@debian.org\",\n                    comment = c(ORCID = \"0000-0001-6419-907X\")),\n             person(\"Mark\", \"Gillard\", role = \"aut\",\n                    comment = \"Author of 'toml++' header library\"))",
-        "Description": "The configuration format defined by 'TOML' (which expands to\n \"Tom's Obvious Markup Language\") specifies an excellent format\n (described at <https://toml.io/en/>) suitable for both human editing\n as well as the common uses of a machine-readable format. This package\n uses 'Rcpp' to connect to the 'toml++' parser written by Mark Gillard\n to R.",
-        "SystemRequirements": "A C++17 compiler",
-        "BugReports": "https://github.com/eddelbuettel/rcpptoml/issues",
-        "URL": "http://dirk.eddelbuettel.com/code/rcpp.toml.html",
-        "Imports": "Rcpp (>= 1.0.8)",
-        "Depends": "R (>= 3.3.0)",
-        "LinkingTo": "Rcpp",
-        "Suggests": "tinytest",
-        "License": "GPL (>= 2)",
-        "NeedsCompilation": "yes",
-        "Packaged": "2025-03-08 13:54:57 UTC; edd",
-        "Author": "Dirk Eddelbuettel [aut, cre] (<https://orcid.org/0000-0001-6419-907X>),\n  Mark Gillard [aut] (Author of 'toml++' header library)",
-        "Maintainer": "Dirk Eddelbuettel <edd@debian.org>",
-        "Repository": "CRAN",
-        "Date/Publication": "2025-03-08 14:30:06 UTC",
-        "Built": "R 4.5.2; x86_64-w64-mingw32; 2026-02-18 01:43:35 UTC; windows",
-        "Archs": "x64",
-        "RemoteType": "standard",
-        "RemotePkgRef": "RcppTOML",
-        "RemoteRef": "RcppTOML",
-        "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "0.2.3"
-      }
-    },
     "S7": {
       "Source": "CRAN",
       "Repository": "https://cloud.r-project.org",
@@ -404,45 +266,6 @@
         "RemoteSha": "0.2.1"
       }
     },
-    "arrow": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "arrow",
-        "Title": "Integration to 'Apache' 'Arrow'",
-        "Version": "24.0.0",
-        "Authors@R": "c(\n    person(\"Neal\", \"Richardson\", email = \"neal.p.richardson@gmail.com\", role = c(\"aut\")),\n    person(\"Ian\", \"Cook\", email = \"ianmcook@gmail.com\", role = c(\"aut\")),\n    person(\"Nic\", \"Crane\", email = \"thisisnic@gmail.com\", role = c(\"aut\")),\n    person(\"Dewey\", \"Dunnington\", role = c(\"aut\"), email = \"dewey@fishandwhistle.net\", comment = c(ORCID = \"0000-0002-9415-4582\")),\n    person(\"Romain\", \"Fran\\u00e7ois\", role = c(\"aut\"), comment = c(ORCID = \"0000-0002-2444-4226\")),\n    person(\"Jonathan\", \"Keane\", email = \"jkeane@gmail.com\", role = c(\"aut\", \"cre\")),\n    person(\"Bryce\", \"Mecum\", email = \"brycemecum@gmail.com\", role = c(\"aut\")),\n    person(\"Drago\\u0219\", \"Moldovan-Gr\\u00fcnfeld\", email = \"dragos.mold@gmail.com\", role = c(\"aut\")),\n    person(\"Jeroen\", \"Ooms\", email = \"jeroen@berkeley.edu\", role = c(\"aut\")),\n    person(\"Jacob\", \"Wujciak-Jens\", email = \"jacob@wujciak.de\", role = c(\"aut\")),\n    person(\"Javier\", \"Luraschi\", email = \"javier@rstudio.com\", role = c(\"ctb\")),\n    person(\"Karl\", \"Dunkle Werner\", email = \"karldw@users.noreply.github.com\", role = c(\"ctb\"), comment = c(ORCID = \"0000-0003-0523-7309\")),\n    person(\"Jeffrey\", \"Wong\", email = \"jeffreyw@netflix.com\", role = c(\"ctb\")),\n    person(\"Apache Arrow\", email = \"dev@arrow.apache.org\", role = c(\"aut\", \"cph\"))\n  )",
-        "Description": "'Apache' 'Arrow' <https://arrow.apache.org/> is a cross-language\n    development platform for in-memory data. It specifies a standardized\n    language-independent columnar memory format for flat and hierarchical data,\n    organized for efficient analytic operations on modern hardware. This\n    package provides an interface to the 'Arrow C++' library.",
-        "Depends": "R (>= 4.1)",
-        "License": "Apache License (>= 2.0)",
-        "URL": "https://github.com/apache/arrow/, https://arrow.apache.org/docs/r/",
-        "BugReports": "https://github.com/apache/arrow/issues",
-        "Encoding": "UTF-8",
-        "Language": "en-US",
-        "SystemRequirements": "C++20; for AWS S3 support on Linux, libcurl and\nopenssl (optional); cmake >= 3.26 (build-time only, and only\nfor full source build)",
-        "Biarch": "true",
-        "Imports": "assertthat, bit64 (>= 0.9-7), glue, methods, purrr, R6, rlang\n(>= 1.0.0), stats, tidyselect (>= 1.0.0), utils, vctrs",
-        "RoxygenNote": "7.3.3",
-        "Config/testthat/edition": "3",
-        "Config/build/bootstrap": "TRUE",
-        "Suggests": "blob, curl, cli, DBI, dbplyr, decor, distro, dplyr, duckdb\n(>= 0.2.8), hms, jsonlite, knitr, lubridate, pillar, pkgload,\nreticulate, rmarkdown, stringi, stringr, sys, testthat (>=\n3.3.0), tibble, tzdb, withr",
-        "LinkingTo": "cpp11 (>= 0.4.2)",
-        "Collate": "'arrowExports.R' 'enums.R' 'arrow-object.R' 'type.R'\n'array-data.R' 'arrow-datum.R' 'array.R' 'arrow-info.R'\n'arrow-package.R' 'arrow-tabular.R' 'buffer.R'\n'chunked-array.R' 'io.R' 'compression.R' 'scalar.R' 'compute.R'\n'config.R' 'csv.R' 'dataset.R' 'dataset-factory.R'\n'dataset-format.R' 'dataset-partition.R' 'dataset-scan.R'\n'dataset-write.R' 'dictionary.R' 'dplyr-across.R'\n'dplyr-arrange.R' 'dplyr-by.R' 'dplyr-collect.R'\n'dplyr-count.R' 'dplyr-datetime-helpers.R' 'dplyr-distinct.R'\n'dplyr-eval.R' 'dplyr-filter.R' 'dplyr-funcs-agg.R'\n'dplyr-funcs-augmented.R' 'dplyr-funcs-conditional.R'\n'dplyr-funcs-datetime.R' 'dplyr-funcs-doc.R'\n'dplyr-funcs-math.R' 'dplyr-funcs-simple.R'\n'dplyr-funcs-string.R' 'dplyr-funcs-type.R' 'expression.R'\n'dplyr-funcs.R' 'dplyr-glimpse.R' 'dplyr-group-by.R'\n'dplyr-join.R' 'dplyr-mutate.R' 'dplyr-select.R'\n'dplyr-slice.R' 'dplyr-summarize.R' 'dplyr-union.R'\n'record-batch.R' 'table.R' 'dplyr.R' 'duckdb.R' 'extension.R'\n'feather.R' 'field.R' 'filesystem.R' 'flight.R'\n'install-arrow.R' 'ipc-stream.R' 'json.R' 'memory-pool.R'\n'message.R' 'metadata.R' 'parquet.R' 'python.R'\n'query-engine.R' 'record-batch-reader.R'\n'record-batch-writer.R' 'reexports-bit64.R'\n'reexports-tidyselect.R' 'schema.R' 'udf.R' 'util.R'",
-        "NeedsCompilation": "yes",
-        "Packaged": "2026-04-27 03:37:21 UTC; bryce",
-        "Author": "Neal Richardson [aut],\n  Ian Cook [aut],\n  Nic Crane [aut],\n  Dewey Dunnington [aut] (ORCID: <https://orcid.org/0000-0002-9415-4582>),\n  Romain François [aut] (ORCID: <https://orcid.org/0000-0002-2444-4226>),\n  Jonathan Keane [aut, cre],\n  Bryce Mecum [aut],\n  Dragoș Moldovan-Grünfeld [aut],\n  Jeroen Ooms [aut],\n  Jacob Wujciak-Jens [aut],\n  Javier Luraschi [ctb],\n  Karl Dunkle Werner [ctb] (ORCID:\n    <https://orcid.org/0000-0003-0523-7309>),\n  Jeffrey Wong [ctb],\n  Apache Arrow [aut, cph]",
-        "Maintainer": "Jonathan Keane <jkeane@gmail.com>",
-        "Repository": "CRAN",
-        "Date/Publication": "2026-04-29 13:00:15 UTC",
-        "Built": "R 4.5.3; x86_64-w64-mingw32; 2026-05-11 22:51:47 UTC; windows",
-        "Archs": "x64",
-        "RemoteType": "standard",
-        "RemotePkgRef": "arrow",
-        "RemoteRef": "arrow",
-        "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "24.0.0"
-      }
-    },
     "askpass": {
       "Source": "CRAN",
       "Repository": "https://cloud.r-project.org",
@@ -476,34 +299,6 @@
         "RemoteSha": "1.2.1"
       }
     },
-    "assertthat": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "assertthat",
-        "Title": "Easy Pre and Post Assertions",
-        "Version": "0.2.1",
-        "Authors@R": "\n  person(\"Hadley\", \"Wickham\", , \"hadley@rstudio.com\", c(\"aut\", \"cre\"))",
-        "Description": "An extension to stopifnot() that makes it easy to declare \n    the pre and post conditions that you code should satisfy, while also \n    producing friendly error messages so that your users know what's gone\n    wrong.",
-        "License": "GPL-3",
-        "Imports": "tools",
-        "Suggests": "testthat, covr",
-        "RoxygenNote": "6.0.1",
-        "Collate": "'assert-that.r' 'on-failure.r' 'assertions-file.r'\n'assertions-scalar.R' 'assertions.r' 'base.r'\n'base-comparison.r' 'base-is.r' 'base-logical.r' 'base-misc.r'\n'utils.r' 'validate-that.R'",
-        "NeedsCompilation": "no",
-        "Packaged": "2019-03-21 13:11:01 UTC; hadley",
-        "Author": "Hadley Wickham [aut, cre]",
-        "Maintainer": "Hadley Wickham <hadley@rstudio.com>",
-        "Repository": "CRAN",
-        "Date/Publication": "2019-03-21 14:53:46 UTC",
-        "Built": "R 4.5.2; ; 2026-03-06 11:04:03 UTC; windows",
-        "RemoteType": "standard",
-        "RemotePkgRef": "assertthat",
-        "RemoteRef": "assertthat",
-        "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "0.2.1"
-      }
-    },
     "base64enc": {
       "Source": "CRAN",
       "Repository": "https://cloud.r-project.org",
@@ -531,75 +326,6 @@
         "RemoteRef": "base64enc",
         "RemoteRepos": "https://cran.rstudio.com",
         "RemoteSha": "0.1-6"
-      }
-    },
-    "bit": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "bit",
-        "Title": "Classes and Methods for Fast Memory-Efficient Boolean Selections",
-        "Version": "4.6.0",
-        "Authors@R": "c(\n    person(\"Michael\", \"Chirico\", email = \"MichaelChirico4@gmail.com\", role = c(\"aut\", \"cre\")),\n    person(\"Jens\", \"Oehlschlägel\", role = \"aut\"),\n    person(\"Brian\", \"Ripley\", role = \"ctb\")\n  )",
-        "Depends": "R (>= 3.4.0)",
-        "Suggests": "testthat (>= 3.0.0), roxygen2, knitr, markdown, rmarkdown,\nmicrobenchmark, bit64 (>= 4.0.0), ff (>= 4.0.0)",
-        "Description": "Provided are classes for boolean and skewed boolean vectors,\n    fast boolean methods, fast unique and non-unique integer sorting,\n    fast set operations on sorted and unsorted sets of integers, and\n    foundations for ff (range index, compression, chunked processing).",
-        "License": "GPL-2 | GPL-3",
-        "LazyLoad": "yes",
-        "ByteCompile": "yes",
-        "Encoding": "UTF-8",
-        "URL": "https://github.com/r-lib/bit",
-        "VignetteBuilder": "knitr, rmarkdown",
-        "RoxygenNote": "7.3.2",
-        "Config/testthat/edition": "3",
-        "NeedsCompilation": "yes",
-        "Packaged": "2025-03-05 07:18:45 UTC; michael",
-        "Author": "Michael Chirico [aut, cre],\n  Jens Oehlschlägel [aut],\n  Brian Ripley [ctb]",
-        "Maintainer": "Michael Chirico <MichaelChirico4@gmail.com>",
-        "Repository": "CRAN",
-        "Date/Publication": "2025-03-06 10:50:01 UTC",
-        "Built": "R 4.5.2; x86_64-w64-mingw32; 2026-02-18 01:42:27 UTC; windows",
-        "Archs": "x64",
-        "RemoteType": "standard",
-        "RemotePkgRef": "bit",
-        "RemoteRef": "bit",
-        "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "4.6.0"
-      }
-    },
-    "bit64": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "bit64",
-        "Title": "A S3 Class for Vectors of 64bit Integers",
-        "Version": "4.6.0-1",
-        "Authors@R": "c(\n    person(\"Michael\", \"Chirico\", email = \"michaelchirico4@gmail.com\", role = c(\"aut\", \"cre\")),\n    person(\"Jens\", \"Oehlschlägel\", role = \"aut\"),\n    person(\"Leonardo\", \"Silvestri\", role = \"ctb\"),\n    person(\"Ofek\", \"Shilon\", role = \"ctb\")\n  )",
-        "Depends": "R (>= 3.4.0), bit (>= 4.0.0)",
-        "Description": "\n  Package 'bit64' provides serializable S3 atomic 64bit (signed) integers.\n  These are useful for handling database keys and exact counting in +-2^63.\n  WARNING: do not use them as replacement for 32bit integers, integer64 are not\n  supported for subscripting by R-core and they have different semantics when\n  combined with double, e.g. integer64 + double => integer64.\n  Class integer64 can be used in vectors, matrices, arrays and data.frames.\n  Methods are available for coercion from and to logicals, integers, doubles,\n  characters and factors as well as many elementwise and summary functions.\n  Many fast algorithmic operations such as 'match' and 'order' support inter-\n  active data exploration and manipulation and optionally leverage caching.",
-        "License": "GPL-2 | GPL-3",
-        "LazyLoad": "yes",
-        "ByteCompile": "yes",
-        "URL": "https://github.com/r-lib/bit64",
-        "Encoding": "UTF-8",
-        "Imports": "graphics, methods, stats, utils",
-        "Suggests": "testthat (>= 3.0.3), withr",
-        "Config/testthat/edition": "3",
-        "Config/needs/development": "testthat",
-        "RoxygenNote": "7.3.2",
-        "NeedsCompilation": "yes",
-        "Packaged": "2025-01-16 14:04:20 UTC; michael",
-        "Author": "Michael Chirico [aut, cre],\n  Jens Oehlschlägel [aut],\n  Leonardo Silvestri [ctb],\n  Ofek Shilon [ctb]",
-        "Maintainer": "Michael Chirico <michaelchirico4@gmail.com>",
-        "Repository": "CRAN",
-        "Date/Publication": "2025-01-16 16:00:07 UTC",
-        "Built": "R 4.5.2; x86_64-w64-mingw32; 2026-02-18 02:25:56 UTC; windows",
-        "Archs": "x64",
-        "RemoteType": "standard",
-        "RemotePkgRef": "bit64",
-        "RemoteRef": "bit64",
-        "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "4.6.0-1"
       }
     },
     "bsicons": {
@@ -996,35 +722,6 @@
         "RemoteRef": "digest",
         "RemoteRepos": "https://cran.rstudio.com",
         "RemoteSha": "0.6.39"
-      }
-    },
-    "downloader": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "downloader",
-        "Maintainer": "Winston Chang <winston@stdout.org>",
-        "Authors@R": "person(given = \"Winston\",\n    family = \"Chang\",\n    role = c(\"aut\", \"cre\"),\n    email = \"winston@stdout.org\")",
-        "Version": "0.4.1",
-        "License": "GPL-2",
-        "Title": "Download Files over HTTP and HTTPS",
-        "Description": "Provides a wrapper for the download.file function,\n    making it possible to download files over HTTPS on Windows, Mac OS X, and\n    other Unix-like platforms. The 'RCurl' package provides this functionality\n    (and much more) but can be difficult to install because it must be compiled\n    with external dependencies. This package has no external dependencies, so\n    it is much easier to install.",
-        "URL": "https://github.com/wch/downloader",
-        "Imports": "utils, digest",
-        "Suggests": "testthat",
-        "BugReports": "https://github.com/wch/downloader/issues",
-        "RoxygenNote": "7.3.2",
-        "NeedsCompilation": "no",
-        "Packaged": "2025-03-26 21:10:40 UTC; winston",
-        "Author": "Winston Chang [aut, cre]",
-        "Repository": "CRAN",
-        "Date/Publication": "2025-03-26 21:40:01 UTC",
-        "Built": "R 4.5.3; ; 2026-05-11 20:45:56 UTC; windows",
-        "RemoteType": "standard",
-        "RemotePkgRef": "downloader",
-        "RemoteRef": "downloader",
-        "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "0.4.1"
       }
     },
     "dplyr": {
@@ -1612,40 +1309,6 @@
         "RemoteSha": "0.3.0"
       }
     },
-    "jose": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "jose",
-        "Type": "Package",
-        "Title": "JavaScript Object Signing and Encryption",
-        "Version": "1.2.1",
-        "Authors@R": "person(\"Jeroen\", \"Ooms\", role = c(\"aut\", \"cre\"), \n    email = \"jeroenooms@gmail.com\", comment = c(ORCID = \"0000-0002-4035-0289\"))",
-        "Description": "Read and write JSON Web Keys (JWK, rfc7517), generate and verify JSON\n    Web Signatures (JWS, rfc7515) and encode/decode JSON Web Tokens (JWT, rfc7519)\n    <https://datatracker.ietf.org/wg/jose/documents/>. These standards provide \n    modern signing and encryption formats that are natively supported by browsers\n    via the JavaScript WebCryptoAPI <https://www.w3.org/TR/WebCryptoAPI/#jose>, \n    and used by services like OAuth 2.0, LetsEncrypt, and Github Apps.",
-        "License": "MIT + file LICENSE",
-        "URL": "https://r-lib.r-universe.dev/jose",
-        "BugReports": "https://github.com/r-lib/jose/issues",
-        "Depends": "openssl (>= 1.2.1)",
-        "Imports": "jsonlite",
-        "RoxygenNote": "7.1.2",
-        "VignetteBuilder": "knitr",
-        "Suggests": "spelling, testthat, knitr, rmarkdown",
-        "Encoding": "UTF-8",
-        "Language": "en-US",
-        "NeedsCompilation": "no",
-        "Packaged": "2024-10-03 14:12:53 UTC; jeroen",
-        "Author": "Jeroen Ooms [aut, cre] (<https://orcid.org/0000-0002-4035-0289>)",
-        "Maintainer": "Jeroen Ooms <jeroenooms@gmail.com>",
-        "Repository": "CRAN",
-        "Date/Publication": "2024-10-04 12:20:01 UTC",
-        "Built": "R 4.5.2; ; 2026-02-18 02:41:44 UTC; windows",
-        "RemoteType": "standard",
-        "RemotePkgRef": "jose",
-        "RemoteRef": "jose",
-        "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "1.2.1"
-      }
-    },
     "jquerylib": {
       "Source": "CRAN",
       "Repository": "https://cloud.r-project.org",
@@ -2069,39 +1732,6 @@
         "RemoteSha": "0.13"
       }
     },
-    "neonUtilities": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "neonUtilities",
-        "Version": "3.0.3",
-        "Date": "2026-01-22",
-        "Title": "Utilities for Working with NEON Data",
-        "Authors@R": "c(person(\"Claire\",\"Lunch\",email=\"clunch@battelleecology.org\",role=c(\"aut\",\"cre\",\"ctb\")), person(\"Christine\",\"Laney\",role=c(\"aut\",\"ctb\")), person(\"Nathan\",\"Mietkiewicz\",role=c(\"aut\",\"ctb\")), person(\"Eric\",\"Sokol\",role=c(\"aut\",\"ctb\")), person(\"Kaelin\",\"Cawley\",role=c(\"aut\",\"ctb\")), person(\"NEON (National Ecological Observatory Network)\", role=\"aut\"))",
-        "Description": "NEON data packages can be accessed through the NEON Data Portal <https://www.neonscience.org>\n    or through the NEON Data API (see <https://data.neonscience.org/data-api> for documentation). Data delivered from\n    the Data Portal are provided as monthly zip files packaged within a parent zip file, while individual files\n    can be accessed from the API. This package provides tools that aid in discovering, downloading, and reformatting \n    data prior to use in analyses. This includes downloading data via the API, merging data tables by type, and \n    converting formats. For more information, see the readme file at <https://github.com/NEONScience/NEON-utilities>.",
-        "Depends": "R (>= 3.6)",
-        "Imports": "httr, jsonlite, jose, downloader, data.table (>= 1.17.8),\nutils, R.utils, stats, tidyr, dplyr, pbapply, parallel, curl,\narrow, rlang",
-        "Suggests": "rhdf5, terra, testthat, fasttime",
-        "License": "AGPL-3",
-        "URL": "https://github.com/NEONScience/NEON-utilities",
-        "BugReports": "https://github.com/NEONScience/NEON-utilities/issues",
-        "Encoding": "UTF-8",
-        "LazyData": "true",
-        "RoxygenNote": "7.3.2",
-        "NeedsCompilation": "no",
-        "Packaged": "2026-01-22 16:38:09 UTC; clunch",
-        "Author": "Claire Lunch [aut, cre, ctb],\n  Christine Laney [aut, ctb],\n  Nathan Mietkiewicz [aut, ctb],\n  Eric Sokol [aut, ctb],\n  Kaelin Cawley [aut, ctb],\n  NEON (National Ecological Observatory Network) [aut]",
-        "Maintainer": "Claire Lunch <clunch@battelleecology.org>",
-        "Repository": "CRAN",
-        "Date/Publication": "2026-01-23 06:40:32 UTC",
-        "Built": "R 4.5.3; ; 2026-05-11 23:58:55 UTC; windows",
-        "RemoteType": "standard",
-        "RemotePkgRef": "neonUtilities",
-        "RemoteRef": "neonUtilities",
-        "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "3.0.3"
-      }
-    },
     "openssl": {
       "Source": "CRAN",
       "Repository": "https://cloud.r-project.org",
@@ -2167,70 +1797,6 @@
         "RemoteRef": "otel",
         "RemoteRepos": "https://cran.rstudio.com",
         "RemoteSha": "0.2.0"
-      }
-    },
-    "packrat": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Type": "Package",
-        "Package": "packrat",
-        "Title": "A Dependency Management System for Projects and their R Package\nDependencies",
-        "Version": "0.9.3",
-        "Authors@R": "c(\n    person(\"Aron\", \"Atkins\", , \"aron@posit.co\", role = c(\"aut\", \"cre\")),\n    person(\"Toph\", \"Allen\", role = \"aut\"),\n    person(\"Kevin\", \"Ushey\", role = \"aut\"),\n    person(\"Jonathan\", \"McPherson\", role = \"aut\"),\n    person(\"Joe\", \"Cheng\", role = \"aut\"),\n    person(\"JJ\", \"Allaire\", role = \"aut\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"))\n  )",
-        "Description": "Manage the R packages your project depends on in an isolated,\n    portable, and reproducible way.",
-        "License": "GPL-2",
-        "URL": "https://github.com/rstudio/packrat",
-        "BugReports": "https://github.com/rstudio/packrat/issues",
-        "Depends": "R (>= 3.0.0)",
-        "Imports": "tools, utils",
-        "Suggests": "devtools, httr, knitr, mockery, rmarkdown, testthat (>=\n3.0.0), webfakes, withr",
-        "Config/testthat/edition": "3",
-        "Encoding": "UTF-8",
-        "RoxygenNote": "7.3.2",
-        "NeedsCompilation": "no",
-        "Packaged": "2025-06-16 19:37:19 UTC; aron",
-        "Author": "Aron Atkins [aut, cre],\n  Toph Allen [aut],\n  Kevin Ushey [aut],\n  Jonathan McPherson [aut],\n  Joe Cheng [aut],\n  JJ Allaire [aut],\n  Posit Software, PBC [cph, fnd]",
-        "Maintainer": "Aron Atkins <aron@posit.co>",
-        "Repository": "CRAN",
-        "Date/Publication": "2025-06-16 20:00:02 UTC",
-        "Built": "R 4.5.2; ; 2026-02-20 01:32:08 UTC; windows",
-        "RemoteType": "standard",
-        "RemotePkgRef": "packrat",
-        "RemoteRef": "packrat",
-        "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "0.9.3"
-      }
-    },
-    "pbapply": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "pbapply",
-        "Type": "Package",
-        "Title": "Adding Progress Bar to '*apply' Functions",
-        "Version": "1.7-4",
-        "Date": "2025-07-19",
-        "Authors@R": "\n    c(person(given = \"Peter\",\n             family = \"Solymos\",\n             comment = c(ORCID = \"0000-0001-7337-1740\"),\n             role = c(\"aut\", \"cre\"),\n             email = \"psolymos@gmail.com\"),\n      person(given = \"Zygmunt\",\n             family = \"Zawadzki\",\n             role = \"aut\",\n             email = \"zygmunt@zstat.pl\"),\n      person(given = \"Henrik\", \n             family = \"Bengtsson\", \n             role = \"ctb\",\n             email = \"henrikb@braju.com\"),\n      person(\"R Core Team\", role = c(\"cph\", \"ctb\")))",
-        "Maintainer": "Peter Solymos <psolymos@gmail.com>",
-        "Description": "A lightweight package that adds\n  progress bar to vectorized R functions\n  ('*apply'). The implementation can easily be added\n  to functions where showing the progress is\n  useful (e.g. bootstrap). The type and style of the\n  progress bar (with percentages or remaining time)\n  can be set through options.\n  Supports several parallel processing backends including mirai and future.",
-        "Depends": "R (>= 3.2.0)",
-        "Imports": "parallel",
-        "Suggests": "shiny, future, future.apply",
-        "License": "GPL (>= 2)",
-        "URL": "https://github.com/psolymos/pbapply,\nhttps://peter.solymos.org/pbapply/",
-        "BugReports": "https://github.com/psolymos/pbapply/issues",
-        "NeedsCompilation": "no",
-        "Packaged": "2025-07-20 01:22:14 UTC; Peter",
-        "Author": "Peter Solymos [aut, cre] (ORCID:\n    <https://orcid.org/0000-0001-7337-1740>),\n  Zygmunt Zawadzki [aut],\n  Henrik Bengtsson [ctb],\n  R Core Team [cph, ctb]",
-        "Repository": "CRAN",
-        "Date/Publication": "2025-07-20 18:50:02 UTC",
-        "Built": "R 4.5.2; ; 2026-02-18 01:43:09 UTC; windows",
-        "RemoteType": "standard",
-        "RemotePkgRef": "pbapply",
-        "RemoteRef": "pbapply",
-        "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "1.7-4"
       }
     },
     "pillar": {
@@ -2535,42 +2101,6 @@
         "RemoteSha": "3.6-32"
       }
     },
-    "renv": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "renv",
-        "Type": "Package",
-        "Title": "Project Environments",
-        "Version": "1.1.7",
-        "Authors@R": "c(\n    person(\"Kevin\", \"Ushey\", role = c(\"aut\", \"cre\"), email = \"kevin@rstudio.com\",\n           comment = c(ORCID = \"0000-0003-2880-7407\")),\n    person(\"Hadley\", \"Wickham\", role = c(\"aut\"), email = \"hadley@rstudio.com\",\n           comment = c(ORCID = \"0000-0003-4757-117X\")),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"))\n    )",
-        "Description": "A dependency management toolkit for R. Using 'renv', you can create\n    and manage project-local R libraries, save the state of these libraries to\n    a 'lockfile', and later restore your library as required. Together, these\n    tools can help make your projects more isolated, portable, and reproducible.",
-        "License": "MIT + file LICENSE",
-        "URL": "https://rstudio.github.io/renv/, https://github.com/rstudio/renv",
-        "BugReports": "https://github.com/rstudio/renv/issues",
-        "Imports": "utils",
-        "Suggests": "BiocManager, cli, compiler, covr, cpp11, curl, devtools,\ngenerics, gitcreds, jsonlite, jsonvalidate, knitr, miniUI,\nmodules, packrat, pak, R6, remotes, reticulate, rmarkdown,\nrstudioapi, shiny, testthat, uuid, waldo, yaml, webfakes",
-        "Encoding": "UTF-8",
-        "RoxygenNote": "7.3.3",
-        "VignetteBuilder": "knitr",
-        "Config/Needs/website": "tidyverse/tidytemplate",
-        "Config/testthat/edition": "3",
-        "Config/testthat/parallel": "true",
-        "Config/testthat/start-first": "bioconductor,python,install,restore,snapshot,retrieve,remotes",
-        "NeedsCompilation": "no",
-        "Packaged": "2026-01-26 18:33:40 UTC; kevin",
-        "Author": "Kevin Ushey [aut, cre] (ORCID: <https://orcid.org/0000-0003-2880-7407>),\n  Hadley Wickham [aut] (ORCID: <https://orcid.org/0000-0003-4757-117X>),\n  Posit Software, PBC [cph, fnd]",
-        "Maintainer": "Kevin Ushey <kevin@rstudio.com>",
-        "Repository": "CRAN",
-        "Date/Publication": "2026-01-27 11:50:02 UTC",
-        "Built": "R 4.5.2; ; 2026-02-18 01:44:16 UTC; windows",
-        "RemoteType": "standard",
-        "RemotePkgRef": "renv",
-        "RemoteRef": "renv",
-        "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "1.1.7"
-      }
-    },
     "rlang": {
       "Source": "CRAN",
       "Repository": "https://cloud.r-project.org",
@@ -2643,73 +2173,6 @@
         "RemoteRef": "rmarkdown",
         "RemoteRepos": "https://cran.rstudio.com",
         "RemoteSha": "2.30"
-      }
-    },
-    "rsconnect": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Type": "Package",
-        "Package": "rsconnect",
-        "Title": "Deploy Docs, Apps, and APIs to 'Posit Connect', 'shinyapps.io',\nand 'RPubs'",
-        "Version": "1.7.0",
-        "Authors@R": "c(\n    person(\"Aron\", \"Atkins\", , \"aron@posit.co\", role = c(\"aut\", \"cre\")),\n    person(\"Toph\", \"Allen\", role = \"aut\"),\n    person(\"Hadley\", \"Wickham\", role = \"aut\"),\n    person(\"Jonathan\", \"McPherson\", role = \"aut\"),\n    person(\"JJ\", \"Allaire\", role = \"aut\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"))\n  )",
-        "Description": "Programmatic deployment interface for 'RPubs',\n    'shinyapps.io', and 'Posit Connect'. Supported content types include R\n    Markdown documents, Shiny applications, Plumber APIs, plots, and\n    static web content.",
-        "License": "GPL-2",
-        "URL": "https://rstudio.github.io/rsconnect/,\nhttps://github.com/rstudio/rsconnect",
-        "BugReports": "https://github.com/rstudio/rsconnect/issues",
-        "Depends": "R (>= 3.5.0)",
-        "Imports": "cli, curl, digest, jsonlite, lifecycle, openssl (>= 2.0.0),\nPKI, packrat (>= 0.6), renv (>= 1.0.0), rlang (>= 1.0.0),\nrstudioapi (>= 0.5), snowflakeauth, tools, yaml (>= 2.1.5),\nutils",
-        "Suggests": "Biobase, BiocManager, foreign, knitr, MASS, plumber (>=\n0.3.2), quarto, RCurl, reticulate, rmarkdown (>= 1.1), shiny,\ntestthat (>= 3.1.9), webfakes, withr",
-        "VignetteBuilder": "knitr, rmarkdown",
-        "Config/Needs/website": "tidyverse/tidytemplate",
-        "Config/testthat/edition": "3",
-        "Config/testthat/parallel": "true",
-        "Config/Python/Note": "Python <= 3.10 requires tomllib package for\npyproject.toml parsing",
-        "Encoding": "UTF-8",
-        "RoxygenNote": "7.3.3",
-        "NeedsCompilation": "no",
-        "Packaged": "2025-12-05 13:40:38 UTC; aron",
-        "Author": "Aron Atkins [aut, cre],\n  Toph Allen [aut],\n  Hadley Wickham [aut],\n  Jonathan McPherson [aut],\n  JJ Allaire [aut],\n  Posit Software, PBC [cph, fnd]",
-        "Maintainer": "Aron Atkins <aron@posit.co>",
-        "Repository": "CRAN",
-        "Date/Publication": "2025-12-06 13:50:02 UTC",
-        "Built": "R 4.5.2; ; 2026-02-20 01:34:07 UTC; windows",
-        "RemoteType": "standard",
-        "RemotePkgRef": "rsconnect",
-        "RemoteRef": "rsconnect",
-        "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "1.7.0"
-      }
-    },
-    "rstudioapi": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "rstudioapi",
-        "Title": "Safely Access the RStudio API",
-        "Description": "Access the RStudio API (if available) and provide informative error\n    messages when it's not.",
-        "Version": "0.18.0",
-        "Authors@R": "c(\n    person(\"Kevin\", \"Ushey\", role = c(\"aut\", \"cre\"), email = \"kevin@rstudio.com\"),\n    person(\"JJ\", \"Allaire\", role = c(\"aut\"), email = \"jj@posit.co\"),\n    person(\"Hadley\", \"Wickham\", role = c(\"aut\"), email = \"hadley@posit.co\"),\n    person(\"Gary\", \"Ritchie\", role = c(\"aut\"), email = \"gary@posit.co\"),\n    person(family = \"RStudio\", role = \"cph\")\n    )",
-        "Maintainer": "Kevin Ushey <kevin@rstudio.com>",
-        "License": "MIT + file LICENSE",
-        "URL": "https://rstudio.github.io/rstudioapi/,\nhttps://github.com/rstudio/rstudioapi",
-        "BugReports": "https://github.com/rstudio/rstudioapi/issues",
-        "RoxygenNote": "7.3.3",
-        "Suggests": "testthat, knitr, rmarkdown, clipr, covr, curl, jsonlite,\nwithr",
-        "VignetteBuilder": "knitr",
-        "Encoding": "UTF-8",
-        "NeedsCompilation": "no",
-        "Packaged": "2026-01-15 18:05:24 UTC; kevin",
-        "Author": "Kevin Ushey [aut, cre],\n  JJ Allaire [aut],\n  Hadley Wickham [aut],\n  Gary Ritchie [aut],\n  RStudio [cph]",
-        "Repository": "CRAN",
-        "Date/Publication": "2026-01-16 09:10:02 UTC",
-        "Built": "R 4.5.2; ; 2026-02-18 01:42:30 UTC; windows",
-        "RemoteType": "standard",
-        "RemotePkgRef": "rstudioapi",
-        "RemoteRef": "rstudioapi",
-        "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "0.18.0"
       }
     },
     "s2": {
@@ -2952,37 +2415,6 @@
         "RemoteRef": "shinyjs",
         "RemoteRepos": "https://cran.rstudio.com",
         "RemoteSha": "2.1.1"
-      }
-    },
-    "snowflakeauth": {
-      "Source": "CRAN",
-      "Repository": "https://cloud.r-project.org",
-      "description": {
-        "Package": "snowflakeauth",
-        "Title": "Authentication Helpers for 'Snowflake'",
-        "Version": "0.2.1",
-        "Authors@R": "c(\n    person(\"Aaron\", \"Jacobs\", , \"aaron.jacobs@posit.co\", role = c(\"aut\")),\n    person(\"E. David\", \"Aja\", , \"david@posit.co\", role = c(\"aut\", \"cre\")),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"))\n  )",
-        "Description": "Authentication helpers for 'Snowflake'.\n    It provides compatibility with authentication approaches supported\n    by the 'Snowflake Connector for Python' <https://pypi.org/project/snowflake-connector-python>\n    and the 'Snowflake CLI' <https://pypi.org/project/snowflake-cli>.",
-        "License": "MIT + file LICENSE",
-        "Encoding": "UTF-8",
-        "Imports": "cli, curl, jsonlite, RcppTOML, rlang, jose, openssl",
-        "Suggests": "httpuv, testthat (>= 3.0.0), withr",
-        "RoxygenNote": "7.3.2",
-        "Config/testthat/edition": "3",
-        "URL": "https://posit-dev.github.io/snowflakeauth/,\nhttps://github.com/posit-dev/snowflakeauth",
-        "BugReports": "https://github.com/posit-dev/snowflakeauth/issues",
-        "NeedsCompilation": "no",
-        "Packaged": "2026-01-14 19:44:11 UTC; edavidaja",
-        "Author": "Aaron Jacobs [aut],\n  E. David Aja [aut, cre],\n  Posit Software, PBC [cph, fnd]",
-        "Maintainer": "E. David Aja <david@posit.co>",
-        "Repository": "CRAN",
-        "Date/Publication": "2026-01-15 06:10:02 UTC",
-        "Built": "R 4.5.2; ; 2026-02-18 02:45:30 UTC; windows",
-        "RemoteType": "standard",
-        "RemotePkgRef": "snowflakeauth",
-        "RemoteRef": "snowflakeauth",
-        "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "0.2.1"
       }
     },
     "sourcetools": {
@@ -3640,60 +3072,6 @@
     }
   },
   "files": {
-    ".claude/launch.json": {
-      "checksum": "1d7291bdc340af4c6677b6be6888ee7c"
-    },
-    ".github/workflows/refresh-data.yml": {
-      "checksum": "0f8b18a980706738ec2603609ed00732"
-    },
-    ".neon_token": {
-      "checksum": "33bd5edb90365f35dee44d9e5d14e8ba"
-    },
-    ".vs/NEON-Small-Mammal-Tracker/v17/.wsuo": {
-      "checksum": "1f53d1440329989ed23de14a22ba4bbb"
-    },
-    ".vs/VSWorkspaceState.json": {
-      "checksum": "419906c4c1dd75f728c61770bb841c1a"
-    },
-    ".vscode/launch.json": {
-      "checksum": "cc75517078220f6c231401c50dbeeb42"
-    },
-    "assets/about.png": {
-      "checksum": "f91c3b5b6cbb5973282f54ff85dddda1"
-    },
-    "assets/JORN_bodysizemap.png": {
-      "checksum": "560752e8ecfa8bd375b4fd639ab2b186"
-    },
-    "assets/JORN_captureleaderboard.png": {
-      "checksum": "176614522699019c4b35c51633315532"
-    },
-    "assets/JORN_capturemap.png": {
-      "checksum": "7ad184406dacfde255d3e29f9dd2173c"
-    },
-    "assets/JORN_captures.png": {
-      "checksum": "6247be90bde0953984a40a36a1dfd790"
-    },
-    "assets/JORN_measurecompare.png": {
-      "checksum": "4a56c8f3f937937bbbdb9c8885db7f7b"
-    },
-    "assets/JORN_population.png": {
-      "checksum": "0dbd93268f115d8ca4514ad0d8f15197"
-    },
-    "assets/JORN_weightdistribution.png": {
-      "checksum": "f7b7b988520fd5a2846b6a940af9f12a"
-    },
-    "assets/neon-bodysize-lab.png": {
-      "checksum": "e2a45d1e124c3f5c54a5bac6c1c13fe5"
-    },
-    "assets/neon-qc-299915.png": {
-      "checksum": "71b09b835c3259341a03c1c1e8612a70"
-    },
-    "assets/NEON-SmallMammal-QC_299915_20260619.csv": {
-      "checksum": "6f78105f2b00fbc98cb9925b8dfa61ec"
-    },
-    "data-sample/env_demo.csv": {
-      "checksum": "7e335a0b4e978711168ca5aa677b3778"
-    },
     "data-sample/jorn_2017_2021.rds": {
       "checksum": "f0421a06c558a7774fcd33f10fd033ef"
     },
@@ -3979,30 +3357,6 @@
     "data/species_ranges.rds": {
       "checksum": "a25a9bbca444184633dfb05b57af6b20"
     },
-    "DEPLOY.md": {
-      "checksum": "ec97d2a9ae79f1fe3c685d1be297ff8a"
-    },
-    "docs/data-bundling-pattern.md": {
-      "checksum": "4a10a2ad0ec6337e99cb157207ca0b6b"
-    },
-    "docs/DATA-TAKEAWAYS.md": {
-      "checksum": "1101ebc27d7bb8a52ec5cb2f653fa818"
-    },
-    "docs/EXPERT-REVIEW.md": {
-      "checksum": "ae410b9b62aefa177968d84f4567cd8b"
-    },
-    "docs/girth-index-patterns.md": {
-      "checksum": "18e6db3d68ce5b6ad78f38a3b7b38661"
-    },
-    "docs/index.html": {
-      "checksum": "32f15141c796785d968627dd65d3b9ce"
-    },
-    "docs/neonize-playbook.md": {
-      "checksum": "5a65c1b1acb6f2f7dc409f07a63a6099"
-    },
-    "docs/og-image.png": {
-      "checksum": "de4088b71400f3a87e9c4ed9580be36d"
-    },
     "global.R": {
       "checksum": "53de2abe3dd32bf5ae8199774db56b8e"
     },
@@ -4015,56 +3369,14 @@
     "R/site_metadata.R": {
       "checksum": "4adee87c7a55c525e62542a223528558"
     },
-    "README.md": {
-      "checksum": "496ed984043a1c83da04f6a57b784577"
-    },
-    "scripts/build_site_index.R": {
-      "checksum": "f3eb16ea61008e47bec38f02f2d639d7"
-    },
-    "scripts/fetch_bird_demo.R": {
-      "checksum": "e4a510ec8c86a7cf163e535cc51696a7"
-    },
-    "scripts/fetch_phe_demo.R": {
-      "checksum": "1aacea6806678638032d63c9c534b8a2"
-    },
-    "scripts/fetch_plant_demo.R": {
-      "checksum": "c967020df4dd85b1a1e8bd872acf182e"
-    },
-    "scripts/fetch_veg_demo.R": {
-      "checksum": "643d96ebfaf2d8becdbb99739679d1ed"
-    },
-    "scripts/fix_bundles_altrep.R": {
-      "checksum": "13307c919b7d468bc922716429fcc5e5"
-    },
-    "scripts/inspect_bird.R": {
-      "checksum": "d47d87dee3a26053c0fca469e7cd0b95"
-    },
-    "scripts/inspect_phe.R": {
-      "checksum": "52805c4b997d04d8a9176d6ebc5180f1"
-    },
-    "scripts/inspect_veg.R": {
-      "checksum": "70c3438c7db04a08f85dd4b016a035cf"
-    },
-    "scripts/make_og_image.R": {
-      "checksum": "fb0076901f87a6508dd8614ed037daeb"
-    },
-    "scripts/refresh_data.R": {
-      "checksum": "f726f26e0c3a42ed5cd9bb9338df18e6"
-    },
-    "scripts/refresh_env_data.R": {
-      "checksum": "a4e71f986c4efc6dbfb8036ee237d618"
-    },
-    "scripts/write_manifest.R": {
-      "checksum": "fd6bb29e6a8fb3f7b588ae94bf772ffd"
-    },
     "server.R": {
-      "checksum": "d75d56ae8af3c430088bc71c18ce9887"
+      "checksum": "6b696782cd892a824ac80623f2b5c766"
     },
     "ui.R": {
-      "checksum": "80a964652d7d6d0a3ccf11ba842b5161"
+      "checksum": "7c9d565f18b41299b2b67e924bfba792"
     },
     "www/app.js": {
-      "checksum": "60245312dc429b278e0c18cadf244977"
+      "checksum": "7a98756be4337359b27805f0fc965291"
     },
     "www/confirm.js": {
       "checksum": "7bc01d8a57f85be841036daf980f23e5"

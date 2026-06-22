@@ -30,6 +30,7 @@ suppressMessages({
   library(neonUtilities)
   library(dplyr)
   library(tibble)
+  library(jsonlite)   # freshness-state marker (data/.refresh_state.json)
 })
 
 # NEON API token — set env var NEON_TOKEN to raise the anonymous rate limit.
@@ -101,6 +102,59 @@ if (length(summary_rows)) {
 }
 n_ok <- length(list.files(out_dir, pattern = "\\.rds$"))
 cat(sprintf("Bundle now has %d/%d sites.\n", n_ok, length(sites)))
+
+# ---- freshness assertion (did the data actually advance?) ------------------
+# A monthly re-pull that "succeeds" but brings back NO newer records is a SILENT
+# stall — NEON didn't publish, the token rate-limited, or the date window was
+# wrong — and we'd cheerfully redeploy the same data forever. So we record the
+# freshest collectDate seen across ALL bundles and compare it to the last run's
+# value (committed in data/.refresh_state.json). If it did NOT advance, we log
+# LOUDLY (and the marker is committed so the bot's commit message can say so).
+freshest_collect_date <- function(dir) {
+  fs <- list.files(dir, pattern = "\\.rds$", full.names = TRUE)
+  mx <- NA_character_
+  for (f in fs) {
+    d <- tryCatch(readRDS(f), error = function(e) NULL)
+    if (is.null(d) || !"collectDate" %in% names(d)) next
+    cd <- substr(as.character(d$collectDate), 1, 10)
+    cd <- max(cd[!is.na(cd) & nzchar(cd)], na.rm = TRUE)
+    if (length(cd) && (is.na(mx) || cd > mx)) mx <- cd
+  }
+  mx
+}
+
+state_path <- "data/.refresh_state.json"
+prev_max <- NA_character_
+if (file.exists(state_path)) {
+  prev <- tryCatch(jsonlite::fromJSON(state_path), error = function(e) NULL)
+  if (!is.null(prev) && !is.null(prev$freshest_collectDate))
+    prev_max <- as.character(prev$freshest_collectDate)
+}
+
+new_max <- freshest_collect_date(out_dir)
+advanced <- !is.na(new_max) && (is.na(prev_max) || new_max > prev_max)
+
+if (is.na(new_max)) {
+  cat("!! FRESHNESS: could not read any collectDate from the rebuilt bundle.\n")
+} else if (advanced) {
+  cat(sprintf("FRESHNESS OK: freshest record advanced %s -> %s.\n",
+              ifelse(is.na(prev_max), "(none)", prev_max), new_max))
+} else {
+  cat(sprintf("!! FRESHNESS WARNING: freshest record did NOT advance (still %s). NEON may not have published new data, the API may have rate-limited, or the window is wrong. Investigate before trusting this redeploy.\n",
+              new_max))
+}
+
+# Persist the marker (committed by the workflow) so the next run can compare AND
+# so the commit step can report what actually changed.
+tryCatch(
+  jsonlite::write_json(
+    list(freshest_collectDate = ifelse(is.na(new_max), NULL, new_max),
+         previous_freshest    = ifelse(is.na(prev_max), NULL, prev_max),
+         advanced             = isTRUE(advanced),
+         sites_built          = n_ok,
+         refreshed_at_utc     = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")),
+    state_path, auto_unbox = TRUE, pretty = TRUE),
+  error = function(e) cat(sprintf("(could not write %s: %s)\n", state_path, conditionMessage(e))))
 
 # Mass-failure guard: the workflow `rm -f data/sites/*.rds` BEFORE this runs, then
 # deploys + opens a data PR after. If a bad NEON-pull day left us with far too few

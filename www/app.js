@@ -165,20 +165,9 @@ function smtTour() {
   d.drive();
 }
 
-// auto-run once on a visitor's first time, after the picker map exists
-function smtMaybeAutoTour() {
-  try { if (localStorage.getItem("smtToured") === "1") return; } catch (e) { return; }
-  var tries = 0;
-  var iv = setInterval(function () {
-    tries++;
-    if (document.querySelector(".picker-map-wrap") && window.driver) {
-      clearInterval(iv);
-      try { localStorage.setItem("smtToured", "1"); } catch (e) {}
-      setTimeout(smtTour, 700);
-    } else if (tries > 30) { clearInterval(iv); }
-  }, 400);
-}
-document.addEventListener("DOMContentLoaded", function () { smtMaybeAutoTour(); });
+// The tour is now MANUAL only (the "How it works" button), per the house
+// no-auto-tour rule — an unrequested guided tour on first paint is intrusive.
+// smtTour() above still runs on demand when the user asks for it.
 
 // ---- dismiss any open info popover (click-outside + Esc) -----------------
 // bslib/Bootstrap popovers don't close on an outside click by default, so make

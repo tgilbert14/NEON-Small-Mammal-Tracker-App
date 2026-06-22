@@ -178,7 +178,14 @@ server <- function(input, output, session) {
       hovertemplate = paste0("%{text}<br>", meta$label, ": %{x:.", (meta$dig %||% 0), "f} ", meta$unit,
                              "<br>CPUE: %{y:.1f}/100TN<extra></extra>")) %>%
       plotly::colorbar(title = "year")
-    if (nrow(pts) >= 3 && stats::sd(pts$value) > 0) {
+    # Only draw a fit line where it's defensible: the panel's own overlap floor
+    # (n >= 8 month-matched points) AND a non-trivial relationship (|r| >= 0.3),
+    # matching the Size Lab size-mass standard. Below that, a fitted line over a
+    # handful of points would imply a relationship the data can't support, so we
+    # say so plainly instead.
+    rr <- if (!is.null(sc) && !is.null(sc$r) && is.finite(sc$r)) sc$r else
+      suppressWarnings(stats::cor(pts$value, pts$cpue, use = "complete.obs"))
+    if (nrow(pts) >= 8 && is.finite(rr) && abs(rr) >= 0.3 && stats::sd(pts$value) > 0) {
       fit <- stats::lm(cpue ~ value, data = pts)
       xs <- range(pts$value, na.rm = TRUE)
       yh <- stats::predict(fit, newdata = data.frame(value = xs))
@@ -186,6 +193,12 @@ server <- function(input, output, session) {
       p <- p %>% plotly::add_trace(x = xs, y = yh, type = "scatter", mode = "lines",
         inherit = FALSE, showlegend = FALSE, hoverinfo = "skip",
         line = list(color = fitcol, width = 2, dash = "dash"))
+    } else {
+      p <- p %>% plotly::add_annotations(
+        text = if (nrow(pts) < 8) "too few month-matched points to fit a line"
+               else "no strong enough link to fit a line",
+        x = 0.5, y = 1.02, xref = "paper", yref = "paper", xanchor = "center",
+        showarrow = FALSE, font = list(color = DDL$muted, size = 12))
     }
     p %>% plotly_theme(legend = FALSE) %>% plotly::layout(
       xaxis = list(title = sprintf("%s (%s)%s", meta$label, meta$unit,
@@ -650,13 +663,33 @@ server <- function(input, output, session) {
     # re-shown via "change site"). This is what makes site selection work again.
     pops <- vapply(seq_len(nrow(idx)),
       function(i) as.character(site_popup_html(idx[i, , drop = FALSE])), character(1))
-    leaflet::addCircleMarkers(map, data = idx, lng = ~lng, lat = ~lat, layerId = ~site,
+    map <- leaflet::addCircleMarkers(map, data = idx, lng = ~lng, lat = ~lat, layerId = ~site,
       radius = picker_radius(idx$captures), stroke = TRUE, color = "#ffffff", weight = 1.5,
       opacity = 1, fillColor = ~group_color, fillOpacity = 0.85, label = labs,
       popup = pops, popupOptions = leaflet::popupOptions(maxWidth = 300, minWidth = 230,
         autoPan = TRUE, autoPanPadding = c(40, 55), keepInView = TRUE,
         closeButton = TRUE, closeOnClick = FALSE, className = "pm-pop-card"),
       labelOptions = picker_label_opts, options = leaflet::markerOptions(riseOnHover = TRUE))
+    # Family is also encoded by the dominant-family EMOJI sitting on each dot, so
+    # the picker is readable without relying on a 6-hue fill (colour-vision-safe).
+    picker_emoji_markers(map, idx)
+  }
+
+  # Render the dominant-family emoji as a permanent, non-interactive label centred
+  # on each picker dot. Click/hover pass THROUGH to the circle marker underneath
+  # (interactive = FALSE), so the emoji never steals the popup. Tiny dots are
+  # skipped so the glyph never overflows a small marker.
+  picker_emoji_markers <- function(map, df) {
+    df <- df[!is.na(df$emoji) & nzchar(df$emoji) &
+             picker_radius(df$captures) >= 9, , drop = FALSE]
+    if (!nrow(df)) return(map)
+    leaflet::addLabelOnlyMarkers(map, data = df, lng = ~lng, lat = ~lat,
+      label = ~emoji,
+      labelOptions = leaflet::labelOptions(noHide = TRUE, direction = "center",
+        textOnly = TRUE, opacity = 1,
+        style = list("font-size" = "13px", "pointer-events" = "none",
+                     "text-shadow" = "0 1px 2px rgba(0,0,0,.45)")),
+      options = leaflet::markerOptions(interactive = FALSE))
   }
 
   # add one species' range markers (by-species mode): size = that species' local
@@ -678,13 +711,16 @@ server <- function(input, output, session) {
       srow <- if (!is.null(SITE_INDEX)) SITE_INDEX[SITE_INDEX$site == r$site[i], , drop = FALSE] else NULL
       if (is.null(srow) || !nrow(srow)) "" else as.character(site_popup_html(srow))
     }, character(1))
-    leaflet::addCircleMarkers(map, data = r, lng = ~lng, lat = ~lat, layerId = ~site,
+    map <- leaflet::addCircleMarkers(map, data = r, lng = ~lng, lat = ~lat, layerId = ~site,
       radius = picker_radius(r$individuals), stroke = TRUE, color = "#ffffff", weight = 1.5,
       opacity = 1, fillColor = col, fillOpacity = 0.85, label = labs,
       popup = pops, popupOptions = leaflet::popupOptions(maxWidth = 300, minWidth = 230,
         autoPan = TRUE, autoPanPadding = c(40, 55), keepInView = TRUE,
         closeButton = TRUE, closeOnClick = FALSE, className = "pm-pop-card"),
       labelOptions = picker_label_opts, options = leaflet::markerOptions(riseOnHover = TRUE))
+    # same emoji-on-dot treatment as the by-site map (sized by `individuals` here)
+    picker_emoji_markers(map, data.frame(lng = r$lng, lat = r$lat, emoji = r$emoji,
+                                         captures = r$individuals, stringsAsFactors = FALSE))
   }
 
   # base map drawn once (tiles + view + initial by-site markers)
@@ -2743,6 +2779,40 @@ server <- function(input, output, session) {
     gsub("(^-|-$)", "", gsub("[^A-Za-z0-9]+", "-", rv$label %||% "site"))
   }
 
+  # SINGLE SOURCE OF TRUTH for the captures CSV: the ordered keep-vector AND its
+  # codebook in one place, so the column list the export emits and the dictionary
+  # that documents it can never drift apart (the codebook iterates this list).
+  # Each entry: units = what the column is + its unit; note = NA-semantics / caveat.
+  CAPTURE_COLS <- list(
+    siteID         = list(units = "NEON 4-letter site code", note = ""),
+    plotID         = list(units = "NEON plot ID", note = ""),
+    date           = list(units = "ISO date (YYYY-MM-DD)", note = "the capture/handling date (collectDate, day precision)"),
+    ym             = list(units = "month (YYYY-MM)", note = "derived from date; the grain the monthly series aggregates to"),
+    year           = list(units = "calendar year (YYYY)", note = "derived from date"),
+    tagID          = list(units = "ear-tag ID (unique within site, lifelong)", note = "NA = an untagged/empty-trap row; NEON never recycles a tag within a site"),
+    short          = list(units = "short species label", note = "derived display name (genus initial + species), for compact tables"),
+    taxonID        = list(units = "NEON taxon code (join key)", note = "NEON DP1.10072.001 taxonomy; the stable code behind scientificName"),
+    scientificName = list(units = "Latin binomial", note = "NEON DP1.10072.001 taxonomy; genus-only 'X sp.' and ambiguous 'A/B' kept as recorded"),
+    nativeStatusPlaceholder = NULL,  # placeholder removed below; keeps explicit ordering readable
+    nativeStatusCode = list(units = "NEON native-status code (N/I/etc.)", note = "as published by NEON; NA where unassigned"),
+    sex            = list(units = "M / F / U", note = "7.6% NA (not sexed)"),
+    lifeStage      = list(units = "juvenile / subadult / adult", note = "NA where life stage was not assessed"),
+    weight         = list(units = "grams", note = "NA = unmeasured: recaptures are often not re-weighed, and empty-trap rows carry no animal (~23% NA overall; convention, not error)"),
+    hindfootLength = list(units = "millimetres", note = "NA = unmeasured (~28% NA overall; same convention as weight)"),
+    tailLength     = list(units = "millimetres", note = "sparsely recorded; mostly NA (NEON rarely measures tail length)"),
+    earLength      = list(units = "millimetres", note = "sparsely recorded; mostly NA (NEON rarely measures ear length)"),
+    totalLength    = list(units = "millimetres", note = "sparsely recorded; mostly NA (NEON almost never records total body length, which is why the Chonk Index is a within-species percentile, not a Scaled Mass Index)"),
+    trapCoordinate = list(units = "trap grid cell (e.g. A1)", note = "traps are 10 m apart; NA on non-capture rows"),
+    recapture      = list(units = "Y/N", note = "NEON cross-bout recapture flag; carries cross-BOUT history, within-bout status is recomputed for the estimators"),
+    fate           = list(units = "NEON fate code (released/dead/etc.)", note = "disposition of the animal at handling; NA where not recorded"),
+    trapStatus     = list(units = "NEON trap-status code", note = "e.g. '5 - capture', '1 - trap not set'; the raw NEON status string"),
+    trap_effort    = list(units = "trap-nights (1; sprung/disturbed = 0.5; not-set = 0)", note = "derived per the Nelson & Clark (1973) half-trap-night rule"),
+    is_capture     = list(units = "TRUE / FALSE", note = "TRUE if an animal was handled (has a tagID); FALSE for empty/not-set trap rows"),
+    remarks        = list(units = "free text", note = "NEON field remarks; usually NA")
+  )
+  CAPTURE_COLS[["nativeStatusPlaceholder"]] <- NULL   # drop the readability placeholder
+  CAPTURE_KEEP <- names(CAPTURE_COLS)
+
   # (a) cleaned site capture table — one row per capture/handling event, the
   #     analysis-ready columns with NEON-native names + our derived effort/IDs.
   output$dlCapturesCsv <- downloadHandler(
@@ -2750,12 +2820,7 @@ server <- function(input, output, session) {
                                   export_slug(), format(Sys.Date(), "%Y%m%d")),
     content = function(file) {
       d <- rv$data; req(d)
-      keep <- intersect(c(
-        "siteID","plotID","date","ym","year","tagID","short","taxonID",
-        "scientificName","nativeStatusCode","sex","lifeStage","weight",
-        "hindfootLength","tailLength","earLength","totalLength","trapCoordinate",
-        "recapture","fate","trapStatus","trap_effort","is_capture","remarks"),
-        names(d))
+      keep <- intersect(CAPTURE_KEEP, names(d))
       out <- d[, keep, drop = FALSE]
       out <- out[order(out$date, out$plotID, out$tagID), , drop = FALSE]
       utils::write.csv(out, file, row.names = FALSE, na = "")
@@ -2808,22 +2873,20 @@ server <- function(input, output, session) {
     filename = function() sprintf("NEON-SmallMammal_codebook_%s.csv",
                                   format(Sys.Date(), "%Y%m%d")),
     content = function(file) {
-      cb <- data.frame(
-        file = c(
-          rep("captures", 14), rep("monthly-series", 9)),
-        column = c(
-          "siteID","plotID","date","tagID","scientificName","sex","lifeStage",
-          "weight","hindfootLength","trapCoordinate","recapture","trapStatus",
-          "trap_effort","is_capture",
-          "siteID","ym","mnka","captures","trap_nights","cpue_per100tn",
-          "Nhat","p_hat","n_plots"),
+      # Captures rows are built by iterating the EXACT keep-vector the captures
+      # CSV emits (CAPTURE_COLS), so the dictionary can never drift from the file.
+      cap <- data.frame(
+        file   = "captures",
+        column = CAPTURE_KEEP,
+        units  = vapply(CAPTURE_COLS, function(x) x$units, character(1)),
+        note   = vapply(CAPTURE_COLS, function(x) x$note,  character(1)),
+        stringsAsFactors = FALSE, row.names = NULL)
+      # Monthly-series rows (the second exported CSV) documented inline.
+      ser <- data.frame(
+        file = "monthly-series",
+        column = c("siteID","ym","mnka","captures","trap_nights","cpue_per100tn",
+                   "Nhat","p_hat","n_plots"),
         units = c(
-          "NEON 4-letter code","NEON plot ID","ISO date (YYYY-MM-DD)",
-          "ear-tag ID (unique within site, lifelong)","Latin binomial",
-          "M / F / U","juvenile / subadult / adult","grams","millimetres",
-          "trap grid cell (e.g. A1)","Y/N · NEON cross-bout recapture flag",
-          "NEON trap-status code","trap-nights (1; sprung/disturbed = 0.5; not-set = 0)",
-          "TRUE if an animal was handled (has a tagID)",
           "NEON 4-letter code","month (YYYY-MM)",
           "Minimum Number Known Alive (Krebs 1966), summed across plots",
           "handling events that month","trap-nights of effort that month",
@@ -2831,15 +2894,12 @@ server <- function(input, output, session) {
           "detection-corrected abundance (Schnabel/Chapman); blank where un-estimable",
           "per-night detection probability (Model M0)","distinct plots sampled"),
         note = c(
-          "","","","","NEON DP1.10072.001 taxonomy","7.6% NA (not sexed)","",
-          "NA = unmeasured: recaptures are often not re-weighed, and empty-trap rows carry no animal (~23% NA overall; convention, not error)",
-          "NA = unmeasured (~28% NA overall; same convention as weight)",
-          "","carries cross-BOUT history; within-bout recapture status is recomputed for the estimators","Nelson & Clark 1973 half-trap-night rule","","",
           "","","an INDEX, not a census; counts animals known alive, not corrected for detection",
           "raw count of handling events that month (a numerator, no denominator)","","captures per 100 trap-nights, a within-site relative index, NOT a cross-site density (detection differs by biome)",
           "blank for single-night / low-recapture months that can't be detection-corrected (about half of bouts are single-night by design)",
           "0–1; deserts run high, closed-canopy temperate sites low",""),
-        stringsAsFactors = FALSE)
+        stringsAsFactors = FALSE, row.names = NULL)
+      cb <- rbind(cap, ser)
       utils::write.csv(cb, file, row.names = FALSE, na = "")
     },
     contentType = "text/csv"
@@ -2896,7 +2956,7 @@ server <- function(input, output, session) {
         h4(bs_icon("exclamation-diamond"), " Caveats"),
         p("NEON keeps a tag on one animal for life and doesn't recycle tag numbers (a number is unique within a site), so a multi-year capture career is a real long-lived individual, not a tag mix-up; we flag only the rare history that can't be one animal (e.g. the same tag at two plots on a single day). A trap that caught nothing means \"not detected,\" not \"absent.\" This is a data-exploration toy, not an authoritative population analysis, but the metrics are built to be defensible."),
         p("Reviewed for scientific soundness with input from a wildlife-monitoring methods audit (Peig & Green 2009; Krebs 1966; Gotelli & Colwell 2001; NEON DP1.10072.001 User Guide)."),
-        p(bs_icon("envelope"), " ", tags$a(href = "mailto:tsgilbert@arizona.edu", "tsgilbert@arizona.edu"),
+        p(bs_icon("envelope"), " ", tags$a(href = "mailto:desertdatalabs@gmail.com", "desertdatalabs@gmail.com"),
           " · ", tags$a(href = "https://data.neonscience.org/data-products/DP1.10072.001",
                         target = "_blank", "NEON data product"))))
   })
