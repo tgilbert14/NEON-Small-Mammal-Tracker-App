@@ -789,6 +789,8 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .about-card { background: var(--paper); border: 1px solid var(--line); border-top: 3px solid var(--pine); border-radius: 12px; padding: 18px 20px; box-shadow: 0 2px 8px var(--shadow); }
 .about-card h4 { font-weight: 800; color: var(--pine); font-size: 16px; }
 .about-card p, .about-card li { color: #344049; font-size: 13.5px; line-height: 1.6; }
+/* dark mode: the hardcoded light-mode slate goes dark-on-dark on the navy card */
+[data-bs-theme="dark"] .about-card p, [data-bs-theme="dark"] .about-card li { color: var(--ink); }
 .about-card .caveat { color: var(--pine); font-size: 12.5px; }
 .about-card code { color: var(--pine); background: var(--bg); padding: 1px 5px; border-radius: 5px; }
 .about-card a { color: var(--pine); font-weight: 600; }
@@ -811,6 +813,8 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .local-stats { font-size: 12px; color: var(--muted); margin: 4px 0 6px; }
 .local-stats .ls-strong { color: var(--ink); font-weight: 700; }
 .local-blurb { font-size: 13px; color: #2c3742; line-height: 1.55; }
+/* dark mode: the hardcoded light-mode slate goes dark-on-dark on the paper card */
+[data-bs-theme="dark"] .local-blurb { color: var(--ink); }
 
 .hero-site-hint { color: var(--muted); font-size: 12px; margin-left: auto; }
 .hero-site-hint .bi { color: var(--gold-ink); }
@@ -824,6 +828,8 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .site-bio { display: flex; gap: 8px; align-items: flex-start; background: var(--bg); border: 1px solid var(--line);
   border-left: 3px solid var(--navy, var(--pine)); border-radius: 8px; padding: 8px 10px; margin: -4px 0 12px;
   font-size: 12px; color: #3a4654; line-height: 1.45; }
+/* dark mode: --bg goes dark here, so the hardcoded light-mode slate reads dark-on-dark */
+[data-bs-theme="dark"] .site-bio { color: var(--ink); }
 .site-bio .bi { color: var(--pine); margin-top: 2px; flex: none; }
 
 /* ---- landing feature row ---------------------------------------------- */
