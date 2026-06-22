@@ -154,10 +154,10 @@ function smtTour() {
         description: "Explore <b>by site</b> — tap a dot for its card — or switch to <b>by species</b> to map where one animal turns up across the country." } },
     { element: ".picker-map-wrap", popover: { title: "The national map", side: "top",
         description: "Every NEON site is a dot — <b>bigger</b> = more animals caught, <b>color</b> = the family of the most-common species there. Tap any dot to see its card, then choose <b>Explore</b> or <b>About</b>." } },
+    { element: ".select-panel", popover: { title: "Or pick by name", side: "top",
+        description: "Prefer a list? Pick a <b>state</b> and <b>site</b> here, set the <b>date window</b>, then tap <b>Explore this site</b>." } },
     { element: "#compareBtn", popover: { title: "Compare two sites", side: "top",
-        description: "Put two sites head-to-head — species, diversity, and abundance, side by side." } },
-    { element: "#demoBtn2", popover: { title: "In a hurry?", side: "top",
-        description: "Jump straight into the Jornada desert demo — it opens instantly." } }
+        description: "Put two sites head-to-head — species, diversity, and abundance, side by side." } }
   ].filter(function (s) { return document.querySelector(s.element); });
   if (!steps.length) return;
   var d = D({ showProgress: true, allowClose: true, steps: steps, popoverClass: "driverjs-theme",
@@ -211,8 +211,14 @@ document.addEventListener("DOMContentLoaded", function () {
     // tab, or the picker map re-shown after "change site") can paint blank until
     // it recomputes its size. Dispatching 'resize' makes every Leaflet map
     // invalidateSize. The server kicks this after re-showing the splash.
+    // Fire across several frames: after "change site" re-shows the splash, the
+    // page_fillable layout (and the relocated select-panel) needs a moment to
+    // settle its width before Leaflet measures, or the map captures a half-width
+    // and paints narrow. Multiple dispatches catch the settled layout.
     Shiny.addCustomMessageHandler("kickMaps", function () {
-      setTimeout(function () { try { window.dispatchEvent(new Event("resize")); } catch (e) {} }, 90);
+      var kick = function () { try { window.dispatchEvent(new Event("resize")); } catch (e) {} };
+      requestAnimationFrame(kick);
+      [80, 250, 500, 900].forEach(function (t) { setTimeout(kick, t); });
     });
   }
 });

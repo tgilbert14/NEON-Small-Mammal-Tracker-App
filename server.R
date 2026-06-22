@@ -33,7 +33,7 @@ server <- function(input, output, session) {
   }
 
   # shown on individual-only views when nobody is selected yet
-  PICK_MSG <- "Pick an individual first.<br>Open the <b>Hall of Fame</b> and tap a row,<br>or hit \U201CSurprise me\U201D in the sidebar."
+  PICK_MSG <- "Pick an individual first.<br>Open the <b>Hall of Fame</b> and tap a row,<br>or hit \U201CSurprise me\U201D in the Track-an-individual picker."
 
   # Append the current site + year-range as a small top-right caption on a plot
   # (uses add_annotations so it never clobbers a plot's own annotations).
@@ -417,18 +417,28 @@ server <- function(input, output, session) {
   observeEvent(input$loadBtn,
     load_site(input$site, input$dateRange[1], input$dateRange[2], isTRUE(input$provisional)))
 
-  # ---- national site-picker map: click a site -> load its full record ------
-  # Loads the whole bundled window for the chosen site (the friendliest default
-  # from the landing map), raises the loading overlay from the server (the map
-  # has no inline onclick), and syncs the sidebar selects through the cascade.
+  # ---- national site-picker map: click a site -> load its record -----------
+  # Raises the loading overlay from the server (the map has no inline onclick),
+  # and syncs the landing select panel (stateSel/site/dateRange) through the
+  # cascade. The date window comes from the landing dateRangeInput when the user
+  # has set a valid one; otherwise we fall back to the site's full record
+  # (year_min -> today), the friendliest default from a fresh map tap.
   load_site_full <- function(code) {
     if (is.null(code) || code == "") return(invisible())
     row <- if (!is.null(SITE_INDEX)) SITE_INDEX[SITE_INDEX$site == code, ] else NULL
     nm  <- if (!is.null(row) && nrow(row)) row$name[1] else code
     y1  <- if (!is.null(row) && nrow(row) && !is.na(row$year_min[1])) row$year_min[1] else 2013L
-    s0  <- as.Date(sprintf("%d-01-01", y1)); e0 <- Sys.Date()
+    # honour the landing date range when both ends are valid Dates; else use the
+    # site's full bundled span so a first map tap loads everything.
+    dr <- input$dateRange
+    have_dr <- !is.null(dr) && length(dr) == 2 &&
+      inherits(dr[1], "Date") && inherits(dr[2], "Date") &&
+      !is.na(dr[1]) && !is.na(dr[2]) && dr[1] <= dr[2]
+    if (have_dr) { s0 <- dr[1]; e0 <- dr[2] }
+    else { s0 <- as.Date(sprintf("%d-01-01", y1)); e0 <- Sys.Date() }
     st  <- if (!is.null(row) && nrow(row)) row$state[1] else NULL
     if (!is.null(st) && !is.na(st)) { rv$pendingSite <- code; updateSelectInput(session, "stateSel", selected = st) }
+    # keep the landing control in sync with the window we actually loaded
     updateDateRangeInput(session, "dateRange", start = s0, end = e0)
     session$sendCustomMessage("smtLoadStart", list(label = sprintf("%s · %s", code, nm)))
     load_site(code, s0, e0, FALSE)
@@ -554,13 +564,9 @@ server <- function(input, output, session) {
     session$sendCustomMessage("kickMaps", list())
   })
 
-  observeEvent(input$demoBtn, {
-    d <- load_demo()
-    if (is.null(d)) { showNotification("Demo data not found.", type = "error"); return() }
-    ingest(d, DEMO_META$label, is_demo = TRUE)
-    showNotification(tagList(bs_icon("arrow-counterclockwise"), " Back to the Jornada demo."),
-      type = "message", duration = 4)
-  })
+  # (v2 flow: the Jornada demo path was removed — users pick a real site on the
+  #  map, the Browse-all-sites list, or the by-name select panel. The demoBtn /
+  #  demoBtn2 inputs and their observers are gone with it.)
 
   # ---- selecting an individual -------------------------------------------
   pick_individual <- function(tag, navigate = TRUE) {
@@ -776,10 +782,6 @@ server <- function(input, output, session) {
           HTML(sprintf("found at <b>%d</b> of %d sites · <b>%s</b> individuals · most abundant at <b>%s</b> (%s, %s)",
             nrow(r), n_sites_total, format(sum(r$individuals), big.mark = ","),
             r$site[1], r$name[1], r$state[1])))))
-  })
-
-  observeEvent(input$demoBtn2, {
-    d <- load_demo(); req(!is.null(d)); ingest(d, DEMO_META$label, is_demo = TRUE)
   })
 
   # ---- compare two sites (modal) -----------------------------------------
@@ -1754,7 +1756,7 @@ server <- function(input, output, session) {
       div(class = "qc-empty-icon", "\U0001F50D"),
       h4("Pick an animal to open its QC history card"),
       p("Tap a dot on the scatter above and choose ", tags$b("“Open QC history card”"),
-        ", or use ", tags$b("“Track an individual”"), " in the sidebar. You'll get every capture's measurements plus automatic data-quality flags, and you can download the card or the raw history.")))
+        ", or use the ", tags$b("“Track an individual”"), " picker near the top. You'll get every capture's measurements plus automatic data-quality flags, and you can download the card or the raw history.")))
     lb <- rv$lb; row <- lb[lb$tagID == tag, ]; req(nrow(row) == 1)
     d <- rv$data
     hist <- individual_history(d, tag)
@@ -2915,7 +2917,7 @@ server <- function(input, output, session) {
       div(class = "about-card",
         h4(bs_icon("arrow-repeat"), " How fresh is the data?"),
         p("Each site ships as a pre-built, compressed bundle. An automated job re-pulls the latest published NEON records and redeploys the app ", tags$b("late on the first Saturday night of each month"), " (around 11 pm Arizona time), an off-peak window chosen so the brief redeploy never interrupts anyone mid-session."),
-        p("Want the very newest records right now? Tick ", tags$b("Include provisional"), " in the sidebar for a live fetch of NEON's latest (still-unpublished) data.")),
+        p("Want the very newest records right now? On the site-picker landing, tick ", tags$b("Include provisional"), " before you load a site for a live fetch of NEON's latest (still-unpublished) data.")),
       div(class = "about-card",
         h4(bs_icon("calculator"), " The Chonk Index · honest version"),
         p("It would be tempting to dress this up as a Scaled Mass Index (Peig & Green 2009), but in these desert rodents hind-foot length barely scales with mass (r ≈ 0.15 for kangaroo & pocket mice) and NEON almost never records total body length, so a standardized condition index would just rank measurement noise."),

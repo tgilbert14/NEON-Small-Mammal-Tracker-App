@@ -824,6 +824,88 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .btn-outline-dark { border-color: var(--line); color: var(--ink); }
 .btn-outline-dark:hover { background: var(--pine); color: #fff; border-color: var(--pine); }
 
+/* =========================================================================
+   v2 FLOW — no sidebar. A slim persistent top bar (theme + help) and the
+   relocated site-select panel that lives on the picker-map landing.
+   ========================================================================= */
+
+/* ---- persistent top control bar (theme toggle + help) ----------------- */
+.top-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  padding: 8px 14px; margin: 2px 0 6px;
+  border-bottom: 1px solid var(--line);
+}
+.top-bar-brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.top-bar-brand .tb-mark { font-size: 22px; line-height: 1; flex: none; }
+.top-bar-brand .tb-title { font-weight: 800; font-size: 15px; color: var(--pine);
+  letter-spacing: .2px; white-space: nowrap; }
+.top-bar-actions { display: flex; align-items: center; gap: 12px; }
+.top-bar-actions .tb-help { min-height: 44px; display: inline-flex; align-items: center;
+  font-weight: 700; }
+.tb-theme { display: flex; align-items: center; gap: 6px; }
+.tb-theme-lab { color: var(--muted); font-size: 15px; display: inline-flex; align-items: center; }
+/* keep the bslib dark-mode switch a comfortable tap target */
+.tb-theme .form-check, .tb-theme bslib-input-dark-mode { min-height: 44px; display: inline-flex; align-items: center; }
+@media (max-width: 560px) {
+  .top-bar { padding: 7px 10px; }
+  .top-bar-brand .tb-title { font-size: 14px; }
+  .top-bar-actions .tb-help .bi + * { display: none; } /* icon-only help on tiny screens */
+}
+
+/* ---- relocated site-select panel (was the sidebar) -------------------- */
+.select-panel {
+  max-width: 880px; margin: 14px auto 4px; text-align: left;
+  background: var(--bg); border: 1px solid var(--line);
+  border-left: 4px solid var(--pine); border-radius: 14px;
+  padding: 16px 18px; box-shadow: 0 4px 16px var(--shadow);
+}
+[data-bs-theme="dark"] .select-panel {
+  background: linear-gradient(180deg, #14254a 0%, var(--paper) 100%);
+}
+.select-panel .sp-head { font-weight: 700; color: var(--pine); font-size: 13.5px;
+  display: flex; align-items: center; gap: 7px; margin-bottom: 12px; }
+.select-panel .sp-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+.select-panel .sp-field { flex: 1 1 200px; min-width: 170px; }
+.select-panel .sp-field-date { flex: 1 1 230px; min-width: 210px; }
+.select-panel .sp-field .form-group,
+.select-panel .sp-field .shiny-input-container { margin-bottom: 0; width: 100%; }
+.select-panel label, .select-panel .control-label {
+  color: var(--ink); font-weight: 600; font-size: 13px; }
+.select-panel .sp-field .form-control,
+.select-panel .sp-field .form-select,
+.select-panel .sp-field .selectize-input { min-height: 44px; }
+/* date range: two inputs need to breathe and stay tappable */
+.select-panel .input-daterange { display: flex; gap: 6px; }
+.select-panel .input-daterange .form-control { min-height: 44px; }
+.select-panel .prov-toggle { margin: 12px 0 6px; }
+.select-panel .sp-load { width: 100%; min-height: 48px; margin-top: 6px; }
+@media (max-width: 560px) {
+  .select-panel { padding: 14px 13px; }
+  .select-panel .sp-row { gap: 10px; }
+  .select-panel .sp-field, .select-panel .sp-field-date { flex: 1 1 100%; min-width: 0; }
+}
+
+/* ---- "Track an individual" body block (was in the sidebar) ------------ */
+.indiv-picker-wrap {
+  max-width: 1040px; margin: 8px auto 0; padding: 12px 16px;
+  background: var(--paper); border: 1px solid var(--line);
+  border-left: 4px solid var(--gold); border-radius: 12px;
+}
+[data-bs-theme="dark"] .indiv-picker-wrap { background: var(--paper); }
+.indiv-picker-wrap .ipw-row { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+.indiv-picker-wrap .ipw-sel { flex: 1 1 320px; min-width: 220px; }
+.indiv-picker-wrap .ipw-sel .form-group,
+.indiv-picker-wrap .ipw-sel .shiny-input-container { margin-bottom: 0; width: 100%; }
+.indiv-picker-wrap label, .indiv-picker-wrap .control-label {
+  color: var(--ink); font-weight: 600; font-size: 13px; }
+.indiv-picker-wrap .ipw-sel .selectize-input { min-height: 44px; }
+.indiv-picker-wrap .ipw-surprise { min-height: 44px; white-space: nowrap; font-weight: 700; }
+@media (max-width: 560px) {
+  .indiv-picker-wrap .ipw-sel, .indiv-picker-wrap .ipw-surprise { flex: 1 1 100%; min-width: 0; }
+  .indiv-picker-wrap .ipw-surprise { width: 100%; }
+}
+
 /* ---- sidebar site bio ------------------------------------------------- */
 .site-bio { display: flex; gap: 8px; align-items: flex-start; background: var(--bg); border: 1px solid var(--line);
   border-left: 3px solid var(--navy, var(--pine)); border-radius: 8px; padding: 8px 10px; margin: -4px 0 12px;
@@ -831,6 +913,9 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 /* dark mode: --bg goes dark here, so the hardcoded light-mode slate reads dark-on-dark */
 [data-bs-theme="dark"] .site-bio { color: var(--ink); }
 .site-bio .bi { color: var(--pine); margin-top: 2px; flex: none; }
+/* in the v2 select panel the bio sits between the field row and the toggle, so
+   reset the sidebar-era negative top margin that used to tuck it under a field */
+.select-panel .site-bio { margin: 12px 0 4px; }
 
 /* ---- landing feature row ---------------------------------------------- */
 .land-feats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 22px; text-align: left; }

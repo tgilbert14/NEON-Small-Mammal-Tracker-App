@@ -25,9 +25,8 @@ rarity_key_items <- list(
   c("Uncommon", "3–5"), c("Common", "1–2")
 )
 
-ui <- bslib::page_sidebar(
+ui <- bslib::page_fillable(
   theme = app_theme,
-  title = NULL,
   window_title = "NEON Small Mammal Tracker",
   fillable = FALSE,
 
@@ -50,68 +49,21 @@ ui <- bslib::page_sidebar(
   ),
   useShinyjs(),
 
-  # ---- sidebar: the control deck -----------------------------------------
-  sidebar = sidebar(
-    width = 320, class = "control-deck",
-    div(class = "brand",
-      div(class = "brand-mark", "\U0001F43E"),
-      div(
-        div(class = "brand-title", "Small Mammal Tracker"),
-        div(class = "brand-sub", "NEON field observatory")
-      )
-    ),
-
-    selectInput("stateSel", label = tagList(bs_icon("geo-alt-fill"), " 1 · Pick a state"),
-                choices = NULL, width = "100%"),
-
-    selectInput("site", label = tagList(bs_icon("pin-map-fill"), " 2 · Pick a site"),
-                choices = NULL, width = "100%"),
-
-    uiOutput("siteBio"),
-
-    dateRangeInput("dateRange", label = tagList(bs_icon("calendar3"), " 3 · Date window"),
-                   format = "yyyy-mm", startview = "year",
-                   start = Sys.Date() - 2200, end = Sys.Date() - 365),
-
-    div(class = "prov-toggle",
-      checkboxInput("provisional",
-        tagList("Include ", tags$b("provisional"), " (newest, unpublished) data"), value = FALSE),
-      div(class = "prov-hint", "Off = the curated bundle (instant). On = a live fetch that adds NEON's latest provisional records.")),
-
-    actionButton("loadBtn", tagList(bs_icon("globe-americas"), " Load this site"),
-                 class = "btn-primary btn-lg w-100 load-btn", onclick = "smtLoadStart()"),
-    actionButton("demoBtn", tagList(bs_icon("stars"), " or explore the Jornada demo"),
-                 class = "btn-link btn-sm w-100 reset-demo",
-                 onclick = "smtLoadStart('Jornada · demo dataset')"),
-    div(class = "demo-hint", bs_icon("info-circle"),
-        " Real NEON data downloads live (≈ a minute). The demo is already bundled, so it opens without a download."),
-
-    hidden(div(id = "indivPickerWrap",
-      hr(class = "deck-hr"),
-      selectizeInput("indiv", label = tagList(bs_icon("search"), " Track an individual"),
-                     choices = NULL, options = list(placeholder = "Pick a tagID…")),
-      actionButton("surpriseBtn", tagList(bs_icon("dice-5-fill"), " Surprise me"),
-                   class = "btn-outline-dark btn-sm w-100"),
-      uiOutput("bioLinks")
-    )),
-
-    # ("Compare with environment" was moved out of the sidebar and onto the
-    #  Population tab — see envPickerWrap there — so it's actually discoverable
-    #  right where its overlays live.)
-
-    hr(class = "deck-hr"),
-    actionButton("help", tagList(bs_icon("question-circle"), " How it works"),
-                 class = "btn-outline-dark btn-sm w-100"),
-    div(class = "theme-toggle-row",
-      tags$span(class = "theme-toggle-lab", bs_icon("circle-half"), " Theme"),
-      input_dark_mode(id = "colorMode", mode = "dark")),
-    div(class = "deck-foot",
-      bs_icon("database"), " NEON ", tags$code("DP1.10072.001"),
-      br(), tags$a(href = "https://github.com/tgilbert14/NEON-Small-Mammal-Tracker-App",
-                   target = "_blank", bs_icon("github"), " source"),
-      br(), tags$a(href = "https://desertdatalabs.com", target = "_blank",
-                   bs_icon("box-arrow-up-right"), " Desert Data Labs")
-    )
+  # ---- persistent top control bar (theme + help) -------------------------
+  # The sidebar is gone in v2: the picker map IS the way to select a site, and
+  # its date window now lives on the landing (see the select panel inside the
+  # splash). The two controls that have to stay reachable everywhere — the theme
+  # toggle and the help dialog — sit in this slim top-right bar above the hero.
+  div(class = "top-bar",
+    div(class = "top-bar-brand",
+      tags$span(class = "tb-mark", "\U0001F43E"),
+      tags$span(class = "tb-title", "Small Mammal Tracker")),
+    div(class = "top-bar-actions",
+      actionButton("help", tagList(bs_icon("question-circle"), " How it works"),
+                   class = "btn-outline-dark btn-sm tb-help"),
+      div(class = "tb-theme",
+        tags$span(class = "tb-theme-lab", bs_icon("circle-half")),
+        input_dark_mode(id = "colorMode", mode = "dark")))
   ),
 
   # ---- full-screen loading overlay (shown client-side on Load click) -----
@@ -130,6 +82,20 @@ ui <- bslib::page_sidebar(
   #  so it shows only on site selection and frees room for the loaded view,
   #  which has its own context bar.)
   uiOutput("heroStats"),
+
+  # "Track an individual" picker — was in the sidebar, now a hidden body block
+  # revealed on site load (server: shinyjs::show("indivPickerWrap")). Same ids
+  # (indiv, surpriseBtn, bioLinks) so the server logic is untouched.
+  hidden(div(id = "indivPickerWrap", class = "indiv-picker-wrap",
+    div(class = "ipw-row",
+      div(class = "ipw-sel",
+        selectizeInput("indiv", label = tagList(bs_icon("search"), " Track an individual"),
+                       choices = NULL, width = "100%",
+                       options = list(placeholder = "Pick a tagID…"))),
+      actionButton("surpriseBtn", tagList(bs_icon("dice-5-fill"), " Surprise me"),
+                   class = "btn-outline-dark ipw-surprise")),
+    uiOutput("bioLinks")
+  )),
 
   # idle splash before any data is loaded
   # National site-picker splash — built STATICALLY here, not via a server
@@ -154,9 +120,7 @@ ui <- bslib::page_sidebar(
              span(class = "title-tag", "unofficial")),
           p(class = "app-subtitle",
             "Meet the small mammals NEON catches across the country: what lives where, who the regulars are, and what eight years of capture records reveal.")),
-        p("Pick a ", tags$b("state"), " then a ", tags$b("site"), " in the sidebar, or jump into the demo."),
-        actionButton("demoBtn2", tagList(bs_icon("stars"), " Explore the Jornada demo"),
-                     class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada · demo dataset')"))
+        p("The site map could not load in this deployment. Reload the page to try again."))
     } else {
       g_order <- vapply(GENUS_GROUPS, function(g) g$key, character(1))
       grps <- unique(idx[, c("group_key", "group_label", "group_color")])
@@ -188,8 +152,9 @@ ui <- bslib::page_sidebar(
           p(class = "app-subtitle",
             "Meet the small mammals NEON catches across the country: what lives where, who the regulars are, and what eight years of capture records reveal.")),
         p("NEON live-traps small mammals at ", tags$b(nrow(idx)), " field sites across the U.S. and Puerto Rico. ",
-          "Explore ", tags$b("by site"), ", tap a dot to dive in, or ", tags$b("by species"),
-          ", to see where one animal turns up across the country."),
+          "Tap a dot on the map to pick a site, or switch to ", tags$b("by species"),
+          " to see where one animal turns up across the country. ",
+          "You can also pick from the list below the map."),
         if (has_species) div(class = "picker-mode",
           radioButtons("pickMode", NULL, inline = TRUE,
             choiceNames = list(tagList(bs_icon("geo-alt-fill"), " By site"),
@@ -206,9 +171,35 @@ ui <- bslib::page_sidebar(
           spin(leafletOutput("pickerMap", height = "560px"), img = "rat1.gif"),
           div(class = "picker-map-hint", bs_icon("hand-index-thumb"),
               " Drag to pan · scroll to zoom · Alaska & Puerto Rico are out there too")),
+
+        # ---- relocated select panel (was the sidebar) ----------------------
+        # The same input ids the server's cascade + load path depend on
+        # (stateSel, site, dateRange, provisional, loadBtn). Tapping a dot is the
+        # primary path; this panel is the by-name path and the place to narrow
+        # the date window before loading. Same ids, so server.R is untouched.
+        div(class = "select-panel",
+          div(class = "sp-head", bs_icon("sliders"),
+              " Or pick a site by name, and set the date window"),
+          div(class = "sp-row",
+            div(class = "sp-field",
+              selectInput("stateSel", label = tagList(bs_icon("geo-alt-fill"), " State"),
+                          choices = NULL, width = "100%")),
+            div(class = "sp-field",
+              selectInput("site", label = tagList(bs_icon("pin-map-fill"), " Site"),
+                          choices = NULL, width = "100%")),
+            div(class = "sp-field sp-field-date",
+              dateRangeInput("dateRange", label = tagList(bs_icon("calendar3"), " Date window (all years by default)"),
+                             format = "yyyy-mm", startview = "year",
+                             start = as.Date("2013-01-01"), end = Sys.Date()))),
+          uiOutput("siteBio"),
+          div(class = "prov-toggle",
+            checkboxInput("provisional",
+              tagList("Include ", tags$b("provisional"), " (newest, unpublished) data"), value = FALSE),
+            div(class = "prov-hint", "Off = the curated bundle (instant). On = a live fetch that adds NEON's latest provisional records.")),
+          actionButton("loadBtn", tagList(bs_icon("globe-americas"), " Explore this site"),
+                       class = "btn-primary btn-lg load-btn sp-load", onclick = "smtLoadStart()")),
+
         div(class = "picker-actions",
-          actionButton("demoBtn2", tagList(bs_icon("stars"), " Or jump straight into the Jornada demo"),
-                       class = "btn-primary btn-lg", onclick = "smtLoadStart('Jornada · demo dataset')"),
           actionButton("compareBtn", tagList(bs_icon("bar-chart-steps"), " Compare two sites"),
                        class = "btn-outline-dark btn-lg")),
         div(class = "picker-tour",
