@@ -264,6 +264,7 @@ ui <- bslib::page_fillable(
                   " A longer bar isn't proof of cause: drivers correlate with each other, and scanning many lags can flag a strong match by chance. Treat this as a ranking of leads to investigate."))),
             uiOutput("envCorrNote"),
             spin(plotlyOutput("envDriverRank", height = "300px")),
+            uiOutput("seasonalDriver"),
             div(class = "env-pick-hint",
               bs_icon("arrow-down-circle"),
               " Pick a driver just below to overlay it on the ", tags$b("population trend"),

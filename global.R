@@ -26,6 +26,7 @@ suppressPackageStartupMessages({
 # ---- helpers + metadata ---------------------------------------------------
 source("R/site_metadata.R", local = FALSE)
 source("R/helpers.R", local = FALSE)
+source("R/seasonal_env.R", local = FALSE)   # the cascade's seasonal-aggregate driver read
 
 # ---- NEON data product ----------------------------------------------------
 NEON_DPID <- "DP1.10072.001"   # Small mammal box trapping
