@@ -167,6 +167,10 @@ ui <- bslib::page_fillable(
               choices = species_choices(),
               options = list(placeholder = "Pick a species to map its range…")),
             uiOutput("rangeSummary"))),
+        # recently-viewed tap-chips (delighter): rendered server-side from the
+        # localStorage ring buffer, sitting just above the picker map so a
+        # returning visitor can jump straight back without hunting the map.
+        uiOutput("recentsStrip"),
         div(class = "picker-map-wrap",
           spin(leafletOutput("pickerMap", height = "560px"), img = "rat1.gif"),
           div(class = "picker-map-hint", bs_icon("hand-index-thumb"),

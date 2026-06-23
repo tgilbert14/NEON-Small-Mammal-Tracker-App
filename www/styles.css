@@ -425,6 +425,25 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .pl-dot { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid #fff;
   box-shadow: 0 0 0 1px var(--line); flex: none; }
 
+/* delighter: recently-viewed tap-chips, just above the picker map */
+.recents-strip {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 8px 12px; margin: 4px auto 12px; max-width: 880px;
+}
+.recents-label { font-weight: 700; color: var(--muted); font-size: 12.5px;
+  display: inline-flex; align-items: center; gap: 6px; }
+.recents-chips { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+a.recent-chip, a.recent-chip:link, a.recent-chip:visited {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 13px;
+  border-radius: 999px; background: var(--bg); border: 1px solid var(--line);
+  color: var(--ink); font-weight: 700; font-size: 12.5px; letter-spacing: .02em;
+  text-decoration: none; cursor: pointer; transition: .15s; }
+a.recent-chip:hover, a.recent-chip:focus-visible {
+  background: var(--pine); color: #fff; border-color: var(--pine);
+  box-shadow: 0 4px 12px -5px var(--pine); }
+.recent-chip .rc-code { line-height: 1; }
+@media (prefers-reduced-motion: reduce) { a.recent-chip { transition: none; } }
+
 /* mode toggle: by site / by species — segmented control from radio buttons.
    Handles Bootstrap 5 (.form-check, input+label siblings) and older
    (.radio-inline, label-wraps-input) markup. */

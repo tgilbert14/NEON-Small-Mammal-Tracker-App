@@ -83,6 +83,118 @@ document.addEventListener("DOMContentLoaded", function () {
   } catch (e) {}
 });
 
+// ---- delighters: restore-last-site + recents (ONE localStorage namespace) ----
+// Two keys, both owned here: smtLastSite (the single code to auto-restore) and
+// smtRecents (a JSON ring buffer of the last few codes, newest first). Both are
+// READ once on shiny:connected (the same flush as smtMascotSeen) and WRITTEN in
+// exactly one place: the smt_save_site handler the server fires on every site
+// load. Nothing else touches these keys.
+function smtReadRecents() {
+  try {
+    var raw = localStorage.getItem("smtRecents");
+    if (!raw) return [];
+    var arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter(function (c) { return typeof c === "string" && c; }) : [];
+  } catch (e) { return []; }
+}
+// Persist a just-loaded site: set smtLastSite, unshift into the recents ring
+// (dedup, newest first, cap 4), and push the fresh ring back so the recents strip
+// re-renders live this session. The server calls this via shinyjs::runjs on every
+// successful load — a direct client eval, which is more reliable here than a
+// custom-message handler. ONE place that writes these two keys.
+function smtSaveSite(code) {
+  if (!code) return;
+  try {
+    localStorage.setItem("smtLastSite", code);
+    var ring = smtReadRecents().filter(function (c) { return c !== code; });
+    ring.unshift(code);
+    ring = ring.slice(0, 4);
+    localStorage.setItem("smtRecents", JSON.stringify(ring));
+    if (window.Shiny && Shiny.setInputValue)
+      Shiny.setInputValue("smtRecents", JSON.stringify(ring), { priority: "event" });
+  } catch (e) {}
+}
+
+// shiny:connected READ — hand the saved last-site + recents ring to the server so
+// the startup resolver can auto-restore and the recents strip can render. This is
+// bound at TOP LEVEL (document exists immediately; no Shiny needed to call
+// addEventListener) so the listener is in place BEFORE Shiny's websocket connects.
+// An EVENT-priority setInputValue sent before connect is dropped, and a listener
+// registered after shiny:connected already fired would never run — binding here,
+// early, is what makes the round-trip reliable (the resolver is once=TRUE, so the
+// belt-and-suspenders retries below are harmless).
+function smtPushStored() {
+  if (!(window.Shiny && Shiny.setInputValue)) return;
+  // Push the recents ring so the splash strip renders. The startup SITE restore is
+  // resolved client-side (smtStartupResolve below) — it fires siteExplore after the
+  // first render, the same proven path a map-dot tap uses, so the splash-hide lands
+  // reliably (a server-side load during the initial flush lost shinyjs::hide).
+  try { Shiny.setInputValue("smtRecents", JSON.stringify(smtReadRecents()), { priority: "event" }); }
+  catch (e) { Shiny.setInputValue("smtRecents", "[]", { priority: "event" }); }
+}
+// In this Shiny build `shiny:connected` is a jQuery-triggered event that does NOT
+// fire a native DOM event, so document.addEventListener("shiny:connected") never
+// runs and jQuery may not exist at top level yet. The robust path: poll until the
+// Shiny websocket is actually OPEN, then push the stored state exactly once. The
+// startup resolver is once=TRUE, so this single push is all it needs.
+(function smtAwaitConnected() {
+  var tries = 0;
+  var pushed = false;
+  var t = setInterval(function () {
+    var sock = window.Shiny && Shiny.shinyapp && Shiny.shinyapp.$socket;
+    var open = sock && (sock.readyState === 1 || sock.readyState === undefined);
+    if (open && window.Shiny.setInputValue) {
+      if (!pushed) { pushed = true; smtPushStored(); }
+      // one more push a beat later to clear any pre-flush drop, then stop
+      setTimeout(smtPushStored, 300);
+      clearInterval(t);
+    } else if (++tries > 300) {   // ~30s safety cap
+      clearInterval(t);
+    }
+  }, 100);
+  // also push on the jQuery connected event once jQuery is available (future
+  // reconnects), without depending on it for the initial restore.
+  var jqTries = 0;
+  var jt = setInterval(function () {
+    if (window.jQuery) { clearInterval(jt); jQuery(document).on("shiny:connected", smtPushStored); }
+    else if (++jqTries > 100) clearInterval(jt);
+  }, 100);
+})();
+
+// ---- startup site restore (deep link ?site= > localStorage last-site) ----------
+// Resolved ON THE CLIENT and dispatched through the SAME input a real map-dot tap
+// fires (siteExplore), AFTER the first render has settled — so load_site_full() ->
+// ingest()'s shinyjs::hide("splash") finds #splash in the DOM and the transition
+// lands. (A server-side resolver calling load_site_full during the initial reactive
+// flush ran before #splash existed, so the hide was silently lost and the site
+// loaded *underneath* a still-visible splash.) Precedence: URL beats localStorage.
+(function smtStartupResolve() {
+  var done = false;
+  function go() {
+    if (done || !(window.Shiny && Shiny.setInputValue)) return;
+    var target = "";
+    try {
+      var u = new URLSearchParams(window.location.search).get("site");
+      target = (u && u.trim()) || (localStorage.getItem("smtLastSite") || "");
+    } catch (e) {}
+    if (!target) return;            // cold start -> splash stays (don't latch; allow a later retry)
+    done = true;
+    try { smtLoadStart(target + " — loading…"); } catch (e) {}
+    Shiny.setInputValue("siteExplore", target, { priority: "event" });
+  }
+  // Fire after the first flush settles (DOM rendered, observers bound). jQuery
+  // shiny:idle is the reliable post-render hook; a load-timer fallback covers a
+  // missed event.
+  var bound = setInterval(function () {
+    if (window.jQuery) { clearInterval(bound); jQuery(document).one("shiny:idle", function () { setTimeout(go, 60); }); }
+  }, 50);
+  window.addEventListener("load", function () { setTimeout(go, 900); });
+})();
+// The shiny:connected READ binding that hands these keys to the server is
+// registered inside the DOMContentLoaded + window.Shiny block below (alongside
+// the smt_save_site write handler), NOT at top level — at top level `$`/`Shiny`
+// may not exist yet, and a ReferenceError there would abort the rest of app.js.
+
 // ---- loading overlay (opaque, indeterminate) -----------------------------
 // A site load is one synchronous blocking call whose duration we can't know,
 // so we show an INDETERMINATE animated bar (no fake %) on an OPAQUE backdrop —
@@ -199,8 +311,22 @@ document.addEventListener("keydown", function (e) {
 });
 
 // ---- Shiny custom message handlers ---------------------------------------
-document.addEventListener("DOMContentLoaded", function () {
-  if (window.Shiny) {
+// app.js is a <head> script and can execute BEFORE Shiny's own JS has defined
+// `window.Shiny`, OR AFTER DOMContentLoaded has already fired. The original
+// `DOMContentLoaded + if(window.Shiny)` guard could therefore miss BOTH windows
+// and silently never register these handlers (countUp / loadDone / smtLoadStart /
+// kickMaps / the delighter smt_save_site). whenShinyReady() removes the race: it
+// polls until `window.Shiny` exists, then runs the registration exactly once.
+function whenShinyReady(fn) {
+  if (window.Shiny && Shiny.addCustomMessageHandler) { fn(); return; }
+  var tries = 0;
+  var t = setInterval(function () {
+    if (window.Shiny && Shiny.addCustomMessageHandler) { clearInterval(t); fn(); }
+    else if (++tries > 200) clearInterval(t);   // ~20s safety cap
+  }, 100);
+}
+whenShinyReady(function () {
+  {
     Shiny.addCustomMessageHandler("countUp", function () {
       // small delay so the freshly-rendered DOM is in place
       setTimeout(runCounters, 60);
@@ -209,6 +335,11 @@ document.addEventListener("DOMContentLoaded", function () {
       rodentConfetti(msg && msg.big);
     });
     Shiny.addCustomMessageHandler("loadDone", function () { smtLoadDone(); });
+    // (smtSaveSite — the localStorage write — is a top-level function the server
+    //  calls via shinyjs::runjs, defined above; no custom handler needed here.
+    //  The shiny:connected READ that delivers smtLastSite + smtRecents to the
+    //  startup resolver is bound at TOP LEVEL — see smtBindConnectedRead() below —
+    //  so it is registered BEFORE Shiny connects and never misses the event.)
     // server-triggered overlay (e.g. a click on the national picker map, which
     // has no inline onclick to call smtLoadStart directly)
     Shiny.addCustomMessageHandler("smtLoadStart", function (msg) {

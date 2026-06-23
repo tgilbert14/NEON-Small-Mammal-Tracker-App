@@ -406,9 +406,44 @@ server <- function(input, output, session) {
     updateSelectInput(session, "plotTrendPlot",
                       choices = c(list("All plots (site total)" = "all"), as.list(stats::setNames(tp_u, tp_u))),
                       selected = "all")
-    nav_select("tabs", "overview")
+    # Carry-state: land on the tab the user came from (stashed by "change site")
+    # IF it's a real tab the new site supports; otherwise the Overview default.
+    # Dossier is excluded — it needs a selected individual the new site doesn't
+    # have yet — so a carried dossier falls back to overview.
+    site_code <- mode_chr(d$siteID)
+    land <- rv$pendingTab
+    rv$pendingTab <- NULL
+    valid_tabs <- c("overview", "population", "community", "sizelab",
+                    "homerange", "map", "fame", "search", "about")
+    if (is.null(land) || !land %in% valid_tabs) land <- "overview"
+    nav_select("tabs", land)
+    # restore the leaderboard category + env layer the user had, where the new
+    # site can honor them (env layer only if this site offers it).
+    if (!is.null(rv$pendingLeaderCat) && !is_demo) {
+      updateRadioButtons(session, "leaderCat", selected = rv$pendingLeaderCat)
+    }
+    rv$pendingLeaderCat <- NULL
+    if (!is.null(rv$pendingEnvLayer) && rv$pendingEnvLayer != "none" &&
+        rv$pendingEnvLayer %in% env_layer_choices(rv$env)) {
+      updateSelectInput(session, "envLayer", selected = rv$pendingEnvLayer)
+    }
+    rv$pendingEnvLayer <- NULL
     session$sendCustomMessage("countUp", list())
     session$sendCustomMessage("loadDone", list())   # hide the loading overlay
+    # delighters: deep-linkable URL + persist last-site / recents. Only here, on a
+    # real successful load, and only for a true site (never the demo path which
+    # carries no site+window key). updateQueryString fires on load, not per tick.
+    # delighters: deep-linkable URL + persist last-site / recents. Only here, on a
+    # real successful load, and only for a true site (never the demo path). The
+    # localStorage write goes through shinyjs::runjs (a direct client-side eval)
+    # rather than a custom-message handler, so the ring update + the live input
+    # refresh happen in one reliable client call. updateQueryString fires on load,
+    # not per reactive tick.
+    if (!is_demo && !is.null(site_code) && nzchar(site_code)) {
+      updateQueryString(paste0("?site=", site_code), mode = "replace")
+      shinyjs::runjs(sprintf("if(window.smtSaveSite) smtSaveSite(%s);",
+                             jsonlite::toJSON(site_code, auto_unbox = TRUE)))
+    }
     # positive confirmation it worked (the demo path shows its own toast)
     if (!is_demo)
       showNotification(tagList(bs_icon("check-circle-fill"),
@@ -620,6 +655,40 @@ server <- function(input, output, session) {
 
   observeEvent(input$pickFromList, load_site_full(input$pickFromList))
 
+  # ---- delighters: recents strip ------------------------------------------
+  # Tap-chips for the last few sites the visitor viewed, read from localStorage
+  # (input$smtRecents, a JSON array set on shiny:connected). Each chip routes
+  # through the SAME load_site_full() as the map/list, so behaviour is identical.
+  # Zero-effort by design: no favourites, no edit UI — just the ring buffer.
+  recents_codes <- reactive({
+    raw <- input$smtRecents
+    if (is.null(raw) || !nzchar(raw)) return(character(0))
+    codes <- tryCatch(jsonlite::fromJSON(raw), error = function(e) NULL)
+    if (is.null(codes) || !length(codes)) return(character(0))
+    codes <- as.character(codes)
+    valid <- if (!is.null(SITE_INDEX)) SITE_INDEX$site else codes
+    codes <- codes[codes %in% valid]
+    utils::head(codes, 4)
+  })
+  output$recentsStrip <- renderUI({
+    codes <- recents_codes()
+    if (!length(codes)) return(NULL)
+    chips <- lapply(codes, function(code) {
+      row <- if (!is.null(SITE_INDEX)) SITE_INDEX[SITE_INDEX$site == code, ] else NULL
+      nm  <- if (!is.null(row) && nrow(row)) row$name[1] else code
+      actionLink(paste0("recent_", code),
+        tagList(span(class = "rc-code", code)),
+        class = "recent-chip", title = nm,
+        onclick = sprintf(
+          "smtLoadStart('%s \\u00b7 loading\\u2026');Shiny.setInputValue('recentPick','%s',{priority:'event'});",
+          gsub("'", "\\\\'", nm), code))
+    })
+    div(class = "recents-strip",
+      tags$span(class = "recents-label", bs_icon("clock-history"), " Recently viewed:"),
+      div(class = "recents-chips", chips))
+  })
+  observeEvent(input$recentPick, load_site_full(input$recentPick))
+
   # ===========================================================================
   # Search the network — query the bundled search index (instant, no fetch)
   # ===========================================================================
@@ -781,8 +850,18 @@ server <- function(input, output, session) {
 
   # "Change site" (in the hero band) -> back to the picker-map landing
   observeEvent(input$changeSite, {
+    # carry-state: stash the view the user is leaving so the NEXT site lands back
+    # on the same tab / leaderboard category / env layer (ingest honours these
+    # where the new site supports them). The dossier tab is intentionally NOT
+    # carried — it needs a selected individual — so a leaving-dossier user is
+    # returned to overview by ingest's valid_tabs gate.
+    rv$pendingTab       <- input$tabs %||% NULL
+    rv$pendingLeaderCat <- input$leaderCat %||% NULL
+    rv$pendingEnvLayer  <- input$envLayer %||% NULL
     rv$data <- NULL; rv$lb <- NULL; rv$lb_view <- NULL; rv$tag <- NULL; rv$label <- NULL; rv$env <- NULL
     shinyjs::hide("mainTabsWrap"); shinyjs::hide("indivPickerWrap"); shinyjs::hide("envPickerWrap"); shinyjs::show("splash")
+    # clear the deep link so the splash carries no stale ?site= in the address bar
+    updateQueryString("?", mode = "replace")
     # the picker map was hidden while a site was loaded; nudge it to recompute
     # size now that it's visible again, so it never paints blank/grey on return
     session$sendCustomMessage("kickMaps", list())
@@ -3189,4 +3268,18 @@ server <- function(input, output, session) {
   })
 
   # ---- help dialog (also wired in confirm.js) ----------------------------
+
+  # ===========================================================================
+  # STARTUP RESOLVER (delighters: deep-link + restore-last-site)
+  # ===========================================================================
+  # Resolution now happens ON THE CLIENT (www/app.js -> smtStartupResolve): it
+  # reads the ?site= deep link (precedence) and the localStorage last-site, and
+  # dispatches the chosen code through input$siteExplore AFTER the first render —
+  # the same proven path a map-dot tap uses. That avoids the trap where a
+  # server-side load during the initial reactive flush ran before #splash was in
+  # the DOM, so ingest()'s shinyjs::hide("splash") was silently lost and the site
+  # loaded underneath a still-visible splash. The existing observeEvent(siteExplore)
+  # below validates the code (load_site_full -> SITE_INDEX lookup) and loads it;
+  # an unknown ?site= simply yields the "not in the bundle" notice. Restore stays
+  # NON-STICKY: the hero "change site" returns to the map and clears the query.
 }
