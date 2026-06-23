@@ -22,7 +22,8 @@ caught there, color = the dominant mammal family), or flip to **"by species"** t
 animal turns up across the country. Each site loads instantly from a per-site data bundle that ships
 with the app (no network round-trip). From there it reconstructs each animal's capture history from
 its ear-tag ID, ranks the regulars, profiles individuals, estimates abundance, and maps where they
-were caught. A sidebar with the classic state → site → date picker is still there for power users.
+were caught. The map is the site picker; once a site is open, a "change site" link in the top bar
+takes you back to it.
 
 It is built for two audiences: anyone curious about NEON small-mammal sampling, and new field
 technicians getting to know the species at their site.
@@ -211,14 +212,15 @@ install.packages(c(
 shiny::runApp()
 ```
 
-The app opens to the national site-picker map; tap any site, or click "explore the Jornada demo" to
-start immediately from the bundled dataset.
+The app opens to the national site-picker map of all 46 NEON sites. Tap a site to load it. Once a
+site is open, the top bar carries a "change site" link (back to the map) and a "report" button; pick
+your date range right on the map page.
 
 ## Project layout
 
 ```
 global.R                  libraries, theme, data loaders, lazy NEON fetch
-ui.R                      bslib dashboard (sidebar + hero + tabs)
+ui.R                      bslib dashboard (map-picker splash + hero + tabs)
 server.R                  data flow and all outputs (incl. picker/range maps)
 R/helpers.R               analytical engine (leaderboards, indices, closed-capture, Hill)
 R/site_metadata.R         site code -> name / state / domain / bio

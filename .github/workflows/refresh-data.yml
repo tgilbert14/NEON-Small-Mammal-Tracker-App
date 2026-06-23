@@ -113,6 +113,21 @@ jobs:
       - name: Rebuild the site index
         run: Rscript scripts/build_site_index.R
 
+      # Rebuild the "Search the network" index (data/search_index.rds) from the
+      # committed bundles — must run on BOTH paths so the search tab never goes
+      # stale after a refetch.
+      - name: Rebuild the search index
+        run: Rscript scripts/build_search_index.R
+
+      # Regenerate the lean manifest.json from the committed runtime files. The
+      # per-file checksums must track the refreshed bundles, or Connect Cloud
+      # (which validates the committed manifest) serves the OLD snapshot. The
+      # script is a check-only lean gate: it stop()s if neonUtilities/arrow leak
+      # in (or plotly rides without data.table), and never hand-serializes the
+      # canonical writeManifest output beyond the lean prune.
+      - name: Regenerate the manifest
+        run: Rscript scripts/write_manifest.R
+
       # Commit + push refreshed data DIRECTLY to main — THIS is the deploy: the push
       # makes Connect Cloud auto-republish (no human merge in the loop, matching the
       # siblings). Guarded so it no-ops cleanly when nothing changed.
@@ -122,7 +137,7 @@ jobs:
         run: |
           git config user.name  "neon-data-bot"
           git config user.email "neon-data-bot@users.noreply.github.com"
-          git add -A data data-sample
+          git add -A data data-sample manifest.json
           if git diff --cached --quiet; then
             echo "No data changes — nothing to commit or deploy."
           else

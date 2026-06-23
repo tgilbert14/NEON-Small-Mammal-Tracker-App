@@ -7,7 +7,7 @@ $(document).ready(function () {
       width: 640,
       html:
         "<div style='text-align:left;font-size:14px;line-height:1.7;color:#cfe0f5'>" +
-        "<b>1.</b> The app opens on a live <b>demo</b> (Jornada, NM) — explore right away<br>" +
+        "<b>1.</b> The map opens to all 46 NEON sites. Tap one to dive in.<br>" +
         "<b>2.</b> Start on the <b>Overview</b> to meet the species; tap any top stat for a ranking<br>" +
         "<b>3.</b> The <b>Hall of Fame</b> ranks every individual — click one to open its <b>Dossier</b><br>" +
         "<b>4.</b> Dig into measurements, the <b>Chonk Index</b>, its trap-grid home range &amp; replay" +

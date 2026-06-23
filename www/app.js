@@ -190,6 +190,13 @@ document.addEventListener("click", function (e) {
 document.addEventListener("keydown", function (e) {
   if (e.key === "Escape") smtClosePopovers();
 });
+// a11y: let Enter / Space activate any div styled as role="button" (the site-open
+// chip, change-site, browse-all and any future custom control) just like a click.
+document.addEventListener("keydown", function (e) {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  var el = e.target.closest && e.target.closest('[role="button"]');
+  if (el) { e.preventDefault(); el.click(); }
+});
 
 // ---- Shiny custom message handlers ---------------------------------------
 document.addEventListener("DOMContentLoaded", function () {

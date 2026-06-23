@@ -3019,6 +3019,7 @@ server <- function(input, output, session) {
     short          = list(units = "short species label", note = "derived display name (genus initial + species), for compact tables"),
     taxonID        = list(units = "NEON taxon code (join key)", note = "NEON DP1.10072.001 taxonomy; the stable code behind scientificName"),
     scientificName = list(units = "Latin binomial", note = "NEON DP1.10072.001 taxonomy; genus-only 'X sp.' and ambiguous 'A/B' kept as recorded"),
+    taxonRank      = list(units = "NEON taxonomic rank", note = "species / subspecies / speciesGroup / genus / family — NA for unranked records"),
     nativeStatusPlaceholder = NULL,  # placeholder removed below; keeps explicit ordering readable
     nativeStatusCode = list(units = "NEON native-status code (N/I/etc.)", note = "as published by NEON; NA where unassigned"),
     sex            = list(units = "M / F / U", note = "7.6% NA (not sexed)"),
