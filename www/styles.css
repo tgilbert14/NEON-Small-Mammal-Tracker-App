@@ -488,6 +488,23 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .sp-info { background: #fff; color: var(--pine); border-color: var(--line); }
 .sp-info:hover { background: var(--bg); border-color: var(--pine); }
 
+/* ---- Search the network ---------------------------------------------- */
+/* the mode toggle reuses the leaderboard category pills */
+.search-modes .shiny-options-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.search-modes .radio-inline {
+  margin: 0; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px;
+  cursor: pointer; font-size: 13px; transition: background .12s ease, border-color .12s ease; }
+.search-modes .radio-inline:hover { background: var(--bg); }
+.search-modes input[type=radio] { display: none; }
+.search-modes .radio-inline:has(input:checked) { background: var(--pine); border-color: var(--pine); color: #fff; font-weight: 700; }
+.search-controls { padding: 4px 2px 10px; }
+.search-cap { font-size: 13.5px; line-height: 1.5; margin: 2px 2px 12px; color: var(--ink); }
+.search-cap.muted, .search-cap .muted { color: var(--muted); }
+.search-cap svg { margin-right: 5px; vertical-align: -2px; color: var(--pine); }
+/* compact inline "Go to this site" button inside the result tables */
+.sp-btn.search-go { display: inline-block; width: auto; min-height: 0; padding: 5px 12px;
+  font-size: 12.5px; white-space: nowrap; }
+
 /* ---- "About this site" modal (instant, from SITE_INDEX) --------------- */
 .site-info .si-sec { padding: 10px 0; border-top: 1px solid var(--line); }
 .site-info .si-sec:first-child { border-top: 0; padding-top: 2px; }

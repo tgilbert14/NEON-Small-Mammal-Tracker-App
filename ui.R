@@ -558,6 +558,63 @@ ui <- bslib::page_fillable(
       ),
 
       nav_panel(
+        title = tagList(bs_icon("search"), " Search"),
+        value = "search",
+        div(class = "tab-head",
+          div(class = "tab-head-text",
+            h4("Search the network",
+               info_pop("Search the network",
+                 p("Search every NEON small-mammal site at once, straight from the bundled data so it answers instantly."),
+                 p(tags$b("Find a species"), " lists every site where that animal was trapped, with its within-site index and the years it was caught there."),
+                 p(tags$b("Find sites"), " filters sites by how widespread a species is, or by how many species each site has recorded."),
+                 p("The number shown is ", tags$b("MNKA"), " (minimum number known alive): a within-site index of how many of that species were known to be alive at one time. It is not a population count, and it is not a fair ranking between sites with different trapping effort."))),
+            p("Look across all NEON sites at once. Find where a species turns up, or which sites are the most species-rich. Pick a result to load that site.")),
+          div(class = "search-modes",
+            radioButtons("searchMode", NULL, inline = TRUE,
+              choiceNames = list(
+                HTML("&#128269; Find a species"),
+                HTML("&#128205; Find sites")),
+              choiceValues = c("taxon", "threshold"),
+              selected = "taxon"))
+        ),
+
+        # (a) FIND A SPECIES -------------------------------------------------
+        conditionalPanel("input.searchMode == 'taxon'",
+          card(
+            card_head("search", "Find a species across the network"),
+            div(class = "search-controls",
+              selectizeInput("searchTaxon", "Species",
+                choices = NULL, width = "100%",
+                options = list(placeholder = "Start typing a species name…",
+                               maxOptions = 2000))),
+            uiOutput("searchTaxonCaption"),
+            spin(div(style = "width:100%", DT::DTOutput("searchTaxonTbl")))
+          )
+        ),
+
+        # (b) FIND SITES (threshold query) -----------------------------------
+        conditionalPanel("input.searchMode == 'threshold'",
+          card(
+            card_head("funnel", "Find sites by a threshold"),
+            div(class = "search-controls",
+              radioButtons("threshKind", "Query", inline = TRUE,
+                choiceNames = list("Species recorded at more than N sites",
+                                   "Sites with more than X species"),
+                choiceValues = c("widespread", "richness"),
+                selected = "widespread"),
+              conditionalPanel("input.threshKind == 'widespread'",
+                sliderInput("threshN", "Minimum number of sites (N)",
+                            min = 1, max = 30, value = 5, step = 1, width = "320px")),
+              conditionalPanel("input.threshKind == 'richness'",
+                sliderInput("threshX", "Minimum species per site (X)",
+                            min = 1, max = 40, value = 10, step = 1, width = "320px"))),
+            uiOutput("searchThreshCaption"),
+            spin(div(style = "width:100%", DT::DTOutput("searchThreshTbl")))
+          )
+        )
+      ),
+
+      nav_panel(
         title = tagList(bs_icon("person-vcard"), " Dossier"),
         value = "dossier",
         uiOutput("dossierHero"),

@@ -555,6 +555,165 @@ server <- function(input, output, session) {
 
   observeEvent(input$pickFromList, load_site_full(input$pickFromList))
 
+  # ===========================================================================
+  # Search the network — query the bundled search index (instant, no fetch)
+  # ===========================================================================
+  # Populate the species autocomplete once (server-side selectize so the 145
+  # species don't all ship in the page).
+  updateSelectizeInput(session, "searchTaxon",
+    choices = search_taxon_choices(), selected = "", server = TRUE)
+
+  # one shared "Go to this site" button -> load that site's bundle + jump to
+  # Overview. Reuses the exact map-click path (load_site_full), so the sidebar
+  # state/site selectors sync and the load is identical everywhere.
+  search_go_btn <- function(code)
+    sprintf("<button type='button' class='sp-btn sp-go search-go' onclick=\"Shiny.setInputValue('searchGoSite','%s',{priority:'event'});\">Go to this site &rarr;</button>", code)
+  observeEvent(input$searchGoSite, {
+    code <- input$searchGoSite
+    if (is.null(code) || code == "") return()
+    nav_select("tabs", "overview")     # land on the site's Overview
+    load_site_full(code)               # loads the bundle + syncs the sidebar
+  })
+
+  n_sites_total <- if (!is.null(SEARCH_INDEX)) length(unique(SEARCH_INDEX$site)) else 0L
+
+  # (a) FIND A SPECIES --------------------------------------------------------
+  search_taxon_rows <- reactive({
+    sci <- input$searchTaxon
+    if (is.null(SEARCH_INDEX) || is.null(sci) || sci == "") return(NULL)
+    r <- SEARCH_INDEX[SEARCH_INDEX$scientificName == sci, , drop = FALSE]
+    if (nrow(r) == 0) return(r)
+    r[order(-r$mnka, -r$individuals), , drop = FALSE]
+  })
+
+  output$searchTaxonCaption <- renderUI({
+    sci <- input$searchTaxon
+    if (is.null(sci) || sci == "") {
+      return(div(class = "search-cap muted",
+        bsicons::bs_icon("hand-index"),
+        " Pick a species to see every NEON site where it was trapped."))
+    }
+    r <- search_taxon_rows()
+    n <- if (is.null(r)) 0L else nrow(r)
+    if (n == 0) return(div(class = "search-cap muted",
+      bsicons::bs_icon("search"), sprintf(" No bundled site has %s recorded.", sci)))
+    div(class = "search-cap",
+      bsicons::bs_icon("geo-alt-fill"),
+      HTML(sprintf(" <b>%s</b> trapped at <b>%d</b> of %d sites. ", sci, n, n_sites_total)),
+      tags$span(class = "muted",
+        "The number is MNKA, a within-site index of how many were known alive at once, not a population and not a cross-site ranking."))
+  })
+
+  output$searchTaxonTbl <- DT::renderDT({
+    r <- search_taxon_rows()
+    if (is.null(r) || nrow(r) == 0) {
+      empty <- data.frame(Site = character(0), State = character(0),
+                          `Peak MNKA` = integer(0), Individuals = integer(0),
+                          Captures = integer(0), Years = character(0),
+                          ` ` = character(0), check.names = FALSE)
+      return(DT::datatable(empty, escape = FALSE, rownames = FALSE,
+                           options = list(dom = "t", language = list(emptyTable =
+                             "Pick a species above to see where it was trapped.")))) }
+    yrs <- ifelse(is.na(r$year_min) | is.na(r$year_max), "—",
+                  ifelse(r$year_min == r$year_max, as.character(r$year_min),
+                         sprintf("%d–%d", r$year_min, r$year_max)))
+    df <- data.frame(
+      Site        = sprintf("%s (%s)", r$name, r$site),
+      State       = ifelse(is.na(r$state), "—", r$state),
+      `Peak MNKA` = r$mnka,
+      Individuals = r$individuals,
+      Captures    = r$captures,
+      Years       = yrs,
+      ` `         = vapply(r$site, search_go_btn, character(1)),
+      check.names = FALSE, stringsAsFactors = FALSE)
+    DT::datatable(df, escape = FALSE, rownames = FALSE, selection = "none",
+      options = list(pageLength = 15, dom = "tip",
+                     order = list(list(2, "desc")),
+                     columnDefs = list(list(orderable = FALSE, targets = 6))))
+  })
+
+  # (b) FIND SITES (threshold query) -----------------------------------------
+  # widespread: species recorded at > N sites; richness: sites with > X species.
+  search_thresh_rows <- reactive({
+    if (is.null(SEARCH_INDEX)) return(NULL)
+    kind <- input$threshKind %||% "widespread"
+    if (kind == "widespread") {
+      N <- as.integer(input$threshN %||% 5)
+      tab <- SEARCH_INDEX %>% dplyr::group_by(.data$scientificName, .data$emoji,
+                                              .data$group_label, .data$nickname) %>%
+        dplyr::summarise(sites = dplyr::n(),
+                         individuals = sum(.data$individuals),
+                         peak_mnka = max(.data$mnka), .groups = "drop") %>%
+        dplyr::filter(.data$sites > N) %>%
+        dplyr::arrange(dplyr::desc(.data$sites), dplyr::desc(.data$individuals))
+      list(kind = "widespread", N = N, data = tab)
+    } else {
+      X <- as.integer(input$threshX %||% 10)
+      tab <- SEARCH_INDEX %>% dplyr::group_by(.data$site, .data$name,
+                                              .data$state, .data$domain) %>%
+        dplyr::summarise(species = dplyr::n_distinct(.data$scientificName),
+                         individuals = sum(.data$individuals), .groups = "drop") %>%
+        dplyr::filter(.data$species > X) %>%
+        dplyr::arrange(dplyr::desc(.data$species), dplyr::desc(.data$individuals))
+      list(kind = "richness", X = X, data = tab)
+    }
+  })
+
+  output$searchThreshCaption <- renderUI({
+    q <- search_thresh_rows()
+    if (is.null(q)) return(NULL)
+    n <- nrow(q$data)
+    if (q$kind == "widespread") {
+      if (n == 0) return(div(class = "search-cap muted", bsicons::bs_icon("search"),
+        sprintf(" No species is recorded at more than %d sites.", q$N)))
+      div(class = "search-cap", bsicons::bs_icon("diagram-3-fill"),
+        HTML(sprintf(" <b>%d</b> species recorded at more than <b>%d</b> sites.", n, q$N)),
+        tags$span(class = "muted", " Pick a species to see its sites in Find a species."))
+    } else {
+      if (n == 0) return(div(class = "search-cap muted", bsicons::bs_icon("search"),
+        sprintf(" No site has recorded more than %d species.", q$X)))
+      div(class = "search-cap", bsicons::bs_icon("geo-alt-fill"),
+        HTML(sprintf(" <b>%d</b> of %d sites have recorded more than <b>%d</b> species.",
+                     n, n_sites_total, q$X)),
+        tags$span(class = "muted",
+          " Species counts use confirmed species-level IDs only and reflect trapping effort, so they are not a fair richness ranking."))
+    }
+  })
+
+  output$searchThreshTbl <- DT::renderDT({
+    q <- search_thresh_rows()
+    if (is.null(q) || nrow(q$data) == 0) {
+      return(DT::datatable(data.frame(` ` = "No matches at this threshold.", check.names = FALSE),
+                           escape = FALSE, rownames = FALSE, colnames = "",
+                           options = list(dom = "t"))) }
+    if (q$kind == "widespread") {
+      d <- q$data
+      df <- data.frame(
+        Species     = ifelse(is.na(d$nickname),
+                             sprintf("%s <i>%s</i>", d$emoji, d$scientificName),
+                             sprintf("%s <i>%s</i> (%s)", d$emoji, d$scientificName, d$nickname)),
+        Group       = d$group_label,
+        Sites       = d$sites,
+        Individuals = d$individuals,
+        `Peak MNKA` = d$peak_mnka,
+        check.names = FALSE, stringsAsFactors = FALSE)
+      DT::datatable(df, escape = FALSE, rownames = FALSE, selection = "none",
+        options = list(pageLength = 15, dom = "tip", order = list(list(2, "desc"))))
+    } else {
+      d <- q$data
+      df <- data.frame(
+        Site        = sprintf("%s (%s)", d$name, d$site),
+        State       = ifelse(is.na(d$state), "—", d$state),
+        Species     = d$species,
+        Individuals = d$individuals,
+        ` `         = vapply(d$site, search_go_btn, character(1)),
+        check.names = FALSE, stringsAsFactors = FALSE)
+      DT::datatable(df, escape = FALSE, rownames = FALSE, selection = "none",
+        options = list(pageLength = 15, dom = "tip", order = list(list(2, "desc")),
+                       columnDefs = list(list(orderable = FALSE, targets = 4))))
+    }
+  })
+
   # "Change site" (in the hero band) -> back to the picker-map landing
   observeEvent(input$changeSite, {
     rv$data <- NULL; rv$lb <- NULL; rv$lb_view <- NULL; rv$tag <- NULL; rv$label <- NULL; rv$env <- NULL

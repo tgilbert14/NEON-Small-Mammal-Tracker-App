@@ -3213,6 +3213,9 @@
     "data/env/YELL.rds": {
       "checksum": "09eaf8b677d24ddcc48b6fa0e23e6040"
     },
+    "data/search_index.rds": {
+      "checksum": "a9524efa9eb89b225d7b046f8207e808"
+    },
     "data/site_index.rds": {
       "checksum": "7edd9fa6202b8008ec7c648da5eb5572"
     },
@@ -3358,7 +3361,7 @@
       "checksum": "a25a9bbca444184633dfb05b57af6b20"
     },
     "global.R": {
-      "checksum": "53de2abe3dd32bf5ae8199774db56b8e"
+      "checksum": "15c8db0bb1f4776ba7317533e002c2a5"
     },
     "R/helpers.R": {
       "checksum": "7e5f2d4dee795888f9be0eab872dddfa"
@@ -3370,13 +3373,13 @@
       "checksum": "4adee87c7a55c525e62542a223528558"
     },
     "server.R": {
-      "checksum": "6b696782cd892a824ac80623f2b5c766"
+      "checksum": "9e176618dfb77006df4e7dabe6f9138a"
     },
     "ui.R": {
-      "checksum": "7c9d565f18b41299b2b67e924bfba792"
+      "checksum": "67d743706fbe7bc22e47685aa50f5081"
     },
     "www/app.js": {
-      "checksum": "7a98756be4337359b27805f0fc965291"
+      "checksum": "5c349700f3e910c6df2ead99da281d1c"
     },
     "www/confirm.js": {
       "checksum": "7bc01d8a57f85be841036daf980f23e5"
@@ -3397,7 +3400,7 @@
       "checksum": "03caa0fdc9353ecf3495715d7e5f11f5"
     },
     "www/styles.css": {
-      "checksum": "5cbb8bc5d537aeeca48e44e1f75054f8"
+      "checksum": "4885f0cb5f3eef9aa483cc65fe6856b3"
     }
   },
   "users": null

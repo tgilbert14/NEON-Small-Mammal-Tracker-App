@@ -82,6 +82,27 @@ SITE_INDEX <- read_bundle("data/site_index.rds")
 # powering the "explore by species" range map on the landing.
 SPECIES_RANGES <- read_bundle("data/species_ranges.rds")
 
+# ---- network search index (the "Search the network" tab) ------------------
+# scripts/build_search_index.R precomputes one row per (species x site) with the
+# within-site MNKA index, captures/individuals, and the site-level year span.
+# Loaded once here so the search tab filters it in memory — instant, no fetch.
+SEARCH_INDEX <- read_bundle("data/search_index.rds")
+
+# Selectize choices for the species search box: every species in the index,
+# labeled with its emoji + how widespread it is, grouped by family, most
+# widespread first. Empty placeholder leads.
+search_taxon_choices <- function() {
+  r <- SEARCH_INDEX
+  if (is.null(r) || nrow(r) == 0) return(c("Start typing a species name…" = ""))
+  s <- r %>% dplyr::group_by(.data$scientificName, .data$group_label, .data$emoji) %>%
+    dplyr::summarise(sites = dplyr::n(), inds = sum(.data$individuals), .groups = "drop") %>%
+    dplyr::arrange(dplyr::desc(.data$sites), dplyr::desc(.data$inds))
+  labs <- sprintf("%s %s · %d site%s", s$emoji, s$scientificName,
+                  s$sites, ifelse(s$sites == 1, "", "s"))
+  c(stats::setNames("", "Start typing a species name…"),
+    stats::setNames(s$scientificName, labs))
+}
+
 # Species choices for the range picker: grouped by family, labeled with emoji +
 # how widespread, sorted by total individuals (most abundant first).
 species_choices <- function() {
