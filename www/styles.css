@@ -485,6 +485,25 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
 .site-pop { min-width: 210px; }
 .site-pop .sp-code { color: var(--muted); font-weight: 700; }
 .site-pop .sp-years { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+
+/* Readable popup text in BOTH themes. A leaflet popup keeps its own light surface
+   and does not reliably inherit the active --ink (so in light mode the site name +
+   counts washed out to a near-white dark-theme ink). Pin the popup surface + text
+   to explicit, high-contrast values per theme so it can never wash out. */
+.pm-pop-card .leaflet-popup-content-wrapper,
+.pm-pop-card .leaflet-popup-tip { background: #ffffff; }
+.pm-pop-t, .pm-pop-n { color: #16243a; }
+.pm-pop-s, .site-pop .sp-code, .site-pop .sp-years { color: #51607a; }
+.pm-pop-sp { color: #1a6fb5; }
+[data-bs-theme="dark"] .pm-pop-card .leaflet-popup-content-wrapper,
+[data-bs-theme="dark"] .pm-pop-card .leaflet-popup-tip { background: #10203f; }
+[data-bs-theme="dark"] .pm-pop-t,
+[data-bs-theme="dark"] .pm-pop-n { color: #eaf2ff; }
+[data-bs-theme="dark"] .pm-pop-s,
+[data-bs-theme="dark"] .site-pop .sp-code,
+[data-bs-theme="dark"] .site-pop .sp-years { color: #9fb0cf; }
+[data-bs-theme="dark"] .pm-pop-sp { color: #5cc6f5; }
+[data-bs-theme="dark"] .pm-pop-det { color: #7cc8f5; }
 .sp-actions { display: flex; flex-direction: column; gap: 7px; margin-top: 11px; }
 .sp-btn { display: block; width: 100%; min-height: 44px; border-radius: 10px; font-weight: 700;
   font-size: 13.5px; cursor: pointer; border: 1.5px solid transparent; padding: 8px 12px;
