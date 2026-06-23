@@ -227,6 +227,46 @@ Source: `NEON-Mosquito-Pulse/` (`global.R`, `R/mos_helpers.R`, `server.R`, `www/
 
 ---
 
+### The seasonal-driver card (`R/seasonal_env.R` + `output$seasonalDriver`) — the cascade read, in-app (reusable)
+
+Every env-panel app ships the Driver Cascade's **seasonal-aggregate** driver read as a small `.ec`
+card that sits **right under the monthly env-driver ranking** (`uiOutput("seasonalDriver")` after the
+`envDriverRank`/`envCorrNote` card). It fixes the blind spot of the monthly scan: the monthly
+`env_corr_scan` *deseasonalizes* monthly catch vs monthly driver, so it averages the monsoon out of
+the very annual cycle it subtracts. The seasonal card aggregates the driver by SEASON (monsoon
+Jul–Sep, winter Oct–Mar, spring temp Mar–May) into **one value per year** and correlates at the
+prior's stated lag, at annual resolution.
+
+**Port recipe (verified on Small Mammal + Ground Beetle):**
+- Copy `R/seasonal_env.R` **verbatim** from the flagship (it is generic — `seasonal_aggregates`,
+  `seasonal_driver_links`, `seasonal_biome`, the permutation + circular-shift nulls, `SEASON_LABELS`).
+  Only `SEASON_LABELS` wording is app-tunable; keep `.WATER_LIMITED = c("JORN","MOAB","ONAQ","SRER","YELL")`.
+  `source("R/seasonal_env.R", local = FALSE)` in global.R after helpers.R.
+- Build the app's ANNUAL response — `data.frame(year=<int>, value=<num>)` — from the app's OWN annual
+  metric so the card never disagrees with the rest of the app (Small Mammal: 100·captures/trap-nights
+  per year; **Ground Beetle: `annual_trend(d)$cpn`** = catch per 100 trap-nights per year). Derive the
+  site code via the app's `rv$siteCode` (or a `mode_chr(siteID)` fallback), `biome <- seasonal_biome(code)`,
+  then `seasonal_driver_links(rv$env, resp, biome=biome, lags=…)`.
+- **The per-product LAG override is the load-bearing choice.** `lags` carries the stated prior lag per
+  driver. Slow seed-eater boom (mammals) = `precip_monsoon = 1L` (next-year crop). **A FAST
+  within-season responder (beetles, mosquitoes) = lag 0 on ALL drivers**:
+  `lags = c(precip_monsoon = 0L, precip_winter = 0L, temp_spring = 0L)` — beetle activity-density and
+  monsoon water act the same year; temperate degree-days → emergence is also same-year. Set the lag
+  from the organism's response time, not by copy-paste.
+- The card renders the **biome-LEAD** driver first (`links[links$expected,][1,]`): temperate → `temp_spring`,
+  water-limited → monsoon/winter. **Honest fallback gotcha:** if a water-limited site has NO testable
+  precip season that year-pairs (n<3 after merge), `links[links$expected,]` is empty and the card falls
+  back to the full `links` (so `temp_spring` can surface at a desert site — e.g. JORN/MOAB in the beetle
+  build). That is correct, not a bug: it means precip wasn't testable there, not that the biome prior flipped.
+- Reuse the flagship CSS verbatim: `.ec-seasonal-note`, `.ec-seasonal-caveat` (+ the existing `.ec`
+  chrome). Report **r WITH n and the simple per-link p**, show the conservative **season-corrected
+  `p_adj`** too, **n-gate** (no p under 6 years), **NEVER deseasonalize the annual aggregate**, and
+  always carry the small-n caveat + the link to `https://tgilbert14.github.io/NEON-Driver-Cascade/`.
+- Verified leads: SRER → monsoon lag0; HARV/CPER → temp_spring lag0. Source: `NEON-Ground-Beetle-Tracker/`
+  (`R/seasonal_env.R`, `server.R output$seasonalDriver`, `ui.R` Seasonality panel, `www/styles.css`).
+
+---
+
 ## 6. Deployment & maintenance — the full lifecycle (dev → deploy → self-update)
 
 The suite has **migrated off shinyapps.io to Posit Connect Cloud with a GIT-BACKED deploy**.
