@@ -106,7 +106,26 @@ mtxt <- gsub("https://packagemanager.posit.co/cran/latest",
 mtxt <- gsub("https://cloud.r-project.org",
              "https://packagemanager.posit.co/cran/__linux__/jammy/latest", mtxt, fixed = TRUE)
 writeLines(mtxt, "manifest.json")
-cat("Repo pinned to RSPM jammy binary mirror (terra/sf install precompiled on Connect Cloud).\n")
+cat("Repo set to RSPM jammy mirror.\n")
+
+# ---- pin terra to the last release before the GDAL-3.8 multidim code --------
+# The jammy repo above is NECESSARY BUT NOT SUFFICIENT: Connect Cloud compiles terra
+# from source regardless of the repo, against its system GDAL 3.4.1 (Ubuntu jammy).
+# terra's multidimensional support (gdal_multidimensional.cpp, which calls the 3-arg
+# GDALMDArray::AsClassicDataset — a GDAL 3.8 overload, unguarded in released versions)
+# landed in terra 1.8-54, so every terra >= 1.8-54 FAILS to compile on GDAL 3.4.1.
+# Pin terra to 1.8-50 (last release before 1.8-54): no GDAL-3.8 code -> compiles on
+# 3.4.1, and still satisfies raster's `terra (>= 1.8-5)`. terra/raster are install-only
+# deps (leaflet -> raster -> terra; the app uses leaflet for maps and never calls
+# terra), so an older terra has ZERO runtime impact.
+TERRA_PIN <- "1.8-50"
+mm <- jsonlite::fromJSON("manifest.json", simplifyVector = FALSE)
+if (!is.null(mm$packages$terra)) {
+  mm$packages$terra$description$Version <- TERRA_PIN
+  if (!is.null(mm$packages$terra$description$RemoteSha)) mm$packages$terra$description$RemoteSha <- TERRA_PIN
+  jsonlite::write_json(mm, "manifest.json", auto_unbox = TRUE, pretty = TRUE, null = "null")
+  cat(sprintf("Pinned terra to %s (pre-GDAL-3.8-multidim; compiles on Connect's GDAL 3.4.1).\n", TERRA_PIN))
+}
 
 # ---- hard gate: a leaked heavy package must NEVER commit silently ----------
 m   <- jsonlite::fromJSON("manifest.json", simplifyVector = FALSE)
