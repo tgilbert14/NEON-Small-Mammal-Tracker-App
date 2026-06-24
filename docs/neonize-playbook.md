@@ -282,6 +282,37 @@ This is now the standard; shinyapps.io (small-mammal reference) is legacy and sl
 - Branch naming is split across the suite (`main` vs `master`) — each workflow must push to the
   branch its own Connect Cloud app watches. Standardize new repos on `main`.
 
+**The `manifest.json` is a deploy GATE — the terra/GDAL landmine (ask `Connor`, the deploy expert):**
+A normal code/data push deploys fast, but a WRONG manifest blocks the WHOLE publish (`Failed to
+publish content`). Connect Cloud **compiles packages from SOURCE** on its **jammy image (system GDAL
+3.4.1)** — RSPM binaries are NOT reliably used, so a package must *compile* there.
+- **The killer:** `leaflet → raster → terra`, and **terra ≥ 1.8-54** ships `gdal_multidimensional.cpp`
+  calling the 3-arg `GDALMDArray::AsClassicDataset` (a **GDAL 3.8** overload, unguarded in releases) →
+  `compilation failed for package 'terra'` on GDAL 3.4.1. terra's multidim support landed in **1.8-54
+  (2025-06-01)**.
+- **The fix (proven live on Plant Phenology, rolled suite-wide):** pin **`terra` to `1.8-50`** (last
+  release before 1.8-54). It compiles on GDAL 3.4.1 and still satisfies `raster 3.6-32`'s
+  `terra (>= 1.8-5)`, so leaflet/raster are untouched. terra/raster are **install-only** (the app uses
+  leaflet for maps and never calls them) → **zero runtime impact**. Surgical: terra's version appears
+  twice in the manifest (Version + RemoteSha), no content hash, so a `sed` swap is safe.
+- **CI-regen apps must re-pin in `write_manifest.R`.** If `refresh-data.yml` runs
+  `Rscript scripts/write_manifest.R` (with `use-public-rspm`), the monthly regen re-pins terra to the
+  latest (≥1.8-54) and **re-breaks the deploy**. So `write_manifest.R` must end with a deterministic
+  re-pin of terra→1.8-50 (+ repo→RSPM jammy). Apps whose CI does NOT regenerate the manifest (e.g.
+  Plant Phenology) are durable from the committed file alone.
+
+**Reliable-redeploy discipline (run on EVERY app change):** Connect can't deploy what doesn't build,
+so the manifest must round-trip whenever the package set changes:
+1. **Did this change add/remove a `library()`/`pkg::` (a new feature pulling a new package, a dep
+   bump)?** NO → just push (code/data deploys fresh). YES → continue.
+2. **Regenerate from a CLEAN, fully-committed tree** (`writeManifest()` filesystem-scans — never
+   mid-WIP): `Rscript scripts/write_manifest.R`.
+3. **Verify before commit:** parses · lean (`neonUtilities`/`arrow` absent) · **`terra` == 1.8-50** ·
+   leaflet chain present · the new package present · `plotly` ⇒ `data.table` present.
+4. **Commit the manifest in the SAME PR as the code**, push to the watched branch.
+5. **Confirm the Connect build goes GREEN.** A failed publish silently leaves the previous good build
+   serving, so "the app still loads" is NOT proof your change shipped — verify the new element is live.
+
 **Auto-refresh + self-deploy (`.github/workflows/refresh-data.yml`) — copy this shape:**
 - **Schedule (identical across the suite):** `cron: "0 6 * * 0"` (Sunday 06:00 UTC = Saturday 23:00
   America/Phoenix, off-peak), with a **gate job** that proceeds only on the **first Saturday of the
@@ -307,8 +338,9 @@ remote + a Connect Cloud app** before any of this works.
 Data bundles: `data/sites/*.rds` present + valid (loadable, non-empty) · `data/site_index.rds`
 (picker) · `data-sample/demo.rds` (instant demo) · all git-tracked · refreshed within the cadence.
 Automation: `.github/workflows/refresh-data.yml` on the **standard schedule** · self-deploys via
-**auto-push** (not PR-merge) · `manifest.json` present · GitHub **remote** exists · `docs/index.html`
-`APP_URL` is live. NEONization: cover/landing splash · **in-app sibling links** + `docs` cross-promo
+**auto-push** (not PR-merge) · `manifest.json` present + lean (no `neonUtilities`/`arrow`) + **`terra`
+pinned `1.8-50`** (Connect Cloud compile gate — see §6 / ask Connor) · GitHub **remote** exists ·
+`docs/index.html` `APP_URL` is live + the **Connect build is GREEN** (a failed publish serves the old build). NEONization: cover/landing splash · **in-app sibling links** + `docs` cross-promo
 grid covering the WHOLE suite · mobile-responsive CSS (`@media`, prefers-reduced-motion) · **QC-flag
 system** (§ below) · metadata/codebook view · comprehensive downloads (CSV + card PNG + report PDF) ·
 entity pin-cards · current shared chrome (styles.css + app.js + pincards.js).
