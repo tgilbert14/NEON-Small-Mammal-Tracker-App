@@ -107,10 +107,21 @@ genus_group <- function(scientificName) {
 
 # Stable, app-wide species -> color map so the SAME species is the SAME color
 # on the map, the trend chart, the morphospace scatter, etc.
-make_species_pal <- function(d) {
+#
+# Mode-aware: the original pastel Set2 ramp (KEPT VERBATIM for dark, where it
+# reads on navy) washes out badly on a white panel (~1.5:1). In light mode we
+# swap to a saturated, colour-blind-safe ramp (Okabe-Ito interpolated) that
+# clears the white background. Species are sorted, so the same species maps to
+# the same ramp slot in both modes -> colour stays CONSISTENT across every plot
+# for a given mode, and re-themes when the caller re-reads is_dark() on toggle.
+make_species_pal <- function(d, dark = TRUE) {
   sp <- sort(unique(d$scientificName[!is.na(d$scientificName)]))
   if (length(sp) == 0) return(character(0))
-  cols <- grDevices::colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(length(sp))
+  base <- if (isTRUE(dark))
+    RColorBrewer::brewer.pal(8, "Set2")
+  else  # Okabe-Ito (CB-safe, all dark/saturated enough to read on white)
+    c("#0072B2", "#D55E00", "#009E73", "#CC79A7", "#9A6B00", "#1F8FBF", "#AA3377", "#444444")
+  cols <- grDevices::colorRampPalette(base)(length(sp))
   stats::setNames(cols, sp)
 }
 
