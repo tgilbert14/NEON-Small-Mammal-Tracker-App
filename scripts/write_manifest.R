@@ -92,6 +92,22 @@ if (length(removed)) {
                        null = "null")
 }
 
+# ---- force the RSPM LINUX BINARY mirror (jammy) for the package repo --------
+# use-public-rspm / rsconnect record the platform-agnostic repo URL
+# (packagemanager.posit.co/cran/latest), which Connect Cloud resolves to SOURCE on
+# Linux — so terra/sf (via leaflet -> raster -> terra) compile from source and FAIL
+# against the build image's GDAL 3.4.1 (terra >= 1.8 needs GDAL >= 3.5). Rewrite the
+# repo to the __linux__/jammy binary path (Ubuntu 22.04) so Connect installs
+# precompiled binaries and skips the GDAL build. Deterministic text pass, runs last,
+# so it sticks no matter how the repo was recorded above (CI or local).
+mtxt <- readLines("manifest.json", warn = FALSE)
+mtxt <- gsub("https://packagemanager.posit.co/cran/latest",
+             "https://packagemanager.posit.co/cran/__linux__/jammy/latest", mtxt, fixed = TRUE)
+mtxt <- gsub("https://cloud.r-project.org",
+             "https://packagemanager.posit.co/cran/__linux__/jammy/latest", mtxt, fixed = TRUE)
+writeLines(mtxt, "manifest.json")
+cat("Repo pinned to RSPM jammy binary mirror (terra/sf install precompiled on Connect Cloud).\n")
+
 # ---- hard gate: a leaked heavy package must NEVER commit silently ----------
 m   <- jsonlite::fromJSON("manifest.json", simplifyVector = FALSE)
 keys <- names(m$packages)
