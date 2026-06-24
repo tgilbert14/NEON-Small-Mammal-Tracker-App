@@ -26,6 +26,15 @@ suppressMessages({
   library(jsonlite)
 })
 
+# Connect Cloud installs Linux package BINARIES from Posit Package Manager (RSPM)
+# rather than compiling from CRAN source. This is CRITICAL for the leaflet ->
+# raster -> terra (and sf) chain: terra's source build needs GDAL >= 3.5, but
+# Connect's build image ships GDAL 3.4.1, so a from-source terra fails to compile
+# ("GDALMDArray::AsClassicDataset ... 3 provided") and aborts the whole publish.
+# Pinning the manifest repo to the RSPM jammy (Ubuntu 22.04) binary mirror makes
+# Connect pull a precompiled terra and skip the GDAL build entirely.
+options(repos = c(RSPM = "https://packagemanager.posit.co/cran/__linux__/jammy/latest"))
+
 appFiles <- c(
   "global.R", "ui.R", "server.R",
   list.files("R", pattern = "\\.R$", full.names = TRUE),
