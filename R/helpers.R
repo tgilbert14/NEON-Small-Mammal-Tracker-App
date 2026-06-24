@@ -1138,11 +1138,17 @@ closed_capture_series <- function(d, bouts = NULL) {
                 n_estimable = 0, mean_p = NA_real_, mean_detect = NA_real_))
   series <- est %>% dplyr::group_by(.data$ym) %>%
     dplyr::summarise(
+      # ckN / capt MUST be summed over the per-bout N̂ BEFORE `N` is reassigned to
+      # the month total below: within one summarise(), once `N = sum(.data$N)` runs,
+      # a later `.data$N` is that scalar month-sum, not the per-bout column — so
+      # ckN/capt (and thus pooled p̂ = capt/ckN) would silently use N_tot in place of
+      # N̂ᵢ in multi-grid months (the N_tot factor then cancels in p̂, leaving p̂
+      # k-weighted instead of the intended (k·N̂)-weighted). Keep these two first.
+      ckN = sum(.data$k * .data$N),
+      capt = sum(.data$p * .data$k * .data$N),   # = ΣCₜ recovered from p̂=ΣC/(kN)
       N = sum(.data$N),
       mnka = sum(.data$mnka),
       varN = sum(.data$varN, na.rm = TRUE),
-      ckN = sum(.data$k * .data$N),
-      capt = sum(.data$p * .data$k * .data$N),   # = ΣCₜ recovered from p̂=ΣC/(kN)
       n_grids = dplyr::n(), .groups = "drop") %>%
     dplyr::mutate(
       se = sqrt(pmax(.data$varN, 0)),
