@@ -63,7 +63,7 @@ ui <- bslib::page_fillable(
                    class = "btn-outline-dark btn-sm tb-help"),
       div(class = "tb-theme",
         tags$span(class = "tb-theme-lab", bs_icon("circle-half")),
-        input_dark_mode(id = "colorMode", mode = "dark")))
+        input_dark_mode(id = "colorMode", mode = "light")))
   ),
 
   # ---- full-screen loading overlay (shown client-side on Load click) -----
@@ -253,8 +253,8 @@ ui <- bslib::page_fillable(
         value = "population",
         div(class = "tab-head",
           div(class = "tab-head-text",
-            h4("Defensible population signals"),
-            p("Minimum Number Known Alive (MNKA) and catch-per-unit-effort are honest abundance indices; the accumulation curve shows whether trapping ran long enough to find every species."))
+            h4("Population signals"),
+            p("How abundant the small mammals are here and how that's changing — a detection-corrected estimate alongside honest indices (MNKA, catch-per-effort), the environmental drivers the population tracks, and whether trapping ran long enough to find every species."))
         ),
         conditionalPanel("output.hasEnv == true",
           card(full_screen = TRUE,
