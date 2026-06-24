@@ -3205,7 +3205,15 @@ server <- function(input, output, session) {
           "blank for single-night / low-recapture months that can't be detection-corrected (about half of bouts are single-night by design)",
           "0–1; deserts run high, closed-canopy temperate sites low",""),
         stringsAsFactors = FALSE, row.names = NULL)
-      cb <- rbind(cap, ser)
+      # Provenance / license row (NEON CC BY 4.0) — first row of the codebook so
+      # any analyst who opens the dictionary sees the source + attribution terms.
+      lic <- data.frame(
+        file   = "_source",
+        column = "NEON DP1.10072.001",
+        units  = "license",
+        note   = "Source: NEON DP1.10072.001, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); aggregated and derived by this app.",
+        stringsAsFactors = FALSE, row.names = NULL)
+      cb <- rbind(lic, cap, ser)
       utils::write.csv(cb, file, row.names = FALSE, na = "")
     },
     contentType = "text/csv"
@@ -3264,7 +3272,13 @@ server <- function(input, output, session) {
         p("Reviewed for scientific soundness with input from a wildlife-monitoring methods audit (Peig & Green 2009; Krebs 1966; Gotelli & Colwell 2001; NEON DP1.10072.001 User Guide)."),
         p(bs_icon("envelope"), " ", tags$a(href = "mailto:desertdatalabs@gmail.com", "desertdatalabs@gmail.com"),
           " · ", tags$a(href = "https://data.neonscience.org/data-products/DP1.10072.001",
-                        target = "_blank", "NEON data product"))))
+                        target = "_blank", "NEON data product"))),
+      div(class = "about-card",
+        h4(bs_icon("award"), " Data attribution & license"),
+        p(class = "caveat",
+          "Built with data from the National Ecological Observatory Network (NEON), a U.S. National Science Foundation program operated by Battelle. NEON data are provided under a Creative Commons Attribution 4.0 International (CC BY 4.0) license (",
+          tags$a(href = "https://creativecommons.org/licenses/by/4.0/", target = "_blank", "creativecommons.org/licenses/by/4.0"),
+          "). This app aggregates and derives summary metrics from the raw NEON data products; the underlying measurements are unaltered. It is an independent, unofficial tool and is not endorsed by NEON, Battelle, or the NSF.")))
   })
 
   # ---- help dialog (also wired in confirm.js) ----------------------------
