@@ -11,9 +11,11 @@ name: Refresh NEON data bundle
 # (matching the WaterChem / Plant / Beetle / Veg siblings). The old shinyapps.io
 # path (scripts/deploy.R + rsconnect/shinyapps.io/) has been removed.
 #
-# REQUIRES one optional repo secret (Settings → Secrets and variables → Actions):
-#   NEON_TOKEN   a free NEON API token (raises the rate limit; pulls work without
-#                it, just slower).
+# REQUIRES one repo secret (Settings → Secrets and variables → Actions):
+#   NEON_TOKEN   a free NEON API token from your NEON "My Account" page. From
+#                2026-06-30 NEON REQUIRES a token for downloads (before that it only
+#                raised the rate limit). Without it the monthly re-pull fails after
+#                that date; the deployed app keeps serving its last committed bundle.
 # Trigger manually from the Actions tab (workflow_dispatch); tick "skip_download"
 # to just rebuild the index from the committed bundles (fast, no NEON re-pull).
 
