@@ -103,7 +103,7 @@
         "Maintainer": "Brian Ripley <Brian.Ripley@R-project.org>",
         "Repository": "CRAN",
         "Date/Publication": "2025-01-01 10:25:36 UTC",
-        "Built": "R 4.6.0; x86_64-pc-linux-gnu; 2026-04-24 09:01:26 UTC; unix"
+        "Built": "R 4.6.1; x86_64-pc-linux-gnu; 2026-06-24 19:18:19 UTC; unix"
       }
     },
     "MASS": {
@@ -132,7 +132,7 @@
         "Maintainer": "Brian Ripley <Brian.Ripley@R-project.org>",
         "Repository": "CRAN",
         "Date/Publication": "2025-02-28 17:44:52 UTC",
-        "Built": "R 4.6.0; x86_64-pc-linux-gnu; 2026-04-24 08:58:08 UTC; unix"
+        "Built": "R 4.6.1; x86_64-pc-linux-gnu; 2026-06-24 19:14:59 UTC; unix"
       }
     },
     "R6": {
@@ -459,7 +459,7 @@
         "Maintainer": "Brian Ripley <Brian.Ripley@R-project.org>",
         "Repository": "CRAN",
         "Date/Publication": "2025-01-01 10:25:33 UTC",
-        "Built": "R 4.6.0; x86_64-pc-linux-gnu; 2026-04-24 09:01:31 UTC; unix"
+        "Built": "R 4.6.1; x86_64-pc-linux-gnu; 2026-06-24 19:18:25 UTC; unix"
       }
     },
     "classInt": {
@@ -1522,7 +1522,7 @@
         "Maintainer": "Deepayan Sarkar <deepayan.sarkar@r-project.org>",
         "Repository": "CRAN",
         "Date/Publication": "2026-02-09 06:10:13 UTC",
-        "Built": "R 4.6.0; x86_64-pc-linux-gnu; 2026-04-24 08:58:13 UTC; unix"
+        "Built": "R 4.6.1; x86_64-pc-linux-gnu; 2026-06-24 19:15:04 UTC; unix"
       }
     },
     "lazyeval": {
@@ -3269,10 +3269,10 @@
       "checksum": "09eaf8b677d24ddcc48b6fa0e23e6040"
     },
     "data/search_index.rds": {
-      "checksum": "25cb15726ff045c4b6a170aa84111945"
+      "checksum": "be7b84a7b3b412f232abe724f3919ccc"
     },
     "data/site_index.rds": {
-      "checksum": "0a2b860fcca7280757e6eca9f6740a85"
+      "checksum": "9b4c4a621514bcc57e1833281e6dbac1"
     },
     "data/sites/ABBY.rds": {
       "checksum": "f27ec86fa8289498ba813de95c8441d0"
@@ -3413,10 +3413,10 @@
       "checksum": "a99514d5510982e2a9f48042efe3e278"
     },
     "data/species_ranges.rds": {
-      "checksum": "a25a9bbca444184633dfb05b57af6b20"
+      "checksum": "6c0124cebcec71fdbf6aade16a2f9fb9"
     },
     "global.R": {
-      "checksum": "75ed579bb97762cf06e251e530752fcb"
+      "checksum": "622b4839d78eab150dfe4b171a8ab53b"
     },
     "R/helpers.R": {
       "checksum": "10dadcb4168bbe59b6d99168cd4f8013"
