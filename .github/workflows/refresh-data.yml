@@ -74,13 +74,17 @@ jobs:
         with:
           use-public-rspm: true
 
+      # rsconnect is a BUILD-TIME tool: scripts/write_manifest.R calls
+      # rsconnect::writeManifest(). It is pruned out of the final manifest by the
+      # RUNTIME_PKGS reachability walk in that script, so it never ships to Connect.
       - name: Install R packages
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
           packages: >
             neonUtilities, dplyr, tibble, tidyr, stringr, jsonlite,
             shiny, bslib, bsicons, plotly, leaflet, DT, shinyjs,
-            shinycssloaders, RColorBrewer, htmltools, cpp11
+            shinycssloaders, RColorBrewer, htmltools, cpp11,
+            rsconnect
 
       - name: Rebuild the per-site bundle (full NEON re-pull)
         if: ${{ github.event.inputs.skip_download != 'true' }}
