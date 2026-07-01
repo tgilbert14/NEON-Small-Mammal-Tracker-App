@@ -108,24 +108,83 @@ mtxt <- gsub("https://cloud.r-project.org",
 writeLines(mtxt, "manifest.json")
 cat("Repo set to RSPM jammy mirror.\n")
 
-# ---- pin terra to the last release before the GDAL-3.8 multidim code --------
-# The jammy repo above is NECESSARY BUT NOT SUFFICIENT: Connect Cloud compiles terra
-# from source regardless of the repo, against its system GDAL 3.4.1 (Ubuntu jammy).
-# terra's multidimensional support (gdal_multidimensional.cpp, which calls the 3-arg
-# GDALMDArray::AsClassicDataset — a GDAL 3.8 overload, unguarded in released versions)
-# landed in terra 1.8-54, so every terra >= 1.8-54 FAILS to compile on GDAL 3.4.1.
-# Pin terra to 1.8-50 (last release before 1.8-54): no GDAL-3.8 code -> compiles on
-# 3.4.1, and still satisfies raster's `terra (>= 1.8-5)`. terra/raster are install-only
-# deps (leaflet -> raster -> terra; the app uses leaflet for maps and never calls
-# terra), so an older terra has ZERO runtime impact.
-TERRA_PIN <- "1.8-50"
+# ---- FREEZE the source-compiled geospatial closure + the R version ----------
+# ROOT-CAUSE FIX for the recurring "worked fine, then start-up error, republish
+# fixes it" outage. This CI regenerates the manifest on every monthly data refresh
+# and pushes straight to main, and Connect Cloud auto-republishes on that push.
+# rsconnect::writeManifest() snapshots WHATEVER is installed in the fresh GitHub
+# runner — i.e. the LATEST RSPM release of every package AND the runner's latest R.
+# So an untouched app "spontaneously" breaks whenever a monthly refresh floats a
+# package (or R) forward to a version that won't SOURCE-COMPILE on Connect's build
+# image (Ubuntu jammy: GDAL 3.4.1, GEOS 3.10, PROJ 8.2, Abseil ~2022). The build
+# dies mid-restore, the container recycles to a broken state ("start-up error"),
+# and a manual republish only helps transiently.
+#
+# leaflet (the picker map) drags in the ENTIRE native geospatial stack, all of
+# which Connect compiles FROM SOURCE regardless of the RSPM binary repo above:
+#     leaflet -> raster -> terra            (terra >= 1.8-54 needs GDAL 3.8)
+#     leaflet -> sf      -> s2, units, ...   (s2 >= ... needs newer Abseil)
+# Pinning ONLY terra (the first landmine we hit) left sf/s2/units/wk/classInt AND
+# the R `platform` version free to float on the next refresh — which is exactly
+# how it kept re-breaking. So we now FREEZE the whole known-good closure to the
+# versions the LIVE app is proven to build on, plus the R version. These are all
+# install-only deps (the app uses leaflet only for markers/tiles; it never calls
+# terra::/sf::/s2::), so freezing older versions has ZERO runtime impact.
+#
+# To intentionally move a pin (e.g. once terra ships the GDAL-3.8 guard in a
+# release): bump it here, and confirm it still compiles on jammy's system libs.
+GEO_PINS <- c(
+  terra    = "1.8-50",   # last release before the unguarded GDAL-3.8 multidim code (1.8-54)
+  sf       = "1.1-1",    # proven on jammy GDAL 3.4.1 / GEOS 3.10 / PROJ 8.2
+  s2       = "1.1.11",   # bundles its own Abseil; jammy's system Abseil is too old
+  units    = "1.0-1",
+  wk       = "0.9.5",
+  classInt = "0.4-11",
+  raster   = "3.6-32",   # satisfied by terra 1.8-50 (needs terra >= 1.8-5)
+  sp       = "2.2-1"
+)
+# Freeze the R version too: a runner R bump (seen: 4.5.2 -> 4.6.0) changes the
+# whole build image and can invalidate binary/source assumptions on republish.
+R_PLATFORM_PIN <- "4.5.2"
+
 mm <- jsonlite::fromJSON("manifest.json", simplifyVector = FALSE)
-if (!is.null(mm$packages$terra)) {
-  mm$packages$terra$description$Version <- TERRA_PIN
-  if (!is.null(mm$packages$terra$description$RemoteSha)) mm$packages$terra$description$RemoteSha <- TERRA_PIN
-  jsonlite::write_json(mm, "manifest.json", auto_unbox = TRUE, pretty = TRUE, null = "null")
-  cat(sprintf("Pinned terra to %s (pre-GDAL-3.8-multidim; compiles on Connect's GDAL 3.4.1).\n", TERRA_PIN))
+if (!is.null(mm$platform)) {
+  mm$platform <- R_PLATFORM_PIN
 }
+for (pkg in names(GEO_PINS)) {
+  if (!is.null(mm$packages[[pkg]])) {
+    v <- unname(GEO_PINS[[pkg]])
+    mm$packages[[pkg]]$description$Version <- v
+    if (!is.null(mm$packages[[pkg]]$description$RemoteSha))
+      mm$packages[[pkg]]$description$RemoteSha <- v
+    cat(sprintf("Pinned %s to %s.\n", pkg, v))
+  }
+}
+jsonlite::write_json(mm, "manifest.json", auto_unbox = TRUE, pretty = TRUE, null = "null")
+cat(sprintf("Froze R platform to %s and the geospatial closure (compiles on Connect's jammy image).\n",
+            R_PLATFORM_PIN))
+
+# ---- hard gate: the frozen pins MUST be present and correct after regen ------
+# A refresh must never ship a floated geospatial version. If writeManifest changed
+# a native package's version and (somehow) the freeze above didn't take, stop the
+# CI before it can push a build-breaking manifest to main.
+chk <- jsonlite::fromJSON("manifest.json", simplifyVector = FALSE)
+bad <- character(0)
+if (!is.null(chk$platform) && !identical(chk$platform, R_PLATFORM_PIN))
+  bad <- c(bad, sprintf("platform=%s (want %s)", chk$platform, R_PLATFORM_PIN))
+for (pkg in names(GEO_PINS)) {
+  if (!is.null(chk$packages[[pkg]])) {
+    got <- chk$packages[[pkg]]$description$Version
+    if (!identical(got, unname(GEO_PINS[[pkg]])))
+      bad <- c(bad, sprintf("%s=%s (want %s)", pkg, got, unname(GEO_PINS[[pkg]])))
+  }
+}
+if (length(bad)) {
+  stop(sprintf(
+    "GEO-FREEZE GATE FAILED: a source-compiled package/R version is not pinned to its known-good value: %s. Do NOT commit/push this manifest — it will break the Connect Cloud build.",
+    paste(bad, collapse = "; ")), call. = FALSE)
+}
+cat("OK: R version + geospatial closure are frozen to their known-good, jammy-compilable versions.\n")
 
 # ---- hard gate: a leaked heavy package must NEVER commit silently ----------
 m   <- jsonlite::fromJSON("manifest.json", simplifyVector = FALSE)

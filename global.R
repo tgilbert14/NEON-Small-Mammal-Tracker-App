@@ -270,13 +270,29 @@ source("R/report_pdf.R", local = FALSE)
 
 # Light "desert-day" base (shown if the user toggles light). DARK is the default +
 # showcase; styles.css [data-bs-theme="dark"] carries the full desert-night system.
+# Rubik is named as a PLAIN CSS font-family here (a bslib font_collection of bare
+# strings), NOT font_google("Rubik"). font_google() defaults to local = TRUE, which
+# makes bslib DOWNLOAD the Rubik files from Google's servers into app_cache/sass and
+# compile them into the theme *at app startup*. On Connect Cloud that live fetch runs
+# on EVERY cold start (the idle worker recycles and wipes the cache), and if Google
+# Fonts is slow/unreachable the Sass compile blocks/fails during boot -> black screen /
+# "start-up error" (confirmed in the Connect logs: "Downloading google font Rubik to
+# local cache" immediately before "Stopping server..."). A manual republish only
+# re-primes the cache until the next recycle. Naming the family as a string does ZERO
+# network at boot; the actual Rubik glyphs are still delivered to the browser by the
+# <link rel=stylesheet ...fonts.googleapis.com...> in ui.R (client-side, non-blocking,
+# display=swap), with a system-sans stack as the guaranteed fallback if that link is
+# ever blocked. Net: the theme compiles offline, and text always renders.
+rubik_stack <- bslib::font_collection(
+  "Rubik", "system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"
+)
 app_theme <- bs_theme(
   version = 5,
   bg = "#ffffff", fg = "#16243a",
   primary = "#1f78c4", secondary = "#e0685a",
   success = "#3f9a52", info = "#2f8fc4", warning = "#d6a31c", danger = "#e0685a",
-  base_font    = font_google("Rubik"),
-  heading_font = font_google("Rubik"),
+  base_font    = rubik_stack,
+  heading_font = rubik_stack,
   "border-radius" = "12px"
 )
 
