@@ -288,6 +288,20 @@ compute_condition <- function(d) {
   ad <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$weight), .data$weight > 0,
                       .data$lifeStage == "adult")
   if (nrow(ad) == 0) return(empty)
+  # QC-flag lifecycle · stage 6: drop capture weights flagged as possible data-entry
+  # errors (±5·MAD within species-adults — the SAME rule the species table's ⚠ and
+  # the QC modal use) BEFORE ranking, so one bad reading can't drag an animal's
+  # weight-for-species percentile down or pollute its species pool's ranks. This
+  # mirrors how the species median/IQR already exclude them; disclosed in the chonk
+  # caption. If an animal's ONLY adult weight is flagged it drops to NA (no reliable
+  # weight), which is the honest result.
+  ad <- ad %>%
+    dplyr::group_by(.data$scientificName) %>%
+    dplyr::mutate(.wflag = .is_meas_outlier(.data$weight, .data$weight)) %>%
+    dplyr::ungroup() %>%
+    dplyr::filter(!.data$.wflag) %>%
+    dplyr::select(-".wflag")
+  if (nrow(ad) == 0) return(empty)
 
   ind <- ad %>%
     dplyr::group_by(.data$tagID) %>%
@@ -749,31 +763,58 @@ inspect_captures <- function(d, tags) {
                      sex = .data$sex, lifeStage = .data$lifeStage)
 }
 
-# The actual captures whose body measurement was flagged as a possible error
-# (beyond median +/- 5*MAD among this species' adults — same rule as
-# species_measurements()), so the QC modal can list the exact records to verify.
-# Returns a data frame (short, date, plot, value, sex) or NULL.
+# ---------------------------------------------------------------------------
+# QC-flag lifecycle — the ONE possible-error rule, shared everywhere
+# ---------------------------------------------------------------------------
+# A value flagged as a possible data-entry error must be flagged the SAME way in
+# every place it appears: the species table's ⚠, the QC modal, the per-capture
+# marks on the dossier plots (measPlot / morphoPlot / capHistory), AND the Chonk
+# Index exclusion. This single rule is that source of truth — |x − median| > 5·MAD
+# among the reference pool, MAD floored at 10% of the median so a tight integer
+# distribution can't manufacture a zero-MAD "everything is an outlier". Robust
+# (median/MAD) so the outlier can't mask itself.
+.MEAS_COL <- c(weight = "weight", hindfoot = "hindfootLength",
+               tail = "tailLength", ear = "earLength")
+.is_meas_outlier <- function(v, ref) {
+  ref <- ref[is.finite(ref) & ref > 0]
+  if (length(ref) < 3) return(is.finite(v) & FALSE)
+  m <- stats::median(ref); s <- max(stats::mad(ref), 0.1 * m)
+  if (!is.finite(s) || s <= 0) return(is.finite(v) & FALSE)
+  is.finite(v) & (abs(v - m) > 5 * s)
+}
+
+# The species-level ADULT reference distribution for one measure — the exact pool
+# the flag is judged against (matches species_measurements()'s nflag). The dossier
+# plots pass an animal's own capture values against this so a mark on the plot is
+# the SAME record the species-table ⚠ and the QC modal flag.
+species_adult_values <- function(d, sp, measure) {
+  col <- .MEAS_COL[[measure]]
+  if (is.null(col) || is.null(d) || length(sp) != 1 || is.na(sp)) return(numeric(0))
+  h <- species_level_only(dplyr::filter(d, !is.na(.data$tagID),
+         .data$scientificName == sp, .data$lifeStage %in% "adult"))
+  if (is.null(h) || !nrow(h)) return(numeric(0))
+  v <- h[[col]]; v[is.finite(v) & v > 0]
+}
+
+# The actual captures whose body measurement was flagged as a possible error, so
+# the QC modal can list the exact records to verify AND drill to the animal's
+# dossier. Returns (tag = full tagID for the drill-through, short, date, plot,
+# value, sex, median) or NULL.
 flagged_measure_captures <- function(d, sp, measure) {
-  col <- switch(measure, weight = "weight", hindfoot = "hindfootLength",
-                tail = "tailLength", ear = "earLength", NULL)
+  col <- .MEAS_COL[[measure]]
   if (is.null(col) || is.null(d)) return(NULL)
-  # species_level_only() so this draws from the exact same adult pool as
-  # species_measurements()'s nflag() — the flag rule must agree or the count
-  # here won't match the ⚠ tooltip's count.
   h <- species_level_only(dplyr::filter(d, !is.na(.data$tagID), .data$scientificName == sp,
                           .data$lifeStage %in% "adult"))
   if (is.null(h) || !nrow(h)) return(NULL)
   v <- h[[col]]; keep <- is.finite(v) & v > 0
   h <- h[keep, , drop = FALSE]; v <- v[keep]
   if (length(v) < 3) return(NULL)
-  m <- stats::median(v); s <- max(stats::mad(v), 0.1 * m)
-  if (!is.finite(s) || s <= 0) return(NULL)
-  flag <- abs(v - m) > 5 * s
+  flag <- .is_meas_outlier(v, v)
   if (!any(flag)) return(NULL)
-  data.frame(short = short_tag(h$tagID[flag]),
+  data.frame(tag = h$tagID[flag], short = short_tag(h$tagID[flag]),
              date = h$date[flag], plotID = h$plotID[flag],
              value = round(v[flag], 1), sex = h$sex[flag],
-             median = m, stringsAsFactors = FALSE)
+             median = stats::median(v), stringsAsFactors = FALSE)
 }
 
 # ---------------------------------------------------------------------------
