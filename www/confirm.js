@@ -2,6 +2,24 @@
 $(document).ready(function () {
   // delegated so it works even though the button is rendered inside the sidebar
   $(document).on("click", "#help", function () {
+    // SweetAlert2 is a CDN lib; on blocked school/corp wifi or with an ad-blocker
+    // it never loads. Unguarded, this click throws `Swal is not defined` and the
+    // ONLY onboarding affordance dies with a console error. Fall back to a plain
+    // dialog so the help content still reaches the user. (Real fix: vendor the lib
+    // into www/ with a CDN onerror fallback — see the FABLE deploy-armor note.)
+    if (typeof Swal === "undefined") {
+      window.alert(
+        "How this works\n\n" +
+        "1. The map opens to all 46 NEON sites. Tap one to dive in.\n" +
+        "2. Start on the Overview to meet the species; tap any top stat for a ranking.\n" +
+        "3. The Hall of Fame ranks every individual — click one to open its Dossier.\n" +
+        "4. Dig into measurements, the Chonk Index, its trap-grid home range & replay.\n\n" +
+        "RARITY (by total captures): Legendary 15+, Epic 10–14, Rare 6–9, Uncommon 3–5, Common 1–2.\n" +
+        "CHONK INDEX: an adult weight percentile within species (50 = typical, 95+ = megachonk).\n\n" +
+        "Data: NEON Small Mammal Box Trapping (DP1.10072.001)."
+      );
+      return;
+    }
     Swal.fire({
       title: "🐾 How this works",
       width: 640,

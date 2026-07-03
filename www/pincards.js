@@ -80,7 +80,9 @@
     var pin = document.createElement("div");
     pin.className = "smt-pin";
     pin.__box = box; pin.__key = key; pin.__dx = dx; pin.__dy = dy;
-    pin.innerHTML = "<button class='smt-pin-close' title='Close'>&times;</button>" + html;
+    // a11y (WCAG 4.1.2): the &times; glyph is not a reliable accessible name, so
+    // label the button explicitly; title stays for the mouse-hover tooltip.
+    pin.innerHTML = "<button class='smt-pin-close' type='button' title='Close card' aria-label='Close card'>&times;</button>" + html;
     pin.querySelectorAll("em.smt-pin-hint").forEach(function (em) {
       var br = em.previousElementSibling;
       if (br && br.tagName === "BR") br.remove();
@@ -201,8 +203,16 @@
       return !(t.name && t.name.indexOf("tracking") !== -1);
     });
     if (!core.length) return "";
-    var x = core[0].x || [];
-    return core.length + ":" + x.length + ":" + x[0] + ":" + x[x.length - 1];
+    /* fold EVERY core trace's point count + endpoints into the signature, not just
+       core[0]: a filter change that drops a later species but leaves the first
+       (alphabetical) trace's length + endpoints unchanged would otherwise slip
+       through and strand pins on points that no longer exist. Widening the sig can
+       only clear MORE stale pins, never fewer — and the "tracking" diamond is still
+       excluded, so opening a QC card from a pin never trips it (the documented path). */
+    return core.length + "#" + core.map(function (t) {
+      var x = t.x || [];
+      return x.length + "|" + x[0] + "|" + x[x.length - 1];
+    }).join(",");
   }
 
   /* (re)bind a plotly graph div. Safe to call repeatedly — it removes any prior
@@ -253,16 +263,36 @@
       allowOutsideClick: false, didOpen: function () { if (Swal.showLoading) Swal.showLoading(); } });
   }
   function toastDone(msg, isErr) {
-    if (typeof Swal === "undefined") return;
+    // KILL-1: Swal ships from the SAME CDN as html-to-image, so on a blocked
+    // network both are undefined together — an error toast would go MUTE in the
+    // exact outage it exists for. Fall back to a native alert for errors.
+    if (typeof Swal === "undefined") { if (isErr) window.alert(msg); return; }
     Swal.fire({ toast: true, position: "top-end", icon: isErr ? "error" : "success",
       title: msg, showConfirmButton: false, timer: 2200 });
   }
   function downloadUrl(url, name) {
     var a = document.createElement("a"); a.download = name; a.href = url; a.click();
   }
+  /* chrome that must NEVER bake into an exported PNG: a pin's close button and
+     resize grip live INSIDE .smt-pinnable (they're children of .smt-pin, which
+     is a box child), so html-to-image renders them unless the filter drops them.
+     smt-pin-hint is stripped in makePin() before it ever renders, but is listed
+     for defence-in-depth — this is the single shared HIDE list, used by snap(). */
+  var HIDE = ["smt-pin-close", "smt-pin-resize", "smt-pin-hint", "swal2-container"];
+  function chromeFilter(n) {
+    return !(n.classList && HIDE.some(function (c) { return n.classList.contains(c); }));
+  }
   var saving = false;
   function snap(node, name, beforeEl) {
-    if (!node || typeof htmlToImage === "undefined" || saving) return;
+    if (saving) return;
+    if (!node) return;
+    // §2.15: a CDN-only capture lib is `undefined` on blocked school/corp wifi or
+    // behind an ad-blocker. NEVER return silently — the user tapped "Download" and
+    // deserves to know why nothing happened, not a dead button.
+    if (typeof htmlToImage === "undefined") {
+      toastDone("Download needs a file that didn't load — check your network or ad-blocker, then reload.", true);
+      return;
+    }
     saving = true;
     // force the plotly chart to its current size first (a tab that rendered while
     // hidden, or a just-toggled fullscreen, can leave a 0-sized / stale SVG)
@@ -271,18 +301,49 @@
     node.querySelectorAll(".smt-pin.smt-pulse").forEach(function (p) { p.classList.remove("smt-pulse"); });
     toastStart("Rendering image…");
     setTimeout(function () {
-      htmlToImage.toPng(node, { pixelRatio: 2, backgroundColor: bgColor(), cacheBust: true, skipFonts: true })
+      htmlToImage.toPng(node, { pixelRatio: 2, backgroundColor: bgColor(), cacheBust: true, skipFonts: true, filter: chromeFilter })
         .then(function (url) { downloadUrl(url, name); toastDone("Saved ✓"); })
         .catch(function () { toastDone("Render failed — try again", true); })
         .then(function () { saving = false; });
     }, 90);
   }
-  window.smtSaveScatter = function () { snap(document.querySelector(".smt-pinnable"), "neon-bodysize-lab.png"); };
+  /* §1.13: a deterministic, self-describing filename. Scrape the SITE code + year
+     window off the hero (the same scope rv$ctx stamps on-plot), so two exports
+     from two different sites don't collide on one generic name in Downloads.
+     Falls back to "" when the hero isn't mounted (nothing loaded yet), and the
+     caller's base name still gives a valid, non-colliding file. */
+  function clean(s) { return (s || "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); }
+  function snapSlug() {
+    // KILL-2: prefer the site code stamped at the source (data-site — immune to
+    // label-format drift); else the 4-letter NEON code in the hero label (skip the
+    // "NEON" domain token); else the leading token as a last resort.
+    var lab = document.querySelector(".hero-site-label");
+    var rng = document.querySelector(".hero-site-range");
+    var site = "";
+    if (lab) {
+      var codes = (lab.textContent.match(/\b[A-Z]{4}\b/g) || []).filter(function (c) { return c !== "NEON"; });
+      site = lab.getAttribute("data-site") || codes[0] || lab.textContent.trim().split(/[\s—·-]/)[0] || "";
+    }
+    // reduce a range like "Jan 2022 – Dec 2024" to its bounding years
+    var yrs = "";
+    if (rng) {
+      var m = (rng.textContent.match(/\d{4}/g) || []);
+      if (m.length) yrs = m[0] === m[m.length - 1] ? m[0] : m[0] + "-" + m[m.length - 1];
+    }
+    return [clean(site), yrs].filter(Boolean).join("-");
+  }
+  function snapName(facet, extra) {
+    var parts = ["neon", facet, snapSlug(), extra].filter(Boolean);
+    return parts.join("-") + ".png";
+  }
+  window.smtSaveScatter = function () {
+    snap(document.querySelector(".smt-pinnable"), snapName("bodysize"));
+  };
   window.smtSaveQcCard = function () {
     var node = document.getElementById("qcCardNode");
     if (!node) return;
-    var short = node.getAttribute("data-short") || "qc";
-    snap(node, "neon-qc-" + short.replace(/[^A-Za-z0-9]+/g, "") + ".png");
+    var short = clean(node.getAttribute("data-short") || "");
+    snap(node, snapName("qc", short));
   };
 
   /* Scroll the QC card into view once it renders. Hard-won points:

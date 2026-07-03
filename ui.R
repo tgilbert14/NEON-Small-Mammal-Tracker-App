@@ -34,14 +34,41 @@ ui <- bslib::page_fillable(
   tags$head(
     tags$link(rel = "preconnect", href = "https://fonts.googleapis.com"),
     tags$link(rel = "preconnect", href = "https://fonts.gstatic.com", crossorigin = NA),
+    # Rubik = house font; Jura = tag/specimen-ID face (.podium-id, map tag labels).
+    # Jura was referenced in server.R + styles.css but never loaded, so IDs fell
+    # back to system mono/serif inconsistently across machines. reaver 2026-07.
+    # (Jura's heaviest weight is 700; the .podium-id 800 rule substitutes 700.)
     tags$link(rel = "stylesheet",
-      href = "https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap"),
-    tags$link(rel = "stylesheet", href = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.min.css"),
-    tags$script(src = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js"),
-    tags$script(src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"),
-    tags$link(rel = "stylesheet", href = "https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css"),
-    tags$script(src = "https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"),
-    tags$script(src = "https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"),
+      href = "https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=Jura:wght@500;700&display=swap"),
+    # ---- vendored JS/CSS libs (www/vendor) with a CDN onerror fallback -------
+    # renown/hammer R2: self-host the functional libs so a jsdelivr outage can't
+    # break dialogs / confetti / the tour / PNG export. Each local tag carries the
+    # jsdelivr URL in data-cdn; the tiny loader below swaps it in IF the local
+    # asset 404s (e.g. www/ file missing from the deploy). Local-first keeps head
+    # load order so the www/*.js that call Swal/confetti/driver see the globals.
+    tags$script(htmltools::HTML(paste0(
+      "(function(){function fb(el){var u=el.getAttribute('data-cdn');if(!u)return;",
+      "if(el.tagName==='LINK'){var l=document.createElement('link');l.rel='stylesheet';l.href=u;document.head.appendChild(l);}",
+      "else{var s=document.createElement('script');s.src=u;s.async=false;document.head.appendChild(s);}}",
+      "window.__vendorFallback=fb;})();"))),
+    tags$link(rel = "stylesheet", href = "vendor/sweetalert2-11.10.0.min.css",
+      onerror = "window.__vendorFallback(this)",
+      `data-cdn` = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.min.css"),
+    tags$script(src = "vendor/sweetalert2-11.10.0.all.min.js",
+      onerror = "window.__vendorFallback(this)",
+      `data-cdn` = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js"),
+    tags$script(src = "vendor/confetti-1.9.2.browser.min.js",
+      onerror = "window.__vendorFallback(this)",
+      `data-cdn` = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"),
+    tags$link(rel = "stylesheet", href = "vendor/driver-1.3.1.css",
+      onerror = "window.__vendorFallback(this)",
+      `data-cdn` = "https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css"),
+    tags$script(src = "vendor/driver-1.3.1.iife.js",
+      onerror = "window.__vendorFallback(this)",
+      `data-cdn` = "https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"),
+    tags$script(src = "vendor/html-to-image-1.11.11.js",
+      onerror = "window.__vendorFallback(this)",
+      `data-cdn` = "https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"),
     tags$link(rel = "stylesheet", href = asset_url("styles.css")),
     tags$script(src = asset_url("app.js")),
     tags$script(src = asset_url("pincards.js")),
@@ -233,11 +260,12 @@ ui <- bslib::page_fillable(
         card(full_screen = TRUE,
           card_head("collection", "Species of this site, most common first",
             info_pop("Species composition",
-              p("How many ", tags$b("captures"), " (bar length) and ", tags$b("individuals"), " (label) each species contributed."),
-              p("Brighter bars = caught more times per animal (a \"trap-happy\" species)."))),
+              p("Bar length is the number of ", tags$b("individuals"), " (distinct animals) each species contributed; the label repeats that count."),
+              p("Each species keeps its own ", tags$b("identity colour"), " (the same hue it has in the plot map and community charts); hover a bar for its captures-per-individual, a \"trap-happiness\" cue."))),
           uiOutput("speciesBarInsight"),
           div(class = "chart-hint", bs_icon("hand-index-thumb"), " Tap a bar for that species' full breakdown."),
-          spin(plotlyOutput("speciesBar", height = "440px"))),
+          spin(plotlyOutput("speciesBar", height = "440px")),
+          chart_caption("Species ranked by ", tags$b("abundance"), " (distinct individuals), top 14 shown. Each bar carries that species' identity colour (shared with the plot map); captures-per-individual (trap-happiness) is on the hover. Counts are handled animals with a species-level ID at this site and window (genus-only “sp.” records excluded from the ranking headline); it shows relative composition here, ", tags$b("not"), " absolute density or a cross-site total.")),
         # the plain-English story sits underneath
         card(
           card_head("stars", "The story so far",
@@ -268,6 +296,7 @@ ui <- bslib::page_fillable(
                   " A longer bar isn't proof of cause: drivers correlate with each other, and scanning many lags can flag a strong match by chance. Treat this as a ranking of leads to investigate."))),
             uiOutput("envCorrNote"),
             spin(plotlyOutput("envDriverRank", height = "300px")),
+            chart_caption("Each bar is one co-located NEON driver's ", tags$b("strongest"), " deseasonalised correlation (r) with monthly catch-per-effort, scanned over lags 0–12 months and kept at its best lag; both series have their calendar-month climatology removed first, so r reflects year-to-year anomalies, not the shared summer cycle. Requires ≥8 month-matched points. Bars are sorted by strength |r|; left of 0 = inverse (more driver → fewer animals). These are a ", tags$b("ranking of leads"), ", ", tags$b("not"), " independent evidence and ", tags$b("not"), " proof of cause: drivers co-vary and best-of-many-lags scanning can flag a chance match. r² (not r) is the share of variance shared."),
             uiOutput("seasonalDriver"),
             div(class = "env-pick-hint",
               bs_icon("arrow-down-circle"),
@@ -321,6 +350,7 @@ ui <- bslib::page_fillable(
               tags$span(class = "card-hint", "navy = estimate · grey = known alive"))),
           uiOutput("detectHead"),
           spin(plotlyOutput("detectPlot", height = "400px")),
+          chart_caption("Detection-corrected abundance per monthly bout: the navy ", tags$b("N̂"), " line + 95% interval is animals estimated present on the sampled grid(s); the grey line is ", tags$b("MNKA"), " (known alive) — the gap between them is what the traps missed. Estimated from within-bout recaptures (Schnabel for k≥3 nights, Chapman for k=2; Otis et al. 1978 M0 for p̂), summed across grids per month; bouts with fewer than 3 within-bout recaptures, or single-night grids, are omitted (index-only by design). N̂ is animals ", tags$b("on the grid(s)"), ", ", tags$b("not"), " a per-hectare density — a true density needs spatially-explicit capture-recapture (SECR), deliberately not attempted here."),
           uiOutput("detectNote")),
         layout_columns(col_widths = c(7, 5),
           card(full_screen = TRUE,
@@ -330,14 +360,16 @@ ui <- bslib::page_fillable(
                 p("The dotted grey line (", tags$b("right axis"), ") is ", tags$b("catch per effort"), ": captures per 100 ", tags$b("trap-nights"), ". A trap-night is one trap set out for one night, computed from ", tags$em("this site's own data"), " (the actual traps set × the nights they ran), so a smaller grid or fewer nights doesn't skew it, and it does ", tags$em("not"), " assume a fixed 100-trap grid. Sprung or disturbed traps count as half a trap-night (Nelson & Clark 1973)."),
                 p("It's a relative-abundance ", tags$b("index"), " for comparing sites and trends, not a population estimate (it doesn't correct for detectability; that's what the detection-corrected abundance tab is for)."))),
             uiOutput("mnkaInsight"),
-            spin(plotlyOutput("mnkaPlot", height = "440px"))),
+            spin(plotlyOutput("mnkaPlot", height = "440px")),
+            chart_caption(tags$b("MNKA"), " (minimum number known alive, left axis) counts individuals known alive each month per plot — caught that month, or before ", tags$b("and"), " after (Krebs 1966). The dotted line is the site-total ", tags$b("catch per 100 trap-nights"), " (right axis), a separate effort-normalised index on its own scale. Marker size tracks that month's trap-effort; shaded bands mark stretches with no sampling. Both are transparent ", tags$b("indices"), ", ", tags$b("not"), " detection-corrected abundance — read each on its own axis and don't infer a trend across an unsampled gap.")),
           card(full_screen = TRUE,
             card_head("graph-up", "Species accumulation",
               info_pop("Species accumulation",
                 p("As more trapping bouts accumulate, how many ", tags$b("species"), " have been found? When the curve flattens, you've probably found them all. Genus-only IDs (\"X sp.\") are excluded so an unidentified catch isn't counted as its own species."),
                 p("The dashed ", tags$b("Chao1"), " line is a ", tags$b("bias-corrected minimum estimate"), " of true richness, a floor that includes species not yet caught, shown with a 95% interval. When ", tags$em("doubletons"), " (species caught as exactly 2 individuals) are scarce it's unstable and flagged as a lower bound (Chao 1987; Gotelli & Colwell 2001)."))),
             uiOutput("accumInsight"),
-            spin(plotlyOutput("accumPlot", height = "440px")))
+            spin(plotlyOutput("accumPlot", height = "440px")),
+            chart_caption("Sample-based species-accumulation curve over monthly trapping bouts, averaged across 40 resampled bout orderings with a ±1 SD envelope (Gotelli & Colwell 2001). The dashed line is ", tags$b("Chao1"), ", a bias-corrected ", tags$b("minimum"), " estimate of true richness with a 95% interval; when doubletons (species seen as exactly 2 individuals) are scarce it is flagged unstable and read as a lower bound only (Chao 1987). Species-level IDs only (genus-only “sp.” excluded). A flattening curve suggests near-complete sampling; the gap to Chao1 is richness that may remain ", tags$b("uncaught"), ", not a count of known species."))
         ),
         conditionalPanel("input.envLayer && input.envLayer != 'none'",
           card(full_screen = TRUE,
@@ -347,7 +379,8 @@ ui <- bslib::page_fillable(
                   " against the value of the selected environmental driver (with your ",
                   tags$b("lag"), " applied)."),
                 p("A rising cloud means more animals when the driver is high; the dashed line is an OLS fit. This is the same signal as the correlation banner above, shown as a shape so you can spot thresholds or saturation."))),
-            spin(plotlyOutput("envScatter", height = "420px"))))
+            spin(plotlyOutput("envScatter", height = "420px")),
+            chart_caption("Each point is one month: its ", tags$b("catch per 100 trap-nights"), " against the selected driver's value at the chosen lag. A dashed OLS line is drawn ", tags$b("only"), " where the link is defensible — ≥8 month-matched points ", tags$b("and"), " |r| ≥ 0.3 — otherwise the panel says so and draws none. Points are coloured by year. This is the same signal as the correlation banner shown as a shape, to reveal thresholds or saturation; it is a within-site ", tags$b("correlation"), ", ", tags$b("not"), " a fitted causal dose-response.")))
       ),
 
       nav_panel(
@@ -358,8 +391,10 @@ ui <- bslib::page_fillable(
         card(card_head("gender-ambiguous", "Who's out there · sex & age structure",
                info_pop("Sex & age", p("The ", tags$b("sex"), " and ", tags$b("life-stage"), " breakdown of every handled animal. The number in the middle is the total handled."))),
              layout_columns(col_widths = c(6, 6),
-               spin(plotlyOutput("sexDonut", height = "300px"), img = "rat1.gif"),
-               spin(plotlyOutput("ageDonut", height = "300px"), img = "rat1.gif"))),
+               tagList(spin(plotlyOutput("sexDonut", height = "300px"), img = "rat1.gif"),
+                 chart_caption("Share of ", tags$b("distinct individuals"), " by field-recorded sex (one modal sex per animal, so a much-recaptured animal is counted once). Centre number = total handled individuals. “Unknown” is animals never confidently sexed — it ", tags$b("is"), " the sexing-coverage disclosure, not a dropped slice. A composition of who was ", tags$b("caught and handled"), ", ", tags$b("not"), " the true population sex ratio (sexes can differ in trappability).")),
+               tagList(spin(plotlyOutput("ageDonut", height = "300px"), img = "rat1.gif"),
+                 chart_caption("Share of ", tags$b("distinct individuals"), " by modal life stage (juvenile / subadult / adult). Centre number = total handled individuals. “Unknown” is animals never staged — kept as its own slice so it reads as staging coverage, not a silent drop. Denominator is distinct individuals, matching the sex donut and diversity card; it shows the ", tags$b("handled"), " age structure, ", tags$b("not"), " a corrected population age distribution.")))),
         card(full_screen = TRUE,
           card_head("diagram-3-fill", "Diversity profile · effective number of species",
             info_pop("Hill numbers",
@@ -373,7 +408,8 @@ ui <- bslib::page_fillable(
           uiOutput("hillInsight"),
           layout_columns(col_widths = c(7, 5),
             spin(plotlyOutput("hillPlot", height = "260px")),
-            uiOutput("hillNote"))),
+            uiOutput("hillNote")),
+          chart_caption("Hill diversity profile in ", tags$b("effective number of species"), " (Hill 1973; Jost 2006): q=0 richness (counts every species equally), q=1 = exp(Shannon) (common species), q=2 = inverse Simpson (dominant species); always q0 ≥ q1 ≥ q2, and q1/q0 near 1 means an even community. Abundance = ", tags$b("distinct individuals"), " per species (not captures), species-level IDs only. A within-site ", tags$b("diversity structure"), ", ", tags$b("not"), " a cross-site diversity ranking (it isn't coverage-standardised).")),
         card(full_screen = TRUE,
           card_head("activity", "Captures over time · by species",
             info_pop("Captures over time",
@@ -382,14 +418,16 @@ ui <- bslib::page_fillable(
           div(style = "max-width: 280px; margin: 0 2px 8px;",
             selectInput("plotTrendPlot", tagList(bs_icon("pin-map"), " Show plot"),
                         choices = c("All plots (site total)" = "all"), width = "100%")),
-          spin(plotlyOutput("plotTrend", height = "440px"))),
+          spin(plotlyOutput("plotTrend", height = "440px")),
+          chart_caption("Monthly ", tags$b("captures"), " by species — the raw number of handling events per calendar month, summed across all plots (the site total) by default, or one plot from the picker. A species is drawn only where it totals ", tags$b("≥ 5"), " captures over the window, to keep the legend readable. These are handling events, ", tags$b("not"), " distinct animals (one much-recaptured individual lifts a line repeatedly) and they are ", tags$b("not"), " effort-adjusted, so a rise can reflect more trapping as much as more animals; for effort-normalised trend read catch-per-trap-night instead.")),
         card(full_screen = TRUE,
           card_head("rulers", "Body-size profile · weight distribution by species",
             info_pop("Body-size profile",
               p("A ", tags$b("violin"), " for each species shows the spread of ", tags$b("adult"), " body weights, one mean weight per individual (so a much-recaptured animal isn't counted many times), wide where many animals fall, with a line at the mean. Species with at least 8 weighed adults are shown."),
               p("Species are ordered lightest → heaviest (log scale, since a pocket mouse and a woodrat differ ~30×)."),
-              p("If you've opened an individual's dossier, a ", tags$span(style="color:#c9a300;font-weight:700", "gold diamond"), " marks where it sits in its species."))),
-          spin(plotlyOutput("sizeViolin", height = "420px"))),
+              p("If you've opened an individual's dossier, a ", tags$span(class="sw-gold", "gold diamond"), " marks where it sits in its species."))),
+          spin(plotlyOutput("sizeViolin", height = "420px")),
+          chart_caption("Each violin is the distribution of adult ", tags$b("body weight"), " (grams, log axis) for one species, widest where weights cluster, with a line at the mean. One weight per ", tags$b("individual"), " (its own mean across captures), so a much-recaptured animal isn't counted many times; species with ", tags$b("≥ 8"), " weighed adults are shown, ordered lightest to heaviest. Adults only — pooling juveniles and subadults would smear the profile. It's the spread of ", tags$b("handled"), " animals' sizes, ", tags$b("not"), " a body-condition index (in these desert rodents mass barely tracks length).")),
         card(full_screen = TRUE,
           card_head("rulers", "Body measurements by species (adults)",
             info_pop("Measurements by species",
@@ -398,7 +436,8 @@ ui <- bslib::page_fillable(
               p(tags$b("Adults only"), ": juveniles and subadults are much lighter and shorter, so pooling growth stages would inflate the range and pull the median; restricting to staged adults gives an honest \"typical adult size.\""),
               p(tags$b("Weight"), " and ", tags$b("hindfoot length"), " are taken at nearly every handling; ", tags$b("tail"), " and ", tags$b("ear"), " are measured far less often, so those cells are blank (", tags$b("—"), ") for species with fewer than 3 records."),
               p(tags$em("Median + percentile range, not a \"mode\": for a continuous measurement the median and spread are the honest summary. A species' mean weight and the \"heaviest species\" call shown elsewhere need ≥8 staged adults, or they're withheld as too noisy. Counts confirmed species-level IDs only.")))),
-          spin(DT::DTOutput("speciesMeas"))),
+          spin(DT::DTOutput("speciesMeas")),
+          chart_caption("Field measurements NEON records, per species: each cell is the ", tags$b("median"), " with a ", tags$b("5th–95th-percentile"), " envelope (a typical-adult band) and the record count (", tags$b("n"), "). Adults with a species-level ID only; a measure needs ", tags$b("≥ 3"), " records or its cell reads “—” (so tail and ear, taken far less often than weight and hindfoot, are often blank). An amber ⚠ marks a value beyond median ± 5·MAD, a likely data-entry error — ", tags$b("kept"), " in the data for your QC but excluded from the median and the range. A robust summary of ", tags$b("handled adults"), ", ", tags$b("not"), " a population size distribution.")),
         card(
           card_head("hourglass-split", "How long do they live? · longest confirmed alive",
             info_pop("Longest confirmed alive",
@@ -416,7 +455,8 @@ ui <- bslib::page_fillable(
                 tags$span(style="color:#c2255c", "● reproductive females"), " (pregnant or lactating)."),
               p("Peaks reveal the breeding season; the dip shows the off-season."))),
           uiOutput("phenoInsight"),
-          spin(plotlyOutput("phenoPlot", height = "320px")))
+          spin(plotlyOutput("phenoPlot", height = "320px")),
+          chart_caption("By calendar month, the share of each sex that is ", tags$b("reproductively active"), " — blue is ", tags$b("adult males scrotal"), ", pink is ", tags$b("adult females pregnant or lactating"), " — each a percentage of its ", tags$b("own"), " sexed-adult denominator that month, so the two curves are not summed or compared as one pool. One reproductive read per individual per month (a recaptured animal counts once); a month with fewer than ", tags$b("5"), " sexed adults of that sex is left blank rather than drawn from a thin count. A seasonal ", tags$b("timing"), " signal from handled animals, ", tags$b("not"), " a per-female litter or recruitment rate."))
       ),
 
       nav_panel(
@@ -450,17 +490,29 @@ ui <- bslib::page_fillable(
               p("Pick ", tags$b("one species"), " from the filter to add its ",
                 tags$b("size–mass fit line"), " (drawn ", tags$em("only"), " where length really predicts mass: n ≥ 15, |r| ≥ 0.3) and ",
                 tags$b("median crosshairs"), " that split it into body-shape quadrants."),
-              p("The ", tags$span(style = "color:#c9a300;font-weight:700", "gold diamond"),
+              p("The ", tags$span(class = "sw-gold", "gold diamond"),
                 " marks the individual you're currently tracking."))),
           div(class = "sizelab-toolbar",
             tags$button(class = "smt-snap-btn", type = "button", onclick = "smtSaveScatter()",
                         bsicons::bs_icon("camera-fill"), " Download (with pinned cards)"),
             tags$button(class = "smt-clear-btn", type = "button", onclick = "smtClearPins()",
                         bsicons::bs_icon("eraser-fill"), " Clear pins"),
+            # a11y (WCAG 2.1.1): plotly's SVG dots aren't keyboard-focusable and the
+            # modebar is off, so the tap-to-pin crown jewel is pointer-only. This
+            # table twin is the keyboard/AT path — the SAME prepped frame the scatter
+            # draws, and each row opens the same QC card via qcCardRequest.
+            actionButton("bodyTblToggle",
+              tagList(bsicons::bs_icon("table"), " View the numbers"),
+              class = "smt-clear-btn", `aria-pressed` = "false"),
             tags$span(class = "sizelab-hint", bs_icon("hand-index-thumb"),
                       " interactive · tap a dot to pin its card")),
           div(class = "smt-pinnable",
-            spin(plotlyOutput("bodyScatter", height = "540px"), img = "rat1.gif"))),
+            spin(plotlyOutput("bodyScatter", height = "540px"), img = "rat1.gif")),
+          shinyjs::hidden(div(id = "bodyTblWrap", class = "smt-table-twin",
+            div(class = "smt-twin-cap", bs_icon("info-circle"),
+                " Every individual on the map, as a table. Pick a row to open its QC history card."),
+            DT::DTOutput("bodyScatterTbl"))),
+          chart_caption("Each dot is one individual placed at its ", tags$b("mean hind-foot length"), " (mm) and ", tags$b("mean body weight"), " (g), pooled across that animal's captures; colour encodes species. Sub-pixel jitter fans apart animals that round to the same whole-millimetre foot so each stays tappable — the hover and pin card report the true measured means. n is the individuals here with both a weight and a hind-foot reading (the SVG samples 1,500 when more; the table twin lists all). The adult size–mass fit line draws only under “Adults only” and only when n ≥ 15 and |r| ≥ 0.3. A ", tags$b("data-quality map"), " of handled animals, ", tags$b("not"), " a body-condition index.")),
         uiOutput("qcHistoryCard")
       ),
 
@@ -488,9 +540,11 @@ ui <- bslib::page_fillable(
         ),
         layout_columns(col_widths = c(6, 6),
           card(full_screen = TRUE, card_head("grid-3x3-gap-fill", "Capture heatmap"),
-               spin(plotlyOutput("trapHeat", height = "460px"), img = "rat1.gif")),
+               spin(plotlyOutput("trapHeat", height = "460px"), img = "rat1.gif"),
+               chart_caption("Cell colour encodes the ", tags$b("number of captures"), " of this one animal in each 10 m trap cell (columns A–J, rows 1–10); white dots mark its actual capture cells and the gold ✕ is its capture-weighted centre of activity. n is this individual's mapped captures; empty cells can mean “no trap set” as well as “not caught here.” With Hotspot blur on, counts are smoothed into a relative density surface and the colourbar reads “density,” ", tags$b("not"), " captures. A picture of ", tags$b("where it was recaptured"), ", ", tags$b("not"), " a true home-range area.")),
           card(full_screen = TRUE, card_head("play-circle", "Capture replay"),
-               spin(plotlyOutput("trapReplay", height = "460px"), img = "rat1.gif"))
+               spin(plotlyOutput("trapReplay", height = "460px"), img = "rat1.gif"),
+               chart_caption("A cumulative replay of this one animal's captures in order; at each frame every capture through that step is drawn at its ", tags$b("real trap coordinate"), ", with marker colour and size encoding ", tags$b("recency"), " (newest capture largest and brightest, older ones fading and shrinking). n is this individual's mapped captures; the connecting line joins successive capture cells in time, it is ", tags$b("not"), " a tracked path between them. It replays ", tags$b("where and when it was caught"), ", ", tags$b("not"), " its actual movement route."))
         )
       ),
 
@@ -503,8 +557,8 @@ ui <- bslib::page_fillable(
                info_pop("Site map",
                  p("Each circle is a NEON trapping ", tags$b("plot"), ", placed at its real coordinates."),
                  p("Circle ", tags$b("size"), " = total captures there; ", tags$b("color"), " = species (same colors as the charts)."),
-                 p("When an individual is selected, its plots get a pulsing ", tags$span(style="color:#ffd24a", "gold ring"), "."),
-                 p(tags$b("Recapture movement"), " (toggle, top-right): curved ", tags$span(style="color:#15b8a6", "teal arcs"), " link grids where the same tagged animals were recaptured: thicker = more individuals made that move. It's mark-recapture (\"here, then there\"), ", tags$b("not"), " a tracked route; a selected individual's own moves draw in gold."),
+                 p("When an individual is selected, its plots get a pulsing ", tags$span(class="sw-gold", "gold ring"), "."),
+                 p(tags$b("Recapture movement"), " (toggle, top-right): curved ", tags$span(class="sw-teal", "teal arcs"), " link grids where the same tagged animals were recaptured: thicker = more individuals made that move. It's mark-recapture (\"here, then there\"), ", tags$b("not"), " a tracked route; a selected individual's own moves draw in gold."),
                  p("Hover a circle for its species + counts; switch basemap top-right."))),
             p("Each marker is a plot, sized by captures and colored by species. The selected individual's plots glow gold.")),
           div(class = "map-controls",
@@ -559,7 +613,8 @@ ui <- bslib::page_fillable(
         uiOutput("famePodium"),
         div(class = "tab-intro", bs_icon("hand-index-thumb"),
             " Tap any row (or a podium card) to open that animal's dossier: measurements, home range, capture history, and a shareable card."),
-        spin(DT::DTOutput("leaderboard"))
+        spin(DT::DTOutput("leaderboard")),
+        chart_caption("Every ", tags$b("distinct individual"), " at this site ranked by the chosen metric — total captures (default), heaviest weight, career span in days, roam radius, or Chonk percentile; the in-cell bar marks the active metric. Captures, career, and roam are all ", tags$b("trapping-effort dependent"), ": an animal rises by being caught more, which reflects trap layout and grid-nights as much as the animal, so this ranks ", tags$b("who was re-encountered most, not who is fittest or most abundant"), ". The career board hides spatially impossible tag histories; all others show every individual.")
       ),
 
       nav_panel(
@@ -630,14 +685,16 @@ ui <- bslib::page_fillable(
               info_pop("Measurements through time",
                 p("Each capture's ", tags$b("weight"), " (navy) and ", tags$b("hind-foot length"), " (cardinal) plotted over time."),
                 p("The shaded band is the ", tags$b("middle 50% of adult weights"), " for this species, so you can see whether the animal runs heavy or light against grown adults (juveniles would make the band misleadingly low). The ♦ marks its heaviest capture."))),
-            spin(plotlyOutput("measPlot", height = "360px"))),
+            spin(plotlyOutput("measPlot", height = "360px")),
+            chart_caption("Two lines trace this individual's ", tags$b("weight"), " (g) and ", tags$b("hind-foot length"), " (mm) at each of its captures, on separate axes; the shaded band is the middle 50% of adult weights for its species (n ≥ 8 adult weights, else no band). It plots only this one animal's handled measurements, ", tags$b("not"), " a growth curve — the points are re-encounters at irregular intervals, and a gap can be a missed detection rather than a true weight change.")),
           card(full_screen = TRUE,
             card_head("speedometer2", "Chonk Index · weight rank",
               info_pop("The Chonk Index",
                 p("An honest ", tags$b("adult weight percentile within species"), ": i.e. \"how heavy is this animal for its kind?\""),
                 p("50 = a perfectly typical adult; the delta shows how far above/below typical it sits."),
                 p(tags$em("Why not a body-condition index? In these desert rodents foot length barely predicts mass, so a fancier index would just rank noise. The body-size map below shows the real relationship.")))),
-            spin(plotlyOutput("chonkGauge", height = "360px")))
+            spin(plotlyOutput("chonkGauge", height = "360px")),
+            chart_caption("The needle is this animal's ", tags$b("adult-weight percentile within its species"), " at this site — 50 marks a perfectly typical adult, the delta reads against that midpoint. Ranked against the pool of same-species individuals with a mean adult weight (drawn only where that pool has ≥ 4 individuals). It is a ", tags$b("relative weight rank, not a body-condition score or a health verdict"), "; a rodent can rank heavy simply for being large-framed, so read it beside the body-size map below."))
         ),
         card(full_screen = TRUE,
              card_head("bullseye", "Body-size map · where it sits among its species",
@@ -646,10 +703,12 @@ ui <- bslib::page_fillable(
                  p("The ", tags$b("gold diamonds"), " are this individual's captures: high in the cloud = a big one."),
                  p("A dashed ", tags$b("size–mass fit line"), " is drawn ", tags$em("only"), " for species where length actually predicts mass (so you're never shown a fake trend.)")),
                tags$span(class = "card-hint", style = "margin-left:auto", "this animal in gold")),
-             spin(plotlyOutput("morphoPlot", height = "420px"))),
+             spin(plotlyOutput("morphoPlot", height = "420px")),
+             chart_caption("Each point is one measured capture placed by ", tags$b("hind-foot length × weight"), ": faint grey is every other species, the coloured cloud is this animal's species (by life stage), and gold diamonds are this individual. The dashed size–mass line is drawn ", tags$b("only"), " where the relationship is real (≥ 15 adults and |r| ≥ 0.3), so its absence means hind-foot barely predicts mass here — read the diamond's ", tags$b("position in the cloud, not a trend"), ". Paired measurements from handled animals, not a size distribution of the population.")),
         card(card_head("clock-history", "Capture history",
                info_pop("Capture history", p("Every individual capture event for this animal: date, plot, trap cell, measurements, and field notes. Use the search box to filter."))),
-             spin(DT::DTOutput("capHistory")))
+             spin(DT::DTOutput("capHistory")),
+             chart_caption("One row per ", tags$b("capture event"), " for this animal — date, plot, trap cell, recapture flag, weight, hind foot, sex, life stage, fate, and field remarks, exactly as recorded. Blank measurement cells are fields left unrecorded at that handling, not zeros. It is this individual's ", tags$b("full handling record, not a movement track"), ": rows are trap re-encounters, so a long gap between dates is time undetected, not time absent."))
       ),
 
       nav_panel(
