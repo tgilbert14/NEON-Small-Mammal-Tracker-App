@@ -74,13 +74,17 @@ jobs:
         with:
           use-public-rspm: true
 
+      # rsconnect is a BUILD-TIME tool: scripts/write_manifest.R calls
+      # rsconnect::writeManifest(). It is pruned out of the final manifest by the
+      # RUNTIME_PKGS reachability walk in that script, so it never ships to Connect.
       - name: Install R packages
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
           packages: >
             neonUtilities, dplyr, tibble, tidyr, stringr, jsonlite,
             shiny, bslib, bsicons, plotly, leaflet, DT, shinyjs,
-            shinycssloaders, RColorBrewer, htmltools, cpp11
+            shinycssloaders, RColorBrewer, htmltools, cpp11,
+            rsconnect
 
       - name: Rebuild the per-site bundle (full NEON re-pull)
         if: ${{ github.event.inputs.skip_download != 'true' }}
@@ -130,6 +134,13 @@ jobs:
       - name: Regenerate the manifest
         run: Rscript scripts/write_manifest.R
 
+      # PRE-DEPLOY VERIFICATION GATE. Check the rebuilt bundles, indexes, and the
+      # manifest BEFORE the push (which is the deploy). If this fails the job stops
+      # here, the push never happens, and Connect Cloud keeps serving the last
+      # known-good snapshot instead of a truncated/stale refresh.
+      - name: Verify rebuilt bundle (pre-deploy gate)
+        run: Rscript scripts/verify_bundle.R
+
       # Commit + push refreshed data DIRECTLY to main — THIS is the deploy: the push
       # makes Connect Cloud auto-republish (no human merge in the loop, matching the
       # siblings). Guarded so it no-ops cleanly when nothing changed.
@@ -162,4 +173,64 @@ jobs:
                        -m "${FRESH}; ${ENV}; index rebuilt."
             git push origin HEAD:main
             echo "Pushed refreshed data to main — Connect Cloud will redeploy. (${FRESH}; ${ENV})"
+          fi
+
+  # POST-DEPLOY VERIFICATION. Closes the loop: after the refresh job pushes (which
+  # triggers the Connect Cloud republish), confirm the LIVE app + landing page
+  # actually come back up. Cold-start aware (Connect workers wake slowly). Runs
+  # only on real refresh runs (first Saturday or a manual dispatch), NOT on the
+  # every-Saturday no-op gate. A failure here opens/updates a GitHub issue so a
+  # silent post-deploy outage is loud instead of a missed red check.
+  verify_live:
+    needs: [gate, refresh]
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write          # open/update the outage issue on failure
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Smoke-check the live surfaces
+        id: smoke
+        run: |
+          # Give Connect Cloud a head start to notice the push before we poll.
+          sleep 30
+          bash scripts/post_deploy_smoke.sh \
+            "Connect Cloud app=https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/" \
+            "GitHub Pages landing=https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/" \
+            | tee smoke.log
+          # Propagate the script's exit code (tee would otherwise mask it).
+          exit "${PIPESTATUS[0]}"
+
+      - name: Open/update outage issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="🔴 Post-deploy: live app did not come back up after refresh"
+          BODY=$(cat <<EOF
+          The monthly refresh pushed to \`main\` but the post-deploy smoke check could not
+          confirm the live surfaces are up (cold-start budget exhausted).
+
+          Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+
+          \`\`\`
+          $(sed -n 's/^  //p' smoke.log 2>/dev/null | tail -n 20)
+          \`\`\`
+
+          If Connect Cloud is just slow, re-run the smoke or open the app manually; if it
+          stays down, check the Connect Cloud build log for a package-install/deploy failure.
+          EOF
+          )
+          # Dedup: reuse an open issue with this title instead of stacking new ones.
+          NUM=$(gh issue list --state open --search "$TITLE in:title" --json number \
+                  --jq '.[0].number' 2>/dev/null || echo "")
+          if [ -n "$NUM" ]; then
+            gh issue comment "$NUM" --body "$BODY"
+            echo "Updated existing outage issue #$NUM"
+          else
+            gh issue create --title "$TITLE" --body "$BODY" --label "uptime" 2>/dev/null \
+              || gh issue create --title "$TITLE" --body "$BODY"
+            echo "Opened new outage issue"
           fi

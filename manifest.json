@@ -2181,7 +2181,7 @@
       "description": {
         "Package": "s2",
         "Title": "Spherical Geometry Operators Using the S2 Geometry Library",
-        "Version": "1.1.9",
+        "Version": "1.1.11",
         "Authors@R": "c(\n     person(given = \"Dewey\",\n           family = \"Dunnington\",\n           role = c(\"aut\"),\n           email = \"dewey@fishandwhistle.net\",\n           comment = c(ORCID = \"0000-0002-9415-4582\")),\n     person(given = \"Edzer\",\n             family = \"Pebesma\",\n             role = c(\"aut\", \"cre\"),\n             email = \"edzer.pebesma@uni-muenster.de\",\n             comment = c(ORCID = \"0000-0001-8049-7069\")),\n    person(\"Ege\", \"Rubak\", email=\"rubak@math.aau.dk\", role = c(\"aut\")),\n    person(\"Jeroen\", \"Ooms\", , \"jeroen.ooms@stat.ucla.edu\", role = \"ctb\", comment = \"configure script\"),\n    person(family = \"Google, Inc.\", role = \"cph\", comment = \"Original s2geometry.io source code\")\n  )",
         "Description": "Provides R bindings for Google's s2 library for geometric calculations on\n    the sphere. High-performance constructors and exporters provide high compatibility\n    with existing spatial packages, transformers construct new geometries from existing\n    geometries, predicates provide a means to select geometries based on spatial\n    relationships, and accessors extract information about geometries.",
         "License": "Apache License (== 2.0)",
@@ -2208,7 +2208,7 @@
         "RemotePkgRef": "s2",
         "RemoteRef": "s2",
         "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "1.1.9"
+        "RemoteSha": "1.1.11"
       }
     },
     "sass": {
@@ -2286,7 +2286,7 @@
       "Repository": "https://packagemanager.posit.co/cran/__linux__/jammy/latest",
       "description": {
         "Package": "sf",
-        "Version": "1.0-24",
+        "Version": "1.1-1",
         "Title": "Simple Features for R",
         "Authors@R": "\n    c(person(given = \"Edzer\",\n             family = \"Pebesma\",\n             role = c(\"aut\", \"cre\"),\n             email = \"edzer.pebesma@uni-muenster.de\",\n             comment = c(ORCID = \"0000-0001-8049-7069\")),\n      person(given = \"Roger\",\n             family = \"Bivand\",\n             role = \"ctb\",\n             comment = c(ORCID = \"0000-0003-2392-6140\")),\n      person(given = \"Etienne\",\n             family = \"Racine\",\n             role = \"ctb\"),\n      person(given = \"Michael\",\n             family = \"Sumner\",\n             role = \"ctb\"),\n      person(given = \"Ian\",\n             family = \"Cook\",\n             role = \"ctb\"),\n      person(given = \"Tim\",\n             family = \"Keitt\",\n             role = \"ctb\"),\n      person(given = \"Robin\",\n             family = \"Lovelace\",\n             role = \"ctb\"),\n      person(given = \"Hadley\",\n             family = \"Wickham\",\n             role = \"ctb\"),\n      person(given = \"Jeroen\",\n             family = \"Ooms\",\n             role = \"ctb\",\n             comment = c(ORCID = \"0000-0002-4035-0289\")),\n      person(given = \"Kirill\",\n             family = \"M\\u00fcller\",\n             role = \"ctb\"),\n      person(given = \"Thomas Lin\",\n             family = \"Pedersen\",\n             role = \"ctb\"),\n      person(given = \"Dan\",\n             family = \"Baston\",\n             role = \"ctb\"),\n      person(given = \"Dewey\",\n             family = \"Dunnington\",\n             role = \"ctb\",\n             comment = c(ORCID = \"0000-0002-9415-4582\"))\n\t\t\t )",
         "Description": "Support for simple feature access, a standardized way to\n    encode and analyze spatial vector data. Binds to 'GDAL' \n\t<doi:10.5281/zenodo.5884351> for reading and writing data, to 'GEOS'\n    <doi:10.5281/zenodo.11396894> for geometrical operations,\n    and to 'PROJ' <doi:10.5281/zenodo.5884394> for projection\n    conversions and datum transformations. Uses by default the 's2'\n    package for geometry operations on geodetic (long/lat degree)\n\tcoordinates.",
@@ -2316,7 +2316,7 @@
         "RemotePkgRef": "sf",
         "RemoteRef": "sf",
         "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "1.0-24"
+        "RemoteSha": "1.1-1"
       }
     },
     "shiny": {
@@ -2770,7 +2770,7 @@
       "Repository": "https://packagemanager.posit.co/cran/__linux__/jammy/latest",
       "description": {
         "Package": "units",
-        "Version": "1.0-0",
+        "Version": "1.0-1",
         "Title": "Measurement Units for R Vectors",
         "Authors@R": "c(person(\"Edzer\", \"Pebesma\", role = c(\"aut\", \"cre\"), email = \"edzer.pebesma@uni-muenster.de\", comment = c(ORCID = \"0000-0001-8049-7069\")),\n    person(\"Thomas\", \"Mailund\", role = \"aut\", email = \"mailund@birc.au.dk\"),\n    person(\"Tomasz\", \"Kalinowski\", role = \"aut\"),\n    person(\"James\", \"Hiebert\", role = \"ctb\"),\n    person(\"Iñaki\", \"Ucar\", role = \"aut\", email = \"iucar@fedoraproject.org\", comment = c(ORCID = \"0000-0001-6403-5550\")),\n    person(\"Thomas Lin\", \"Pedersen\", role = \"ctb\")\n    )",
         "Depends": "R (>= 3.5.0)",
@@ -2798,7 +2798,7 @@
         "RemotePkgRef": "units",
         "RemoteRef": "units",
         "RemoteRepos": "https://cran.rstudio.com",
-        "RemoteSha": "1.0-0"
+        "RemoteSha": "1.0-1"
       }
     },
     "utf8": {
@@ -3214,10 +3214,10 @@
       "checksum": "09eaf8b677d24ddcc48b6fa0e23e6040"
     },
     "data/search_index.rds": {
-      "checksum": "25cb15726ff045c4b6a170aa84111945"
+      "checksum": "be7b84a7b3b412f232abe724f3919ccc"
     },
     "data/site_index.rds": {
-      "checksum": "0a2b860fcca7280757e6eca9f6740a85"
+      "checksum": "9b4c4a621514bcc57e1833281e6dbac1"
     },
     "data/sites/ABBY.rds": {
       "checksum": "f27ec86fa8289498ba813de95c8441d0"
@@ -3358,10 +3358,10 @@
       "checksum": "a99514d5510982e2a9f48042efe3e278"
     },
     "data/species_ranges.rds": {
-      "checksum": "a25a9bbca444184633dfb05b57af6b20"
+      "checksum": "6c0124cebcec71fdbf6aade16a2f9fb9"
     },
     "global.R": {
-      "checksum": "f2e27fb4f8f942fb7672a0bebbd24bc2"
+      "checksum": "29a74e371783654bde36c6e509b83f6c"
     },
     "R/helpers.R": {
       "checksum": "e01c688bc4eb7c337c22f210b98f5d77"
