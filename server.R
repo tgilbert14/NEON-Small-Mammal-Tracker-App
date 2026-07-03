@@ -381,7 +381,6 @@ server <- function(input, output, session) {
       text = ~sprintf("r %+.2f · %s · n=%d", r, lab, n), textposition = "auto",
       hovertemplate = ~paste0("<b>", label, "</b><br>r %{x:+.2f} (", dir, ") at ", lab,
                               " · n=", n, "<br><i>tap to overlay below</i><extra></extra>")) %>%
-      plotly::event_register("plotly_click") %>%
       plotly_theme(legend = FALSE) %>%
       plotly::layout(
         title = list(text = if (demo) "Demo overlays · illustrative" else "",
@@ -400,7 +399,8 @@ server <- function(input, output, session) {
                                    if (pv$p >= 0.05) " (apparent — can't beat chance)" else "")
                          else if (!is.null(pv)) " · series too short for a p" else ""),
           x = 0, y = -0.36, xref = "paper", yref = "paper", xanchor = "left", yanchor = "top",
-          align = "left", showarrow = FALSE, font = list(size = 10, color = dcol("#8a97a8")))))
+          align = "left", showarrow = FALSE, font = list(size = 10, color = dcol("#8a97a8"))))) %>%
+      plotly::event_register("plotly_click")
   })
 
   # state -> site cascading picker (Arizona default so the demo lines up)
@@ -2604,14 +2604,14 @@ server <- function(input, output, session) {
     s$recaps_per <- round(s$captures / s$individuals, 1)  # captures per animal (trap-happiness)
     s$hover <- paste0(format(s$individuals, big.mark = ","), " individuals \U00B7 ",
                       format(s$captures, big.mark = ","), " captures (", s$recaps_per, "\U00D7/animal)")
+    # colour = the species' IDENTITY hue (the same palette the plot map + community
+    # charts use), so each bar reads as that species at a glance instead of a drab
+    # single-hue ramp. Trap-happiness (captures per individual) rides on the hover.
+    pal <- make_species_pal(d, is_dark())
+    s$col <- unname(pal[s$scientificName]); s$col[is.na(s$col)] <- if (is_dark()) "#8a97a8" else "#5a6a82"
     p <- plot_ly(s, x = ~individuals, y = ~factor(label, levels = label), type = "bar",
       orientation = "h",
-      # color encodes captures-per-individual (something the bar length doesn't show)
-      marker = list(color = ~recaps_per,
-        # dark: pale-mint -> green -> gold (reads on navy). light: the pale low end
-        # vanishes on white, so start saturated and end on the darker green/gold twins.
-        colorscale = if (is_dark()) list(c(0, "#dcebe4"), c(0.5, "#5fb56a"), c(1, "#e0b43a"))
-                     else list(c(0, "#9bd6a8"), c(0.5, "#2f7d3a"), c(1, "#9a6b00")), showscale = FALSE),
+      marker = list(color = ~col),
       customdata = ~scientificName, source = "speciesBar",
       text = ~paste0(format(individuals, big.mark = ","), " indiv"), textposition = "outside",
       hovertext = ~hover,
@@ -2619,14 +2619,13 @@ server <- function(input, output, session) {
       # on the dark navy panel. Light twin #63727d = 4.96:1; dark uses a light slate.
       textfont = list(color = if (is_dark()) "#9fb0c4" else "#63727d", size = 11),
       hovertemplate = "<b>%{y}</b><br>%{hovertext}<br><span style='color:#cfe0f5'>tap for the full species breakdown</span><extra></extra>")
-    # register the click so event_data("plotly_click", source="speciesBar") actually
-    # fires — WITHOUT this the observer never wires up and the advertised "tap for the
-    # full species breakdown" is a dead affordance (driverRank registers, this didn't).
-    p <- p %>% plotly::event_register("plotly_click")
+    # event_register LAST, on the final piped object, so no downstream step can drop
+    # the click registration the observer at ~1486 reads (source="speciesBar").
     plotly_theme(p, legend = FALSE) %>%
       plotly::layout(xaxis = list(title = "individuals (abundance)"), yaxis = list(title = ""),
                      showlegend = FALSE, margin = list(l = 180, t = 44)) %>%
-      ctx_anno()
+      ctx_anno() %>%
+      plotly::event_register("plotly_click")
   })
 
   donut_center <- function(total, label) list(
@@ -3053,7 +3052,7 @@ server <- function(input, output, session) {
       xaxis  = list(title = "", showspikes = TRUE, spikemode = "across",
                     spikethickness = 1, spikecolor = "#7a8896", spikedash = "dot"),
       hovermode = "x", margin = list(t = 44), shapes = bands,
-      annotations = c(list(list(text = "⋯ dotted = catch-per-effort (right axis)",
+      annotations = c(list(list(text = "⋯ dotted = SITE-TOTAL catch-per-effort · right axis, its own scale (don't compare its height to the coloured per-plot lines)",
         x = 0, y = 1.08, xref = "paper", yref = "paper", xanchor = "left", yanchor = "bottom",
         showarrow = FALSE, font = list(color = muted_ink(), size = 11, family = "Rubik"))), band_lbls)) %>% ctx_anno()
     # hidden y3 for the env area: pure background context (y2 already holds CPUE)
