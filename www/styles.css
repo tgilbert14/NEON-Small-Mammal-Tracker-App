@@ -18,7 +18,8 @@
 }
 
 /* =========================================================================
-   DESERT-NIGHT dark theme (the DEFAULT + showcase) — teal/coral/gold on a dark
+   DESERT-NIGHT dark theme (opt-in via the toggle; the app now DEFAULTS to LIGHT,
+   ui.R input_dark_mode mode="light") — teal/coral/gold on a dark
    sky. Remaps the SEMANTIC tokens too (--pine->teal primary, --terra->coral),
    so every component that reads them re-themes to the cover's creative system.
    ========================================================================= */
@@ -59,6 +60,15 @@
 [data-bs-theme="dark"] .form-select,
 [data-bs-theme="dark"] .selectize-input,
 [data-bs-theme="dark"] .selectize-dropdown { background: #0a1530; color: var(--ink); border-color: var(--line); }
+/* Theme-reactive inline "swatch" words in help/about prose ("gold ring",
+   "teal arcs"). The dark-mode chart hues (#ffd24a gold = 1.44:1, #15b8a6 teal
+   = 2.49:1) are unreadable on the light-default white card; these give a
+   light-readable value on white and the bright chart hue on dark, so the word
+   reads in BOTH modes and still names the on-chart colour. reaver 2026-07. */
+.sw-gold { color: #9a6b00; font-weight: 700; }
+.sw-teal { color: #0e7c72; font-weight: 700; }
+[data-bs-theme="dark"] .sw-gold { color: #ffd24a; }
+[data-bs-theme="dark"] .sw-teal { color: #15b8a6; }
 /* the sidebar theme toggle row */
 .theme-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 0 4px; }
 .theme-toggle-lab { font-size: 12px; font-weight: 700; color: var(--muted); display: flex; align-items: center; gap: 5px; }
@@ -85,7 +95,9 @@ body {
 .load-btn { font-weight: 700; letter-spacing: .3px; box-shadow: 0 6px 18px -8px var(--pine); }
 .load-btn:hover { transform: translateY(-1px); transition: .15s; }
 .demo-btn { background: #fdf3e0; border-color: var(--gold); color: #9a6b12; font-weight: 700; }
-.demo-btn:hover { background: var(--gold); color: #fff; }
+/* dark ink on the gold hover fill: white was 2.30:1 (light) / 1.44:1 (dark) on
+   var(--gold); navy #16243a reads 6.8:1 / 10.8:1. reaver 2026-07. */
+.demo-btn:hover { background: var(--gold); color: #16243a; }
 .demo-hint { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
 .prov-toggle { margin: 2px 0 10px; }
 .prov-toggle .form-check-label, .prov-toggle label { font-size: 12.5px; color: var(--ink); font-weight: 400; }
@@ -238,6 +250,15 @@ body {
 [data-bs-theme="dark"] .ci-navy { --ci-rail: #5a8fd0; } [data-bs-theme="dark"] .ci-pine { --ci-rail: #5fcf86; }
 [data-bs-theme="dark"] .ci-gold { --ci-rail: var(--gold-ink); } [data-bs-theme="dark"] .ci-terra { --ci-rail: #ff7a8a; }
 @media (max-width: 560px) { .chart-insight { font-size: 12.5px; padding: 8px 11px; } }
+
+/* travels-with-the-export figure caption, under a chart */
+.chart-caption { display: flex; gap: 7px; margin: 8px 4px 2px; padding: 7px 2px 0;
+  border-top: 1px solid var(--line); color: var(--muted);
+  font-size: 11.5px; line-height: 1.5; }
+.chart-caption > .bi { font-size: 13px; flex: none; margin-top: 1px; opacity: .8; }
+.chart-caption .cc-text { min-width: 0; }
+.chart-caption b { color: var(--ink); font-weight: 700; }
+@media (max-width: 560px) { .chart-caption { font-size: 11px; } }
 
 .or-divider { display: flex; align-items: center; text-align: center; color: var(--muted); margin: 12px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; }
 .or-divider::before, .or-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); margin: 0 10px; }
@@ -807,8 +828,14 @@ a.recent-chip:hover, a.recent-chip:focus-visible {
 .insights-list li i { color: var(--pine); font-style: italic; }
 
 /* ---- info popovers ---------------------------------------------------- */
-.info-dot { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; margin-left: auto; border-radius: 50%; color: rgba(255,255,255,.85); cursor: pointer; transition: .15s; font-size: 14px; flex: none; }
+/* the ⓘ trigger is now keyboard-focusable (tabindex/role in info_pop) — it needs a
+   visible focus ring (WCAG 2.4.7) and a ≥24px hit target (2.5.8). The 20px glyph
+   grows its tap area with padding+negative-margin so the visual size is unchanged. */
+.info-dot { display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; min-height: 24px; margin-left: auto; border-radius: 50%;
+  color: rgba(255,255,255,.85); cursor: pointer; transition: .15s; font-size: 14px; flex: none; }
 .card-header .info-dot:hover { color: #fff; background: rgba(255,255,255,.2); }
+.info-dot:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; color: #fff; }
 .tab-head-text .info-dot { color: var(--muted); margin-left: 6px; }
 .tab-head-text .info-dot:hover { color: var(--pine); background: var(--bg); }
 .popover { background: var(--paper) !important; border: 1px solid var(--line) !important; border-radius: 12px !important; box-shadow: 0 14px 40px -12px var(--shadow) !important; max-width: 340px; }
@@ -1218,15 +1245,21 @@ svg.smt-pin-lines {
   font-weight: 600; font-size: 11.5px; cursor: pointer;
 }
 .smt-pin .smt-open:hover { background: #ffe04d; }
+/* WCAG 2.5.8: the glyph stays 17px, but padding grows the HIT area to ~29px and
+   pulls the close button clear of the draggable card surface — a fat-thumb near
+   miss lands on the button, not the start of a drag. */
 .smt-pin-close {
-  position: absolute; top: 1px; right: 6px; background: none; border: none;
-  color: #cfd9e8; font-size: 17px; line-height: 1; cursor: pointer; padding: 0;
+  position: absolute; top: -4px; right: 0; background: none; border: none;
+  color: #cfd9e8; font-size: 17px; line-height: 1; cursor: pointer;
+  padding: 8px 10px; z-index: 1;
+  display: inline-flex; align-items: center; justify-content: center;
 }
 .smt-pin-close:hover { color: #fff; }
+/* WCAG 2.5.8: 24x24 min touch target for the resize grip (was 18x18). */
 .smt-pin-resize {
-  position: absolute; right: 2px; bottom: 2px; width: 18px; height: 18px;
+  position: absolute; right: 0; bottom: 0; width: 24px; height: 24px;
   cursor: nwse-resize; touch-action: none; opacity: 0.5;
-  background: linear-gradient(135deg, transparent 50%, var(--gold) 50%);
+  background: linear-gradient(135deg, transparent 58%, var(--gold) 58%);
   border-radius: 0 0 8px 0;
 }
 .smt-pin-resize:hover { opacity: 1; }
@@ -1235,6 +1268,12 @@ svg.smt-pin-lines {
   50% { box-shadow: 0 0 0 4px var(--gold), 0 12px 32px rgba(12, 35, 75, 0.5); }
 }
 .smt-pin.smt-pulse { animation: smtPulse 0.5s ease 2; }
+
+/* a11y table twin under the Size Lab scatter (keyboard/AT path to the QC card) */
+.smt-table-twin { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 12px; }
+.smt-twin-cap { display: flex; align-items: flex-start; gap: 7px; font-size: 12.5px;
+  color: var(--muted); line-height: 1.4; margin-bottom: 8px; }
+.smt-twin-cap .bi { color: var(--pine); margin-top: 1px; flex: none; }
 
 /* tab-head controls + the scatter toolbar */
 .sizelab-controls { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }

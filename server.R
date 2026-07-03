@@ -69,8 +69,16 @@ server <- function(input, output, session) {
     # top margin; plotly_theme's t=48 gives every plot enough headroom.
     plotly::add_annotations(p, text = rv$ctx, x = 1, y = 1.03, xref = "paper", yref = "paper",
       xanchor = "right", yanchor = "bottom", showarrow = FALSE,
-      font = list(color = if (is_dark()) "#9fb0c4" else "#6b7a89", size = 11, family = "Rubik"))
+      # light caption nudged #6b7a89 (4.4:1) -> #647585 (4.75:1) so scope-stamp text
+      # clears the WCAG 4.5:1 text gate on the white panel; still a soft muted slate.
+      font = list(color = if (is_dark()) "#9fb0c4" else "#647585", size = 11, family = "Rubik"))
   }
+
+  # Mode-aware muted plot text (annotations / secondary-axis labels). A single
+  # hardcoded slate like #6b7a85 is 4.42:1 on white (under the 4.5:1 text gate) AND
+  # only 3.45:1 on the dark navy panel — it can't win on both backgrounds. This
+  # returns the light twin #63727d (4.96:1 on white) / #9fb0c4 (6.2:1 on navy).
+  muted_ink <- function() if (is_dark()) "#9fb0c4" else "#63727d"
 
   # A centered-message placeholder for plots that have nothing to show.
   note_plot <- function(msg, icon = "\U0001F50D") {
@@ -79,7 +87,8 @@ server <- function(input, output, session) {
         paper_bgcolor = "rgba(0,0,0,0)", plot_bgcolor = "rgba(0,0,0,0)",
         xaxis = list(visible = FALSE), yaxis = list(visible = FALSE),
         annotations = list(list(text = paste0(icon, "<br>", msg), showarrow = FALSE,
-          font = list(color = if (is_dark()) "#9fb0c4" else "#6b7a85", size = 15), align = "center"))) %>%
+          # light muted nudged #6b7a85 (4.42:1) -> #63727d (4.96:1) for the 4.5:1 gate
+          font = list(color = if (is_dark()) "#9fb0c4" else "#63727d", size = 15), align = "center"))) %>%
       plotly::config(displayModeBar = FALSE)
   }
 
@@ -142,6 +151,16 @@ server <- function(input, output, session) {
           tags$span(" Live from co-located NEON sensors at this site."))
   })
 
+  # Shared honesty p-value for the env dredge (circular-shift null over the full
+  # driver x lag scan). ONE reactive so envCorrNote and envDriverRank don't each
+  # pay the permutation cost; recomputes only when the site's data or env changes
+  # (not on driver-bar selection — the p is about the best-of-all-drivers dredge).
+  env_pval <- reactive({
+    d <- rv$data; env <- rv$env
+    if (is.null(d) || is.null(env)) return(NULL)
+    tryCatch(env_corr_pvalue(d, env), error = function(e) NULL)
+  })
+
   # Quantify the population<->environment link: best lag + correlation between
   # this site's monthly catch-per-effort and the selected (lagged) driver.
   output$envCorrNote <- renderUI({
@@ -169,9 +188,19 @@ server <- function(input, output, session) {
     strength <- abs(sc$r)
     pos    <- sc$r >= 0
     dir    <- if (pos) "more" else "fewer"
-    rail   <- if (strength >= 0.6) "rail-strong" else if (strength >= 0.35) "rail-mod" else "rail-weak"
-    slabel <- if (strength >= 0.6) "Strong" else if (strength >= 0.35) "Moderate"
-              else if (strength >= 0.2) "Weak" else "Negligible"
+    # HONESTY GATE: |r| alone is best-of-65 (5 drivers x 13 lags) — an upward-
+    # biased dredge. Downgrade the verdict word to "Apparent link" whenever the
+    # circular-shift null can't reject chance (p >= 0.05), however large |r|.
+    pv     <- env_pval()
+    p_val  <- if (!is.null(pv)) pv$p else NA_real_
+    sig    <- is.finite(p_val) && p_val < 0.05
+    rail   <- if (sig && strength >= 0.6) "rail-strong"
+              else if (sig && strength >= 0.35) "rail-mod" else "rail-weak"
+    slabel <- if (!sig) "Apparent"
+              else if (strength >= 0.6) "Strong"
+              else if (strength >= 0.35) "Moderate"
+              else if (strength >= 0.2) "Weak"
+              else "Negligible"
     glyph  <- if (pos) "arrow-up-right" else "arrow-down-right"
     div(class = paste("ec", rail),
       # tint the driver-name underline to that driver's IDENTITY colour (not its
@@ -194,6 +223,13 @@ server <- function(input, output, session) {
         tags$span(class = "ec-meta-dot"),
         tags$span(class = "ec-meta", bs_icon("calendar3"),
           HTML(sprintf("<b>%d</b> months matched", sc$n))),
+        tags$span(class = "ec-meta-dot"),
+        tags$span(class = "ec-meta",
+          title = sprintf("shuffle-null p from re-scanning the best of %s driver\U00D7lag combos",
+                          if (!is.null(pv)) as.character(pv$n_search) else "many"),
+          if (is.finite(p_val)) HTML(sprintf("shuffle-null <b>p = %.2f</b>%s", p_val,
+              if (!is.null(pv)) sprintf(" (best of %d)", pv$n_search) else ""))
+          else "series too short for a p"),
         tags$span(class = paste("ec-meta ec-dir", if (pos) "ec-sgn-pos" else "ec-sgn-neg"),
           HTML(sprintf("higher \U2192 <b>%s</b> animals", dir)))))
   })
@@ -321,6 +357,10 @@ server <- function(input, output, session) {
     if (is.null(d) || is.null(env)) return(note_plot("No environmental data for this site", "\U0001F326"))
     ca <- env_corr_all(d, env)
     if (is.null(ca) || !nrow(ca)) return(note_plot("Not enough overlap to compare drivers", "\U0001F326"))
+    # honesty p for the winning (best-|r|) bar: shared circular-shift null (see
+    # env_pval). Printed in the caption so the ranking never reads as a verdict
+    # when the top bar can't beat chance.
+    pv <- env_pval()
     ca <- ca[order(abs(ca$r)), ]   # plotly horizontal bars draw bottom-up
     ca$lab <- ifelse(ca$lag == 0, "same mo", sprintf("lag %d mo", ca$lag))
     ca$dir <- ifelse(ca$r < 0, "inverse", "positive")
@@ -353,8 +393,12 @@ server <- function(input, output, session) {
         # cohesion + honesty: the bars ARE the switcher, sorted by strength; and
         # they're collinear stages of one seasonal cascade, not independent evidence
         annotations = list(list(
-          text = sprintf("tap a bar to overlay that driver below · sorted by strength · best of %d driver%s × ≤13 lags<br>left of 0 = inverse (more driver → fewer animals) · bars aren't independent evidence",
-                         n_drv, if (n_drv == 1) "" else "s"),
+          text = sprintf("tap a bar to overlay that driver below · sorted by strength · best of %d driver%s × ≤13 lags%s<br>left of 0 = inverse (more driver → fewer animals) · bars aren't independent evidence",
+                         n_drv, if (n_drv == 1) "" else "s",
+                         if (!is.null(pv) && is.finite(pv$p))
+                           sprintf(" · top bar shuffle-null p = %.2f%s", pv$p,
+                                   if (pv$p >= 0.05) " (apparent — can't beat chance)" else "")
+                         else if (!is.null(pv)) " · series too short for a p" else ""),
           x = 0, y = -0.36, xref = "paper", yref = "paper", xanchor = "left", yanchor = "top",
           align = "left", showarrow = FALSE, font = list(size = 10, color = dcol("#8a97a8")))))
   })
@@ -803,7 +847,7 @@ server <- function(input, output, session) {
       ` `         = vapply(r$site, search_go_btn, character(1)),
       check.names = FALSE, stringsAsFactors = FALSE)
     DT::datatable(df, escape = FALSE, rownames = FALSE, selection = "none",
-      options = list(pageLength = 15, dom = "tip",
+      options = list(pageLength = 15, dom = "tip", scrollX = TRUE,
                      order = list(list(2, "desc")),
                      columnDefs = list(list(orderable = FALSE, targets = 6))))
   })
@@ -874,7 +918,7 @@ server <- function(input, output, session) {
         `Peak MNKA` = d$peak_mnka,
         check.names = FALSE, stringsAsFactors = FALSE)
       DT::datatable(df, escape = FALSE, rownames = FALSE, selection = "none",
-        options = list(pageLength = 15, dom = "tip", order = list(list(2, "desc"))))
+        options = list(pageLength = 15, dom = "tip", scrollX = TRUE, order = list(list(2, "desc"))))
     } else {
       d <- q$data
       df <- data.frame(
@@ -885,7 +929,7 @@ server <- function(input, output, session) {
         ` `         = vapply(d$site, search_go_btn, character(1)),
         check.names = FALSE, stringsAsFactors = FALSE)
       DT::datatable(df, escape = FALSE, rownames = FALSE, selection = "none",
-        options = list(pageLength = 15, dom = "tip", order = list(list(2, "desc")),
+        options = list(pageLength = 15, dom = "tip", scrollX = TRUE, order = list(list(2, "desc")),
                        columnDefs = list(list(orderable = FALSE, targets = 4))))
     }
   })
@@ -955,6 +999,64 @@ server <- function(input, output, session) {
     pick_individual(tag, navigate = FALSE)
     session$sendCustomMessage("smtRevealQc", list())
   }, ignoreInit = TRUE)
+
+  # ---- Size Lab table twin (WCAG 2.1.1 keyboard/AT path to the crown jewel) ----
+  # plotly's SVG dots aren't focusable and the modebar is off, so tap-to-pin is
+  # pointer-only. "View the numbers" swaps in a DT of the SAME prepped frame the
+  # scatter draws; a row click opens the same QC history card as a dot's pin chip.
+  bodyTbl_rv <- reactiveVal(NULL)
+  bodyTblShown <- reactiveVal(FALSE)
+  observeEvent(input$bodyTblToggle, {
+    show <- !isTRUE(bodyTblShown())
+    bodyTblShown(show)
+    shinyjs::toggle("bodyTblWrap", condition = show)
+    # keep the toggle's state programmatically determinable + rename it (WCAG 4.1.2)
+    shinyjs::runjs(sprintf(paste0(
+      "var b=document.getElementById('bodyTblToggle'); if(b){",
+      "b.setAttribute('aria-pressed','%s');",
+      "var t=Array.prototype.filter.call(b.childNodes,function(n){return n.nodeType===3;})[0];",
+      "if(t){t.nodeValue=' %s';}}"),
+      tolower(as.character(show)),
+      if (show) "Hide the numbers" else "View the numbers"))
+  })
+  output$bodyScatterTbl <- DT::renderDT({
+    df <- bodyTbl_rv()
+    validate(need(!is.null(df) && nrow(df) > 0, "No individuals to list for these filters."))
+    df <- df[order(-df$captures, df$scientificName), , drop = FALSE]
+    show <- data.frame(
+      ID       = ifelse(is.na(df$emoji), "", paste0(df$emoji, " ")),
+      stringsAsFactors = FALSE)
+    show$ID       <- paste0(show$ID, df$short)
+    show$Species  <- df$scientificName
+    show$Stage    <- df$lifeStage %||% NA
+    if ("home_plot" %in% names(df)) show$Plot <- df$home_plot
+    show$`Hind-foot (mm)` <- round(df$avg_hf, 1)
+    show$`Weight (g)`     <- round(df$avg_weight, 1)
+    show$Captures <- df$captures
+    show$`Career (d)` <- df$career_days
+    if ("chonk_pct" %in% names(df))
+      show$`Chonk %ile` <- ifelse(is.na(df$chonk_pct), NA, round(df$chonk_pct))
+    show$Rarity   <- df$rarity
+    DT::datatable(show, rownames = FALSE, selection = "single",
+      class = "compact stripe hover",
+      caption = htmltools::tags$caption(
+        style = "caption-side:top;text-align:left;color:var(--muted);font-size:12px;",
+        sprintf("%d individuals · the same data the map plots · select a row to open its QC card.",
+                nrow(show))),
+      options = list(pageLength = 15, dom = "ftip", scrollX = TRUE,
+                     order = list(list(which(names(show) == "Captures") - 1L, "desc"))))
+  })
+  # a selected row -> open that individual's QC history card (same path as a pin chip)
+  observeEvent(input$bodyScatterTbl_rows_selected, {
+    df <- bodyTbl_rv(); sel <- input$bodyScatterTbl_rows_selected
+    if (is.null(df) || is.null(sel) || !length(sel)) return()
+    ord <- df[order(-df$captures, df$scientificName), , drop = FALSE]
+    tag <- ord$tagID[sel[1]]
+    if (!is.null(tag) && nzchar(tag)) {
+      pick_individual(tag, navigate = FALSE)
+      session$sendCustomMessage("smtRevealQc", list())
+    }
+  })
 
   # pick a random standout individual (shared by the sidebar + dossier buttons)
   surprise_pick <- function() {
@@ -1326,7 +1428,7 @@ server <- function(input, output, session) {
 
     div(
       div(class = "hero-site",
-        bs_icon("broadcast-pin"), span(class = "hero-site-label", rv$label),
+        bs_icon("broadcast-pin"), span(class = "hero-site-label", `data-site` = mode_chr(d$siteID), rv$label),
         if (isTRUE(rv$is_demo)) span(class = "demo-pill", bs_icon("stars"), " DEMO"),
         span(class = "hero-site-range", fmt_range(cs$date_min, cs$date_max)),
         actionLink("changeSite", tagList(bs_icon("arrow-left-circle"), " change site"),
@@ -1803,11 +1905,13 @@ server <- function(input, output, session) {
       delta = list(reference = 50, suffix = " vs typical",
         increasing = list(color = "#5fb56a"), decreasing = list(color = "#43b8e8"),
         font = list(size = 13)),
-      title = list(text = sprintf("<b>%s</b><br><span style='font-size:12px;color:#6b7a85'>adult weight percentile vs %s</span>",
+      title = list(text = sprintf("<b>%s</b><br><span style='font-size:12px;color:#647585'>adult weight percentile vs %s</span>",
                                   row$chonk_tier[1], row$scientificName[1]),
                    font = list(color = "#1f2a30", size = 16)),
       gauge = list(
-        axis = list(range = list(0, 100), tickcolor = "#6b7a85", tickfont = list(color = "#6b7a85")),
+        # subtitle span + tick labels nudged #6b7a85 (4.42:1) -> #647585 (4.75:1) for the
+        # WCAG text gate; this gauge is light-styled in both modes (see step colours below).
+        axis = list(range = list(0, 100), tickcolor = "#647585", tickfont = list(color = "#647585")),
         bar = list(color = "#38a8e8", thickness = 0.28),
         bgcolor = "rgba(0,0,0,0)", borderwidth = 0,
         steps = list(
@@ -1884,7 +1988,7 @@ server <- function(input, output, session) {
     note <- if (!(nrow(srow) == 1 && !is.na(srow$b)))
       list(list(text = "↳ hind-foot barely predicts mass in this species; read position, not a line",
         x = 0, y = 1.08, xref = "paper", yref = "paper", showarrow = FALSE, xanchor = "left",
-        font = list(color = "#6b7a85", size = 11))) else list()
+        font = list(color = muted_ink(), size = 11))) else list()
 
     plotly_theme(p) %>% plotly::layout(
       xaxis = list(title = "Hind-foot length (mm)"),
@@ -1944,6 +2048,13 @@ server <- function(input, output, session) {
       "<br/><em class='smt-pin-hint'>Tap the dot to pin this card</em>")
 
     full_pts <- pts                          # pre-downsample (single-species stats + diamond)
+    # a11y table twin (WCAG 2.1.1): stash the COMPLETE (un-downsampled) frame the
+    # scatter is built from, so the keyboard/AT "View the numbers" table shows every
+    # individual — not just the 1500-point sampled subset the SVG draws.
+    bodyTbl_rv(full_pts[, intersect(
+      c("tagID","short","emoji","scientificName","rarity","lifeStage","home_plot",
+        "avg_hf","avg_weight","captures","career_days","chonk_pct"), names(full_pts)),
+      drop = FALSE])
     if (nrow(pts) > 1500) { set.seed(7); pts <- pts[sort(sample.int(nrow(pts), 1500)), ] }
 
     # S5: deterministic sub-pixel jitter so individuals that round to identical
@@ -2349,7 +2460,7 @@ server <- function(input, output, session) {
       # always-on plot name tags so the grid is legible at a glance
       addLabelOnlyMarkers(data = plot_tot, ~lng, ~lat, label = ~plotID,
         labelOptions = labelOptions(noHide = TRUE, direction = "top", textOnly = TRUE, offset = c(0, -14),
-          style = list("color" = "#ffffff", "font-family" = "Jura", "font-weight" = "700",
+          style = list("color" = "#ffffff", "font-family" = "Jura, Rubik, monospace", "font-weight" = "700",
                        "font-size" = "11px", "text-shadow" = "0 1px 4px #000"))) %>%
       addLegend("bottomright", pal = pal, values = ~scientificName,
         title = "Species", opacity = 0.9)
@@ -2483,11 +2594,17 @@ server <- function(input, output, session) {
   # ---- community pulse ----------------------------------------------------
   output$speciesBar <- renderPlotly({
     d <- rv$data; req(d)
-    s <- species_summary(d) %>% dplyr::slice_head(n = 14) %>% dplyr::arrange(.data$captures)
+    # "most common first" = ABUNDANCE = distinct individuals, NOT captures: a
+    # trap-happy species inflates captures without being more abundant, so bar
+    # length must be the metric the label prints and the headline ranks (individuals).
+    s <- species_summary(d) %>% dplyr::arrange(dplyr::desc(.data$individuals)) %>%
+      dplyr::slice_head(n = 14) %>% dplyr::arrange(.data$individuals)
     if (nrow(s) == 0) return(note_plot("No identified captures", "\U0001F9EC"))
     s$label <- paste0(s$emoji, " ", s$scientificName)
-    s$recaps_per <- round(s$captures / s$individuals, 1)  # trap-happiness
-    p <- plot_ly(s, x = ~captures, y = ~factor(label, levels = label), type = "bar",
+    s$recaps_per <- round(s$captures / s$individuals, 1)  # captures per animal (trap-happiness)
+    s$hover <- paste0(format(s$individuals, big.mark = ","), " individuals \U00B7 ",
+                      format(s$captures, big.mark = ","), " captures (", s$recaps_per, "\U00D7/animal)")
+    p <- plot_ly(s, x = ~individuals, y = ~factor(label, levels = label), type = "bar",
       orientation = "h",
       # color encodes captures-per-individual (something the bar length doesn't show)
       marker = list(color = ~recaps_per,
@@ -2497,17 +2614,25 @@ server <- function(input, output, session) {
                      else list(c(0, "#9bd6a8"), c(0.5, "#2f7d3a"), c(1, "#9a6b00")), showscale = FALSE),
       customdata = ~scientificName, source = "speciesBar",
       text = ~paste0(format(individuals, big.mark = ","), " indiv"), textposition = "outside",
-      textfont = list(color = "#6b7a85", size = 11),
-      hovertemplate = "<b>%{y}</b><br>%{x:,} captures · %{text}<br><span style='color:#cfe0f5'>tap for the full species breakdown</span><extra></extra>")
+      hovertext = ~hover,
+      # mode-aware: #6b7a85 is 4.42:1 on white (under the 4.5:1 gate) AND near-invisible
+      # on the dark navy panel. Light twin #63727d = 4.96:1; dark uses a light slate.
+      textfont = list(color = if (is_dark()) "#9fb0c4" else "#63727d", size = 11),
+      hovertemplate = "<b>%{y}</b><br>%{hovertext}<br><span style='color:#cfe0f5'>tap for the full species breakdown</span><extra></extra>")
+    # register the click so event_data("plotly_click", source="speciesBar") actually
+    # fires — WITHOUT this the observer never wires up and the advertised "tap for the
+    # full species breakdown" is a dead affordance (driverRank registers, this didn't).
+    p <- p %>% plotly::event_register("plotly_click")
     plotly_theme(p, legend = FALSE) %>%
-      plotly::layout(xaxis = list(title = "captures"), yaxis = list(title = ""),
+      plotly::layout(xaxis = list(title = "individuals (abundance)"), yaxis = list(title = ""),
                      showlegend = FALSE, margin = list(l = 180, t = 44)) %>%
       ctx_anno()
   })
 
   donut_center <- function(total, label) list(
+    # center subtitle nudged #6b7a85 (4.42:1) -> #63727d (4.96:1) for the WCAG text gate
     text = sprintf("<b>%s</b><br><span style='font-size:11px;color:%s'>%s</span>",
-      format(total, big.mark = ","), if (is_dark()) "#9fb0c4" else "#6b7a85", label),
+      format(total, big.mark = ","), if (is_dark()) "#9fb0c4" else "#63727d", label),
     showarrow = FALSE, font = list(color = if (is_dark()) "#e8eef2" else "#1f2a30", size = 20))
 
   output$sexDonut <- renderPlotly({
@@ -2525,10 +2650,15 @@ server <- function(input, output, session) {
     lab <- c(F = "Female", M = "Male", U = "Unknown")
     col <- c(F = "#c2255c", M = dcol("#43b8e8"), U = "#6c757d")
     tab$label <- lab[as.character(tab$key)]
+    slice_col <- unname(col[as.character(tab$key)])
     plot_ly(tab, labels = ~label, values = ~n, type = "pie", hole = 0.62, sort = FALSE,
-      marker = list(colors = unname(col[as.character(tab$key)]), line = list(color = "#ffffff", width = 2)),
+      marker = list(colors = slice_col, line = list(color = "#ffffff", width = 2)),
       pull = c(0.03, 0, 0), textinfo = "percent", textposition = "inside",
-      insidetextorientation = "horizontal", textfont = list(color = "#ffffff", size = 13),
+      insidetextorientation = "horizontal",
+      # luminance-picked ink per slice: white-on-bright (dark-mode azure #43b8e8
+      # 2.27:1) vanished; label_ink() gives navy on bright, white on dark.
+      insidetextfont = list(color = label_ink(slice_col), size = 13),
+      textfont = list(color = label_ink(slice_col), size = 13),
       hovertemplate = "<b>%{label}</b><br>%{value:,} individuals · %{percent:.0%} of handled<extra></extra>") %>%
       plotly::layout(title = list(text = "Sex", font = list(color = if (is_dark()) "#c3cedd" else "#344049", size = 14)),
         paper_bgcolor = "rgba(0,0,0,0)", showlegend = TRUE,
@@ -2557,10 +2687,13 @@ server <- function(input, output, session) {
     per$stage <- factor(ifelse(!is.na(per$lifeStage) & per$lifeStage %in% lvls, per$lifeStage, "unknown"), levels = lvls)
     tab <- as.data.frame(table(per$stage)); names(tab) <- c("stage", "n")
     tab <- tab[tab$n > 0, , drop = FALSE]
+    slice_col <- unname(col[as.character(tab$stage)])
     plot_ly(tab, labels = ~stage, values = ~n, type = "pie", hole = 0.62, sort = FALSE,
-      marker = list(colors = unname(col[as.character(tab$stage)]), line = list(color = "#ffffff", width = 2)),
+      marker = list(colors = slice_col, line = list(color = "#ffffff", width = 2)),
       textinfo = "percent", textposition = "inside", insidetextorientation = "horizontal",
-      textfont = list(color = "#ffffff", size = 13),
+      # luminance-picked ink: white on juvenile lime #9bd24a was 1.79:1 in dark mode.
+      insidetextfont = list(color = label_ink(slice_col), size = 13),
+      textfont = list(color = label_ink(slice_col), size = 13),
       hovertemplate = "<b>%{label}</b><br>%{value:,} individuals · %{percent:.0%} of handled<extra></extra>") %>%
       plotly::layout(title = list(text = "Life stage", font = list(color = if (is_dark()) "#c3cedd" else "#344049", size = 14)),
         paper_bgcolor = "rgba(0,0,0,0)", showlegend = TRUE,
@@ -2584,7 +2717,7 @@ server <- function(input, output, session) {
       col = c(dcol("#5fb56a"), dcol("#43b8e8"), dcol("#38a8e8")))
     plot_ly(df, x = ~val, y = ~lab, type = "bar", orientation = "h",
       marker = list(color = ~col, line = list(color = "#ffffff", width = 1)),
-      text = ~sprintf("%.1f", val), textposition = "outside",
+      text = ~sprintf("%.1f eff.", val), textposition = "outside",
       textfont = list(color = "#1f2a30", size = 13),
       hovertemplate = "%{y}: <b>%{x:.1f}</b> effective species<extra></extra>") %>%
       plotly::layout(
@@ -2702,7 +2835,7 @@ server <- function(input, output, session) {
         hovertemplate = "%{x}<br>%{y}% of adult females pregnant/lactating<br>(n = %{customdata} adult females)<extra></extra>")
     p <- plotly_theme(p) %>% plotly::layout(
       xaxis = list(title = "", categoryorder = "array", categoryarray = month.abb),
-      yaxis = list(title = "% reproductively active", range = c(0, 100)),
+      yaxis = list(title = "% of that sex reproductively active", range = c(0, 100)),
       hovermode = "x unified", margin = list(t = 44)) %>% ctx_anno()
     if (!is.null(es)) p <- p %>% plotly::layout(yaxis2 = env_axis_spec(es$layer, show = TRUE))
     p
@@ -2865,12 +2998,11 @@ server <- function(input, output, session) {
     if (is.null(mn) || nrow(mn) == 0) return(note_plot("Not enough data for MNKA", "\U0001F465"))
     pal <- species_pal()                 # mode-aware (kept for parity; loop colors by plot)
     plots <- sort(unique(mn$plotID))
-    # per-PLOT ramp: keep the pastel Set2 on dark (reads on navy); on white use a
-    # saturated, CB-safe Okabe-Ito ramp (matches make_species_pal's light branch).
-    plot_base <- if (is_dark()) brewer.pal(8, "Set2")
-                 else c("#0072B2", "#D55E00", "#009E73", "#CC79A7", "#9A6B00",
-                        "#1F8FBF", "#AA3377", "#444444")
-    plot_cols <- colorRampPalette(plot_base)(max(length(plots), 3))
+    # per-PLOT ramp via the SHARED collision-safe anchors (helpers.R): head(N) up to
+    # 14, so distinct plots never blend into near-identical hues (the old
+    # colorRampPalette-over-8 collapsed to 12 RGB-units apart at 12+ series). Keeps
+    # the MNKA ramp in lockstep with make_species_pal so the two never drift.
+    plot_cols <- categorical_colors(max(length(plots), 3), dark = is_dark())
     p <- plot_ly()
     # environmental overlay FIRST so it reads as soft context behind the lines
     es <- env_sel()
@@ -2906,19 +3038,24 @@ server <- function(input, output, session) {
     bands <- lapply(gi, function(k) list(type = "rect", xref = "x", yref = "paper",
       x0 = sdates[k], x1 = sdates[k + 1], y0 = 0, y1 = 1, layer = "below",
       fillcolor = "rgba(120,130,140,0.13)", line = list(width = 0)))
+    # WCAG 1.4.3: this is the ONLY on-chart label naming a data gap — it must be
+    # legible, not a whisper. dcol() keeps the dark-mode grey but swaps to a
+    # ~4.9:1 slate on the light panel; nudged 10->11px as the sole affordance.
     band_lbls <- lapply(gi, function(k) list(text = "no sampling",
       x = sdates[k] + (sdates[k + 1] - sdates[k]) / 2, y = 0.5, xref = "x", yref = "paper",
-      showarrow = FALSE, font = list(color = "#9aa7b5", size = 10, family = "Rubik")))
+      showarrow = FALSE, font = list(color = dcol("#9aa7b4"), size = 11, family = "Rubik")))
     p <- plotly_theme(p) %>% plotly::layout(
       yaxis  = list(title = "MNKA (individuals known alive)", color = acc(), rangemode = "tozero"),
-      yaxis2 = list(title = "captures per 100 trap-nights (site total)", color = "#7a8896",
+      # #7a8896 was 3.63:1 on white (secondary-axis title/spike/legend note) — under
+      # the text gate; muted_ink() clears 4.5:1 on white AND stays legible on navy.
+      yaxis2 = list(title = "captures per 100 trap-nights (site total)", color = muted_ink(),
                     overlaying = "y", side = "right", gridcolor = "rgba(0,0,0,0)", rangemode = "tozero"),
       xaxis  = list(title = "", showspikes = TRUE, spikemode = "across",
                     spikethickness = 1, spikecolor = "#7a8896", spikedash = "dot"),
       hovermode = "x", margin = list(t = 44), shapes = bands,
       annotations = c(list(list(text = "⋯ dotted = catch-per-effort (right axis)",
         x = 0, y = 1.08, xref = "paper", yref = "paper", xanchor = "left", yanchor = "bottom",
-        showarrow = FALSE, font = list(color = "#7a8896", size = 11, family = "Rubik"))), band_lbls)) %>% ctx_anno()
+        showarrow = FALSE, font = list(color = muted_ink(), size = 11, family = "Rubik"))), band_lbls)) %>% ctx_anno()
     # hidden y3 for the env area: pure background context (y2 already holds CPUE)
     if (!is.null(es))
       p <- p %>% plotly::layout(yaxis3 = c(env_axis_spec(es$layer, show = FALSE),
@@ -2972,7 +3109,7 @@ server <- function(input, output, session) {
       margin = list(l = 50, r = 30, t = 84, b = 40),
       annotations = list(list(text = anno_txt,
         x = 0, y = 1.13, xref = "paper", yref = "paper", xanchor = "left", yanchor = "bottom",
-        showarrow = FALSE, font = list(color = "#6b7a85", size = 11)))) %>% ctx_anno()
+        showarrow = FALSE, font = list(color = muted_ink(), size = 11)))) %>% ctx_anno()
   })
 
   # ---- detection-corrected abundance (closed-capture per bout) ------------

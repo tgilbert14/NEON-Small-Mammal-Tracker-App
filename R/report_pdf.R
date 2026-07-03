@@ -26,7 +26,7 @@ PDF_DEV <- if (isTRUE(capabilities("cairo"))) grDevices::cairo_pdf else grDevice
 PG <- list(w = 8.5, h = 11, margin = 0.75, lineH = 0.165,
            navy = "#0C234B", navy2 = "#16386e", gold = "#FFD200", gold2 = "#c9a300",
            cardinal = "#AB0520", sky = "#2f7fb5", green = "#1a7f37",
-           ink = "#1c2733", muted = "#6b7a89", line = "#dbe2ec",
+           ink = "#1c2733", muted = "#647585", line = "#dbe2ec",  # muted nudged 4.4:1 -> 4.75:1 on white (WCAG text gate)
            tint = "#eef2f8", zebra = "#f6f8fc")
 PG$cw <- PG$w - 2 * PG$margin      # 7.0in content width
 PG$ch <- PG$h - 2 * PG$margin      # 9.5in content height

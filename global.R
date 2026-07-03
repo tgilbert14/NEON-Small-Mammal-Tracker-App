@@ -19,6 +19,14 @@ suppressPackageStartupMessages({
   library(RColorBrewer)
   library(htmltools)
 })
+
+# ---- deploy armor: never leak a raw R error to a visitor ------------------
+# On a cold Connect Cloud worker a render can throw (a malformed bundle, an
+# edge-case transform) BEFORE it reaches its note_plot() fallback. Sanitizing
+# guarantees the user sees a generic message, not a stack trace with internals.
+# Pairs with the note_plot() message-chart pattern (server.R) for the no-data
+# states that ARE reachable, and with wrapping risky render bodies in tryCatch.
+options(shiny.sanitize.errors = TRUE)
 # neonUtilities is loaded LAZILY (only for the optional live-fetch path) — see LIVE_FETCH
 # below. Keeping it out of the startup block lets the app run bundle-only with no heavy
 # dependency (local dev, a lean Connect Cloud build, or a shinylive static export).
@@ -257,7 +265,10 @@ fetch_neon_mam <- function(site, start_date, end_date, provisional = FALSE) {
 #   ink     #1c2733  / muted #6b7a89 / bg #eef2f8
 # Desert-night creative system (matches the DDL suite cover). Key NAMES kept (server.R
 # references DDL$sky/$gold2/etc.), VALUES remapped to the desert palette so the charts
-# re-theme from one edit. The app DEFAULTS to dark (ui.R input_dark_mode mode="dark").
+# re-theme from one edit. NOTE: the app DEFAULTS to LIGHT (ui.R input_dark_mode
+# mode="light"); DDL below is the DARK palette, applied only when the user toggles
+# dark. Chart colours are chosen per-mode via is_dark()/dcol() in server.R — tune the
+# LIGHT (default) branch first, it is what most visitors see.
 DDL <- list(
   navy = "#0e1d40", navy2 = "#1b2e5c", cardinal = "#fb8a7e", gold = "#ffd24a",
   gold2 = "#e0b43a", sky = "#5cc6f5", green = "#5fb56a", ink = "#eaf2ff",
@@ -298,9 +309,19 @@ spin <- function(x, img = "rat-72.gif")
 
 # a small "ⓘ" that opens an explanatory popover — used in ui.R AND server.R
 # (e.g. the compare-sites modal), so it lives in global scope.
-info_pop <- function(title, ..., placement = "auto")
-  bslib::popover(tags$span(class = "info-dot", bsicons::bs_icon("info-circle")),
-                 ..., title = title, placement = placement)
+# a11y (WCAG 4.1.2 name/role/value + 2.1.1 keyboard): bsicons::bs_icon() emits
+# aria-hidden="true", so the bare <span> trigger is NAMELESS to a screen reader
+# and — as a <span> — never in the tab order. Give it a keyboard-reachable role +
+# an sr-only name built from the popover's own title, so every "ⓘ" announces
+# "About: <title>, button" and opens on Enter/Space (the generic role="button"
+# Enter/Space handler in app.js + bslib's own focus handling cover activation).
+info_pop <- function(title, ..., placement = "auto") {
+  aria <- paste0("About: ", if (is.character(title) && length(title) == 1) title else "more information")
+  bslib::popover(
+    tags$span(class = "info-dot", tabindex = "0", role = "button", `aria-label` = aria,
+              bsicons::bs_icon("info-circle")),
+    ..., title = title, placement = placement)
+}
 
 # A compact "answer up front" banner shown at the top of a data-heavy chart
 # card: a tone-coloured left rail + icon + one plain-English finding (wrap the
@@ -310,6 +331,15 @@ info_pop <- function(title, ..., placement = "auto")
 insight_banner <- function(icon, ..., tone = "navy") {
   div(class = paste("chart-insight", paste0("ci-", tone)),
     bsicons::bs_icon(icon), div(class = "ci-text", ...))
+}
+
+# The figure-legend line that travels with a chart on export: metric + its n and
+# denominator + the one honest read (what it does and does NOT show). Understated
+# muted caption UNDER the plot; the live site+window scope travels via ctx_anno()
+# on the plot itself, so this states the invariant method, not the reactive scope.
+chart_caption <- function(...) {
+  div(class = "chart-caption", bsicons::bs_icon("card-text"),
+    tags$span(class = "cc-text", ...))
 }
 
 # A clean tinted pill/badge (rarity & chonk tags). Auto-picks DARK text on a bright

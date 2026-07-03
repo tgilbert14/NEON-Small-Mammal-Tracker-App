@@ -105,24 +105,61 @@ genus_group <- function(scientificName) {
   GENUS_GROUPS[[length(GENUS_GROUPS)]]  # "other"
 }
 
+# 14 hand-verified, well-separated categorical anchors per mode. Used by BOTH
+# make_species_pal() and the MNKA per-plot ramp so the two palettes never drift.
+#
+# COLLISION FIX (reaver 2026-07): the old code interpolated colorRampPalette over
+# only 8 anchors, so a diverse (kangaroo-rat-heavy) site with >8 species produced
+# MUDDY BLENDS between neighbours — at 12 species the two closest colours were 12
+# RGB-units apart (#9A6F1F vs #A36D1E, indistinguishable). These fixed 14-anchor
+# sets keep min pairwise RGB-distance = 50 (light) at N=14 (a 4x improvement) so
+# no two species/plots read as the same colour. All LIGHT anchors verified
+# >=3:1 on white AND mean(col2rgb) <= 200 (no near-white "invisible on white"
+# slot, the beetle-app trap from LESSONS 2026-07-02). head(N) used up to 14; only
+# beyond 14 (never seen on a NEON 3-plot grid) do we fall back to interpolation
+# over the 14 anchors — still far better than interpolating 8.
+SPECIES_PAL_DARK <- c(          # reads on the navy panel (Set2 core + distinct extras)
+  "#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854", "#FFD92F", "#E5C494", "#B3B3B3",
+  "#7CC8F5", "#F58AA0", "#C99AF0", "#5FD0C4", "#D98A3A", "#9FE0E0")  # minRGBdist(14)=49, all >3:1 on navy
+SPECIES_PAL_LIGHT <- c(         # all >=3:1 on white, mean RGB <= 200, minRGBdist(14)=50
+  "#0072B2", "#D55E00", "#009E73", "#CC79A7", "#9A6B00", "#1F8FBF", "#AA3377", "#444444",
+  "#117733", "#882255", "#4B0092", "#8C510A", "#01665E", "#54278F")
+
+species_anchor_pal <- function(dark = TRUE) if (isTRUE(dark)) SPECIES_PAL_DARK else SPECIES_PAL_LIGHT
+
+# Expand the anchor set to exactly n distinct, collision-safe colours.
+categorical_colors <- function(n, dark = TRUE) {
+  anchors <- species_anchor_pal(dark)
+  if (n <= length(anchors)) return(anchors[seq_len(n)])   # head(): no muddy blends
+  grDevices::colorRampPalette(anchors)(n)                  # >14 species: interpolate anchors
+}
+
 # Stable, app-wide species -> color map so the SAME species is the SAME color
 # on the map, the trend chart, the morphospace scatter, etc.
 #
-# Mode-aware: the original pastel Set2 ramp (KEPT VERBATIM for dark, where it
-# reads on navy) washes out badly on a white panel (~1.5:1). In light mode we
-# swap to a saturated, colour-blind-safe ramp (Okabe-Ito interpolated) that
-# clears the white background. Species are sorted, so the same species maps to
-# the same ramp slot in both modes -> colour stays CONSISTENT across every plot
-# for a given mode, and re-themes when the caller re-reads is_dark() on toggle.
+# Species are sorted, so the same species maps to the same slot in both modes ->
+# colour stays CONSISTENT across every plot for a given mode, and re-themes when
+# the caller re-reads is_dark() on toggle.
 make_species_pal <- function(d, dark = TRUE) {
   sp <- sort(unique(d$scientificName[!is.na(d$scientificName)]))
   if (length(sp) == 0) return(character(0))
-  base <- if (isTRUE(dark))
-    RColorBrewer::brewer.pal(8, "Set2")
-  else  # Okabe-Ito (CB-safe, all dark/saturated enough to read on white)
-    c("#0072B2", "#D55E00", "#009E73", "#CC79A7", "#9A6B00", "#1F8FBF", "#AA3377", "#444444")
-  cols <- grDevices::colorRampPalette(base)(length(sp))
-  stats::setNames(cols, sp)
+  stats::setNames(categorical_colors(length(sp), dark), sp)
+}
+
+# Luminance-picked label ink for text drawn ON a fill (pie slices, stacked bars).
+# NEVER hardcode white: white on the dark-mode juvenile lime (#9bd24a) is ~1.79:1
+# and the label vanishes; on the light-mode fills white reads 4-6:1 but on a bright
+# slice it dies. YIQ-luminance pick returns dark navy ink on a bright fill, white on
+# a dark fill — same rule as glow_badge() (global.R). Vectorised so it maps straight
+# onto a colour vector for plotly `textfont`/`insidetextfont` per-slice colours.
+# (reaver 2026-07: pie inside-labels were hardcoded #ffffff and failed in dark mode.)
+label_ink <- function(fill) {
+  vapply(fill, function(col) {
+    tryCatch({
+      rc <- grDevices::col2rgb(col)
+      if ((0.299 * rc[1] + 0.587 * rc[2] + 0.114 * rc[3]) / 255 > 0.6) "#16243a" else "#ffffff"
+    }, error = function(e) "#ffffff")
+  }, character(1), USE.NAMES = FALSE)
 }
 
 # A one-line, friendly fact about a genus — for the "meet the mammals" cards
@@ -1439,17 +1476,27 @@ env_climatology <- function(env, layer, lag = 0) {
 # catch-per-effort and a (lagged) environmental driver. Returns the best lag and
 # Pearson r — the quantitative backbone of the "rain pulse leads the boom" story.
 # Returns NULL when there's too little overlap to be meaningful.
-env_corr_scan <- function(d, env, layer, max_lag = 12) {
-  meta <- ENV_LAYERS[[layer]]
-  if (is.null(meta) || is.null(env) || !(meta$col %in% names(env))) return(NULL)
+# Monthly catch-per-effort series (one row per calendar month with effort).
+# Factored out so env_corr_pvalue()'s circular-shift null shifts the EXACT
+# same series env_corr_scan() correlates — the null and the observed statistic
+# can never drift apart.
+.mam_cpue_series <- function(d) {
   m <- d %>% dplyr::filter(!is.na(.data$ym)) %>%
     dplyr::group_by(.data$ym) %>%
     dplyr::summarise(cap = sum(!is.na(.data$tagID)),
                      tn  = sum(.data$trap_effort, na.rm = TRUE), .groups = "drop")
   m <- m[m$tn > 0, , drop = FALSE]
-  if (nrow(m) < 8) return(NULL)                 # honest overlap floor (was 4)
+  if (!nrow(m)) return(NULL)
   m$cpue <- 100 * m$cap / m$tn
   m$date <- as.Date(paste0(m$ym, "-01"))
+  m[, c("date", "cpue")]
+}
+
+env_corr_scan <- function(d, env, layer, max_lag = 12) {
+  meta <- ENV_LAYERS[[layer]]
+  if (is.null(meta) || is.null(env) || !(meta$col %in% names(env))) return(NULL)
+  m <- .mam_cpue_series(d)
+  if (is.null(m) || nrow(m) < 8) return(NULL)   # honest overlap floor (was 4)
   ev <- env; ev$date <- as.Date(ev$date)
   ev$.v <- suppressWarnings(as.numeric(ev[[meta$col]]))
   ev <- ev[!is.na(ev$.v), c("date", ".v"), drop = FALSE]
@@ -1498,7 +1545,12 @@ env_response_points <- function(d, env, layer, lag = 0) {
   e$.v <- suppressWarnings(as.numeric(e[[meta$col]]))
   e <- e[!is.na(e$.v), c("date", ".v"), drop = FALSE]
   j <- merge(m[, c("date", "cpue")], e, by = "date")
-  if (nrow(j) < 3) return(NULL)
+  # Draw floor = the SCORING floor (n>=8, matching env_corr_scan + the fit-line
+  # gate in output$envScatter). Below 8 month-matched pairs the scatter would
+  # render a cloud too thin to fit or score — an implied relationship the data
+  # can't support — so return nothing and let the panel show its honest
+  # "Not enough month-matched data" note instead.
+  if (nrow(j) < 8) return(NULL)
   j$year <- as.integer(format(j$date, "%Y"))
   names(j)[names(j) == ".v"] <- "value"
   tibble::as_tibble(j[order(j$date), c("date", "year", "value", "cpue")])
@@ -1521,6 +1573,81 @@ env_corr_all <- function(d, env, max_lag = 12) {
   if (!length(rows)) return(NULL)
   res <- do.call(rbind, rows)
   tibble::as_tibble(res[order(-abs(res$r)), ])
+}
+
+# ---------------------------------------------------------------------------
+# env_corr_pvalue(): the honesty p-value for env_corr_all()'s dredge.
+#
+# env_corr_all() reports the BEST |r| over ~5 drivers x 13 lags = up to 65
+# candidate correlations. Best-of-65 |r| is upward-biased: some lag x driver combo
+# will look strong by chance alone. This computes a CIRCULAR-SHIFT null (the same
+# family as seasonal_env.R's .seas_adj_p): rotate the deseasonalized monthly CPUE
+# anomaly series by a random offset — which PRESERVES its serial structure and
+# seasonal-anomaly distribution while breaking any true alignment to the drivers —
+# re-run the FULL scan, take the best |r|, and repeat. p = fraction of null runs
+# whose best-|r| meets or beats the observed best-|r|. A ~1-yr granivore seed-crop
+# lag is a REAL mechanism, so no lag is penalized on length; only the search-space
+# (many combos) and annual autocorrelation are penalized. seed 11 = stable.
+#
+# Returns list(p, n_search = combos actually evaluated, n_match = observed best n,
+# n_months = length of the shifted series) or NULL. Needs a ~24-month coverage
+# floor for the shift to have room to break alignment (below it the rotation
+# barely moves and the null is meaningless -> p = NA, "too short to test").
+env_corr_pvalue <- function(d, env, max_lag = 12, nperm = 500, min_months = 24) {
+  ca <- env_corr_all(d, env, max_lag)
+  if (is.null(ca) || !nrow(ca)) return(NULL)
+  obs   <- max(abs(ca$r), na.rm = TRUE)
+  best  <- ca[which.max(abs(ca$r)), ]
+  layers <- ca$layer                                 # drivers that actually had overlap
+  m <- .mam_cpue_series(d)
+  if (is.null(m) || nrow(m) < min_months)
+    return(list(p = NA_real_, n_search = length(layers) * (max_lag + 1L),
+                n_match = best$n, n_months = if (is.null(m)) 0L else nrow(m)))
+  # deseasonalize the CPUE series once (same rule as env_corr_scan); the driver
+  # side is deseasonalized inside each scan call, so shifting the response alone
+  # is a valid null for the aligned (deseasonalized) correlation.
+  mon  <- as.integer(format(m$date, "%m"))
+  clim <- tapply(m$cpue, mon, mean, na.rm = TRUE)
+  m$cpue <- m$cpue - as.numeric(clim[as.character(mon)])
+  ny <- nrow(m)
+  # scan the driver x lag grid for a GIVEN cpue vector; mirrors env_corr_scan's inner
+  # loop but takes the response as an argument so the null can swap it.
+  scan_best <- function(cpue_vec) {
+    mm <- data.frame(date = m$date, cpue = cpue_vec)
+    best_abs <- NA_real_; nseen <- 0L
+    for (lay in layers) {
+      meta <- ENV_LAYERS[[lay]]
+      ev <- env; ev$date <- as.Date(ev$date)
+      ev$.v <- suppressWarnings(as.numeric(ev[[meta$col]]))
+      ev <- ev[!is.na(ev$.v), c("date", ".v"), drop = FALSE]
+      if (!nrow(ev)) next
+      emo <- as.integer(format(ev$date, "%m"))
+      ecl <- tapply(ev$.v, emo, mean, na.rm = TRUE)
+      ev$.v <- ev$.v - as.numeric(ecl[as.character(emo)])
+      for (lag in 0:max_lag) {
+        e2 <- ev; lt <- as.POSIXlt(e2$date); lt$mon <- lt$mon + lag; e2$date <- as.Date(lt)
+        j <- merge(mm, e2, by = "date")
+        nseen <- nseen + 1L
+        if (nrow(j) >= 8 && stats::sd(j$cpue, na.rm = TRUE) > 0 && stats::sd(j$.v, na.rm = TRUE) > 0) {
+          r <- suppressWarnings(stats::cor(j$cpue, j$.v))
+          if (is.finite(r) && (is.na(best_abs) || abs(r) > best_abs)) best_abs <- abs(r)
+        }
+      }
+    }
+    list(best = best_abs, nseen = nseen)
+  }
+  n_search <- scan_best(m$cpue)$nseen
+  # save/restore the session RNG so reseeding here can't freeze a downstream
+  # randomized output (accum-curve resampling, jitter) sharing this reactive flush.
+  old_seed <- if (exists(".Random.seed", envir = .GlobalEnv)) get(".Random.seed", envir = .GlobalEnv) else NULL
+  on.exit(if (!is.null(old_seed)) assign(".Random.seed", old_seed, envir = .GlobalEnv), add = TRUE)
+  set.seed(11L)
+  perm_best <- replicate(nperm, {
+    k <- sample.int(ny - 1L, 1L)
+    scan_best(m$cpue[((seq_len(ny) - 1L + k) %% ny) + 1L])$best
+  })
+  p <- mean(perm_best >= obs - 1e-9, na.rm = TRUE)
+  list(p = round(p, 3), n_search = n_search, n_match = best$n, n_months = ny)
 }
 
 # ---------------------------------------------------------------------------

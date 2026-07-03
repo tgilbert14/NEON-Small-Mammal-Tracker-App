@@ -239,7 +239,16 @@ function smtLoadDone() {
 // ---- save the dossier trading card as a PNG (html-to-image) --------------
 function smtSaveCard() {
   var node = document.getElementById("smtCardNode");
-  if (!node || typeof htmlToImage === "undefined") return;
+  if (!node) return;
+  // §2.15: never fail silently when the CDN-only capture lib didn't load (blocked
+  // wifi / ad-blocker). The user tapped "Save card" — tell them why nothing happened.
+  if (typeof htmlToImage === "undefined") {
+    var _m = "A file the export needs didn't load — check your network or ad-blocker, then reload.";
+    if (typeof Swal !== "undefined") Swal.fire({ icon: "error", title: "Couldn't save the card",
+      text: _m, confirmButtonColor: "#1f78c4" });
+    else window.alert(_m);
+    return;
+  }
   var name = (node.querySelector(".tc-id") || {}).textContent || "card";
   // skipFonts avoids html-to-image scanning cross-origin CDN stylesheets for
   // @font-face (which throws CORS errors); Rubik is already loaded on the page,
