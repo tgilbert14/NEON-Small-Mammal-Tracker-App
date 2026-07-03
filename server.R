@@ -1876,10 +1876,27 @@ server <- function(input, output, session) {
       line = list(color = hf_col, width = 2, dash = "dot"), marker = list(color = hf_col, size = 7),
       hovertemplate = "%{x|%b %d, %Y}<br><span style='color:#fb8a7e'>●</span> Hind foot: %{y} mm<extra></extra>")
 
-    # call out the heaviest capture
+    # QC-flag lifecycle · stage 5 (mark): ring any capture whose weight is a flagged
+    # possible error (±5·MAD vs species-adults — the SAME record the species table's
+    # ⚠ and the QC modal list). The value stays plotted (never silently dropped); the
+    # ring + honest hover just mark it for verification against the field sheet.
+    wflag <- (df$lifeStage %in% "adult") &
+      .is_meas_outlier(df$weight, species_adult_values(rv$data, sp, "weight"))
+    if (any(wflag, na.rm = TRUE)) {
+      fd <- df[which(wflag), , drop = FALSE]
+      p <- p %>% add_trace(data = fd, x = ~date, y = ~weight, name = "possible error",
+        type = "scatter", mode = "markers",
+        marker = list(color = "rgba(0,0,0,0)", size = 16, symbol = "circle",
+                      line = list(color = "#d6453a", width = 2.5)),
+        hovertemplate = "%{x|%b %d, %Y}<br>⚠ %{y} g — possible data-entry error<br>(beyond median ± 5·MAD for adults; verify vs the field sheet)<extra></extra>")
+    }
+
+    # call out the heaviest capture — excluding a flagged possible-error high outlier
+    # so "heaviest" never points at a data-entry error (same exclusion as the chonk).
     ann <- list()
     if (any(is.finite(df$weight))) {
-      i <- which.max(df$weight)
+      wclean <- df$weight; wclean[wflag] <- NA_real_
+      i <- if (any(is.finite(wclean))) which.max(wclean) else which.max(df$weight)
       ann <- list(list(x = df$date[i], y = df$weight[i],
         text = sprintf("heaviest ♦ %sg", df$weight[i]), showarrow = TRUE, arrowcolor = gold_col,
         ax = 0, ay = -28, font = list(color = gold_col, size = 11)))
@@ -1984,6 +2001,22 @@ server <- function(input, output, session) {
                       line = list(color = "#ffffff", width = 1.5)),
         line = list(color = if (is_dark()) "rgba(255,210,74,0.5)" else "rgba(154,107,0,0.45)", width = 1.5),
         hovertemplate = "this animal<br>%{x} mm · %{y} g<extra></extra>")
+
+    # QC-flag lifecycle · stage 5 (mark): ring the individual's flagged possible-error
+    # capture(s) so the low/high outlier diamond stands out from its true cloud (the
+    # SAME record the species ⚠ / QC modal / measurement-plot flag point to).
+    if (nrow(ind) > 0) {
+      ifl <- (ind$lifeStage %in% "adult") &
+        .is_meas_outlier(ind$weight, species_adult_values(d, sp, "weight"))
+      if (any(ifl, na.rm = TRUE)) {
+        fdm <- ind[which(ifl), , drop = FALSE]
+        p <- p %>% add_trace(data = fdm, x = ~hindfootLength, y = ~weight, name = "possible error",
+          type = "scatter", mode = "markers",
+          marker = list(color = "rgba(0,0,0,0)", size = 22, symbol = "diamond-open",
+                        line = list(color = "#d6453a", width = 3)),
+          hovertemplate = "⚠ %{x} mm · %{y} g — possible data-entry error<extra></extra>")
+      }
+    }
 
     note <- if (!(nrow(srow) == 1 && !is.na(srow$b)))
       list(list(text = "↳ hind-foot barely predicts mass in this species; read position, not a line",
@@ -2318,15 +2351,24 @@ server <- function(input, output, session) {
     if (is.null(tag)) return(DT::datatable(
       data.frame(` ` = "Pick an individual first: open the Hall of Fame and tap a row.", check.names = FALSE),
       rownames = FALSE, options = list(dom = "t", ordering = FALSE)))
-    df <- ind_rows() %>%
-      dplyr::transmute(
-        Date = format(.data$date, "%Y-%m-%d"),
-        Plot = .data$plotID, Trap = .data$trapCoordinate,
-        Recap = .data$recapture,
-        `Weight (g)` = .data$weight, `Hind foot (mm)` = .data$hindfootLength,
-        Sex = .data$sex, `Life stage` = .data$lifeStage,
-        Fate = .data$fate, Remarks = .data$remarks)
-    DT::datatable(df, rownames = FALSE, selection = "none",
+    ir <- ind_rows()
+    sp <- rv$lb$scientificName[rv$lb$tagID == tag][1]
+    # QC-flag lifecycle · stage 5 (mark): a flagged possible-error weight (±5·MAD vs
+    # species-adults — the same record the species ⚠ and the QC modal list) gets an
+    # inline ⚠ in the row too, so the reviewer sees exactly which capture to verify.
+    wflag <- (ir$lifeStage %in% "adult") &
+      .is_meas_outlier(ir$weight, species_adult_values(rv$data, sp, "weight"))
+    wcell <- ifelse(is.na(ir$weight), "",
+      ifelse(wflag,
+        sprintf("%s <span title='possible data-entry error — beyond median &#177; 5&#183;MAD for adults; verify vs the field sheet' style='color:#d6453a;font-weight:700'>&#9888;</span>", ir$weight),
+        as.character(ir$weight)))
+    df <- tibble::tibble(
+      Date = format(ir$date, "%Y-%m-%d"),
+      Plot = ir$plotID, Trap = ir$trapCoordinate, Recap = ir$recapture,
+      `Weight (g)` = wcell, `Hind foot (mm)` = ir$hindfootLength,
+      Sex = ir$sex, `Life stage` = ir$lifeStage, Fate = ir$fate,
+      Remarks = htmltools::htmlEscape(ifelse(is.na(ir$remarks), "", ir$remarks)))
+    DT::datatable(df, rownames = FALSE, selection = "none", escape = FALSE,
       class = "compact stripe hover", options = list(pageLength = 10, dom = "tip", scrollX = TRUE))
   })
 
@@ -2895,11 +2937,27 @@ server <- function(input, output, session) {
         tags$thead(tags$tr(lapply(c("Tag", "Date", "Plot", sprintf("Value (%s)", unit), "Sex"), tags$th))),
         tags$tbody(lapply(seq_len(nrow(fc)), function(i)
           tags$tr(
-            tags$td(fc$short[i]), tags$td(format(fc$date[i], "%Y-%m-%d")),
+            tags$td(tags$a(href = "#", class = "qc-drill",
+              style = "cursor:pointer;color:#1f78c4;font-weight:600;text-decoration:none;",
+              onclick = sprintf("Shiny.setInputValue('qcDrillTag','%s',{priority:'event'});return false;", fc$tag[i]),
+              title = "Open this animal's dossier to evaluate the record",
+              fc$short[i], HTML("&nbsp;"), bsicons::bs_icon("box-arrow-up-right"))),
+            tags$td(format(fc$date[i], "%Y-%m-%d")),
             tags$td(fc$plotID[i]), tags$td(tags$b(fc$value[i])),
             tags$td(ifelse(is.na(fc$sex[i]), "?", fc$sex[i]))))))
     ))
   })
+
+  # QC-flag lifecycle · stage 4 (drill): tapping a flagged tag in the QC modal
+  # jumps straight to that animal's dossier so the reviewer can evaluate the record
+  # in context (its measurement track, body-size position, and full capture history,
+  # where the same value is now marked). Reuses pick_individual (navigate = TRUE).
+  observeEvent(input$qcDrillTag, {
+    tag <- input$qcDrillTag
+    if (is.null(tag) || !nzchar(tag)) return()
+    removeModal()
+    pick_individual(tag)
+  }, ignoreInit = TRUE)
 
   # ---- minimum known lifespan (a right-censored FLOOR, not a lifespan) -----
   # Longest age-at-last-capture among animals first caught young; muted tone so a
