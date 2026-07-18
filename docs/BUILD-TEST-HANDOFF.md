@@ -453,3 +453,34 @@ Driver implication, and next action.
   compatibility, or checksum evidence.
 - **Next action:** statically verify and push this exact canonicalization, then require
   one green exact-head run before readying PR #73.
+
+### 2026-07-18 15:08 MST - production exposed a manifest network-contract gap
+
+- **Merged evidence:** PR #73 merged as
+  `6df138c316a1dc71ac9ee3960120c7716a53e92d`. Exact-head run `29655948807`
+  and merge run `29656583272` both passed the complete pinned validator ladder.
+- **Semantic evidence (FAIL):** post-deploy run `29656583275` correctly opened outage
+  issue #74 after the public endpoint continued to serve `Startup Error`. Signed-in
+  Connect inspection showed the content was still on July 8 commit `39dca56`; an
+  authorized republish fetched exact merged commit `6df138c` and then failed dependency
+  resolution with `Get "CRAN/src/contrib/Archive/wk/wk_0.9.5.tar.gz": unsupported
+  protocol scheme ""`.
+- **Root cause:** the installed package DESCRIPTION truthfully labels its repository
+  `CRAN`, but Connect treats the manifest package's top-level `Repository` value as a
+  network location. The validator proved package identity and origin but did not prove
+  that this field was a usable absolute URL. The result was reproducible in production;
+  it is not a data, application-runtime, R-version, or package-version failure.
+- **Focused correction:** canonicalization now changes only the eight exact URL
+  packages' top-level repository location to `https://cran.r-project.org`; each exact
+  tarball remains hard-gated in `RemotePkgRef`, and DESCRIPTION's own provenance is
+  preserved. Writer and independent verifier both require that deployable shape.
+  Canonical manifest SHA-256 is
+  `903a2617be4ca7b78fdf2f414f625bbcacea1b805d43c8360c5cee5f0e01971b`.
+- **Learning promoted:** release validation must distinguish installed-record truth
+  from the deployment platform's network contract. Future app/subagent briefs must
+  require absolute manifest repository URLs and a real Connect dependency-resolution
+  receipt before a package strategy becomes suite-standard.
+- **Next action:** require an exact-head green run for this focused correction, merge
+  through review, republish the resulting `main`, and rerun semantic health. Do not
+  close issue #74 or promote the production receipt until the public app exposes its
+  semantic ready marker.

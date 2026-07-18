@@ -161,15 +161,20 @@ GEO_URLS <- c(
 # Source-built package DESCRIPTION files contain a wall-clock `Built` timestamp.
 # That field changes on every otherwise-identical validator run and is not package
 # identity, provenance, compatibility, or an install input. Remove it only for the
-# exact URL-pinned closure; all reproducibility-bearing fields remain hard-gated.
+# exact URL-pinned closure. rsconnect also copies DESCRIPTION's symbolic `CRAN`
+# repository label into the manifest URL field for these direct URL installs;
+# Connect Cloud requires an absolute repository URL there. Canonicalize that field
+# to the same CRAN origin while retaining each exact tarball in RemotePkgRef.
 canonical <- jsonlite::fromJSON("manifest.json", simplifyVector = FALSE)
 for (pkg in names(GEO_PINS)) {
-  if (!is.null(canonical$packages[[pkg]]$description))
+  if (!is.null(canonical$packages[[pkg]]$description)) {
     canonical$packages[[pkg]]$description$Built <- NULL
+    canonical$packages[[pkg]]$Repository <- "https://cran.r-project.org"
+  }
 }
 jsonlite::write_json(canonical, "manifest.json", auto_unbox = TRUE, pretty = TRUE,
                      null = "null")
-cat("Canonicalized non-semantic Built timestamps for the exact URL package closure.\n")
+cat("Canonicalized URL repository fields and non-semantic Built timestamps for the exact URL package closure.\n")
 
 # Pin the R version too: a runner R bump (seen: 4.5.2 -> 4.6.0) changes the
 # whole build image and can invalidate binary/source assumptions on republish.
@@ -190,15 +195,17 @@ repo_by_pkg <- vapply(chk$packages, function(x) {
   if (is.null(repo) || length(repo) != 1L || is.na(repo)) "" else as.character(repo)
 }, character(1), USE.NAMES = TRUE)
 
-# Packages installed from exact `url::` CRAN tarballs truthfully record the
-# symbolic repository `CRAN` and their URL origin in DESCRIPTION remote metadata;
+# Packages installed from exact `url::` CRAN tarballs retain their exact URL origin
+# in DESCRIPTION remote metadata. The deployable manifest must use an absolute CRAN
+# repository URL because Connect treats this top-level field as a network location;
 # ordinary dependencies resolved from the dated Posit snapshot must record that
 # snapshot URL. Reject crossed lanes, blank/third values, or a URL that differs by
 # even one character from the declared build input.
 geo_repo <- repo_by_pkg[intersect(names(GEO_PINS), names(repo_by_pkg))]
 runtime_repo <- repo_by_pkg[setdiff(names(repo_by_pkg), names(GEO_PINS))]
-if (length(geo_repo) != length(GEO_PINS) || any(geo_repo != "CRAN"))
-  bad <- c(bad, sprintf("geospatial repositories=[%s] (want CRAN for exact URL installs)",
+if (length(geo_repo) != length(GEO_PINS) ||
+    any(geo_repo != "https://cran.r-project.org"))
+  bad <- c(bad, sprintf("geospatial repositories=[%s] (want absolute CRAN URL for exact URL installs)",
                        paste(unique(unname(geo_repo)), collapse = ",")))
 if (length(runtime_repo) == 0L || any(runtime_repo != RSPM_SNAPSHOT))
   bad <- c(bad, sprintf("ordinary package repositories=[%s] (want dated snapshot %s)",
