@@ -6,16 +6,17 @@ turning 46 field sites of capture records into maps, charts, and individual prof
 
 [![Shiny](https://img.shields.io/badge/built%20with-Shiny-1f9bcf?logo=rstudio)](https://shiny.posit.co/)
 [![R](https://img.shields.io/badge/R-4.5.2-276DC3?logo=r)](https://www.r-project.org/)
-[![Production](https://img.shields.io/badge/production-outage-c62828)](https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/)
+[![Production](https://img.shields.io/badge/production-healthy-1a7f37)](https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/)
 [![Data](https://img.shields.io/badge/data-NEON%20DP1.10072.001-1a7f37)](https://data.neonscience.org/data-products/DP1.10072.001)
 
-**Public status (verified 2026-07-18):** the GitHub Pages landing page is available, but the linked
-Posit Connect Cloud content currently returns `Startup Error`. Release restoration is being validated
-in draft [PR #73](https://github.com/tgilbert14/NEON-Small-Mammal-Tracker-App/pull/73); do not describe
-production as healthy until the semantic post-deploy check passes.
+**Public status (verified 2026-07-18):** the [Pages landing](https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/)
+and [Posit Connect Cloud app](https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/)
+are healthy. Production serves runtime merge `1615ab4`; semantic health requires the app-specific
+ready marker and passed on that exact revision.
 
-Connect watches `main`, but automation never writes there directly. Validated monthly refreshes are
-published to `automation/small-mammal-data-refresh` as a review PR; an intentional merge is the deploy.
+Connect's source points at `main`, but automation never writes there directly. Validated monthly
+refreshes are published to `automation/small-mammal-data-refresh` as a review PR; an intentional
+merge plus a verified Connect republish is the production decision.
 
 ![Species composition for a NEON site](assets/JORN_captures.png)
 

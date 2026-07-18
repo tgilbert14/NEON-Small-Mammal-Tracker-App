@@ -5,8 +5,9 @@ _Suite audit — June 2026. NEON DP1.10072.001 (Small Mammal Box Trapping)._
 > **Finding-state update (2026-07-18):** this document preserves the June audit evidence, but the
 > implementation moved. The `id_uncertain` aggregation bug is fixed; single-night coverage and
 > cross-site detection are surfaced; compare rows carry p̂/N̂ and suppress misleading raw-count
-> winners; tidy capture/monthly exports and a codebook exist in draft PR #73. Public deployment is
-> still a P0 outage, so none of those draft changes are represented as production-shipped yet.
+> winners; tidy capture/monthly exports and a codebook are production-shipped in runtime merge
+> `1615ab4`. Pinned main CI, semantic Connect health, Pages publication, and the JORN interaction
+> funnel passed on 2026-07-18.
 
 This app is the **flagship / gold standard** for its nine companion suite apps. Audited
 through four lenses at once: NEONize (suite cohesion + honest-stats machinery), Fauna (field method
@@ -94,7 +95,7 @@ mass here (r≈0.15) — a deliberate, documented omission.
   env scan, the "answer up front" `insight_banner()` pattern, the n-gates. All of it ports cleanly
   and the cascade reuses it.
 - **[RESOLVED LOW] README live-app badge and hosting language were stale.** Current authority docs
-  point to Connect Cloud, label the verified outage, and describe the restricted review-branch
+  point to the healthy Connect app and describe the restricted review-branch plus verified-republish
   release flow. The retired shinyapps target is no longer presented as current.
 - **[RESOLVED LOW] README "140+ species" vs computed 145.** README and the cover now state the
   exact **145** distinct species represented by `species_ranges.rds`.
