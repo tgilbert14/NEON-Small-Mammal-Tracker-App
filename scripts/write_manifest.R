@@ -157,6 +157,20 @@ GEO_URLS <- c(
   raster   = "https://cran.r-project.org/src/contrib/raster_3.6-32.tar.gz",
   sp       = "https://cran.r-project.org/src/contrib/sp_2.2-1.tar.gz"
 )
+
+# Source-built package DESCRIPTION files contain a wall-clock `Built` timestamp.
+# That field changes on every otherwise-identical validator run and is not package
+# identity, provenance, compatibility, or an install input. Remove it only for the
+# exact URL-pinned closure; all reproducibility-bearing fields remain hard-gated.
+canonical <- jsonlite::fromJSON("manifest.json", simplifyVector = FALSE)
+for (pkg in names(GEO_PINS)) {
+  if (!is.null(canonical$packages[[pkg]]$description))
+    canonical$packages[[pkg]]$description$Built <- NULL
+}
+jsonlite::write_json(canonical, "manifest.json", auto_unbox = TRUE, pretty = TRUE,
+                     null = "null")
+cat("Canonicalized non-semantic Built timestamps for the exact URL package closure.\n")
+
 # Pin the R version too: a runner R bump (seen: 4.5.2 -> 4.6.0) changes the
 # whole build image and can invalidate binary/source assumptions on republish.
 R_PLATFORM_PIN <- "4.5.2"
@@ -202,12 +216,13 @@ for (pkg in names(GEO_PINS)) {
   source <- as.character(chk$packages[[pkg]]$Source %||% "")
   remote_type <- as.character(chk$packages[[pkg]]$description$RemoteType %||% "")
   remote_ref <- as.character(chk$packages[[pkg]]$description$RemotePkgRef %||% "")
+  built <- as.character(chk$packages[[pkg]]$description$Built %||% "")
   expected_ref <- paste0("url::", unname(GEO_URLS[[pkg]]))
   if (!identical(source, "URL") || !identical(remote_type, "url") ||
-      !identical(remote_ref, expected_ref))
+      !identical(remote_ref, expected_ref) || nzchar(built))
     bad <- c(bad, sprintf(
-      "%s origin Source=%s RemoteType=%s RemotePkgRef=%s (want exact %s)",
-      pkg, source, remote_type, remote_ref, expected_ref))
+      "%s origin Source=%s RemoteType=%s RemotePkgRef=%s Built=%s (want exact %s and no non-semantic build timestamp)",
+      pkg, source, remote_type, remote_ref, built, expected_ref))
 }
 if (length(bad)) {
   stop(sprintf(

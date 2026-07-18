@@ -20,8 +20,11 @@ ledger because this file cannot self-pin a future merge commit.
 - Provenance correction head: `ebf833937dbf19a864e4d2e1f2500ca298409895`
 - Pinned validator: Actions run `29654547344`, pull-request merge revision
   `45b5c82640a20b8c181b6b60949e20ebbeb9c5b0`
-- Validated manifest: R 4.5.2, 91 packages, 117 files, SHA-256
+- Validated raw manifest artifact: R 4.5.2, 91 packages, 117 files, SHA-256
   `3fba04eb885b3cb6a9437b8c8b25ade25d44d47f6dcb50add025e754a6de04d7`
+- Canonical release manifest: the same validated record with only the eight
+  wall-clock URL-package `Built` timestamps removed; SHA-256
+  `395fc36faa11f408a3ef4483f6c6ff2da13c09ab1f5d2498f2744bddbee0606c`
 - Bundle/index contract: 46/46 expected site bundles loaded with rows and the
   physical-effort schema; national index row counts are 46/604/604; 145 species.
 
@@ -29,7 +32,10 @@ Run `29654547344` passed the deterministic Haswell/one-thread OpenBLAS assertion
 complete R/JavaScript/shell parsing, all 11 scientific helper fixtures, exact package
 provenance, file checksums, bundle/index validation, and complete offline app source.
 It stopped only at the designed committed-manifest equality gate after uploading the
-validated candidate cited above. A later exact-head run must match it before merge.
+validated candidate cited above. Exact-head run `29655286162` proved that all
+substantive bytes and fields reproduced, but exposed eight wall-clock `Built`
+timestamps from source compilation. The writer now canonicalizes only that
+non-semantic field; a later exact-head run must match before merge.
 
 ## Unit, support, and opportunity
 
@@ -114,7 +120,9 @@ Promote to every later app/subagent brief:
 - **Provenance:** URL installs must be validated using their emitted tuple
   (`Source: URL`, `Repository: CRAN`, `RemoteType: url`, exact `RemotePkgRef`), never
   by rewriting a manifest or accepting an assumed source shape. Failed candidates may
-  be retained briefly only when unmistakably labelled UNVALIDATED.
+  be retained briefly only when unmistakably labelled UNVALIDATED. Source-package
+  wall-clock `Built` timestamps must be deterministically removed while all identity,
+  origin, compatibility, and checksum fields remain hard-gated.
 - **Data/release UX:** report bundle freshness as reviewed/committed, not live; never
   turn an opaque no-CORS pre-warm into a readiness claim; automated data refreshes
   create restricted review candidates rather than writing production directly.

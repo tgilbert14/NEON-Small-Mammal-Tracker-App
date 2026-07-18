@@ -426,3 +426,30 @@ Driver implication, and next action.
 - **Next action:** commit the exact manifest and knowledge package, obtain one green
   exact-head PR run, then merge intentionally and require semantic public health before
   the production receipt can be promoted to the central suite ledger.
+
+### 2026-07-18 11:26 MST - source-build clock noise canonicalized
+
+- **Published input:** exact-manifest commit
+  `1066cd30d486e03c4ffd6f220b2ba0195246476c` was pushed only to draft PR #73.
+  Actions run `29655286162`, job `88108361222`, evaluated that immutable head.
+- **Pinned evidence (substantive PASS / byte equality FAIL):** the run passed the same
+  R 4.5.2/package installation, deterministic OpenBLAS, complete parse, 11 helper,
+  package provenance, 46-site/schema/index/checksum, and offline-source ladder. The
+  final diff contained exactly eight changes: each exact URL-built package's DESCRIPTION
+  `Built` field recorded the new source-compilation wall clock. Versions, origins,
+  repositories, remote refs/etags, R/platform, app checksums, data, and indexes matched.
+- **Root cause:** `Built` is emitted from local source-compilation time, not package
+  identity or an install input. Requiring that timestamp to match makes a fresh source
+  build inherently non-reproducible.
+- **Focused correction:** `scripts/write_manifest.R` now removes only `description.Built`
+  for the named eight-package URL closure, then gates its absence alongside exact
+  version/source/repository/remote-type/ref. `scripts/verify_bundle.R` independently
+  requires the same. Ordinary snapshot-package records are untouched.
+- **Canonical release candidate:** R 4.5.2, 91 packages, 117 files; SHA-256
+  `395fc36faa11f408a3ef4483f6c6ff2da13c09ab1f5d2498f2744bddbee0606c`.
+  Independent JSON/file-checksum inspection passed with all eight clock fields absent.
+- **Driver/suite learning:** promote deterministic removal of non-semantic build clocks
+  to later app/subagent release briefs, but never remove identity, origin, platform,
+  compatibility, or checksum evidence.
+- **Next action:** statically verify and push this exact canonicalization, then require
+  one green exact-head run before readying PR #73.

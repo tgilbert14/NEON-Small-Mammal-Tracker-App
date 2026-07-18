@@ -178,10 +178,11 @@ if (!file.exists("manifest.json")) {
         if (pkg %in% names(EXPECTED_GEO_PINS)) {
           remote_type <- as.character(x$description$RemoteType %||% "")
           remote_ref <- as.character(x$description$RemotePkgRef %||% "")
+          built <- as.character(x$description$Built %||% "")
           expected_ref <- paste0("url::", unname(EXPECTED_GEO_URLS[[pkg]]))
           base_bad || !identical(source, "URL") || !identical(repo, "CRAN") ||
             !identical(remote_type, "url") ||
-            !identical(remote_ref, expected_ref)
+            !identical(remote_ref, expected_ref) || nzchar(built)
         } else {
           base_bad || !identical(source, "CRAN") ||
             !identical(repo, EXPECTED_REPOSITORY)
