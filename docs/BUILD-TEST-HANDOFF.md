@@ -12,8 +12,11 @@ editing it.
 - Product: NEON DP1.10072.001, small mammal box trapping
 - Public cover: `https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/`
 - Public app: `https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/`
-- Release state: **P0 OUTAGE / RELEASE UNSAFE** as of 2026-07-18
-- Driver disposition: provisional `CONTEXT`; pass not complete
+- Release state: **PRODUCTION HEALTHY / PASS 1 COMPLETE**; Connect runtime
+  `1615ab4e74fd16a2698de8431acb862d6cc4cebf` is verified. Cover V3 is a
+  working-tree release candidate until the publication receipt below is closed.
+- Driver disposition: accepted `CONTEXT`; central suite receipt merged with no Driver
+  generation or scientific-artifact byte change
 
 Do not replace this section with optimistic intent. Update it only from verified
 evidence and keep the dated entries below.
@@ -568,3 +571,51 @@ Driver implication, and next action.
 - **Next action:** publish this documentation-only app closeout, then vendor its
   exact `CONTEXT` receipt into the Driver suite ledger/playbook with Driver artifact
   hashes unchanged. Do not begin Phenology before that Driver documentation merge.
+
+### 2026-07-18 16:23 MST - habitat-led cover V3 release candidate / root
+
+- **Starting state:** clean synchronized `main` at
+  `957e56cc3af15d62387bfefbd37ee31623ae682b`; production runtime remains the
+  verified `1615ab4e74fd16a2698de8431acb862d6cc4cebf`. The central Driver `CONTEXT`
+  receipt is already merged, so this tranche does not block or alter Driver bytes.
+- **Changed/classification:** this `product/UI`, `suite-platform`, documentation-only
+  candidate completely replaces the visible Pages experience. It adds a full-bleed
+  habitat journey, a dedicated portrait mobile composition, one outcome-led H1,
+  explicit can/cannot claims, dated data and runtime facts, method-denominator
+  guidance, grouped suite navigation, current-product state, and a purpose-built
+  1200×630 social card. All three live-app controls open safely in a new tab.
+- **Evidence/claims:** visible cover facts remain pinned to 46 sites, 93,169 tagged
+  individuals, 145 represented species, 2013–2024 bundled vintage, 178,216
+  capture/handling rows, NEON `DP1.10072.001`, R 4.5.2, runtime `1615ab4`, and
+  Driver disposition `CONTEXT`. CPUE, abundance, richness, detection, and causation
+  limits are stated rather than implied.
+- **Asset provenance:** `docs/IMAGE-PROVENANCE.md` identifies every AI-illustrated
+  asset as non-documentary. Delivery SHA-256 values are desktop habitat
+  `28f78aaf2b02c1907a1ea2762c8b5a7068d50c718aa09d2ffa422a2c9c5294dc`,
+  portrait mobile JPEG
+  `14e447c12b60f1b1adf0e2cfe3985ad25e310ae0fdeddc3428f08b86a083b410`,
+  and exact 1200×630 social card
+  `d089443e74cedb2d8b9f1f02dde6bd4c5358a7d05c94ec66a9124ca79bdad0bd`.
+- **Local gates (PASS):** `node --check scripts/check_cover.mjs`,
+  `node scripts/check_cover.mjs`, and `git diff --check` pass. The new CI contract
+  enforces one main/H1, skip/navigation names, dated facts, can/cannot language,
+  canonical/social metadata and dimensions, safe suite registry, no insecure
+  source links, no unsolicited `fetch`, unique IDs, and both responsive assets.
+- **Browser QA (PASS):** the in-app browser rendered the local cover at desktop,
+  390×844, and the 320px reflow boundary. DOM reads confirmed one H1/main/current
+  marker, no horizontal overflow at 390px or 320px, 44px minimum mobile launch
+  control and 57px primary actions, correct `_blank`/`noopener` controls, and no
+  warning/error console entries. Review found and fixed the prior 42px nav target
+  and a forced `min-width: 320px` that clipped the scrollbar-adjusted 320px layout.
+  Reduced-motion and increased-contrast alternatives remain explicit CSS contracts.
+- **Expected versus actual:** expected the cover to explain the app before listing
+  features, preserve measurement boundaries, keep Driver as integrator, and reflow
+  without cropping; local actual matches. Public Pages and immutable CI evidence are
+  **PENDING**, so this entry is not a publication claim.
+- **Artifacts/non-impact:** no Shiny runtime file, bundled datum, `manifest.json`,
+  scientific helper, Connect deployment, or Driver artifact changes. Connect does
+  not need republishing for this Pages-only release.
+- **Next action:** publish the exact candidate through a draft PR, require green
+  exact-head CI, merge intentionally, verify the public Pages cover and metadata at
+  desktop/mobile widths, then append the immutable publication closeout before
+  beginning the Plant Phenology pass.
