@@ -471,11 +471,14 @@ Driver implication, and next action.
   that this field was a usable absolute URL. The result was reproducible in production;
   it is not a data, application-runtime, R-version, or package-version failure.
 - **Focused correction:** canonicalization now changes only the eight exact URL
-  packages' top-level repository location to `https://cran.r-project.org`; each exact
-  tarball remains hard-gated in `RemotePkgRef`, and DESCRIPTION's own provenance is
-  preserved. Writer and independent verifier both require that deployable shape.
+  packages' top-level deployable lane to `Source: CRAN` and repository location to
+  `https://cran.r-project.org`; each exact installation tarball remains hard-gated in
+  `RemotePkgRef`, and DESCRIPTION's own provenance is preserved. This matches the last
+  healthy Connect manifest shape for the same package versions and lets Connect choose
+  current versus archive paths correctly. Writer and independent verifier both require
+  that deployable shape.
   Canonical manifest SHA-256 is
-  `903a2617be4ca7b78fdf2f414f625bbcacea1b805d43c8360c5cee5f0e01971b`.
+  `e619343d1d6404f52260481ec611ccbd1c9f5cd349657c0799f6d535a7bc0b11`.
 - **Learning promoted:** release validation must distinguish installed-record truth
   from the deployment platform's network contract. Future app/subagent briefs must
   require absolute manifest repository URLs and a real Connect dependency-resolution

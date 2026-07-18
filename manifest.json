@@ -462,7 +462,7 @@
       }
     },
     "classInt": {
-      "Source": "URL",
+      "Source": "CRAN",
       "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "classInt",
@@ -2104,7 +2104,7 @@
       }
     },
     "raster": {
-      "Source": "URL",
+      "Source": "CRAN",
       "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "raster",
@@ -2210,7 +2210,7 @@
       }
     },
     "s2": {
-      "Source": "URL",
+      "Source": "CRAN",
       "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "s2",
@@ -2314,7 +2314,7 @@
       }
     },
     "sf": {
-      "Source": "URL",
+      "Source": "CRAN",
       "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "sf",
@@ -2481,7 +2481,7 @@
       }
     },
     "sp": {
-      "Source": "URL",
+      "Source": "CRAN",
       "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "sp",
@@ -2615,7 +2615,7 @@
       }
     },
     "terra": {
-      "Source": "URL",
+      "Source": "CRAN",
       "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "terra",
@@ -2796,7 +2796,7 @@
       }
     },
     "units": {
-      "Source": "URL",
+      "Source": "CRAN",
       "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "units",
@@ -2970,7 +2970,7 @@
       }
     },
     "wk": {
-      "Source": "URL",
+      "Source": "CRAN",
       "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "wk",

@@ -161,20 +161,22 @@ GEO_URLS <- c(
 # Source-built package DESCRIPTION files contain a wall-clock `Built` timestamp.
 # That field changes on every otherwise-identical validator run and is not package
 # identity, provenance, compatibility, or an install input. Remove it only for the
-# exact URL-pinned closure. rsconnect also copies DESCRIPTION's symbolic `CRAN`
-# repository label into the manifest URL field for these direct URL installs;
-# Connect Cloud requires an absolute repository URL there. Canonicalize that field
-# to the same CRAN origin while retaining each exact tarball in RemotePkgRef.
+# exact URL-pinned closure. rsconnect also represents these direct installs as a URL
+# source with DESCRIPTION's symbolic `CRAN` repository label. Connect Cloud requires
+# the deployable CRAN lane plus an absolute repository URL so it can resolve current
+# and archived versions. Canonicalize those two top-level fields while retaining each
+# exact installation tarball in RemotePkgRef.
 canonical <- jsonlite::fromJSON("manifest.json", simplifyVector = FALSE)
 for (pkg in names(GEO_PINS)) {
   if (!is.null(canonical$packages[[pkg]]$description)) {
     canonical$packages[[pkg]]$description$Built <- NULL
+    canonical$packages[[pkg]]$Source <- "CRAN"
     canonical$packages[[pkg]]$Repository <- "https://cran.r-project.org"
   }
 }
 jsonlite::write_json(canonical, "manifest.json", auto_unbox = TRUE, pretty = TRUE,
                      null = "null")
-cat("Canonicalized URL repository fields and non-semantic Built timestamps for the exact URL package closure.\n")
+cat("Canonicalized the CRAN deployment lane and non-semantic Built timestamps for the exact URL package closure.\n")
 
 # Pin the R version too: a runner R bump (seen: 4.5.2 -> 4.6.0) changes the
 # whole build image and can invalidate binary/source assumptions on republish.
@@ -196,8 +198,9 @@ repo_by_pkg <- vapply(chk$packages, function(x) {
 }, character(1), USE.NAMES = TRUE)
 
 # Packages installed from exact `url::` CRAN tarballs retain their exact URL origin
-# in DESCRIPTION remote metadata. The deployable manifest must use an absolute CRAN
-# repository URL because Connect treats this top-level field as a network location;
+# in DESCRIPTION remote metadata. The deployable manifest must use the CRAN source
+# lane and an absolute CRAN repository URL because Connect uses those top-level fields
+# to select current/archive resolution and a network location;
 # ordinary dependencies resolved from the dated Posit snapshot must record that
 # snapshot URL. Reject crossed lanes, blank/third values, or a URL that differs by
 # even one character from the declared build input.
@@ -225,7 +228,7 @@ for (pkg in names(GEO_PINS)) {
   remote_ref <- as.character(chk$packages[[pkg]]$description$RemotePkgRef %||% "")
   built <- as.character(chk$packages[[pkg]]$description$Built %||% "")
   expected_ref <- paste0("url::", unname(GEO_URLS[[pkg]]))
-  if (!identical(source, "URL") || !identical(remote_type, "url") ||
+  if (!identical(source, "CRAN") || !identical(remote_type, "url") ||
       !identical(remote_ref, expected_ref) || nzchar(built))
     bad <- c(bad, sprintf(
       "%s origin Source=%s RemoteType=%s RemotePkgRef=%s Built=%s (want exact %s and no non-semantic build timestamp)",
