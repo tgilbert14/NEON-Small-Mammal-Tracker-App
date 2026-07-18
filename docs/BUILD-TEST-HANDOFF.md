@@ -608,14 +608,23 @@ Driver implication, and next action.
   warning/error console entries. Review found and fixed the prior 42px nav target
   and a forced `min-width: 320px` that clipped the scrollbar-adjusted 320px layout.
   Reduced-motion and increased-contrast alternatives remain explicit CSS contracts.
+- **Published validator (PASS):** draft PR #78 evaluated exact candidate
+  `4d7c8b0c58b16479918d858fc6afeed6e3337e8e` in Actions run `29665245800`,
+  job `88134486578`. In 2m04s the job passed pinned R 4.5.2 dependency
+  installation, deterministic OpenBLAS, source parsing, the new cover and existing
+  message-handler contracts, all scientific fixtures, manifest regeneration,
+  exact bundle/index/file checksums, complete offline source, validated-manifest
+  upload, and committed manifest/data equality. This evidence-only handoff edit
+  now requires one final exact-head rerun before merge.
 - **Expected versus actual:** expected the cover to explain the app before listing
   features, preserve measurement boundaries, keep Driver as integrator, and reflow
-  without cropping; local actual matches. Public Pages and immutable CI evidence are
-  **PENDING**, so this entry is not a publication claim.
+  without cropping; local and first published validator actuals match. Public Pages
+  and final evidence-pinned-head CI are **PENDING**, so this entry is not a
+  publication claim.
 - **Artifacts/non-impact:** no Shiny runtime file, bundled datum, `manifest.json`,
   scientific helper, Connect deployment, or Driver artifact changes. Connect does
   not need republishing for this Pages-only release.
-- **Next action:** publish the exact candidate through a draft PR, require green
-  exact-head CI, merge intentionally, verify the public Pages cover and metadata at
-  desktop/mobile widths, then append the immutable publication closeout before
-  beginning the Plant Phenology pass.
+- **Next action:** commit this immutable validator receipt to draft PR #78, require
+  one green exact evidence-pinned head, merge intentionally, verify the public Pages
+  cover and metadata at desktop/mobile widths, then append the publication closeout
+  before beginning the Plant Phenology pass.
