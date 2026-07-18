@@ -161,13 +161,23 @@ if (is.null(chk$platform) || !identical(chk$platform, R_PLATFORM_PIN))
   bad <- c(bad, sprintf("platform=%s (want actual %s)",
                        if (is.null(chk$platform)) "<missing>" else as.character(chk$platform),
                        R_PLATFORM_PIN))
-repos <- unique(vapply(chk$packages, function(x) {
+repo_by_pkg <- vapply(chk$packages, function(x) {
   repo <- x$Repository
   if (is.null(repo) || length(repo) != 1L || is.na(repo)) "" else as.character(repo)
-}, character(1), USE.NAMES = FALSE))
-if (length(repos) != 1L || !identical(unname(repos), RSPM_SNAPSHOT))
-  bad <- c(bad, sprintf("package repositories=[%s] (want dated snapshot %s)",
-                       paste(repos, collapse = ","), RSPM_SNAPSHOT))
+}, character(1), USE.NAMES = TRUE)
+
+# Packages installed from the exact `url::` CRAN tarballs truthfully record the
+# symbolic repository `CRAN`; ordinary dependencies resolved from the dated Posit
+# snapshot must record that snapshot URL. Reject any package that crosses those
+# lanes or introduces a third/blank repository value.
+geo_repo <- repo_by_pkg[intersect(names(GEO_PINS), names(repo_by_pkg))]
+runtime_repo <- repo_by_pkg[setdiff(names(repo_by_pkg), names(GEO_PINS))]
+if (length(geo_repo) != length(GEO_PINS) || any(geo_repo != "CRAN"))
+  bad <- c(bad, sprintf("geospatial repositories=[%s] (want CRAN for exact URL installs)",
+                       paste(unique(unname(geo_repo)), collapse = ",")))
+if (length(runtime_repo) == 0L || any(runtime_repo != RSPM_SNAPSHOT))
+  bad <- c(bad, sprintf("ordinary package repositories=[%s] (want dated snapshot %s)",
+                       paste(unique(unname(runtime_repo)), collapse = ","), RSPM_SNAPSHOT))
 for (pkg in names(GEO_PINS)) {
   if (is.null(chk$packages[[pkg]])) {
     bad <- c(bad, sprintf("%s=<missing> (want %s)",

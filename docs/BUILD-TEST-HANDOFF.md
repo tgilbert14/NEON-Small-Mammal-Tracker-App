@@ -263,3 +263,33 @@ Driver implication, and next action.
 - **Next action:** statically verify the explicit pipe binding, commit/push it plus
   this evidence to the existing draft branch, and watch CI through the remaining
   gates without relaxing their contracts.
+
+### 2026-07-18 09:47 MST - all helper contracts pass; repository-lane gate next
+
+- **Published repair:** commit
+  `587b15747f322ea4b161ee954e63b0b4fa9a1b77` explicitly binds the dplyr pipe in
+  `R/helpers.R` and was pushed only to draft PR #73.
+- **Pinned CI evidence (partial PASS / terminal FAIL):** Actions run
+  `29652072343`, job `88099991390`, on exact head `587b157...` rebuilt the native
+  closure, passed R 4.5.2, deterministic OpenBLAS, complete source/static parsing,
+  and **all 11 scientific helper contracts**. It then generated a 91-package
+  manifest candidate before the repository-provenance gate stopped the run.
+  Bundle/index/checksum verification, offline source, artifact upload, and
+  committed-match remained skipped.
+- **Observed root cause:** exact `url::` CRAN tarball installs truthfully record
+  top-level manifest `Repository: CRAN`, while ordinary dependencies record the
+  dated Posit snapshot URL. The gate required one repository string for all 91
+  packages and therefore rejected the honest two-lane result
+  (`[dated snapshot, CRAN]`). This is a gate-model bug, not package drift.
+- **Focused repair:** retain exact version checks for all eight geospatial pins;
+  require `CRAN` only for those eight URL-installed packages; require the dated
+  Posit snapshot for every other package; reject blank, crossed, or third
+  repository values. Do not rewrite repository provenance after generation.
+- **Classification/Driver implication:** `suite-platform`; Driver implication
+  remains `HOLD CURRENT OUTPUT`. No metric or Driver byte changes.
+- **Cleanup/residual risk:** no generated manifest candidate was uploaded because
+  the gate failed before the artifact step. No data, cache, lock, branch, main,
+  deployment, or separate idea-branch state changed. Exact manifest semantics,
+  bundle parity, offline source, and public restoration remain unverified.
+- **Next action:** statically verify and push the repository-lane gate, then rerun
+  the same draft CI through the first still-unreached bundle/offline gates.
