@@ -4,13 +4,14 @@
 > cold-booted agent doesn't re-flag shipped or deliberately-deferred work. Owned by `triage`; keep it
 > current after every review or ship. Depth: `README.md`, `DEPLOY.md`, `docs/neonize-playbook.md`.
 
-**Last verified against the build and public endpoints:** 2026-07-18 (production runtime merge `1615ab4`).
+**Last verified against the build and public endpoints:** 2026-07-18 (production runtime merge `1615ab4`; cover V3 publication pending).
 
 ## Stage
 - **Pass 1 complete / production healthy:** Pages and Connect pass semantic health.
 - Runtime merge `1615ab4` is deployed; final main CI, semantic health, and Pages publication passed.
 - The app is again the **flagship / reference** for honest statistics, reviewed releases, and
-  product patterns. Unrelated idea branches remain outside this pass.
+  product patterns. The habitat-led cover V3 is locally verified and awaiting its public Pages
+  receipt. Unrelated idea branches remain outside this pass.
 
 ## Shipped (don't re-flag as missing)
 - National site-picker Leaflet map (by-site / by-species toggle, accessible list fallback, one-tap load).
@@ -25,14 +26,15 @@
 
 - Cross-site detection-qualified compare, single-night/index-only coverage, tidy capture + monthly
   series exports, and a codebook are live.
-- The blank social image is replaced by a reviewed 1200×630 habitat card; the landing page no longer
-  converts an opaque pre-warm request into a false readiness claim and has explicit focus treatment.
+- The social image is a reviewed 1200×630 titled habitat card; the cover no longer converts an
+  opaque pre-warm request into a false readiness claim and has explicit focus treatment.
 - Authority docs now agree on the review-branch release boundary, pinned package provenance,
   semantic health, and the ten-app suite. The in-app About panel links all nine companions.
 
 ## Open / in-flight
-- Complete a dedicated visual mobile pass when the browser harness exposes a reliable viewport
-  override; static responsive/reduced-motion/focus contracts and desktop production QA passed.
+- Publish and publicly verify the habitat-led cover V3. Local visual QA passes at desktop, 390px,
+  and the 320px reflow boundary; its provenance, social metadata, and static cover contract are
+  checked in CI.
 - Long-term: Shinylive/WebAssembly static export (zero cold-start endgame) — see `DEPLOY.md` Option B.
 
 ## Deliberately deferred / non-goals
@@ -41,6 +43,6 @@
 
 ## P-items
 - **P0 COMPLETE:** pinned release gates and semantic production health are green.
-- **P1:** complete visual mobile QA; desktop JORN interaction and clean first-party console passed.
-- **P2 IN PROGRESS:** promote the reviewed `CONTEXT` package to the central Driver ledger; no Driver byte change.
+- **P1 IN PROGRESS:** merge and publicly verify cover V3; local responsive visual QA is complete.
+- **P2 COMPLETE:** reviewed `CONTEXT` package is in the central Driver ledger; no Driver byte change.
 - **P3:** evaluate Shinylive only after the Connect release path is stable.
