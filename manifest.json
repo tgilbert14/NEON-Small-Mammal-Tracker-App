@@ -462,8 +462,8 @@
       }
     },
     "classInt": {
-      "Source": "URL",
-      "Repository": "CRAN",
+      "Source": "CRAN",
+      "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "classInt",
         "Version": "0.4-11",
@@ -2104,8 +2104,8 @@
       }
     },
     "raster": {
-      "Source": "URL",
-      "Repository": "CRAN",
+      "Source": "CRAN",
+      "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "raster",
         "Type": "Package",
@@ -2210,8 +2210,8 @@
       }
     },
     "s2": {
-      "Source": "URL",
-      "Repository": "CRAN",
+      "Source": "CRAN",
+      "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "s2",
         "Title": "Spherical Geometry Operators Using the S2 Geometry Library",
@@ -2314,8 +2314,8 @@
       }
     },
     "sf": {
-      "Source": "URL",
-      "Repository": "CRAN",
+      "Source": "CRAN",
+      "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "sf",
         "Version": "1.1-1",
@@ -2481,8 +2481,8 @@
       }
     },
     "sp": {
-      "Source": "URL",
-      "Repository": "CRAN",
+      "Source": "CRAN",
+      "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "sp",
         "Version": "2.2-1",
@@ -2615,8 +2615,8 @@
       }
     },
     "terra": {
-      "Source": "URL",
-      "Repository": "CRAN",
+      "Source": "CRAN",
+      "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "terra",
         "Type": "Package",
@@ -2796,8 +2796,8 @@
       }
     },
     "units": {
-      "Source": "URL",
-      "Repository": "CRAN",
+      "Source": "CRAN",
+      "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "units",
         "Version": "1.0-1",
@@ -2970,8 +2970,8 @@
       }
     },
     "wk": {
-      "Source": "URL",
-      "Repository": "CRAN",
+      "Source": "CRAN",
+      "Repository": "https://cran.r-project.org",
       "description": {
         "Package": "wk",
         "Title": "Lightweight Well-Known Geometry Parsing",
