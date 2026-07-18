@@ -395,3 +395,34 @@ Driver implication, and next action.
 - **Next action:** statically verify this observed-shape correction, push it to the
   existing draft branch, and require the next pinned run to pass bundle/offline gates
   before its validated manifest artifact can be considered for promotion.
+
+### 2026-07-18 11:04 MST - validated runtime manifest promoted exactly
+
+- **Published input:** observed-provenance commit
+  `ebf833937dbf19a864e4d2e1f2500ca298409895` was pushed only to draft PR #73.
+  GitHub evaluated pull-request merge revision
+  `45b5c82640a20b8c181b6b60949e20ebbeb9c5b0` in Actions run `29654547344`, job
+  `88106432853`.
+- **Pinned evidence (candidate PASS / equality FAIL):** R 4.5.2 and the complete exact
+  geospatial source closure installed; OpenBLAS loaded as Haswell/one thread; all R,
+  JavaScript, and shell source parsed; all 11 helper contracts passed; the writer
+  emitted 91 packages and 117 files; bundle verification loaded all 46/46 expected
+  sites with rows and effort schema plus exact 46/604/604 index rows; package origins,
+  file checksums, and complete offline app source passed.
+- **Designed terminal gate:** the validated candidate uploaded successfully, and only
+  then did the final committed-manifest equality check fail against the obsolete
+  repository manifest. Generated data remained unchanged.
+- **Promoted artifact:** only validated artifact
+  `small-mammal-manifest-45b5c82640a20b8c181b6b60949e20ebbeb9c5b0`
+  was copied byte-for-byte to `manifest.json`; SHA-256
+  `3fba04eb885b3cb6a9437b8c8b25ade25d44d47f6dcb50add025e754a6de04d7`.
+  Independent inspection confirmed R 4.5.2, 91 packages, 117 files, exact source
+  tuples/versions for all eight URL pins, and every app-file checksum against this
+  checkout. The earlier UNVALIDATED diagnostic was not promoted.
+- **Knowledge disposition:** the app-local Driver package is now explicit: `CONTEXT`,
+  no current Driver byte change; physical-event parity is closed, mixed-community
+  CPUE remains a qualified within-site index, and current-source site/year join parity
+  remains `UNKNOWN / HELD` until suite synthesis.
+- **Next action:** commit the exact manifest and knowledge package, obtain one green
+  exact-head PR run, then merge intentionally and require semantic public health before
+  the production receipt can be promoted to the central suite ledger.
