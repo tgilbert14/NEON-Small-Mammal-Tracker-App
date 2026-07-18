@@ -336,14 +336,14 @@ function whenShinyReady(fn) {
 }
 whenShinyReady(function () {
   {
-    Shiny.addCustomMessageHandler("countUp", function () {
+    Shiny.addCustomMessageHandler("countUp", function (_msg) {
       // small delay so the freshly-rendered DOM is in place
       setTimeout(runCounters, 60);
     });
     Shiny.addCustomMessageHandler("confetti", function (msg) {
       rodentConfetti(msg && msg.big);
     });
-    Shiny.addCustomMessageHandler("loadDone", function () { smtLoadDone(); });
+    Shiny.addCustomMessageHandler("loadDone", function (_msg) { smtLoadDone(); });
     // (smtSaveSite — the localStorage write — is a top-level function the server
     //  calls via shinyjs::runjs, defined above; no custom handler needed here.
     //  The shiny:connected READ that delivers smtLastSite + smtRecents to the
@@ -362,7 +362,7 @@ whenShinyReady(function () {
     // page_fillable layout (and the relocated select-panel) needs a moment to
     // settle its width before Leaflet measures, or the map captures a half-width
     // and paints narrow. Multiple dispatches catch the settled layout.
-    Shiny.addCustomMessageHandler("kickMaps", function () {
+    Shiny.addCustomMessageHandler("kickMaps", function (_msg) {
       var kick = function () { try { window.dispatchEvent(new Event("resize")); } catch (e) {} };
       requestAnimationFrame(kick);
       [80, 250, 500, 900].forEach(function (t) { setTimeout(kick, t); });

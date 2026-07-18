@@ -409,7 +409,7 @@
         // Backup path: the chip click (openChip) already scrolls client-side; the
         // server also fires this after selecting the individual. Same reliable
         // instant-scroll-to-#qcCardNode helper.
-        Shiny.addCustomMessageHandler("smtRevealQc", function () { revealQcCard(); });
+        Shiny.addCustomMessageHandler("smtRevealQc", function (_msg) { revealQcCard(); });
         return;
       }
     } catch (e) { return; }   // never let a duplicate/late registration kill binding

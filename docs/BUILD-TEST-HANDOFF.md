@@ -487,3 +487,33 @@ Driver implication, and next action.
   through review, republish the resulting `main`, and rerun semantic health. Do not
   close issue #74 or promote the production receipt until the public app exposes its
   semantic ready marker.
+
+### 2026-07-18 15:13 MST - production restored; final console contract follow-up
+
+- **Merged/runtime evidence:** corrective PR #75 passed Actions run `29662807227`,
+  job `88128209497`, on exact head
+  `ff55d6bccdbb7f2c11d5c2bea8b066ae818515f6` and merged to `main` as
+  `9f86b13e65d333b1f911a880ab987b5b37f48a72`. Connect republished that exact
+  commit at 15:08 MST. The public app exposed
+  `ddl-app-ready=small-mammal-tracker-v1`, and the JORN exploration funnel loaded
+  6,093 captures, 2,252 individuals, 21 species, 31,584 reviewed trap-nights, and
+  the complete Overview navigation without a Startup Error.
+- **Pages evidence:** the public cover rendered the expected Small Mammal title,
+  live/repository controls, all nine companion links, exact 46-site/145-species
+  framing, and the reviewed `og-image.png` social reference.
+- **Final browser finding:** the console contained one first-party Shiny 1.14 error,
+  `handler must be a function that takes one argument.` Four no-payload custom
+  handlers used zero-argument functions. This can make counter, loading-overlay,
+  map-refit, and QC-reveal registration brittle even though the tested JORN flow
+  succeeded. Five bootstrap-datepicker language deprecation warnings are upstream
+  dependency noise, not application failures.
+- **Focused repair:** every one of the six custom message handlers now accepts
+  exactly one payload argument. A new static contract enumerates all six handlers
+  across `app.js` and `pincards.js`, fails on zero/multiple parameters or inventory
+  drift, and runs in CI after JavaScript parsing.
+- **Artifact boundary:** `app.js` and `pincards.js` are manifest-tracked runtime
+  files, so this follow-up must obtain and promote a fresh validator-generated
+  manifest before merge. No hand-authored manifest checksum is allowed.
+- **Next action:** publish the focused console-contract branch, promote only its
+  validated manifest artifact, require an exact-head green run, merge, republish,
+  and repeat semantic marker, interaction, and first-party-console verification.
