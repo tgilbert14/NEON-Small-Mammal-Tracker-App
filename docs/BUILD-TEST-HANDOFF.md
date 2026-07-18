@@ -514,6 +514,14 @@ Driver implication, and next action.
 - **Artifact boundary:** `app.js` and `pincards.js` are manifest-tracked runtime
   files, so this follow-up must obtain and promote a fresh validator-generated
   manifest before merge. No hand-authored manifest checksum is allowed.
+- **Validated artifact:** PR #76 run `29663094833`, job `88128953998`, passed the
+  handler inventory, complete pinned dependency/runtime/science/bundle/checksum and
+  offline ladder, uploaded validated artifact
+  `small-mammal-manifest-254517e3b071d71a947638a6f7f4beebe11cb1a8`, and stopped
+  only at designed committed-manifest equality. The candidate differs from the
+  previous manifest only in exact MD5 values for `www/app.js` and
+  `www/pincards.js`; SHA-256
+  `f6c4a5ff74053b95e22fac7394f1930d2fe2329663737031b1c32f7a1f70bc54`.
 - **Next action:** publish the focused console-contract branch, promote only its
   validated manifest artifact, require an exact-head green run, merge, republish,
   and repeat semantic marker, interaction, and first-party-console verification.
