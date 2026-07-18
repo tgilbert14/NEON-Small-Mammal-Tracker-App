@@ -248,7 +248,7 @@ server <- function(input, output, session) {
     ac <- d %>% dplyr::filter(!is.na(.data$ym)) %>%
       dplyr::mutate(yr = suppressWarnings(as.integer(substr(.data$ym, 1, 4)))) %>%
       dplyr::group_by(.data$yr) %>%
-      dplyr::summarise(cap = sum(!is.na(.data$tagID)),
+      dplyr::summarise(cap = sum(.data$is_capture),
                        tn  = sum(.data$trap_effort, na.rm = TRUE), .groups = "drop")
     ac <- ac[is.finite(ac$yr) & is.finite(ac$tn) & ac$tn > 0, , drop = FALSE]
     if (nrow(ac) < 3) return(NULL)
@@ -3324,7 +3324,7 @@ server <- function(input, output, session) {
   )
 
   # ---- tidy analysis-ready exports (FAIR) ---------------------------------
-  # A small downloads suite for reproducibility: the cleaned per-capture table,
+  # A small downloads suite for reproducibility: the cleaned trap-event/handling table,
   # the monthly MNKA/CPUE/N̂ series, and a column codebook. Lives in the About
   # tab (a deliberate navigation, never an always-on wall) so the default view
   # stays clean. Filenames are site-stamped so a folder of them stays legible.
@@ -3356,19 +3356,23 @@ server <- function(input, output, session) {
     tailLength     = list(units = "millimetres", note = "sparsely recorded; mostly NA (NEON rarely measures tail length)"),
     earLength      = list(units = "millimetres", note = "sparsely recorded; mostly NA (NEON rarely measures ear length)"),
     totalLength    = list(units = "millimetres", note = "sparsely recorded; mostly NA (NEON almost never records total body length, which is why the Chonk Index is a within-species percentile, not a Scaled Mass Index)"),
-    trapCoordinate = list(units = "trap grid cell (e.g. A1)", note = "traps are 10 m apart; NA on non-capture rows"),
+    trapCoordinate = list(units = "trap grid cell (e.g. A1)", note = "canonical cells are A-J x 1-10; AX-JX, X1-X10, and XX are non-unique placeholders retained with row-level uncertain effort"),
     recapture      = list(units = "Y/N", note = "NEON cross-bout recapture flag; carries cross-BOUT history, within-bout status is recomputed for the estimators"),
     fate           = list(units = "NEON fate code (released/dead/etc.)", note = "disposition of the animal at handling; NA where not recorded"),
     trapStatus     = list(units = "NEON trap-status code", note = "e.g. '5 - capture', '1 - trap not set'; the raw NEON status string"),
-    trap_effort    = list(units = "trap-nights (1; sprung/disturbed = 0.5; not-set = 0)", note = "derived per the Nelson & Clark (1973) half-trap-night rule"),
+    trap_event     = list(units = "reviewed physical-event key", note = "year|nightuid|plotID|canonical coordinate; placeholder coordinates use an explicit row-level key"),
+    trap_effort    = list(units = "trap-nights (1; sprung/disturbed = 0.5; not-set = 0)", note = "allocated once per reviewed physical trap event; secondary animal rows from one multi-capture trap carry 0 so summing this column does not double-count effort"),
+    trap_effort_rule = list(units = "effort-resolution rule", note = "canonical-single / canonical-multi-capture-one-trap / reviewed-double-trap-rows / placeholder-row-level"),
+    trap_event_source_rows = list(units = "source rows", note = "number of source rows resolved into this event; repeated on every row for audit"),
+    trap_effort_owner = list(units = "TRUE / FALSE", note = "TRUE where this row owns an allocated effort contribution; multi-capture companion rows remain captures but do not own another trap-night"),
     is_capture     = list(units = "TRUE / FALSE", note = "TRUE if an animal was handled (has a tagID); FALSE for empty/not-set trap rows"),
     remarks        = list(units = "free text", note = "NEON field remarks; usually NA")
   )
   CAPTURE_COLS[["nativeStatusPlaceholder"]] <- NULL   # drop the readability placeholder
   CAPTURE_KEEP <- names(CAPTURE_COLS)
 
-  # (a) cleaned site capture table — one row per capture/handling event, the
-  #     analysis-ready columns with NEON-native names + our derived effort/IDs.
+  # (a) cleaned site trap-event/handling table — all source rows, including
+  #     empty/not-set opportunities, with NEON-native names + reviewed effort/IDs.
   output$dlCapturesCsv <- downloadHandler(
     filename = function() sprintf("NEON-SmallMammal_captures_%s_%s.csv",
                                   export_slug(), format(Sys.Date(), "%Y%m%d")),
@@ -3439,18 +3443,22 @@ server <- function(input, output, session) {
       ser <- data.frame(
         file = "monthly-series",
         column = c("siteID","ym","mnka","captures","trap_nights","cpue_per100tn",
-                   "Nhat","p_hat","n_plots"),
+                   "Nhat","Nhat_lo","Nhat_hi","p_hat","n_plots"),
         units = c(
           "NEON 4-letter code","month (YYYY-MM)",
           "Minimum Number Known Alive (Krebs 1966), summed across plots",
           "handling events that month","trap-nights of effort that month",
           "captures per 100 trap-nights (within-site index)",
           "detection-corrected abundance (Schnabel/Chapman); blank where un-estimable",
+          "lower confidence bound for detection-corrected abundance",
+          "upper confidence bound for detection-corrected abundance",
           "per-night detection probability (Model M0)","distinct plots sampled"),
         note = c(
           "","","an INDEX, not a census; counts animals known alive, not corrected for detection",
           "raw count of handling events that month (a numerator, no denominator)","","captures per 100 trap-nights, a within-site relative index, NOT a cross-site density (detection differs by biome)",
           "blank for single-night / low-recapture months that can't be detection-corrected (about half of bouts are single-night by design)",
+          "blank whenever Nhat is un-estimable; interval method matches the detection estimator",
+          "blank whenever Nhat is un-estimable or the upper interval is not finite",
           "0–1; deserts run high, closed-canopy temperate sites low",""),
         stringsAsFactors = FALSE, row.names = NULL)
       # Provenance / license row (NEON CC BY 4.0) — first row of the codebook so

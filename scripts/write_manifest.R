@@ -92,7 +92,7 @@ if (length(removed)) {
                        null = "null")
 }
 
-# ---- force the RSPM LINUX BINARY mirror (jammy) for the package repo --------
+# ---- force the dated RSPM LINUX BINARY snapshot (jammy) --------------------
 # use-public-rspm / rsconnect record the platform-agnostic repo URL
 # (packagemanager.posit.co/cran/latest), which Connect Cloud resolves to SOURCE on
 # Linux — so terra/sf (via leaflet -> raster -> terra) compile from source and FAIL
@@ -101,12 +101,15 @@ if (length(removed)) {
 # precompiled binaries and skips the GDAL build. Deterministic text pass, runs last,
 # so it sticks no matter how the repo was recorded above (CI or local).
 mtxt <- readLines("manifest.json", warn = FALSE)
+RSPM_SNAPSHOT <- "https://packagemanager.posit.co/cran/__linux__/jammy/2026-07-15"
 mtxt <- gsub("https://packagemanager.posit.co/cran/latest",
-             "https://packagemanager.posit.co/cran/__linux__/jammy/latest", mtxt, fixed = TRUE)
+             RSPM_SNAPSHOT, mtxt, fixed = TRUE)
+mtxt <- gsub("https://packagemanager.posit.co/cran/__linux__/jammy/latest",
+             RSPM_SNAPSHOT, mtxt, fixed = TRUE)
 mtxt <- gsub("https://cloud.r-project.org",
-             "https://packagemanager.posit.co/cran/__linux__/jammy/latest", mtxt, fixed = TRUE)
+             RSPM_SNAPSHOT, mtxt, fixed = TRUE)
 writeLines(mtxt, "manifest.json")
-cat("Repo set to RSPM jammy mirror.\n")
+cat(sprintf("Repo frozen to RSPM jammy snapshot %s.\n", RSPM_SNAPSHOT))
 
 # ---- FREEZE the source-compiled geospatial closure + the R version ----------
 # ROOT-CAUSE FIX for the recurring "worked fine, then start-up error, republish
@@ -172,6 +175,13 @@ chk <- jsonlite::fromJSON("manifest.json", simplifyVector = FALSE)
 bad <- character(0)
 if (!is.null(chk$platform) && !identical(chk$platform, R_PLATFORM_PIN))
   bad <- c(bad, sprintf("platform=%s (want %s)", chk$platform, R_PLATFORM_PIN))
+repos <- unique(vapply(chk$packages, function(x) {
+  repo <- x$Repository
+  if (is.null(repo) || length(repo) != 1L || is.na(repo)) "" else as.character(repo)
+}, character(1), USE.NAMES = FALSE))
+if (length(repos) != 1L || !identical(unname(repos), RSPM_SNAPSHOT))
+  bad <- c(bad, sprintf("package repositories=[%s] (want dated snapshot %s)",
+                       paste(repos, collapse = ","), RSPM_SNAPSHOT))
 for (pkg in names(GEO_PINS)) {
   if (!is.null(chk$packages[[pkg]])) {
     got <- chk$packages[[pkg]]$description$Version

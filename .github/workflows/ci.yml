@@ -1,0 +1,107 @@
+name: Validate Small Mammal Tracker
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: small-mammal-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RSPM: https://packagemanager.posit.co/cran/__linux__/jammy/2026-07-15
+  RENV_CONFIG_REPOS_OVERRIDE: https://packagemanager.posit.co/cran/__linux__/jammy/2026-07-15
+  OPENBLAS_CORETYPE: Haswell
+  OPENBLAS_NUM_THREADS: "1"
+  OMP_NUM_THREADS: "1"
+  SMT_LIVE: "0"
+
+jobs:
+  contracts:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout the immutable app revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
+        with:
+          r-version: '4.5.2'
+          use-public-rspm: false
+
+      - name: Install runtime and verification dependencies
+        uses: r-lib/actions/setup-r-dependencies@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
+        with:
+          packages: shiny, bslib, bsicons, dplyr, tidyr, stringr, tibble, plotly, leaflet, DT, shinyjs, shinycssloaders, RColorBrewer, htmltools, ggplot2, jsonlite, rsconnect, cpp11
+          pak-version: stable
+          dependencies: '"hard"'
+          cache-version: small-mammal-ppm-2026-07-15-v1
+          install-pandoc: 'false'
+          install-quarto: 'false'
+
+      - name: Verify the deterministic OpenBLAS runtime
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ctypes
+          lib = ctypes.CDLL("libopenblas.so.0")
+          lib.openblas_get_corename.restype = ctypes.c_char_p
+          lib.openblas_get_config.restype = ctypes.c_char_p
+          core = lib.openblas_get_corename().decode("ascii")
+          threads = lib.openblas_get_num_threads()
+          config = lib.openblas_get_config().decode("ascii")
+          print(f"OpenBLAS core={core} threads={threads} config={config}")
+          if core.lower() != "haswell":
+              raise SystemExit(f"expected OpenBLAS Haswell core, got {core!r}")
+          if threads != 1:
+              raise SystemExit(f"expected one OpenBLAS thread, got {threads}")
+          PY
+
+      - name: Parse source and verify static assets
+        run: |
+          set -euo pipefail
+          Rscript --vanilla -e 'for (f in c("global.R","ui.R","server.R",list.files("R", pattern="[.]R$", full.names=TRUE),list.files("scripts", pattern="[.]R$", full.names=TRUE))) parse(f)'
+          node --check www/app.js
+          node --check www/pincards.js
+          node --check www/confirm.js
+          bash -n scripts/post_deploy_smoke.sh
+
+      - name: Run scientific helper contracts
+        run: Rscript --vanilla scripts/test_helpers.R
+
+      - name: Regenerate a pinned-runtime manifest candidate
+        run: |
+          cp -- manifest.json "$RUNNER_TEMP/manifest-baseline.json"
+          Rscript --vanilla scripts/write_manifest.R
+
+      - name: Verify bundle, indexes, and exact manifest file checksums
+        run: Rscript --vanilla scripts/verify_bundle.R
+
+      - name: Source the complete app offline
+        run: Rscript --vanilla -e 'Sys.setenv(SMT_LIVE="0"); source("global.R"); source("ui.R"); source("server.R"); stopifnot(inherits(ui, "shiny.tag.list") || inherits(ui, "shiny.tag"), is.function(server))'
+
+      # When a PR intentionally changes runtime files, this artifact provides the
+      # manifest produced by the pinned validator without granting it repository
+      # write permission. Review and commit it, then require the next run to match.
+      - name: Upload the validated manifest candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: small-mammal-manifest-${{ github.sha }}
+          path: manifest.json
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Require committed manifest and generated data to match
+        run: |
+          git diff --exit-code -- manifest.json
+          git diff --exit-code -- data data-sample
+          git diff --check

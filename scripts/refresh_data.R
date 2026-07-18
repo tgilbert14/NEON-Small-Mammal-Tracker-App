@@ -2,9 +2,10 @@
 # refresh_data.R — build the bundled per-site "database"
 #
 # Downloads each NEON site's full small-mammal record (DP1.10072.001), trims it
-# to the columns the app uses, and xz-compresses one .rds per site into
-# data/sites/<SITE>.rds. Each trimmed+compressed site is tiny (~0.1–0.5 MB), so
-# all ~47 fit in the app bundle and load instantly — no live download for users.
+# to the columns the app uses, and xz-compresses one .rds per site into the
+# directory selected by SMT_SITE_OUT_DIR (data/sites by default). CI points that
+# variable at an empty staging directory and swaps the result into data/sites
+# only after this script proves the exact expected site set was built.
 #
 # RESUMABLE: skips sites whose .rds already exists. Delete a file to re-pull it.
 #
@@ -50,7 +51,8 @@ keep <- c("tagID","individualCode","taxonID","scientificName","taxonRank",
   "earLength","tailLength","totalLength","weight","lifeStage","sex","testes",
   "nipples","pregnancyStatus","vagina","domainID","siteID","remarks")
 
-out_dir <- "data/sites"
+out_dir <- Sys.getenv("SMT_SITE_OUT_DIR", unset = "data/sites")
+if (!nzchar(out_dir)) stop("SMT_SITE_OUT_DIR must not be empty", call. = FALSE)
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 start_d <- "2013-01"
@@ -123,7 +125,7 @@ freshest_collect_date <- function(dir) {
   mx
 }
 
-state_path <- "data/.refresh_state.json"
+state_path <- Sys.getenv("SMT_REFRESH_STATE_PATH", unset = "data/.refresh_state.json")
 prev_max <- NA_character_
 if (file.exists(state_path)) {
   prev <- tryCatch(jsonlite::fromJSON(state_path), error = function(e) NULL)
@@ -156,12 +158,17 @@ tryCatch(
     state_path, auto_unbox = TRUE, pretty = TRUE),
   error = function(e) cat(sprintf("(could not write %s: %s)\n", state_path, conditionMessage(e))))
 
-# Mass-failure guard: the workflow `rm -f data/sites/*.rds` BEFORE this runs, then
-# deploys + opens a data PR after. If a bad NEON-pull day left us with far too few
-# bundles, stop() here so the job fails and neither the deploy nor the (now
-# deletion-heavy) PR step runs — far safer than shipping/committing a shrunken set.
-# Per-site failures are already skipped above; this only trips on a mass failure.
-floor_n <- max(30L, as.integer(ceiling(0.75 * length(sites))))
-if (n_ok < floor_n)
-  stop(sprintf("Only %d/%d site bundles built (< %d) — aborting before deploy/PR so a mass NEON-pull failure can't ship or commit a shrunken dataset.",
-               n_ok, length(sites), floor_n))
+# Exact site-set gate. A partial bundle is not a degraded success: downstream
+# comparisons and denominators assume the canonical network opportunity set.
+# Staging means this can fail without touching the committed known-good bundle.
+built_sites <- sort(sub("\\.rds$", "", list.files(out_dir, pattern = "\\.rds$")))
+expected_sites <- sort(unique(as.character(sites)))
+missing_sites <- setdiff(expected_sites, built_sites)
+extra_sites <- setdiff(built_sites, expected_sites)
+if (!identical(built_sites, expected_sites))
+  stop(sprintf(
+    "Exact site-set gate failed: built %d/%d; missing=[%s]; extra=[%s]. Known-good data/sites was not replaced.",
+    length(built_sites), length(expected_sites), paste(missing_sites, collapse = ","),
+    paste(extra_sites, collapse = ",")), call. = FALSE)
+cat(sprintf("EXACT SITE SET OK: %d/%d canonical mammal sites built.\n",
+            length(built_sites), length(expected_sites)))
