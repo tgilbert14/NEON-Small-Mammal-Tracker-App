@@ -271,17 +271,20 @@ prior's stated lag, at annual resolution.
 ## 6. Deployment & maintenance — the full lifecycle (dev → deploy → self-update)
 
 The suite has **migrated off shinyapps.io to Posit Connect Cloud with a GIT-BACKED deploy**.
-This is now the standard; shinyapps.io (small-mammal reference) is legacy and slated to follow.
+This is now the standard; the Small Mammal reference app's retired shinyapps records are absent.
 
 **Deploy model (the new standard — Connect Cloud, git-backed):**
-- The app lives on Connect Cloud, pointed at the GitHub repo + its watched branch. **A push to the
-  watched branch IS the deploy** — Connect Cloud auto-republishes. So there are **no shinyapps.io
-  secrets, no `rsconnect/` dir, and no `deploy.R` step** (those are the legacy shinyapps path).
+- The app lives on Connect Cloud, pointed at the GitHub repo + its watched production branch.
+  **A reviewed merge to the watched branch is the deploy** — Connect Cloud auto-republishes that
+  branch. Build and data automation must publish an immutable candidate to a restricted review
+  branch and open/update a PR; it must never push directly to production. There are **no
+  shinyapps.io secrets, no `rsconnect/` dir, and no `deploy.R` step** (those are the legacy path).
 - Required in-repo: a lean **`manifest.json`** (`rsconnect::writeManifest()`; bundle-only, keep
   `neonUtilities` OUT via the computed-package-name trick), the committed `data/` bundles, and a
   `docs/index.html` GitHub Pages showcase whose `APP_URL` points at the live Connect Cloud app.
-- Branch naming is split across the suite (`main` vs `master`) — each workflow must push to the
-  branch its own Connect Cloud app watches. Standardize new repos on `main`.
+- Branch naming is split across the suite (`main` vs `master`) — each workflow must target a
+  dedicated review branch whose PR merges into the branch its Connect app watches. Standardize new
+  repos on `main`, with branch protection and required release gates.
 
 **The `manifest.json` is a deploy GATE — the terra/GDAL landmine (ask `Connor`, the deploy expert):**
 A normal code/data push deploys fast, but a WRONG manifest blocks the WHOLE publish (`Failed to
@@ -291,41 +294,43 @@ publish content`). Connect Cloud **compiles packages from SOURCE** on its **jamm
   calling the 3-arg `GDALMDArray::AsClassicDataset` (a **GDAL 3.8** overload, unguarded in releases) →
   `compilation failed for package 'terra'` on GDAL 3.4.1. terra's multidim support landed in **1.8-54
   (2025-06-01)**.
-- **The fix (proven live on Plant Phenology, rolled suite-wide):** pin **`terra` to `1.8-50`** (last
+- **The first fix:** pin **`terra` to `1.8-50`** (last
   release before 1.8-54). It compiles on GDAL 3.4.1 and still satisfies `raster 3.6-32`'s
   `terra (>= 1.8-5)`, so leaflet/raster are untouched. terra/raster are **install-only** (the app uses
   leaflet for maps and never calls them) → **zero runtime impact**. Surgical: terra's version appears
-  twice in the manifest (Version + RemoteSha), no content hash, so a `sed` swap is safe.
-- **CI-regen apps must re-pin in `write_manifest.R`.** If `refresh-data.yml` runs
-  `Rscript scripts/write_manifest.R` (with `use-public-rspm`), the monthly regen re-pins terra to the
-  latest (≥1.8-54) and **re-breaks the deploy**. So `write_manifest.R` must end with a deterministic
-  re-pin of terra→1.8-50 (+ repo→RSPM jammy). Apps whose CI does NOT regenerate the manifest (e.g.
-  Plant Phenology) are durable from the committed file alone.
+  twice in the manifest (Version + RemoteSha), but those fields must describe the package actually
+  installed; text substitution is not proof of a reproducible build.
+- **The complete fix:** CI installs the known-good eight-package geospatial closure from exact source
+  tarballs (`terra`, `sf`, `s2`, `units`, `wk`, `classInt`, `raster`, `sp`) under pinned R, then
+  `write_manifest.R` records and verifies the actual installed versions. Ordinary packages use one
+  dated Posit snapshot. Commit only the validator-produced manifest artifact; never hand-edit
+  `Version`, `RemoteSha`, `Repository`, or `platform` to make a gate pass.
 
 **Reliable-redeploy discipline (run on EVERY app change):** Connect can't deploy what doesn't build,
 so the manifest must round-trip whenever the package set changes:
 1. **Did this change add/remove a `library()`/`pkg::` (a new feature pulling a new package, a dep
-   bump)?** NO → just push (code/data deploys fresh). YES → continue.
+   bump)?** NO → keep the committed manifest and run the release gates. YES → regenerate it.
 2. **Regenerate from a CLEAN, fully-committed tree** (`writeManifest()` filesystem-scans — never
    mid-WIP): `Rscript scripts/write_manifest.R`.
 3. **Verify before commit:** parses · lean (`neonUtilities`/`arrow` absent) · **`terra` == 1.8-50** ·
    leaflet chain present · the new package present · `plotly` ⇒ `data.table` present.
-4. **Commit the manifest in the SAME PR as the code**, push to the watched branch.
-5. **Confirm the Connect build goes GREEN.** A failed publish silently leaves the previous good build
+4. **Commit the validator-produced manifest in the SAME PR as the code**, then merge only after the
+   exact candidate passes every release gate.
+5. **Confirm the Connect build goes GREEN and semantic smoke passes.** A failed publish can leave the previous good build
    serving, so "the app still loads" is NOT proof your change shipped — verify the new element is live.
 
-**Auto-refresh + self-deploy (`.github/workflows/refresh-data.yml`) — copy this shape:**
+**Auto-refresh + reviewed release (`.github/workflows/refresh-data.yml`) — copy this shape:**
 - **Schedule (identical across the suite):** `cron: "0 6 * * 0"` (Sunday 06:00 UTC = Saturday 23:00
   America/Phoenix, off-peak), with a **gate job** that proceeds only on the **first Saturday of the
   month** (`dow=6 && day<=7`, `TZ=America/Phoenix`) — cron can't say "first Saturday", so fire weekly
   and gate. `workflow_dispatch` with a `skip_download` input always proceeds (fast redeploy test).
-- **Flow:** gate → checkout → `setup-r` + deps → fetch raw + rebuild `data/sites/*.rds` (+ any
-  overlays) → **commit/push to the watched branch (= the deploy on Connect Cloud)** → optionally open
-  a data-refresh PR. Time-box + `continue-on-error` the heavy/optional steps so they can't block the
-  deploy. `NEON_TOKEN` is an optional secret (anonymous works, slower).
-- **Two deploy triggers seen in the wild — prefer auto-push:** (a) *auto* — push refreshed data
-  straight to the watched branch (mammal/bird/phe/plant). (b) *PR-merge* — open a PR a human merges
-  (veg) — this is NOT self-deploying; convert to auto-push unless a review gate is wanted.
+- **Flow:** gate → checkout → pinned R + declared dependencies → fetch raw into an empty stage →
+  rebuild bundles and indexes → verify exact site/schema/index/checksum/manifest/offline contracts →
+  publish the immutable candidate to a restricted review branch → open/update a PR. Heavy optional
+  enrichments may degrade honestly, but required scientific and release gates must fail closed.
+  `NEON_TOKEN` is optional (anonymous access works more slowly).
+- **Deploy trigger:** an intentional PR merge to the Connect-watched branch. Direct automation pushes
+  to a production branch are prohibited; the review boundary is part of data provenance.
 
 **Derived/master apps (e.g. Driver Cascade):** their bundle is built FROM sibling repos' bundles, so
 CI must obtain them — `git clone --depth 1` each sibling repo (use the real slugs, not dir names:
@@ -338,9 +343,10 @@ remote + a Connect Cloud app** before any of this works.
 
 Data bundles: `data/sites/*.rds` present + valid (loadable, non-empty) · `data/site_index.rds`
 (picker) · `data-sample/demo.rds` (instant demo) · all git-tracked · refreshed within the cadence.
-Automation: `.github/workflows/refresh-data.yml` on the **standard schedule** · self-deploys via
-**auto-push** (not PR-merge) · `manifest.json` present + lean (no `neonUtilities`/`arrow`) + **`terra`
-pinned `1.8-50`** (Connect Cloud compile gate — see §6 / ask Connor) · GitHub **remote** exists ·
+Automation: `.github/workflows/refresh-data.yml` on the **standard schedule** · publishes a verified
+candidate to a restricted review branch + PR · never pushes production directly · `manifest.json`
+present + lean (no `neonUtilities`/`arrow`) + the **entire geospatial closure** pinned and truthfully
+recorded (Connect Cloud compile gate — see §6) · GitHub **remote** exists ·
 `docs/index.html` `APP_URL` is live + the **Connect build is GREEN** (a failed publish serves the old build). NEONization: cover/landing splash · **in-app sibling links** + `docs` cross-promo
 grid covering the WHOLE suite · mobile-responsive CSS (`@media`, prefers-reduced-motion) · **QC-flag
 system** (§ below) · metadata/codebook view · comprehensive downloads (CSV + card PNG + report PDF) ·
@@ -363,6 +369,6 @@ add it to the registry so EVERY sibling links to it (Breeding Birds + Driver Cas
 ---
 
 *Living doc. Plant-diversity (DP1.10058.001) was the first full NEONize; birds/phenology/veg/cascade
-followed. §6–7 added from the suite-wide automation+bundle audit (the Connect-Cloud git-backed deploy
-migration, the shared off-peak schedule, the QC-flag generalization). Keep the **Cody** subagent
-(hosting/CI) and a future **neonize** subagent in sync with §6–7.*
+followed. §6–7 now encode the review-branch release boundary, pinned-build evidence, the shared
+off-peak schedule, and the QC-flag generalization. Keep the suite's canonical playbook and each
+app-local copy synchronized whenever these contracts change.*

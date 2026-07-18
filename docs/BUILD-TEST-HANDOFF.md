@@ -293,3 +293,54 @@ Driver implication, and next action.
   bundle parity, offline source, and public restoration remain unverified.
 - **Next action:** statically verify and push the repository-lane gate, then rerun
   the same draft CI through the first still-unreached bundle/offline gates.
+
+### 2026-07-18 10:08 MST - exact bundle passes; downstream provenance gate aligned
+
+- **Published input:** commit `e02361c2a6e19d0cf822a1730f93928791056be0`
+  implemented the honest two-lane manifest writer gate and was pushed only to draft
+  PR #73. It did not touch `main`, Connect, production data, or the user's separate
+  idea branch.
+- **Pinned CI evidence (partial PASS / terminal FAIL):** Actions run
+  `29652716146`, job `88101660852`, passed the actual source-built eight-package
+  geospatial closure, pinned R 4.5.2, deterministic Haswell/single-thread OpenBLAS,
+  complete R/JS/shell parsing, all 11 scientific helper contracts, and manifest
+  generation. The exact bundle gate loaded all **46/46** expected sites with rows
+  and required effort schema; `site_index.rds` passed with 46 rows and both
+  `search_index.rds` and `species_ranges.rds` passed with 604 rows. The generated
+  manifest listed 117 runtime files.
+- **Observed next root cause:** `scripts/verify_bundle.R`, downstream of the corrected
+  writer, still demanded the dated Posit snapshot for every package. It therefore
+  rejected the same eight exact-URL packages whose truthful `Repository: CRAN`
+  provenance the writer had just accepted. This is a duplicated-policy mismatch,
+  not package, site, schema, checksum, or scientific drift.
+- **Focused repair:** the bundle gate now requires `CRAN` for exactly the eight
+  pinned geospatial packages and the dated snapshot for every ordinary package,
+  while retaining package-name, nonblank-version, `Source: CRAN`, exact pin, R,
+  runtime-root, forbidden-package, file-existence, and MD5 checks. No manifest field
+  is rewritten to satisfy the validator.
+- **Product/UI/documentation pass:** the previously blank 849-byte social image was
+  replaced with a reviewed 1200x630 desert-night habitat card, retaining its
+  1774x887 source as `docs/og-habitat-v2.png`. The landing page no longer turns an
+  opaque no-CORS pre-warm response into a false “ready” status and now has explicit
+  keyboard focus rings. README, deploy, project-status, data-takeaway, agent-context,
+  and playbook authority now state the verified outage and restricted review-merge
+  release contract. The in-app About panel now links all nine companions in the
+  ten-app suite and describes bundle-only production plus reviewed monthly updates.
+- **Visual verification (PASS, cover only):** the revised Pages source rendered in
+  the in-app browser at desktop width with no horizontal overflow or console errors;
+  title, social meta, launch/repository links, and neutral cold-start copy matched
+  source. The browser runtime did not honor attempted mobile viewport overrides, so
+  no visual mobile PASS is claimed. Static CSS retains responsive, reduced-motion,
+  keyboard, and 44px link-target contracts. The public Connect endpoint remains the
+  previously verified `Startup Error` because this draft has not been merged.
+- **Local verification:** `git diff --check`, shell syntax, image dimensions, and
+  the local browser checks passed. There is still no local R, Docker, or Podman; all
+  R parse/helper/bundle/offline claims come only from the cited pinned GitHub job.
+- **Classification/Driver implication:** `app-local`, `suite-platform`,
+  `scientific-contract`, `product/UI`, and `Driver-impacting`. Driver remains `HOLD`
+  until the committed validator-generated manifest matches and an exact-head offline
+  source passes; production health remains a separate post-merge requirement.
+- **Next action:** commit/push this coherent validator + product tranche, let pinned
+  CI reach offline source and upload its exact manifest candidate, commit only that
+  artifact, then require one green exact-head PR run. Do not merge or claim the
+  outage restored without explicit production authority and semantic smoke.

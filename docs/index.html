@@ -98,6 +98,7 @@
       transform:translateX(-120%); transition:transform .6s ease; }
     .launch:hover { transform: translateY(-2px) scale(1.015);
       box-shadow:0 16px 46px rgba(var(--teal-rgb),.65), 0 0 0 6px rgba(var(--teal-rgb),.12) }
+    .launch:focus-visible, .ghost:focus-visible { outline:3px solid #fff; outline-offset:4px }
     .launch:hover::after { transform:translateX(120%) }
     .launch .arrow { font-size:1.1em; transition:transform .2s ease }
     .launch:hover .arrow { transform:translateX(4px) }
@@ -130,7 +131,8 @@
       0%,100% { box-shadow:0 0 0 7px rgba(var(--teal-rgb),.10), 0 0 46px 6px rgba(var(--teal-rgb),.5), inset 0 0 30px rgba(255,255,255,.4) }
       50% { box-shadow:0 0 0 12px rgba(var(--teal-rgb),.04), 0 0 66px 12px rgba(var(--teal-rgb),.62), inset 0 0 34px rgba(255,255,255,.5) }
     }
-    .ccore:hover,.ccore:focus-visible { outline:none; transform:translate(-50%,-50%) scale(1.05) }
+    .ccore:hover,.ccore:focus-visible { transform:translate(-50%,-50%) scale(1.05) }
+    .ccore:focus-visible { outline:3px solid #fff; outline-offset:5px }
     .ccore .clabel { font-weight:800; font-size:clamp(.86rem,2vw,1.02rem); line-height:1.1; padding:0 .5rem }
     .ccore .csub { display:block; font-weight:700; font-size:.64em; letter-spacing:.14em; text-transform:uppercase;
       color:#0a466e; margin-top:.25rem }
@@ -148,7 +150,8 @@
       transition: transform .22s cubic-bezier(.22,1,.36,1), box-shadow .22s ease, border-color .2s ease; }
     .constel.lit .cnode-orb { animation: bob 6s ease-in-out infinite; animation-delay: calc(var(--i,0) * -.5s) }
     @keyframes bob { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-6px) } }
-    .cnode:hover, .cnode:focus-visible { outline:none; z-index:9 }
+    .cnode:hover, .cnode:focus-visible { z-index:9 }
+    .cnode:focus-visible { outline:3px solid #fff; outline-offset:5px; border-radius:50% }
     .cnode:hover .cnode-orb, .cnode:focus-visible .cnode-orb {
       transform:scale(1.16); border-color:#fff;
       box-shadow:0 0 28px rgba(var(--hc,var(--teal-rgb)),.7), inset 0 0 16px rgba(255,255,255,.22) }
@@ -357,7 +360,7 @@
         </a>
         <a class="ghost" href="https://github.com/tgilbert14/NEON-Small-Mammal-Tracker-App" target="_blank" rel="noopener">View on GitHub</a>
       </div>
-      <div class="warm" id="warm"></div>
+      <div class="warm" id="warm">Live app opens in a new tab · cold starts can take a moment.</div>
     </div>
   </header>
 
@@ -439,19 +442,21 @@
   </footer>
 
   <script>
-    // ---- the tracker app (Connect Cloud share URL); pre-warm on load ----
+    // ---- the tracker app (Connect Cloud share URL); best-effort pre-warm ----
+    // A no-cors response is opaque: it proves only that the host answered, not
+    // that Shiny booted. Never turn that response into an "app is ready" claim;
+    // semantic health is verified by the post-deploy workflow instead.
     var APP_URL = "https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/";
     (function () {
       var launch = document.getElementById("launch");
       var warm = document.getElementById("warm");
       if (launch) launch.href = APP_URL;
       try {
-        if (warm) warm.textContent = "Warming up the app…";
+        if (warm) warm.textContent = "Live app opens in a new tab · cold starts can take a moment.";
         var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
         var killer = ctrl ? setTimeout(function () { ctrl.abort(); }, 8000) : null;
         fetch(APP_URL, { mode: "no-cors", cache: "no-store", signal: ctrl ? ctrl.signal : undefined })
-          .then(function () { if (warm) warm.textContent = "The app is ready."; })
-          .catch(function () { if (warm) warm.textContent = ""; })
+          .catch(function () {})
           .finally(function () { if (killer) clearTimeout(killer); });
       } catch (e) {}
     })();

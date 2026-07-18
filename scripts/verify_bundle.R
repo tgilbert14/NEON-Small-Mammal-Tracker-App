@@ -164,9 +164,10 @@ if (!file.exists("manifest.json")) {
         declared <- as.character(x$description$Package %||% "")
         source <- as.character(x$Source %||% "")
         repo <- as.character(x$Repository %||% "")
+        expected_repo <- if (pkg %in% names(EXPECTED_GEO_PINS)) "CRAN" else EXPECTED_REPOSITORY
         length(version) != 1L || is.na(version) || !nzchar(version) ||
           !identical(declared, pkg) || !identical(source, "CRAN") ||
-          !identical(repo, EXPECTED_REPOSITORY)
+          !identical(repo, expected_repo)
       }, logical(1))
       if (any(package_problems))
         note(sprintf("manifest package provenance is invalid for %d package(s): %s",

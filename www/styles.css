@@ -885,6 +885,16 @@ a.recent-chip:hover, a.recent-chip:focus-visible {
 .about-card a { color: var(--pine); font-weight: 600; }
 .about-dl { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .about-dl .smt-clear-btn { width: 100%; justify-content: flex-start; text-align: left; }
+.about-suite-card { grid-column: 1 / -1; }
+.suite-app-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.suite-app-link { display: flex; align-items: center; min-height: 44px; padding: 9px 11px;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--bg); text-decoration: none; }
+.suite-app-link:hover { border-color: var(--pine); box-shadow: 0 4px 12px var(--shadow); text-decoration: none; }
+.suite-app-link:focus-visible { outline: 3px solid var(--pine); outline-offset: 2px; }
+@media (max-width: 800px) {
+  .about-suite-card { grid-column: auto; }
+  .suite-app-grid { grid-template-columns: 1fr; }
+}
 
 /* ---- overview: meet the locals ---------------------------------------- */
 .section-title { font-weight: 800; color: var(--pine); font-size: 18px; margin: 20px 4px 12px; display: flex; align-items: center; gap: 8px; }

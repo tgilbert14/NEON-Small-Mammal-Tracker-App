@@ -92,14 +92,12 @@ if (length(removed)) {
                        null = "null")
 }
 
-# ---- force the dated RSPM LINUX BINARY snapshot (jammy) --------------------
-# use-public-rspm / rsconnect record the platform-agnostic repo URL
-# (packagemanager.posit.co/cran/latest), which Connect Cloud resolves to SOURCE on
-# Linux — so terra/sf (via leaflet -> raster -> terra) compile from source and FAIL
-# against the build image's GDAL 3.4.1 (terra >= 1.8 needs GDAL >= 3.5). Rewrite the
-# repo to the __linux__/jammy binary path (Ubuntu 22.04) so Connect installs
-# precompiled binaries and skips the GDAL build. Deterministic text pass, runs last,
-# so it sticks no matter how the repo was recorded above (CI or local).
+# ---- freeze ordinary packages to the dated Posit jammy snapshot ------------
+# rsconnect can record floating or platform-agnostic repository URLs. Replace
+# those URLs with one dated jammy snapshot so ordinary R dependencies are
+# reproducible. This is repository provenance, not a promise that Connect will
+# install a binary: native geospatial packages are separately installed from
+# exact CRAN source tarballs and verified below.
 mtxt <- readLines("manifest.json", warn = FALSE)
 RSPM_SNAPSHOT <- "https://packagemanager.posit.co/cran/__linux__/jammy/2026-07-15"
 mtxt <- gsub("https://packagemanager.posit.co/cran/latest",
@@ -125,7 +123,7 @@ cat(sprintf("Repo frozen to RSPM jammy snapshot %s.\n", RSPM_SNAPSHOT))
 # and a manual republish only helps transiently.
 #
 # leaflet (the picker map) drags in the ENTIRE native geospatial stack, all of
-# which Connect compiles FROM SOURCE regardless of the RSPM binary repo above:
+# which Connect may need to compile FROM SOURCE regardless of the snapshot lane:
 #     leaflet -> raster -> terra            (terra >= 1.8-54 needs GDAL 3.8)
 #     leaflet -> sf      -> s2, units, ...   (s2 >= ... needs newer Abseil)
 # Pinning ONLY terra (the first landmine we hit) left sf/s2/units/wk/classInt AND
