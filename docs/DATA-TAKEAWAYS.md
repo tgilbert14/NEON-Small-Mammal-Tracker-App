@@ -2,7 +2,13 @@
 
 _Suite audit — June 2026. NEON DP1.10072.001 (Small Mammal Box Trapping)._
 
-This app is the **flagship / gold standard** the other seven suite apps are cloned from. Audited
+> **Finding-state update (2026-07-18):** this document preserves the June audit evidence, but the
+> implementation moved. The `id_uncertain` aggregation bug is fixed; single-night coverage and
+> cross-site detection are surfaced; compare rows carry p̂/N̂ and suppress misleading raw-count
+> winners; tidy capture/monthly exports and a codebook exist in draft PR #73. Public deployment is
+> still a P0 outage, so none of those draft changes are represented as production-shipped yet.
+
+This app is the **flagship / gold standard** for its nine companion suite apps. Audited
 through four lenses at once: NEONize (suite cohesion + honest-stats machinery), Fauna (field method
 defensibility), Quinn (analysis-ready export), and Statistics (small-n honesty). Every number below
 was recomputed from the bundled `.rds` files, not taken from the README.
@@ -43,10 +49,11 @@ was recomputed from the bundled `.rds` files, not taken from the README.
   and **hindfoot 28.5% NA** (recaptures often aren't re-measured), and **7.6%** of captures have no
   M/F sex. Genus-only / ambiguous IDs are **5.0%** of named captures (8,892 rows) — correctly
   excluded from richness by `species_level_only()`.
-- **Tag-identity QC is near-silent on NEON data — by design and (partly) by bug.** `tag_suspect`
+- **Tag-identity QC is near-silent on impossible histories; multi-species IDs are now active.** `tag_suspect`
   fires on only **52 of 93,169 individuals (0.06%)** — 47 spatially-impossible same-day-two-plot
-  records + 5 careers > 5 yr. Clean data, no crying wolf. **But `id_uncertain` fires 0 times** when
-  it should flag ~3.8% of tags — see the Statistics finding below.
+  records + 5 careers > 5 yr. Clean data, no crying wolf. The June audit found `id_uncertain` dead;
+  current code computes distinct species in a separate raw-column aggregation and joins it back,
+  restoring the expected multi-species-tag QC path.
 - **The environmental link to the consumer rung is weak, lagged, and biome-inconsistent.**
   Deseasonalized best-lag |r| with monthly catch-per-effort never exceeds ~0.5 at any site and the
   "winning" driver differs by site: SRER temp r −0.48 @ lag 3, JORN temp r −0.50 @ lag 9, HARV temp
@@ -86,50 +93,43 @@ mass here (r≈0.15) — a deliberate, documented omission.
   `species_level_only()`, Hill/Chao1 with CI + instability flag, the deseasonalize-before-correlate
   env scan, the "answer up front" `insight_banner()` pattern, the n-gates. All of it ports cleanly
   and the cascade reuses it.
-- **[low] README live-app badge is stale.** README points to `t-lama.shinyapps.io/RatTrapHistory`
-  and DEPLOY.md as "migration plan," but the playbook says the suite has **already migrated to Posit
-  Connect Cloud (git-backed)**. Fix: update the badge/links to the Connect Cloud URL and demote the
-  shinyapps reference to legacy, matching the other siblings.
-- **[low] README "140+ species" vs computed 145.** `species_ranges.rds` has **145** distinct
-  species. Harmless, but the gold-standard app should state the exact number.
+- **[RESOLVED LOW] README live-app badge and hosting language were stale.** Current authority docs
+  point to Connect Cloud, label the verified outage, and describe the restricted review-branch
+  release flow. The retired shinyapps target is no longer presented as current.
+- **[RESOLVED LOW] README "140+ species" vs computed 145.** README and the cover now state the
+  exact **145** distinct species represented by `species_ranges.rds`.
 
 ### Ecological (Fauna — field method)
 - **[strength]** The field method is represented correctly: bout structure (pathogen grids ~3
   consecutive nights vs 1-night diversity grids) drives the estimator choice; effort is from real
   `trapStatus` not an assumed grid; "not detected ≠ absent" is stated on-chart. A journal reviewer
   would accept MNKA + gated closed-capture as defensible indices.
-- **[med] Single-night dominance should be surfaced as a coverage stat.** 49% of bouts are k=1 and
-  silently un-estimable. Fix: show a small "X% of bouts are single-night (index-only)" line on the
-  detection card so users understand why the N̂ series is sparse — it's a sampling-design fact, not
-  missing data.
-- **[low] Detection completeness is a publishable cross-site signal.** Site detection ranges 0.42–
-  0.95 and is **biome-structured** (deserts high, closed-canopy temperate low). Worth exposing as a
-  per-site number — it directly qualifies how much any raw-count comparison across biomes can be
-  trusted, which is a cascade concern.
+- **[RESOLVED MED] Single-night dominance is surfaced as a coverage stat.** The detection card now
+  reports the percent of bouts that are single-night/index-only, including the all-single-night case,
+  so a sparse N̂ series reads as sampling design rather than missing data.
+- **[RESOLVED LOW] Detection completeness is exposed as a cross-site qualifier.** Site cards and the
+  compare view carry p̂; compare adds mean monthly N̂ and suppresses raw-count “winners” when sites'
+  detection differs materially or is un-estimable.
 
 ### Data science (Quinn — analysis-ready export)
-- **[med] Exports are per-individual only; there is no tidy bundle/site export or codebook.** The
-  only CSV download is one animal's capture history (`qcHistoryCsv`); the two-site and report outputs
-  are PDF. There is **no column codebook / metadata view** and no "download this site's tidy capture
-  table" or "download the MNKA/CPUE/detection series." Fix: add a downloads tab with (a) the cleaned
-  site capture table as CSV, (b) the monthly MNKA/CPUE/N̂ series, (c) a codebook documenting every
-  column, units, and NA convention. This is a FAIR/reproducibility gap in the flagship that every
-  clone inherits.
-- **[low] Publish the measurement-NA convention.** weight 23%/hindfoot 28% NA is mostly
-  unmeasured recaptures + empty-trap rows, but a downstream analyst can't tell that without a note.
-  State the denominator (captures vs handled-and-measured) wherever a measurement summary appears.
+- **[RESOLVED MED] Site-level tidy exports and a codebook now exist.** The About panel offers the
+  cleaned event/handling-row capture table, monthly MNKA/CPUE/N̂/p̂ series, and a column codebook with
+  units, grain, source/license, estimator caveats, and NA conventions.
+- **[RESOLVED LOW] Measurement-NA conventions are published.** The UI and codebook state that blank
+  weight/hind-foot values are unmeasured handling/empty-trap rows rather than zeros, and measurement
+  summaries identify their handled-and-measured denominator.
 
 ### Statistics (small-n honesty / correctness)
-- **[HIGH — real bug] `id_uncertain` is always FALSE; the multi-species-tag QC flag is dead code.**
+- **[RESOLVED HIGH] `id_uncertain` was always FALSE; the multi-species-tag QC flag was dead code.**
   In `build_leaderboard()` the `summarise()` computes `scientificName = mode_chr(...)` (a scalar)
   and then `n_species_ids = n_distinct(scientificName[...])` **in the same `summarise()` call**, so
   `n_distinct` runs on the 1-value scalar and returns 1 for every animal. Verified: SRER has **151 of
   3,976 tags (3.8%) genuinely recorded under >1 species** (e.g. tag `…056017` = *Chaetodipus
   intermedius* + *C. penicillatus*), yet `sum(id_uncertain) = 0` across all 93,169 individuals. This
-  silently disables dossier QC flag #7 AND the `min_known_lifespan()` ambiguous-ID exclusion. **This
+  silently disabled dossier QC flag #7 AND the `min_known_lifespan()` ambiguous-ID exclusion. **This
   is the exact "summarise sees earlier new columns" gotcha the playbook documents for plant
-  richness — present in the flagship.** Fix: compute `n_species_ids` from the raw column before the
-  `mode_chr` reassignment (rename the source, or pre-aggregate distinct species per tag in a join).
+  richness.** Current implementation performs the distinct-species aggregation outside the
+  shadowing `summarise()` and joins it back; helper fixtures protect the repair.
 - **[strength]** Otherwise the stats are honest: deseasonalization before correlation, n≥8-month
   overlap floor, the "bars aren't independent evidence / r is not r²" caveats, Chao1 flagged as a
   lower bound when doubletons are scarce, the MNKA floor on N̂. Don't touch these.

@@ -1,18 +1,20 @@
 #----------------------------------------------------------------------
-# make_og_image.R — draws docs/og-image.png (1200x630), the social card for
-# the landing page. Self-contained base-R graphics in the Desert Data Labs /
-# "Girth Index" house palette (navy + gold + cardinal), with a faint scatter
-# of paw prints for texture.
+# make_og_image.R — draws docs/og-image-fallback.png (1200x630), the legacy
+# code-native fallback social card. The current production card is the reviewed
+# habitat artwork in docs/og-image.png, with docs/og-habitat-v2.png retained as
+# its versioned source. This script must never overwrite that reviewed asset.
 #   "C:\Program Files\R\R-4.3.1\bin\Rscript.exe" scripts/make_og_image.R
 #----------------------------------------------------------------------
 ROOT <- getwd()
-out  <- file.path(ROOT, "docs", "og-image.png")
+out  <- file.path(ROOT, "docs", "og-image-fallback.png")
 dir.create(dirname(out), showWarnings = FALSE, recursive = TRUE)
 
 navy <- "#0C234B"; navy2 <- "#16386e"; gold <- "#FFD200"; cardinal <- "#AB0520"; sky <- "#2f7fb5"
 
+draw_fallback <- function() {
 png(out, width = 1200, height = 630, res = 144)
-op <- par(mar = c(0, 0, 0, 0), bg = navy); on.exit({ par(op); dev.off() })
+op <- par(mar = c(0, 0, 0, 0), bg = navy)
+on.exit({ par(op); dev.off() }, add = TRUE)
 plot.new(); plot.window(xlim = c(0, 1200), ylim = c(0, 630), xaxs = "i", yaxs = "i")
 
 # background: navy with a soft top-left glow
@@ -61,4 +63,7 @@ for (i in seq_along(chips)) {
   text(xl + 22, y1 + 62, chips[[i]][1], col = "white", cex = 1.95, font = 2, adj = 0)
   text(xl + 22, y1 + 28, chips[[i]][2], col = grDevices::adjustcolor("white", .85), cex = .96, adj = 0)
 }
+}
+
+draw_fallback()
 cat("wrote", out, "\n")

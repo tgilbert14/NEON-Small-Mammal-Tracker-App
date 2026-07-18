@@ -248,7 +248,7 @@ server <- function(input, output, session) {
     ac <- d %>% dplyr::filter(!is.na(.data$ym)) %>%
       dplyr::mutate(yr = suppressWarnings(as.integer(substr(.data$ym, 1, 4)))) %>%
       dplyr::group_by(.data$yr) %>%
-      dplyr::summarise(cap = sum(!is.na(.data$tagID)),
+      dplyr::summarise(cap = sum(.data$is_capture),
                        tn  = sum(.data$trap_effort, na.rm = TRUE), .groups = "drop")
     ac <- ac[is.finite(ac$yr) & is.finite(ac$tn) & ac$tn > 0, , drop = FALSE]
     if (nrow(ac) < 3) return(NULL)
@@ -3324,7 +3324,7 @@ server <- function(input, output, session) {
   )
 
   # ---- tidy analysis-ready exports (FAIR) ---------------------------------
-  # A small downloads suite for reproducibility: the cleaned per-capture table,
+  # A small downloads suite for reproducibility: the cleaned trap-event/handling table,
   # the monthly MNKA/CPUE/N̂ series, and a column codebook. Lives in the About
   # tab (a deliberate navigation, never an always-on wall) so the default view
   # stays clean. Filenames are site-stamped so a folder of them stays legible.
@@ -3356,19 +3356,23 @@ server <- function(input, output, session) {
     tailLength     = list(units = "millimetres", note = "sparsely recorded; mostly NA (NEON rarely measures tail length)"),
     earLength      = list(units = "millimetres", note = "sparsely recorded; mostly NA (NEON rarely measures ear length)"),
     totalLength    = list(units = "millimetres", note = "sparsely recorded; mostly NA (NEON almost never records total body length, which is why the Chonk Index is a within-species percentile, not a Scaled Mass Index)"),
-    trapCoordinate = list(units = "trap grid cell (e.g. A1)", note = "traps are 10 m apart; NA on non-capture rows"),
+    trapCoordinate = list(units = "trap grid cell (e.g. A1)", note = "canonical cells are A-J x 1-10; AX-JX, X1-X10, and XX are non-unique placeholders retained with row-level uncertain effort"),
     recapture      = list(units = "Y/N", note = "NEON cross-bout recapture flag; carries cross-BOUT history, within-bout status is recomputed for the estimators"),
     fate           = list(units = "NEON fate code (released/dead/etc.)", note = "disposition of the animal at handling; NA where not recorded"),
     trapStatus     = list(units = "NEON trap-status code", note = "e.g. '5 - capture', '1 - trap not set'; the raw NEON status string"),
-    trap_effort    = list(units = "trap-nights (1; sprung/disturbed = 0.5; not-set = 0)", note = "derived per the Nelson & Clark (1973) half-trap-night rule"),
+    trap_event     = list(units = "reviewed physical-event key", note = "year|nightuid|plotID|canonical coordinate; placeholder coordinates use an explicit row-level key"),
+    trap_effort    = list(units = "trap-nights (1; sprung/disturbed = 0.5; not-set = 0)", note = "allocated once per reviewed physical trap event; secondary animal rows from one multi-capture trap carry 0 so summing this column does not double-count effort"),
+    trap_effort_rule = list(units = "effort-resolution rule", note = "canonical-single / canonical-multi-capture-one-trap / reviewed-double-trap-rows / placeholder-row-level"),
+    trap_event_source_rows = list(units = "source rows", note = "number of source rows resolved into this event; repeated on every row for audit"),
+    trap_effort_owner = list(units = "TRUE / FALSE", note = "TRUE where this row owns an allocated effort contribution; multi-capture companion rows remain captures but do not own another trap-night"),
     is_capture     = list(units = "TRUE / FALSE", note = "TRUE if an animal was handled (has a tagID); FALSE for empty/not-set trap rows"),
     remarks        = list(units = "free text", note = "NEON field remarks; usually NA")
   )
   CAPTURE_COLS[["nativeStatusPlaceholder"]] <- NULL   # drop the readability placeholder
   CAPTURE_KEEP <- names(CAPTURE_COLS)
 
-  # (a) cleaned site capture table — one row per capture/handling event, the
-  #     analysis-ready columns with NEON-native names + our derived effort/IDs.
+  # (a) cleaned site trap-event/handling table — all source rows, including
+  #     empty/not-set opportunities, with NEON-native names + reviewed effort/IDs.
   output$dlCapturesCsv <- downloadHandler(
     filename = function() sprintf("NEON-SmallMammal_captures_%s_%s.csv",
                                   export_slug(), format(Sys.Date(), "%Y%m%d")),
@@ -3439,18 +3443,22 @@ server <- function(input, output, session) {
       ser <- data.frame(
         file = "monthly-series",
         column = c("siteID","ym","mnka","captures","trap_nights","cpue_per100tn",
-                   "Nhat","p_hat","n_plots"),
+                   "Nhat","Nhat_lo","Nhat_hi","p_hat","n_plots"),
         units = c(
           "NEON 4-letter code","month (YYYY-MM)",
           "Minimum Number Known Alive (Krebs 1966), summed across plots",
           "handling events that month","trap-nights of effort that month",
           "captures per 100 trap-nights (within-site index)",
           "detection-corrected abundance (Schnabel/Chapman); blank where un-estimable",
+          "lower confidence bound for detection-corrected abundance",
+          "upper confidence bound for detection-corrected abundance",
           "per-night detection probability (Model M0)","distinct plots sampled"),
         note = c(
           "","","an INDEX, not a census; counts animals known alive, not corrected for detection",
           "raw count of handling events that month (a numerator, no denominator)","","captures per 100 trap-nights, a within-site relative index, NOT a cross-site density (detection differs by biome)",
           "blank for single-night / low-recapture months that can't be detection-corrected (about half of bouts are single-night by design)",
+          "blank whenever Nhat is un-estimable; interval method matches the detection estimator",
+          "blank whenever Nhat is un-estimable or the upper interval is not finite",
           "0–1; deserts run high, closed-canopy temperate sites low",""),
         stringsAsFactors = FALSE, row.names = NULL)
       # Provenance / license row (NEON CC BY 4.0) — first row of the codebook so
@@ -3476,8 +3484,8 @@ server <- function(input, output, session) {
           tags$code("DP1.10072.001"), ". Pick a site and date window and the app pulls every published capture, then reconstructs each individual's ", tags$b("capture career"), " from its ear-tag ID.")),
       div(class = "about-card",
         h4(bs_icon("arrow-repeat"), " How fresh is the data?"),
-        p("Each site ships as a pre-built, compressed bundle. An automated job re-pulls the latest published NEON records and redeploys the app ", tags$b("late on the first Saturday night of each month"), " (around 11 pm Arizona time), an off-peak window chosen so the brief redeploy never interrupts anyone mid-session."),
-        p("Want the very newest records right now? On the site-picker landing, tick ", tags$b("Include provisional"), " before you load a site for a live fetch of NEON's latest (still-unpublished) data.")),
+        p("Each site ships as a pre-built, compressed bundle. An automated job prepares and validates a new candidate ", tags$b("late on the first Saturday night of each month"), " (around 11 pm Arizona time). It reaches production only after its exact site, schema, index, checksum, package, and offline-start gates pass and the review PR is intentionally merged."),
+        p("The public app is bundle-only for fast, reproducible starts. Local builds that deliberately install the optional NEON fetch tooling can enable ", tags$b("Include provisional"), " to inspect newer, still-unpublished records; that control stays hidden in production.")),
       div(class = "about-card",
         h4(bs_icon("calculator"), " The Chonk Index · honest version"),
         p("It would be tempting to dress this up as a Scaled Mass Index (Peig & Green 2009), but in these desert rodents hind-foot length barely scales with mass (r ≈ 0.15 for kangaroo & pocket mice) and NEON almost never records total body length, so a standardized condition index would just rank measurement noise."),
@@ -3514,6 +3522,19 @@ server <- function(input, output, session) {
         p(class = "caveat", style = "margin-top:10px", bs_icon("info-circle"),
           " A blank measurement (weight ~23%, hind foot ~28% of rows) is an ", tags$b("unmeasured recapture or empty-trap row"),
           ", not an error; recaptures are often not re-weighed. The codebook states each column's units and this NA convention.")),
+      div(class = "about-card about-suite-card",
+        h4(bs_icon("stars"), " Explore the NEON Explorer Suite"),
+        p("Small Mammals is one part of a ten-app ecology suite. Open a companion cover page to follow the cascade from environmental conditions through plants and animal communities."),
+        div(class = "suite-app-grid",
+          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-Driver-Cascade/", target = "_blank", rel = "noopener", "Driver Cascade"),
+          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-Breeding-Birds/", target = "_blank", rel = "noopener", "Breeding Birds"),
+          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-Ground-Beetle-Tracker/", target = "_blank", rel = "noopener", "Ground Beetles"),
+          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-Plant-Diversity/", target = "_blank", rel = "noopener", "Plant Diversity"),
+          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-Plant-Phenology-Explorer/", target = "_blank", rel = "noopener", "Plant Phenology"),
+          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-Vegetation-Structure-Explorer/", target = "_blank", rel = "noopener", "Vegetation Structure"),
+          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-WaterChemistry-Analyte-Viewer-App/", target = "_blank", rel = "noopener", "Water Chemistry"),
+          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-Mosquito-Pulse/", target = "_blank", rel = "noopener", "Mosquito Pulse"),
+          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-My-Little-Inverts/", target = "_blank", rel = "noopener", "My Little Inverts"))),
       div(class = "about-card",
         h4(bs_icon("exclamation-diamond"), " Caveats"),
         p("NEON keeps a tag on one animal for life and doesn't recycle tag numbers (a number is unique within a site), so a multi-year capture career is a real long-lived individual, not a tag mix-up; we flag only the rare history that can't be one animal (e.g. the same tag at two plots on a single day). A trap that caught nothing means \"not detected,\" not \"absent.\" This is a data-exploration toy, not an authoritative population analysis, but the metrics are built to be defensible."),

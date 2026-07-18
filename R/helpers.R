@@ -11,6 +11,11 @@
 
 `%||%` <- function(a, b) if (is.null(a) || length(a) == 0 || (length(a) == 1 && is.na(a))) b else a
 
+# Helpers are also sourced directly by the fail-closed scientific fixture, where
+# global.R has not attached dplyr. Bind the declared dplyr pipe explicitly so
+# analytical functions do not depend on an ambient search-path side effect.
+`%>%` <- dplyr::`%>%`
+
 # Most-frequent non-NA value (ties -> first). Used to pick an individual's
 # "home" plot, modal species id, sex, etc.
 mode_chr <- function(x) {
@@ -221,6 +226,186 @@ parse_trap <- function(trapCoordinate) {
   list(x = x, y = y)
 }
 
+# ---- reviewed physical trap-event effort contract ------------------------
+#
+# `mam_pertrapnight` is row-shaped for animal handling, not always for physical
+# trap effort: status 4 can emit one row per animal caught in the same trap. The
+# app therefore resolves effort once at the physical-event grain and allocates it
+# back to rows. All downstream sums of `trap_effort` remain valid, while every
+# tagged animal row remains available as a capture.
+MAM_EFFORT_REQUIRED <- c(
+  "collectDate", "nightuid", "plotID", "trapCoordinate", "trapStatus",
+  "tagID", "remarks")
+MAM_TRAP_STATUS_EFFORT <- c(
+  "1 - trap not set" = 0,
+  "2 - trap disturbed/door closed but empty" = 0.5,
+  "3 - trap door open or closed w/ spoor left" = 0.5,
+  "4 - more than 1 capture in one trap" = 1,
+  "5 - capture" = 1,
+  "6 - trap set and empty" = 1)
+MAM_GRID_COORDINATE_RE <- "^[A-J](?:[1-9]|10)$"
+MAM_PLACEHOLDER_COORDINATE_RE <- "^(?:[A-J]X|X(?:[1-9]|10)|XX)$"
+MAM_REVIEWED_MULTI_TRAP_MARKERS <- c(
+  "trap accidentally double set",
+  "double trap method (two traps set at each location)")
+
+mam_require_columns <- function(d, required = MAM_EFFORT_REQUIRED,
+                                label = "mammal bundle") {
+  if (!is.data.frame(d))
+    stop(sprintf("%s must be a data frame", label), call. = FALSE)
+  missing <- setdiff(required, names(d))
+  if (length(missing))
+    stop(sprintf("%s lacks required field(s): %s", label,
+                 paste(missing, collapse = ", ")), call. = FALSE)
+  invisible(d)
+}
+
+mam_trap_status_effort <- function(status) {
+  token <- tolower(trimws(as.character(status)))
+  token[is.na(status)] <- NA_character_
+  out <- unname(MAM_TRAP_STATUS_EFFORT[token])
+  unknown <- is.na(out)
+  if (any(unknown))
+    stop(sprintf("mammal bundle has %d unknown/non-exact trapStatus token(s): %s",
+                 sum(unknown),
+                 paste(utils::head(sort(unique(token[unknown])), 5L),
+                       collapse = ", ")), call. = FALSE)
+  as.numeric(out)
+}
+
+mam_tag_present <- function(tag_id) {
+  tag <- as.character(tag_id)
+  !is.na(tag_id) & nzchar(trimws(tag))
+}
+
+mam_multi_trap_marker <- function(remarks) {
+  x <- tolower(as.character(remarks))
+  vapply(x, function(value) {
+    if (is.na(value)) return(0L)
+    hit <- which(vapply(MAM_REVIEWED_MULTI_TRAP_MARKERS,
+                        grepl, logical(1), x = value, fixed = TRUE))
+    if (length(hit) == 1L) as.integer(hit) else 0L
+  }, integer(1))
+}
+
+# Return one audit row per SOURCE row. `trap_effort` is allocated exactly once
+# for a one-trap multi-capture group (first row owns 1; the other animal rows own
+# 0). In a reviewed double-trap group both source rows are real traps and retain
+# their individual status weights. Placeholder coordinates deliberately stay
+# row-level because they cannot identify a shared physical trap.
+mam_resolve_effort_rows <- function(d, year, label = "mammal bundle") {
+  mam_require_columns(d, label = label)
+  if (length(year) != nrow(d) || any(!is.finite(year)) ||
+      any(year != as.integer(year)))
+    stop(sprintf("%s requires one finite integer year per row", label),
+         call. = FALSE)
+  if (!nrow(d))
+    return(data.frame(
+      trap_event = character(), trap_effort = numeric(),
+      trap_effort_rule = character(), trap_event_source_rows = integer(),
+      trap_effort_owner = logical(), stringsAsFactors = FALSE))
+
+  event_cols <- c("nightuid", "plotID", "trapCoordinate")
+  bad_key <- Reduce(`|`, lapply(event_cols, function(k) {
+    value <- as.character(d[[k]])
+    is.na(d[[k]]) | !nzchar(value)
+  }))
+  if (any(bad_key))
+    stop(sprintf("%s has %d rows without a complete trap-event key",
+                 label, sum(bad_key)), call. = FALSE)
+
+  coordinate <- as.character(d$trapCoordinate)
+  canonical <- grepl(MAM_GRID_COORDINATE_RE, coordinate, perl = TRUE)
+  placeholder <- grepl(MAM_PLACEHOLDER_COORDINATE_RE,
+                       coordinate, perl = TRUE)
+  unknown_coordinate <- !(canonical | placeholder)
+  if (any(unknown_coordinate))
+    stop(sprintf("%s has %d unreviewed trapCoordinate token(s): %s",
+                 label, sum(unknown_coordinate),
+                 paste(utils::head(sort(unique(coordinate[unknown_coordinate])),
+                                   5L), collapse = ", ")), call. = FALSE)
+
+  status <- tolower(trimws(as.character(d$trapStatus)))
+  effort <- mam_trap_status_effort(status)
+  tag <- trimws(as.character(d$tagID))
+  tag_present <- mam_tag_present(d$tagID)
+  marker <- mam_multi_trap_marker(d$remarks)
+  physical_key <- paste(as.integer(year), d$nightuid, d$plotID, coordinate,
+                        sep = "|")
+
+  out <- data.frame(
+    trap_event = rep(NA_character_, nrow(d)),
+    trap_effort = rep(NA_real_, nrow(d)),
+    trap_effort_rule = rep(NA_character_, nrow(d)),
+    trap_event_source_rows = rep(NA_integer_, nrow(d)),
+    trap_effort_owner = rep(FALSE, nrow(d)),
+    stringsAsFactors = FALSE)
+
+  placeholder_rows <- which(placeholder)
+  if (length(placeholder_rows)) {
+    out$trap_event[placeholder_rows] <-
+      paste("placeholder-row", placeholder_rows, sep = "|")
+    out$trap_effort[placeholder_rows] <- effort[placeholder_rows]
+    out$trap_effort_rule[placeholder_rows] <- "placeholder-row-level"
+    out$trap_event_source_rows[placeholder_rows] <- 1L
+    out$trap_effort_owner[placeholder_rows] <- TRUE
+  }
+
+  duplicated_canonical <- canonical &
+    (duplicated(physical_key) | duplicated(physical_key, fromLast = TRUE))
+  canonical_single_rows <- which(canonical & !duplicated_canonical)
+  if (length(canonical_single_rows)) {
+    out$trap_event[canonical_single_rows] <- physical_key[canonical_single_rows]
+    out$trap_effort[canonical_single_rows] <- effort[canonical_single_rows]
+    out$trap_effort_rule[canonical_single_rows] <- "canonical-single"
+    out$trap_event_source_rows[canonical_single_rows] <- 1L
+    out$trap_effort_owner[canonical_single_rows] <- TRUE
+  }
+
+  duplicate_rows <- which(duplicated_canonical)
+  groups <- split(duplicate_rows, physical_key[duplicate_rows])
+  for (ix in groups) {
+    key <- physical_key[ix[[1L]]]
+    capture_status <- status[ix] %in% c(
+      "4 - more than 1 capture in one trap", "5 - capture")
+    has_multi_capture_status <- any(
+      status[ix] == "4 - more than 1 capture in one trap")
+    reviewed_marker <- length(ix) == 2L && all(marker[ix] > 0L) &&
+      length(unique(marker[ix])) == 1L
+    same_collect_date <- length(unique(as.character(d$collectDate[ix]))) == 1L
+    reviewed_tags <- tag[ix][tag_present[ix]]
+    reviewed_tags_unique <- !anyDuplicated(reviewed_tags)
+    one_trap_multi_capture <- all(capture_status) &&
+      has_multi_capture_status && all(tag_present[ix]) &&
+      !anyDuplicated(tag[ix]) && all(marker[ix] == 0L) && same_collect_date
+
+    out$trap_event[ix] <- key
+    out$trap_event_source_rows[ix] <- as.integer(length(ix))
+    if (one_trap_multi_capture) {
+      out$trap_effort[ix] <- 0
+      out$trap_effort[ix[[1L]]] <- 1
+      out$trap_effort_rule[ix] <- "canonical-multi-capture-one-trap"
+      out$trap_effort_owner[ix[[1L]]] <- TRUE
+    } else if (reviewed_marker && !has_multi_capture_status &&
+               reviewed_tags_unique && same_collect_date) {
+      out$trap_effort[ix] <- effort[ix]
+      out$trap_effort_rule[ix] <- "reviewed-double-trap-rows"
+      out$trap_effort_owner[ix] <- TRUE
+    } else {
+      stop(sprintf(
+        "%s has an unreviewed duplicated canonical trap event %s (%d rows; statuses: %s)",
+        label, key, length(ix), paste(sort(unique(status[ix])), collapse = " + ")),
+        call. = FALSE)
+    }
+  }
+
+  if (anyNA(out$trap_event) || anyNA(out$trap_effort) ||
+      anyNA(out$trap_effort_rule) || anyNA(out$trap_event_source_rows))
+    stop(sprintf("%s effort resolver left unresolved source rows", label),
+         call. = FALSE)
+  out
+}
+
 # ---------------------------------------------------------------------------
 # clean_mam(): the one normalizer every downstream function expects.
 # Returns ALL trap rows (captures + empties) plus derived columns; downstream
@@ -236,7 +421,7 @@ clean_mam <- function(data.raw) {
             "tailLength","totalLength","weight","lifeStage","sex","testes",
             "nipples","pregnancyStatus","vagina","decimalLatitude",
             "decimalLongitude","elevation","nlcdClass","domainID","siteID",
-            "nightuid","trapStatus","remarks","nativeStatusCode")
+            "nightuid","trapStatus","remarks","nativeStatusCode","taxonRank")
   for (col in need) if (!col %in% names(d)) d[[col]] <- NA
 
   d$weight         <- suppressWarnings(as.numeric(d$weight))
@@ -253,16 +438,16 @@ clean_mam <- function(data.raw) {
   tp <- parse_trap(d$trapCoordinate)
   d$tx <- tp$x; d$ty <- tp$y
 
-  d$is_capture <- !is.na(d$tagID)
-  d$is_set     <- !grepl("^1", d$trapStatus %||% "")  # trapStatus "1 - trap not set"
-  # Effort weight (trap-nights) for catch-per-effort. A trap-night is one trap
-  # AVAILABLE to catch for one night, computed from each site's own data — never
-  # a fixed grid size. A sprung/disturbed trap (codes 2,3) was only available
-  # part of the night, so it counts as HALF a trap-night (Nelson & Clark 1973);
-  # codes 4,5,6 (captured / set-and-empty) = a full trap-night; code 1 (not set)
-  # = 0. (Fauna review.)
-  ts1 <- substr(as.character(d$trapStatus %||% ""), 1, 1); ts1[is.na(ts1)] <- ""
-  d$trap_effort <- ifelse(ts1 == "1", 0, ifelse(ts1 %in% c("2", "3"), 0.5, 1))
+  d$is_capture <- mam_tag_present(d$tagID)
+  effort_rows <- mam_resolve_effort_rows(
+    as.data.frame(d), d$year,
+    sprintf("%s mammal bundle", mode_chr(d$siteID) %||% "site"))
+  d$trap_event <- effort_rows$trap_event
+  d$trap_effort <- effort_rows$trap_effort
+  d$trap_effort_rule <- effort_rows$trap_effort_rule
+  d$trap_event_source_rows <- effort_rows$trap_event_source_rows
+  d$trap_effort_owner <- effort_rows$trap_effort_owner
+  d$is_set <- mam_trap_status_effort(d$trapStatus) > 0
   d
 }
 
@@ -508,7 +693,7 @@ leaderboard_by <- function(lb, category = c("captures", "weight", "career", "roa
 # Community-level snapshot for the site/date window.
 # ---------------------------------------------------------------------------
 community_stats <- function(d, lb = NULL) {
-  handled <- dplyr::filter(d, !is.na(.data$tagID))
+  handled <- dplyr::filter(d, .data$is_capture)
   if (is.null(lb)) lb <- build_leaderboard(d)
 
   list(
@@ -940,17 +1125,27 @@ arc_xy <- function(lng0, lat0, lng1, lat1, n = 24, bow = 0.18) {
 # Population index: Minimum Number Known Alive (MNKA; Krebs 1966) + CPUE.
 # An individual is "known alive" in every monthly session between its first and
 # last capture in a plot (even sessions it was missed). Returns one row per
-# (plotID, ym) with mnka and captures-per-100-trap-nights.
+# (plotID, ym) with mnka and captures-per-100-trap-nights. When a species is
+# requested, capture spans/counts are species-specific but effort still comes from
+# the FULL site trap-opportunity frame; filtering rows before computing effort
+# would make the denominator outcome-conditioned.
 # ---------------------------------------------------------------------------
-mnka_series <- function(d) {
-  h <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$ym), !is.na(.data$plotID))
+mnka_series <- function(d, scientific_name = NULL) {
+  h <- dplyr::filter(d, .data$is_capture, !is.na(.data$ym), !is.na(.data$plotID))
+  if (!is.null(scientific_name))
+    h <- dplyr::filter(h, !is.na(.data$scientificName),
+                      .data$scientificName == scientific_name)
   if (nrow(h) == 0) return(NULL)
   span <- h %>% dplyr::group_by(.data$plotID, .data$tagID) %>%
     dplyr::summarise(first = min(.data$ym), last = max(.data$ym), .groups = "drop")
+  cap_counts <- h %>% dplyr::group_by(.data$plotID, .data$ym) %>%
+    dplyr::summarise(captures = dplyr::n(), .groups = "drop")
   eff <- d %>% dplyr::filter(!is.na(.data$ym), !is.na(.data$plotID)) %>%
     dplyr::group_by(.data$plotID, .data$ym) %>%
     dplyr::summarise(trap_nights = sum(.data$trap_effort, na.rm = TRUE),
-                     captures = sum(!is.na(.data$tagID)), .groups = "drop")
+                     .groups = "drop") %>%
+    dplyr::left_join(cap_counts, by = c("plotID", "ym")) %>%
+    dplyr::mutate(captures = dplyr::coalesce(.data$captures, 0L))
   # Drop plot-months with ZERO trap effort: NEON ships non-trapping records (e.g.
   # the COVID-2020 pause, trap-status-only rows) that carry a plotID+ym but no
   # actual sampling. Left in, they give CPUE = 100*0/0 = NaN, which shatters the
@@ -1404,7 +1599,7 @@ stat_breakdown <- function(d, lb, which) {
   if (which == "trapnights") {
     eff <- d %>% dplyr::filter(!is.na(.data$plotID)) %>% dplyr::group_by(.data$plotID) %>%
       dplyr::summarise(tn = sum(.data$trap_effort, na.rm = TRUE),
-        caps = sum(!is.na(.data$tagID)), .groups = "drop") %>%
+        caps = sum(.data$is_capture), .groups = "drop") %>%
       dplyr::mutate(cpue = ifelse(.data$tn > 0, round(100 * .data$caps / .data$tn, 1), NA)) %>%
       dplyr::arrange(dplyr::desc(.data$tn))
     rows <- tibble::tibble(rank = seq_len(nrow(eff)),
@@ -1524,7 +1719,7 @@ env_climatology <- function(env, layer, lag = 0) {
 .mam_cpue_series <- function(d) {
   m <- d %>% dplyr::filter(!is.na(.data$ym)) %>%
     dplyr::group_by(.data$ym) %>%
-    dplyr::summarise(cap = sum(!is.na(.data$tagID)),
+    dplyr::summarise(cap = sum(.data$is_capture),
                      tn  = sum(.data$trap_effort, na.rm = TRUE), .groups = "drop")
   m <- m[m$tn > 0, , drop = FALSE]
   if (!nrow(m)) return(NULL)
@@ -1576,7 +1771,7 @@ env_response_points <- function(d, env, layer, lag = 0) {
   if (is.null(meta) || is.null(env) || !(meta$col %in% names(env))) return(NULL)
   m <- d %>% dplyr::filter(!is.na(.data$ym)) %>%
     dplyr::group_by(.data$ym) %>%
-    dplyr::summarise(cap = sum(!is.na(.data$tagID)),
+    dplyr::summarise(cap = sum(.data$is_capture),
                      tn  = sum(.data$trap_effort, na.rm = TRUE), .groups = "drop")
   m <- m[m$tn > 0, , drop = FALSE]
   if (!nrow(m)) return(NULL)

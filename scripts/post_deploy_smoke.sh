@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # post_deploy_smoke.sh — post-deploy liveness check for the refresh loop.
 #
-# After the monthly refresh pushes to main, Connect Cloud republishes the app.
+# After an intentional review merge to main, Connect Cloud republishes the app.
 # This closes the loop: it confirms the LIVE surfaces actually come back up. It is
 # cold-start aware — a Connect Cloud worker can take a minute-plus to wake, so each
 # URL is polled with backoff for up to ~5 minutes before it is declared down.
 #
 # Usage:  post_deploy_smoke.sh "<label>=<url>" ["<label>=<url>" ...]
 # Exit 0 if every URL returns a healthy status within the retry budget; 1 otherwise.
-# On failure the refresh workflow opens/updates a GitHub issue (see refresh-data.yml).
+# The Connect app must also return the app-specific UI marker and must not match a
+# known host error page. This is semantic startup evidence, not an HTTP-only probe.
+# On failure the post-deploy workflow opens/updates a GitHub issue; on recovery it
+# closes the matching open outage issue (see post-deploy.yml).
 
 set -uo pipefail
 
@@ -16,27 +19,38 @@ MAX_ATTEMPTS="${SMOKE_MAX_ATTEMPTS:-10}"   # ~10 tries
 SLEEP_BASE="${SMOKE_SLEEP_BASE:-5}"        # 5s,10s,15s... capped — ~5 min total
 CONNECT_TIMEOUT="${SMOKE_CONNECT_TIMEOUT:-15}"
 MAX_TIME="${SMOKE_MAX_TIME:-45}"
+APP_MARKER="${SMOKE_APP_MARKER:-ddl-app-ready}"
 
 fail=0
 report=""
 
 check_one() {
-  local label="$1" url="$2" attempt code
+  local label="$1" url="$2" attempt code body nap
+  body=$(mktemp)
   for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
-    # Follow redirects; a 2xx or 3xx final code counts as up. Connect Cloud can
-    # answer 200 while still waking, which is fine — we only care it responds.
-    code=$(curl -sS -o /dev/null -w '%{http_code}' -L \
+    # Follow redirects and retain the body. Posit host error pages can return 200,
+    # so status alone is never enough for the app surface.
+    code=$(curl -sS -o "$body" -w '%{http_code}' -L \
                 --connect-timeout "$CONNECT_TIMEOUT" --max-time "$MAX_TIME" \
                 -A 'ddl-uptime-smoke/1.0' "$url" 2>/dev/null || echo "000")
     if [[ "$code" =~ ^(2|3)[0-9][0-9]$ ]]; then
-      echo "  ok   [$label] $url -> $code (attempt $attempt)"
-      return 0
+      if grep -Eqi 'startup error|application failed to start|application error|service unavailable' "$body"; then
+        echo "  wait [$label] $url -> $code but body is a host error page (attempt $attempt/$MAX_ATTEMPTS)"
+      elif [[ "$label" == *"app"* ]] && ! grep -Fq "$APP_MARKER" "$body"; then
+        echo "  wait [$label] $url -> $code but app-ready marker is absent (attempt $attempt/$MAX_ATTEMPTS)"
+      else
+        echo "  ok   [$label] $url -> $code + semantic body check (attempt $attempt)"
+        rm -f "$body"
+        return 0
+      fi
+    else
+      echo "  wait [$label] $url -> $code (attempt $attempt/$MAX_ATTEMPTS)"
     fi
-    echo "  wait [$label] $url -> $code (attempt $attempt/$MAX_ATTEMPTS)"
-    local nap=$(( SLEEP_BASE * attempt )); (( nap > 40 )) && nap=40
+    nap=$(( SLEEP_BASE * attempt )); (( nap > 40 )) && nap=40
     sleep "$nap"
   done
-  echo "  DOWN [$label] $url -> last=$code after $MAX_ATTEMPTS attempts"
+  rm -f "$body"
+  echo "  DOWN [$label] $url -> last=$code; semantic health not reached after $MAX_ATTEMPTS attempts"
   return 1
 }
 

@@ -1,23 +1,11 @@
-name: Refresh NEON data bundle
+name: Propose NEON data refresh
 
-# Monthly rebuild of the per-site MAMMAL .rds bundles (data/sites/*.rds) + a light
-# top-up of the environmental overlays (data/env/*.rds) + the site index, then a
-# DIRECT PUSH to main. Runs late on the FIRST SATURDAY NIGHT of each month (~11pm
-# Arizona time) so any republish lands off-peak. NEON publishes on a lag, so a
-# monthly pull keeps the bundled "database" current.
-#
-# DEPLOY = git push to main. Posit Connect Cloud watches this repo and auto-
-# republishes on every push to main — no shinyapps secrets, no rsconnect deploy
-# (matching the WaterChem / Plant / Beetle / Veg siblings). The old shinyapps.io
-# path (scripts/deploy.R + rsconnect/shinyapps.io/) has been removed.
-#
-# REQUIRES one repo secret (Settings → Secrets and variables → Actions):
-#   NEON_TOKEN   a free NEON API token from your NEON "My Account" page. From
-#                2026-06-30 NEON REQUIRES a token for downloads (before that it only
-#                raised the rate limit). Without it the monthly re-pull fails after
-#                that date; the deployed app keeps serving its last committed bundle.
-# Trigger manually from the Actions tab (workflow_dispatch); tick "skip_download"
-# to just rebuild the index from the committed bundles (fast, no NEON re-pull).
+# Producer -> validator -> restricted publisher. The producer downloads into an
+# empty staging directory; the committed known-good bundle is replaced only after
+# the exact 46-site set exists. The validator rebuilds all indexes and the
+# manifest, verifies the complete bundle, and uploads an immutable candidate.
+# Only the final job has write permission, and it publishes to a review branch —
+# never main. Merging the PR is the explicit production/deploy decision.
 
 on:
   schedule:
@@ -33,13 +21,17 @@ on:
         default: false
 
 permissions:
-  contents: write          # push the refreshed bundle to main -> Connect Cloud redeploys
+  contents: read
+
+concurrency:
+  group: small-mammal-refresh
+  cancel-in-progress: false
 
 jobs:
   # Gate: only the FIRST Saturday night (Arizona time) runs the heavy refresh.
   # Manual runs (workflow_dispatch) always proceed.
   gate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       run: ${{ steps.check.outputs.run }}
     steps:
@@ -59,45 +51,83 @@ jobs:
             echo "run=false" >> "$GITHUB_OUTPUT"
           fi
 
-  refresh:
+  build_candidate:
     needs: gate
     if: needs.gate.outputs.run == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
     env:
       NEON_TOKEN: ${{ secrets.NEON_TOKEN }}
+      RSPM: https://packagemanager.posit.co/cran/__linux__/jammy/2026-07-15
+      RENV_CONFIG_REPOS_OVERRIDE: https://packagemanager.posit.co/cran/__linux__/jammy/2026-07-15
+      OPENBLAS_CORETYPE: Haswell
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}   # push to main -> Connect Cloud auto-redeploys
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
 
-      - uses: r-lib/actions/setup-r@v2
+      - uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
         with:
-          use-public-rspm: true
+          r-version: '4.5.2'
+          use-public-rspm: false
 
       # rsconnect is a BUILD-TIME tool: scripts/write_manifest.R calls
       # rsconnect::writeManifest(). It is pruned out of the final manifest by the
       # RUNTIME_PKGS reachability walk in that script, so it never ships to Connect.
       - name: Install R packages
-        uses: r-lib/actions/setup-r-dependencies@v2
+        uses: r-lib/actions/setup-r-dependencies@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
         with:
+          # Match validator and eventual manifest provenance exactly. These URLs
+          # are versioned CRAN sources; terra 1.8-50 is archived, while the other
+          # seven versions are current CRAN tarballs as of this release contract.
           packages: >
-            neonUtilities, dplyr, tibble, tidyr, stringr, jsonlite,
-            shiny, bslib, bsicons, plotly, leaflet, DT, shinyjs,
-            shinycssloaders, RColorBrewer, htmltools, cpp11,
-            rsconnect
+            neonUtilities, dplyr, tibble, tidyr, stringr, jsonlite, shiny,
+            bslib, bsicons, plotly, leaflet, DT, shinyjs, shinycssloaders,
+            RColorBrewer, htmltools, ggplot2, cpp11, rsconnect,
+            url::https://cran.r-project.org/src/contrib/Archive/terra/terra_1.8-50.tar.gz,
+            url::https://cran.r-project.org/src/contrib/sf_1.1-1.tar.gz,
+            url::https://cran.r-project.org/src/contrib/s2_1.1.11.tar.gz,
+            url::https://cran.r-project.org/src/contrib/units_1.0-1.tar.gz,
+            url::https://cran.r-project.org/src/contrib/wk_0.9.5.tar.gz,
+            url::https://cran.r-project.org/src/contrib/classInt_0.4-11.tar.gz,
+            url::https://cran.r-project.org/src/contrib/raster_3.6-32.tar.gz,
+            url::https://cran.r-project.org/src/contrib/sp_2.2-1.tar.gz
+          pak-version: stable
+          dependencies: '"hard"'
+          cache-version: small-mammal-refresh-geo-closure-v2
+          install-pandoc: 'false'
+          install-quarto: 'false'
 
-      - name: Rebuild the per-site bundle (full NEON re-pull)
+      - name: Build the full mammal bundle in an empty staging directory
         if: ${{ github.event.inputs.skip_download != 'true' }}
+        env:
+          SMT_SITE_OUT_DIR: ${{ runner.temp }}/mammal-sites
         run: |
+          set -euo pipefail
+          mkdir -p "$SMT_SITE_OUT_DIR"
+          Rscript --vanilla scripts/refresh_data.R
+
+      - name: Replace the worktree copy only after staging passes
+        if: ${{ github.event.inputs.skip_download != 'true' }}
+        env:
+          SMT_SITE_OUT_DIR: ${{ runner.temp }}/mammal-sites
+        run: |
+          set -euo pipefail
           rm -f data/sites/*.rds
-          Rscript scripts/refresh_data.R
+          cp -- "$SMT_SITE_OUT_DIR"/*.rds data/sites/
 
       # Environmental overlays (precip / temperature / fruiting) — a LIGHT monthly
       # TOP-UP: SMT_ENV_RECENT_MONTHS re-pulls only the last ~14 months and merges
       # into the committed data/env bundle (the full 13-year history is built once,
       # offline). Time-boxed + non-fatal so it can never stall or block the push.
       # Non-fatal so a transient env-product hiccup can never block the mammal
-      # deploy, but its outcome is CAPTURED (id + step output) and surfaced loudly
+      # candidate, but its outcome is CAPTURED (id + step output) and surfaced loudly
       # below instead of silently swallowed, so a repeatedly-failing top-up is visible.
       - name: Top up the environmental overlays (recent months)
         id: envtopup
@@ -106,24 +136,24 @@ jobs:
         timeout-minutes: 40
         env:
           SMT_ENV_RECENT_MONTHS: "14"
-        run: Rscript scripts/refresh_env_data.R
+        run: Rscript --vanilla scripts/refresh_env_data.R
 
       - name: Flag environmental top-up failure (loud, non-fatal)
         if: ${{ github.event.inputs.skip_download != 'true' && steps.envtopup.outcome == 'failure' }}
         run: |
-          echo "::warning title=Env overlay top-up failed::scripts/refresh_env_data.R did not finish (timeout or NEON error). The mammal bundle + index still deployed; the env overlays were NOT topped up this run."
+          echo "::warning title=Env overlay top-up failed::scripts/refresh_env_data.R did not finish (timeout or NEON error). The required mammal candidate can still be reviewed; the env overlays were NOT topped up this run."
 
       # Rebuild the site index (per-site summary + mean detection p̂ + species
       # ranges) from the committed bundles — always, so the index stays in lock-step
       # with the data on both the full-pull and skip-download paths.
       - name: Rebuild the site index
-        run: Rscript scripts/build_site_index.R
+        run: Rscript --vanilla scripts/build_site_index.R
 
       # Rebuild the "Search the network" index (data/search_index.rds) from the
       # committed bundles — must run on BOTH paths so the search tab never goes
       # stale after a refetch.
       - name: Rebuild the search index
-        run: Rscript scripts/build_search_index.R
+        run: Rscript --vanilla scripts/build_search_index.R
 
       # Regenerate the lean manifest.json from the committed runtime files. The
       # per-file checksums must track the refreshed bundles, or Connect Cloud
@@ -132,105 +162,80 @@ jobs:
       # in (or plotly rides without data.table), and never hand-serializes the
       # canonical writeManifest output beyond the lean prune.
       - name: Regenerate the manifest
-        run: Rscript scripts/write_manifest.R
+        run: Rscript --vanilla scripts/write_manifest.R
 
-      # PRE-DEPLOY VERIFICATION GATE. Check the rebuilt bundles, indexes, and the
-      # manifest BEFORE the push (which is the deploy). If this fails the job stops
-      # here, the push never happens, and Connect Cloud keeps serving the last
-      # known-good snapshot instead of a truncated/stale refresh.
+      # PRE-PUBLICATION VERIFICATION GATE. Check the rebuilt bundles, indexes, and
+      # manifest before any review-branch write. If this fails the job stops here;
+      # no candidate is published and production remains untouched.
       - name: Verify rebuilt bundle (pre-deploy gate)
-        run: Rscript scripts/verify_bundle.R
-
-      # Commit + push refreshed data DIRECTLY to main — THIS is the deploy: the push
-      # makes Connect Cloud auto-republish (no human merge in the loop, matching the
-      # siblings). Guarded so it no-ops cleanly when nothing changed.
-      - name: Commit & push refreshed data to main
-        env:
-          ENV_OUTCOME: ${{ steps.envtopup.outcome }}
         run: |
-          git config user.name  "neon-data-bot"
-          git config user.email "neon-data-bot@users.noreply.github.com"
-          git add -A data data-sample manifest.json
-          if git diff --cached --quiet; then
-            echo "No data changes — nothing to commit or deploy."
-          else
-            # Build a commit message that reflects what ACTUALLY changed this run:
-            # whether the mammal data advanced (from the freshness marker the
-            # refresh script wrote) and whether the env top-up succeeded.
-            FRESH="freshness unknown"
-            if [ -f data/.refresh_state.json ]; then
-              if grep -q '"advanced": *true' data/.refresh_state.json; then
-                NEW=$(grep -o '"freshest_collectDate": *"[^"]*"' data/.refresh_state.json | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
-                FRESH="data advanced to ${NEW:-newer}"
-              else
-                FRESH="freshest record did NOT advance"
-              fi
-            fi
-            ENV="env top-up ok"
-            if [ "${ENV_OUTCOME:-}" = "failure" ]; then ENV="env top-up FAILED (overlays unchanged)"; fi
-            if git diff --cached --quiet -- data/env; then ENV="env unchanged"; fi
-            git commit -m "data: monthly NEON small-mammal refresh [bot]" \
-                       -m "${FRESH}; ${ENV}; index rebuilt."
-            git push origin HEAD:main
-            echo "Pushed refreshed data to main — Connect Cloud will redeploy. (${FRESH}; ${ENV})"
-          fi
+          set -euo pipefail
+          Rscript --vanilla scripts/test_helpers.R
+          Rscript --vanilla scripts/verify_bundle.R
+          Rscript --vanilla -e 'Sys.setenv(SMT_LIVE="0"); source("global.R"); source("ui.R"); source("server.R"); stopifnot(inherits(ui, "shiny.tag.list") || inherits(ui, "shiny.tag"), is.function(server))'
+          git diff --check
 
-  # POST-DEPLOY VERIFICATION. Closes the loop: after the refresh job pushes (which
-  # triggers the Connect Cloud republish), confirm the LIVE app + landing page
-  # actually come back up. Cold-start aware (Connect workers wake slowly). Runs
-  # only on real refresh runs (first Saturday or a manual dispatch), NOT on the
-  # every-Saturday no-op gate. A failure here opens/updates a GitHub issue so a
-  # silent post-deploy outage is loud instead of a missed red check.
-  verify_live:
-    needs: [gate, refresh]
-    if: needs.gate.outputs.run == 'true'
-    runs-on: ubuntu-latest
+      - name: Package the validated candidate
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/small-mammal-refresh.tgz" data data-sample manifest.json
+
+      - name: Upload the immutable validated candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: small-mammal-refresh-${{ github.sha }}
+          path: ${{ runner.temp }}/small-mammal-refresh.tgz
+          if-no-files-found: error
+          retention-days: 7
+
+  publish_candidate:
+    needs: [gate, build_candidate]
+    if: needs.gate.outputs.run == 'true' && needs.build_candidate.result == 'success'
+    runs-on: ubuntu-22.04
     permissions:
-      contents: read
-      issues: write          # open/update the outage issue on failure
+      contents: write
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
 
-      - name: Smoke-check the live surfaces
-        id: smoke
-        run: |
-          # Give Connect Cloud a head start to notice the push before we poll.
-          sleep 30
-          bash scripts/post_deploy_smoke.sh \
-            "Connect Cloud app=https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/" \
-            "GitHub Pages landing=https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/" \
-            | tee smoke.log
-          # Propagate the script's exit code (tee would otherwise mask it).
-          exit "${PIPESTATUS[0]}"
+      - name: Download the validated candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: small-mammal-refresh-${{ github.sha }}
+          path: ${{ runner.temp }}/refresh-candidate
 
-      - name: Open/update outage issue
-        if: failure()
+      - name: Publish or update the review branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TITLE="🔴 Post-deploy: live app did not come back up after refresh"
-          BODY=$(cat <<EOF
-          The monthly refresh pushed to \`main\` but the post-deploy smoke check could not
-          confirm the live surfaces are up (cold-start budget exhausted).
-
-          Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-
-          \`\`\`
-          $(sed -n 's/^  //p' smoke.log 2>/dev/null | tail -n 20)
-          \`\`\`
-
-          If Connect Cloud is just slow, re-run the smoke or open the app manually; if it
-          stays down, check the Connect Cloud build log for a package-install/deploy failure.
-          EOF
-          )
-          # Dedup: reuse an open issue with this title instead of stacking new ones.
-          NUM=$(gh issue list --state open --search "$TITLE in:title" --json number \
-                  --jq '.[0].number' 2>/dev/null || echo "")
-          if [ -n "$NUM" ]; then
-            gh issue comment "$NUM" --body "$BODY"
-            echo "Updated existing outage issue #$NUM"
+          set -euo pipefail
+          tar -xzf "$RUNNER_TEMP/refresh-candidate/small-mammal-refresh.tgz"
+          if git diff --quiet -- data data-sample manifest.json; then
+            echo "No validated data change; no review branch or deployment created."
+            exit 0
+          fi
+          branch="automation/small-mammal-data-refresh"
+          remote_head=$(git ls-remote --heads origin "refs/heads/$branch" | awk '{print $1}')
+          git switch -C "$branch"
+          git config user.name "neon-data-bot"
+          git config user.email "neon-data-bot@users.noreply.github.com"
+          git add -A data data-sample manifest.json
+          git commit -m "data: propose validated small-mammal refresh [bot]" \
+                     -m "Produced from ${GITHUB_SHA}; exact site set, helper contracts, indexes, manifest, and offline app source passed before publication."
+          if [ -n "$remote_head" ]; then
+            git push --force-with-lease="refs/heads/$branch:$remote_head" \
+              origin "$branch:refs/heads/$branch"
           else
-            gh issue create --title "$TITLE" --body "$BODY" --label "uptime" 2>/dev/null \
-              || gh issue create --title "$TITLE" --body "$BODY"
-            echo "Opened new outage issue"
+            git push origin "$branch:refs/heads/$branch"
+          fi
+          pr_url=$(gh pr list --head "$branch" --state open --json url --jq '.[0].url')
+          if [ -z "$pr_url" ]; then
+            gh pr create --base main --head "$branch" \
+              --title "data: validated NEON small-mammal refresh" \
+              --body "Automated refresh candidate from run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}. This PR is intentionally the production gate: merging to main triggers the Connect Cloud republish and semantic post-deploy smoke workflow."
+          else
+            gh pr comment "$pr_url" --body "Updated with validated candidate from run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
           fi

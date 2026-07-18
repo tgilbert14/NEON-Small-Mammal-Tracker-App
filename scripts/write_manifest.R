@@ -26,6 +26,8 @@ suppressMessages({
   library(jsonlite)
 })
 
+`%||%` <- function(a, b) if (is.null(a) || length(a) == 0L) b else a
+
 appFiles <- c(
   "global.R", "ui.R", "server.R",
   list.files("R", pattern = "\\.R$", full.names = TRUE),
@@ -92,28 +94,30 @@ if (length(removed)) {
                        null = "null")
 }
 
-# ---- force the RSPM LINUX BINARY mirror (jammy) for the package repo --------
-# use-public-rspm / rsconnect record the platform-agnostic repo URL
-# (packagemanager.posit.co/cran/latest), which Connect Cloud resolves to SOURCE on
-# Linux — so terra/sf (via leaflet -> raster -> terra) compile from source and FAIL
-# against the build image's GDAL 3.4.1 (terra >= 1.8 needs GDAL >= 3.5). Rewrite the
-# repo to the __linux__/jammy binary path (Ubuntu 22.04) so Connect installs
-# precompiled binaries and skips the GDAL build. Deterministic text pass, runs last,
-# so it sticks no matter how the repo was recorded above (CI or local).
+# ---- freeze ordinary packages to the dated Posit jammy snapshot ------------
+# rsconnect can record floating or platform-agnostic repository URLs. Replace
+# those URLs with one dated jammy snapshot so ordinary R dependencies are
+# reproducible. This is repository provenance, not a promise that Connect will
+# install a binary: native geospatial packages are separately installed from
+# exact CRAN source tarballs and verified below.
 mtxt <- readLines("manifest.json", warn = FALSE)
+RSPM_SNAPSHOT <- "https://packagemanager.posit.co/cran/__linux__/jammy/2026-07-15"
 mtxt <- gsub("https://packagemanager.posit.co/cran/latest",
-             "https://packagemanager.posit.co/cran/__linux__/jammy/latest", mtxt, fixed = TRUE)
+             RSPM_SNAPSHOT, mtxt, fixed = TRUE)
+mtxt <- gsub("https://packagemanager.posit.co/cran/__linux__/jammy/latest",
+             RSPM_SNAPSHOT, mtxt, fixed = TRUE)
 mtxt <- gsub("https://cloud.r-project.org",
-             "https://packagemanager.posit.co/cran/__linux__/jammy/latest", mtxt, fixed = TRUE)
+             RSPM_SNAPSHOT, mtxt, fixed = TRUE)
 writeLines(mtxt, "manifest.json")
-cat("Repo set to RSPM jammy mirror.\n")
+cat(sprintf("Repo frozen to RSPM jammy snapshot %s.\n", RSPM_SNAPSHOT))
 
-# ---- FREEZE the source-compiled geospatial closure + the R version ----------
+# ---- VERIFY the installed geospatial closure + R version -------------------
 # ROOT-CAUSE FIX for the recurring "worked fine, then start-up error, republish
-# fixes it" outage. This CI regenerates the manifest on every monthly data refresh
-# and pushes straight to main, and Connect Cloud auto-republishes on that push.
-# rsconnect::writeManifest() snapshots WHATEVER is installed in the fresh GitHub
-# runner — i.e. the LATEST RSPM release of every package AND the runner's latest R.
+# fixes it" outage. Refresh regenerates the manifest in a review branch; a later
+# approved merge can trigger Connect Cloud to republish the verified closure.
+# rsconnect::writeManifest() snapshots what is actually installed in the fresh
+# GitHub runner. CI and refresh therefore install the declared versions from exact
+# CRAN tarball URLs before this script runs.
 # So an untouched app "spontaneously" breaks whenever a monthly refresh floats a
 # package (or R) forward to a version that won't SOURCE-COMPILE on Connect's build
 # image (Ubuntu jammy: GDAL 3.4.1, GEOS 3.10, PROJ 8.2, Abseil ~2022). The build
@@ -121,18 +125,18 @@ cat("Repo set to RSPM jammy mirror.\n")
 # and a manual republish only helps transiently.
 #
 # leaflet (the picker map) drags in the ENTIRE native geospatial stack, all of
-# which Connect compiles FROM SOURCE regardless of the RSPM binary repo above:
+# which Connect may need to compile FROM SOURCE regardless of the snapshot lane:
 #     leaflet -> raster -> terra            (terra >= 1.8-54 needs GDAL 3.8)
 #     leaflet -> sf      -> s2, units, ...   (s2 >= ... needs newer Abseil)
 # Pinning ONLY terra (the first landmine we hit) left sf/s2/units/wk/classInt AND
 # the R `platform` version free to float on the next refresh — which is exactly
-# how it kept re-breaking. So we now FREEZE the whole known-good closure to the
-# versions the LIVE app is proven to build on, plus the R version. These are all
+# how it kept re-breaking. So the workflows install the whole known-good closure
+# and this script verifies it plus the R version. These are all
 # install-only deps (the app uses leaflet only for markers/tiles; it never calls
 # terra::/sf::/s2::), so freezing older versions has ZERO runtime impact.
 #
-# To intentionally move a pin (e.g. once terra ships the GDAL-3.8 guard in a
-# release): bump it here, and confirm it still compiles on jammy's system libs.
+# To intentionally move a pin, update both workflow URL lists and this gate, then
+# confirm the actual package compiles on jammy's system libraries.
 GEO_PINS <- c(
   terra    = "1.8-50",   # last release before the unguarded GDAL-3.8 multidim code (1.8-54)
   sf       = "1.1-1",    # proven on jammy GDAL 3.4.1 / GEOS 3.10 / PROJ 8.2
@@ -143,48 +147,89 @@ GEO_PINS <- c(
   raster   = "3.6-32",   # satisfied by terra 1.8-50 (needs terra >= 1.8-5)
   sp       = "2.2-1"
 )
-# Freeze the R version too: a runner R bump (seen: 4.5.2 -> 4.6.0) changes the
+GEO_URLS <- c(
+  terra    = "https://cran.r-project.org/src/contrib/Archive/terra/terra_1.8-50.tar.gz",
+  sf       = "https://cran.r-project.org/src/contrib/sf_1.1-1.tar.gz",
+  s2       = "https://cran.r-project.org/src/contrib/s2_1.1.11.tar.gz",
+  units    = "https://cran.r-project.org/src/contrib/units_1.0-1.tar.gz",
+  wk       = "https://cran.r-project.org/src/contrib/wk_0.9.5.tar.gz",
+  classInt = "https://cran.r-project.org/src/contrib/classInt_0.4-11.tar.gz",
+  raster   = "https://cran.r-project.org/src/contrib/raster_3.6-32.tar.gz",
+  sp       = "https://cran.r-project.org/src/contrib/sp_2.2-1.tar.gz"
+)
+
+# Source-built package DESCRIPTION files contain a wall-clock `Built` timestamp.
+# That field changes on every otherwise-identical validator run and is not package
+# identity, provenance, compatibility, or an install input. Remove it only for the
+# exact URL-pinned closure; all reproducibility-bearing fields remain hard-gated.
+canonical <- jsonlite::fromJSON("manifest.json", simplifyVector = FALSE)
+for (pkg in names(GEO_PINS)) {
+  if (!is.null(canonical$packages[[pkg]]$description))
+    canonical$packages[[pkg]]$description$Built <- NULL
+}
+jsonlite::write_json(canonical, "manifest.json", auto_unbox = TRUE, pretty = TRUE,
+                     null = "null")
+cat("Canonicalized non-semantic Built timestamps for the exact URL package closure.\n")
+
+# Pin the R version too: a runner R bump (seen: 4.5.2 -> 4.6.0) changes the
 # whole build image and can invalidate binary/source assumptions on republish.
 R_PLATFORM_PIN <- "4.5.2"
 
-mm <- jsonlite::fromJSON("manifest.json", simplifyVector = FALSE)
-if (!is.null(mm$platform)) {
-  mm$platform <- R_PLATFORM_PIN
-}
-for (pkg in names(GEO_PINS)) {
-  if (!is.null(mm$packages[[pkg]])) {
-    v <- unname(GEO_PINS[[pkg]])
-    mm$packages[[pkg]]$description$Version <- v
-    if (!is.null(mm$packages[[pkg]]$description$RemoteSha))
-      mm$packages[[pkg]]$description$RemoteSha <- v
-    cat(sprintf("Pinned %s to %s.\n", pkg, v))
-  }
-}
-jsonlite::write_json(mm, "manifest.json", auto_unbox = TRUE, pretty = TRUE, null = "null")
-cat(sprintf("Froze R platform to %s and the geospatial closure (compiles on Connect's jammy image).\n",
-            R_PLATFORM_PIN))
-
-# ---- hard gate: the frozen pins MUST be present and correct after regen ------
-# A refresh must never ship a floated geospatial version. If writeManifest changed
-# a native package's version and (somehow) the freeze above didn't take, stop the
-# CI before it can push a build-breaking manifest to main.
+# ---- hard gate: installed versions MUST be present and correct --------------
+# A refresh must never ship a floated or fabricated geospatial version. This gate
+# checks writeManifest output as generated; it does not mutate platform, Version,
+# or RemoteSha fields.
 chk <- jsonlite::fromJSON("manifest.json", simplifyVector = FALSE)
 bad <- character(0)
-if (!is.null(chk$platform) && !identical(chk$platform, R_PLATFORM_PIN))
-  bad <- c(bad, sprintf("platform=%s (want %s)", chk$platform, R_PLATFORM_PIN))
+if (is.null(chk$platform) || !identical(chk$platform, R_PLATFORM_PIN))
+  bad <- c(bad, sprintf("platform=%s (want actual %s)",
+                       if (is.null(chk$platform)) "<missing>" else as.character(chk$platform),
+                       R_PLATFORM_PIN))
+repo_by_pkg <- vapply(chk$packages, function(x) {
+  repo <- x$Repository
+  if (is.null(repo) || length(repo) != 1L || is.na(repo)) "" else as.character(repo)
+}, character(1), USE.NAMES = TRUE)
+
+# Packages installed from exact `url::` CRAN tarballs truthfully record the
+# symbolic repository `CRAN` and their URL origin in DESCRIPTION remote metadata;
+# ordinary dependencies resolved from the dated Posit snapshot must record that
+# snapshot URL. Reject crossed lanes, blank/third values, or a URL that differs by
+# even one character from the declared build input.
+geo_repo <- repo_by_pkg[intersect(names(GEO_PINS), names(repo_by_pkg))]
+runtime_repo <- repo_by_pkg[setdiff(names(repo_by_pkg), names(GEO_PINS))]
+if (length(geo_repo) != length(GEO_PINS) || any(geo_repo != "CRAN"))
+  bad <- c(bad, sprintf("geospatial repositories=[%s] (want CRAN for exact URL installs)",
+                       paste(unique(unname(geo_repo)), collapse = ",")))
+if (length(runtime_repo) == 0L || any(runtime_repo != RSPM_SNAPSHOT))
+  bad <- c(bad, sprintf("ordinary package repositories=[%s] (want dated snapshot %s)",
+                       paste(unique(unname(runtime_repo)), collapse = ","), RSPM_SNAPSHOT))
 for (pkg in names(GEO_PINS)) {
-  if (!is.null(chk$packages[[pkg]])) {
-    got <- chk$packages[[pkg]]$description$Version
-    if (!identical(got, unname(GEO_PINS[[pkg]])))
-      bad <- c(bad, sprintf("%s=%s (want %s)", pkg, got, unname(GEO_PINS[[pkg]])))
+  if (is.null(chk$packages[[pkg]])) {
+    bad <- c(bad, sprintf("%s=<missing> (want %s)",
+                         pkg, unname(GEO_PINS[[pkg]])))
+    next
   }
+  got <- chk$packages[[pkg]]$description$Version
+  if (!identical(got, unname(GEO_PINS[[pkg]])))
+    bad <- c(bad, sprintf("%s=%s (want actual %s)",
+                         pkg, got, unname(GEO_PINS[[pkg]])))
+  source <- as.character(chk$packages[[pkg]]$Source %||% "")
+  remote_type <- as.character(chk$packages[[pkg]]$description$RemoteType %||% "")
+  remote_ref <- as.character(chk$packages[[pkg]]$description$RemotePkgRef %||% "")
+  built <- as.character(chk$packages[[pkg]]$description$Built %||% "")
+  expected_ref <- paste0("url::", unname(GEO_URLS[[pkg]]))
+  if (!identical(source, "URL") || !identical(remote_type, "url") ||
+      !identical(remote_ref, expected_ref) || nzchar(built))
+    bad <- c(bad, sprintf(
+      "%s origin Source=%s RemoteType=%s RemotePkgRef=%s Built=%s (want exact %s and no non-semantic build timestamp)",
+      pkg, source, remote_type, remote_ref, built, expected_ref))
 }
 if (length(bad)) {
   stop(sprintf(
-    "GEO-FREEZE GATE FAILED: a source-compiled package/R version is not pinned to its known-good value: %s. Do NOT commit/push this manifest — it will break the Connect Cloud build.",
+    "GEO-PROVENANCE GATE FAILED: the generated manifest does not describe the actually installed known-good package/R closure: %s. Do NOT commit/push this manifest.",
     paste(bad, collapse = "; ")), call. = FALSE)
 }
-cat("OK: R version + geospatial closure are frozen to their known-good, jammy-compilable versions.\n")
+cat("OK: generated manifest records the actual known-good R + geospatial closure.\n")
 
 # ---- hard gate: a leaked heavy package must NEVER commit silently ----------
 m   <- jsonlite::fromJSON("manifest.json", simplifyVector = FALSE)

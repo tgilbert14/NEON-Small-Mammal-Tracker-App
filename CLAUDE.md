@@ -11,24 +11,26 @@ reconstructs each captured animal's history from its ear-tag and turns ~46 field
 into maps, per-individual profiles, abundance estimates, and diversity reads. It is the **flagship** of the
 DDL **NEON explorer suite** and the reference build every sibling app is measured against.
 
-- **Live:** https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/ (landing) → the app on **Posit
-  Connect Cloud**, which auto-republishes on push to `main`.
+- **Public state verified 2026-07-18:** the Pages landing works; the Connect app returns `Startup
+  Error`. Draft PR #73 is the release-recovery branch. Do not call production healthy before semantic
+  post-deploy smoke passes.
 - **Stack:** R / Shiny · `global.R` + `server.R` + `ui.R` + `R/*.R` helpers · per-site `.rds` data bundles
   (no network round-trip at runtime) · Leaflet maps · `manifest.json` for Connect Cloud.
 
 ## The stack + how it deploys (the load-bearing facts)
 
-- **Deploy = `git push` to the watched branch.** Connect Cloud is git-backed; pushing the refreshed bundle
-  IS the deploy. No shinyapps secrets. See `DEPLOY.md` (Option A) and, for the whole methodology,
-  `docs/neonize-playbook.md`.
+- **Deploy = reviewed merge to watched `main`.** Connect is git-backed, but refresh automation writes
+  only `automation/small-mammal-data-refresh` and opens/updates a PR. No workflow or agent pushes
+  production directly. No shinyapps secrets. See `DEPLOY.md` and `docs/neonize-playbook.md`.
 - **The terra/GDAL landmine (the #1 publish killer).** Connect compiles native packages from source on
   jammy (**GDAL 3.4.1**); `leaflet → raster → terra`, and terra ≥ 1.8-54 needs GDAL 3.8 → **pin `terra` to
-  `1.8-50`** in `manifest.json`. This app's CI (`.github/workflows/refresh-data.yml`) regenerates the
-  manifest, so the re-pin must also live in the manifest-writing step or the monthly refresh re-breaks the
-  deploy. **For any deploy/manifest failure, that's `connor`'s territory; for the build methodology, `neonize`.**
-- **Auto-refresh:** `refresh-data.yml` runs monthly (first-Saturday gate, off-peak AZ), rebuilds the bundles,
-  and pushes. A `skip_download` input gates BOTH the fetch and the bundle step (fast pipeline test).
-- **Migrating off shinyapps.io** (sunsets end-2026) → Connect Cloud is the standard; some legacy bits remain.
+  `1.8-50`** and the seven-package companion closure as real installed CRAN sources. The manifest writer
+  verifies actual versions and repository lanes; never rewrite Version/RemoteSha after generation.
+- **Auto-refresh:** `refresh-data.yml` runs monthly (first-Saturday gate, off-peak AZ), rebuilds and
+  validates a candidate, then proposes it on a review branch. A `skip_download` input gates the fetch
+  and bundle replacement for a fast pipeline test.
+- **Hosting migration is complete.** Connect Cloud is the only runtime target; the retired
+  shinyapps.io records and deploy script are absent.
 
 ## Which agents own what here
 

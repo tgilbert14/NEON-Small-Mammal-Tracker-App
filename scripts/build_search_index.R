@@ -8,7 +8,8 @@
 #
 # MNKA here is the SAME honest unit the app's Population tab reports: Minimum
 # Number Known Alive (Krebs 1966), computed per species by running the app's own
-# mnka_series() on the cleaned bundle filtered to that species, then taking the
+# mnka_series() with a species capture filter while retaining the FULL site's
+# trap-opportunity denominator, then taking the
 # PEAK month's site-wide MNKA (the max over months of the summed per-plot MNKA).
 # It is a within-site index of how many of that species were known alive at once
 # — NOT an absolute population and NOT comparable across sites as a ranking.
@@ -34,12 +35,11 @@ if (length(files) == 0) stop("No bundles in ", SITE_DIR, " — run scripts/refre
 cat(sprintf("Indexing %d bundled sites for the search index...\n", length(files)))
 
 # Peak site-wide MNKA for ONE species at a site: run the shared mnka_series() on
-# the cleaned bundle filtered to that species, sum per-plot MNKA within each
+# the full cleaned bundle with a species capture filter, sum per-plot MNKA within each
 # month, and take the largest month. NA -> 0 (no estimable month).
 species_peak_mnka <- function(clean_d, sci) {
-  h <- clean_d[!is.na(clean_d$scientificName) & clean_d$scientificName == sci, , drop = FALSE]
-  if (nrow(h) == 0) return(0L)
-  ser <- tryCatch(mnka_series(h), error = function(e) NULL)
+  ser <- tryCatch(mnka_series(clean_d, scientific_name = sci),
+                  error = function(e) NULL)
   if (is.null(ser) || nrow(ser) == 0) return(0L)
   by_month <- ser %>% dplyr::group_by(.data$ym) %>%
     dplyr::summarise(m = sum(.data$mnka, na.rm = TRUE), .groups = "drop")
@@ -73,7 +73,7 @@ rows <- lapply(files, function(f) {
       .groups = "drop")
 
   per_sp$mnka <- vapply(per_sp$scientificName,
-                        function(s) species_peak_mnka(caps, s), integer(1))
+                        function(s) species_peak_mnka(cl, s), integer(1))
 
   per_sp %>%
     dplyr::mutate(

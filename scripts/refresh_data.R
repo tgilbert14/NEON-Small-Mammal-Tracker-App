@@ -2,24 +2,22 @@
 # refresh_data.R — build the bundled per-site "database"
 #
 # Downloads each NEON site's full small-mammal record (DP1.10072.001), trims it
-# to the columns the app uses, and xz-compresses one .rds per site into
-# data/sites/<SITE>.rds. Each trimmed+compressed site is tiny (~0.1–0.5 MB), so
-# all ~47 fit in the app bundle and load instantly — no live download for users.
+# to the columns the app uses, and xz-compresses one .rds per site into the
+# directory selected by SMT_SITE_OUT_DIR (data/sites by default). CI points that
+# variable at an empty staging directory and swaps the result into data/sites
+# only after this script proves the exact expected site set was built.
 #
 # RESUMABLE: skips sites whose .rds already exists. Delete a file to re-pull it.
 #
-# !! AFTER REBUILDING BUNDLES YOU MUST REPUBLISH !! The deployed app keeps serving
-# the OLD data until you do. Posit Connect Cloud serves the *published* git
-# snapshot, and manifest.json pins a CHECKSUM per bundled file — so a changed .rds
-# whose checksum wasn't refreshed will not take effect (and can fail the deploy).
-# Full refresh sequence, in order:
-#   1. delete data/sites/*.rds (or just the sites to refresh) and re-run THIS script
-#   2. Rscript scripts/write_manifest.R        # regenerate manifest.json checksums
-#   3. git add data/ manifest.json && git commit
-#   4. push, then republish on Connect Cloud (git-backed redeploy)
-# The live app shows the new data only once step 4 finishes — a local rebuild
-# alone changes nothing in production. (This bit us once: bundles looked updated
-# locally but the deployed app didn't change until a republish.)
+# !! A LOCAL REBUILD IS NOT A RELEASE !! Connect serves the reviewed `main`
+# snapshot, and manifest.json pins a checksum per bundled file. The supported flow
+# is the producer/validator/publisher workflow in refresh-data.yml:
+#   1. build all expected sites in an empty stage with THIS script
+#   2. rebuild indexes and generate the manifest under pinned R/package inputs
+#   3. verify exact sites, schema, indexes, checksums, helpers, and offline source
+#   4. publish only the immutable candidate to a review branch and open/update a PR
+#   5. intentionally merge the reviewed PR; Connect republishes watched `main`
+# Never hand-push a local partial refresh to production.
 #
 # Run from the project root:
 #   Rscript scripts/refresh_data.R
@@ -50,7 +48,8 @@ keep <- c("tagID","individualCode","taxonID","scientificName","taxonRank",
   "earLength","tailLength","totalLength","weight","lifeStage","sex","testes",
   "nipples","pregnancyStatus","vagina","domainID","siteID","remarks")
 
-out_dir <- "data/sites"
+out_dir <- Sys.getenv("SMT_SITE_OUT_DIR", unset = "data/sites")
+if (!nzchar(out_dir)) stop("SMT_SITE_OUT_DIR must not be empty", call. = FALSE)
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 start_d <- "2013-01"
@@ -106,7 +105,7 @@ cat(sprintf("Bundle now has %d/%d sites.\n", n_ok, length(sites)))
 # ---- freshness assertion (did the data actually advance?) ------------------
 # A monthly re-pull that "succeeds" but brings back NO newer records is a SILENT
 # stall — NEON didn't publish, the token rate-limited, or the date window was
-# wrong — and we'd cheerfully redeploy the same data forever. So we record the
+# wrong — and we'd cheerfully propose the same data forever. So we record the
 # freshest collectDate seen across ALL bundles and compare it to the last run's
 # value (committed in data/.refresh_state.json). If it did NOT advance, we log
 # LOUDLY (and the marker is committed so the bot's commit message can say so).
@@ -123,7 +122,7 @@ freshest_collect_date <- function(dir) {
   mx
 }
 
-state_path <- "data/.refresh_state.json"
+state_path <- Sys.getenv("SMT_REFRESH_STATE_PATH", unset = "data/.refresh_state.json")
 prev_max <- NA_character_
 if (file.exists(state_path)) {
   prev <- tryCatch(jsonlite::fromJSON(state_path), error = function(e) NULL)
@@ -140,7 +139,7 @@ if (is.na(new_max)) {
   cat(sprintf("FRESHNESS OK: freshest record advanced %s -> %s.\n",
               ifelse(is.na(prev_max), "(none)", prev_max), new_max))
 } else {
-  cat(sprintf("!! FRESHNESS WARNING: freshest record did NOT advance (still %s). NEON may not have published new data, the API may have rate-limited, or the window is wrong. Investigate before trusting this redeploy.\n",
+  cat(sprintf("!! FRESHNESS WARNING: freshest record did NOT advance (still %s). NEON may not have published new data, the API may have rate-limited, or the window is wrong. Investigate before accepting this candidate.\n",
               new_max))
 }
 
@@ -156,12 +155,17 @@ tryCatch(
     state_path, auto_unbox = TRUE, pretty = TRUE),
   error = function(e) cat(sprintf("(could not write %s: %s)\n", state_path, conditionMessage(e))))
 
-# Mass-failure guard: the workflow `rm -f data/sites/*.rds` BEFORE this runs, then
-# deploys + opens a data PR after. If a bad NEON-pull day left us with far too few
-# bundles, stop() here so the job fails and neither the deploy nor the (now
-# deletion-heavy) PR step runs — far safer than shipping/committing a shrunken set.
-# Per-site failures are already skipped above; this only trips on a mass failure.
-floor_n <- max(30L, as.integer(ceiling(0.75 * length(sites))))
-if (n_ok < floor_n)
-  stop(sprintf("Only %d/%d site bundles built (< %d) — aborting before deploy/PR so a mass NEON-pull failure can't ship or commit a shrunken dataset.",
-               n_ok, length(sites), floor_n))
+# Exact site-set gate. A partial bundle is not a degraded success: downstream
+# comparisons and denominators assume the canonical network opportunity set.
+# Staging means this can fail without touching the committed known-good bundle.
+built_sites <- sort(sub("\\.rds$", "", list.files(out_dir, pattern = "\\.rds$")))
+expected_sites <- sort(unique(as.character(sites)))
+missing_sites <- setdiff(expected_sites, built_sites)
+extra_sites <- setdiff(built_sites, expected_sites)
+if (!identical(built_sites, expected_sites))
+  stop(sprintf(
+    "Exact site-set gate failed: built %d/%d; missing=[%s]; extra=[%s]. Known-good data/sites was not replaced.",
+    length(built_sites), length(expected_sites), paste(missing_sites, collapse = ","),
+    paste(extra_sites, collapse = ",")), call. = FALSE)
+cat(sprintf("EXACT SITE SET OK: %d/%d canonical mammal sites built.\n",
+            length(built_sites), length(expected_sites)))
