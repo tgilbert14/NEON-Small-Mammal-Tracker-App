@@ -177,3 +177,53 @@ Driver implication, and next action.
   runtime evidence, address failures without merging, then restore and semantically
   verify production before completing the product/UI pass or reintegrating any
   metric into Driver.
+
+### 2026-07-18 08:19 MST - draft PR and first pinned CI result / root
+
+- **Starting/published review state:** macOS-keyring authentication passed outside
+  the sandbox. Created branch `agent/small-mammal-release-foundation`, committed the
+  exact 15-file pass-1 scope as
+  `5a0aa46f972c16f608e0ff08ff138182a1709688`, pushed only that non-watched branch,
+  and opened draft PR #73. Watched `main`, production data, manifest, refresh, and
+  Connect deployment remain untouched.
+- **PR creation path:** the GitHub connector returned `403 Resource not accessible
+  by integration`; the authenticated `gh pr create` fallback opened
+  `https://github.com/tgilbert14/NEON-Small-Mammal-Tracker-App/pull/73` as a draft.
+  The local publish-body file is outside this repository and is not a release
+  artifact.
+- **Static pre-push result (PASS):** Ruby 2.6 `YAML.safe_load` parsed all three
+  workflows, `bash -n scripts/post_deploy_smoke.sh` passed, and staged
+  `git diff --check` passed after removing two Markdown trailing-space markers and
+  one extra EOF blank line. No R result is included in this PASS.
+- **Pinned CI result (FAIL):** Actions run `29649574212`, job `88093462881`, on
+  exact head `5a0aa46f...` passed checkout and R 4.5.2 setup, then failed the
+  dependency-install step. All later source, helper, manifest, bundle, offline-boot,
+  artifact, and committed-match steps were skipped and remain untested.
+- **Observed root cause:** setup-r-dependencies resolved and source-built
+  `terra 1.9-34` even though the later manifest policy expects `terra 1.8-50`.
+  Terra 1.9-34 called the three-argument `GDALMDArray::AsClassicDataset`, but the
+  pinned Ubuntu 22.04 runner exposes GDAL 3.4.1's two-argument API; compilation
+  stopped in `gdal_multidimensional.cpp`. This proves the dated repository alone
+  does not install the declared known-good geospatial closure, and the current
+  manifest writer's post-hoc version rewrite is not adequate package provenance.
+- **Focused proposed fix (approval pending):** install the declared geospatial
+  closure as actual version-pinned CRAN package sources in both CI and refresh,
+  stop mutating package versions/RemoteSha after manifest generation, and retain
+  fail-closed checks that the installed versions and dated repository metadata
+  match policy. Rerun PR CI before touching any later gate or production.
+- **Classification/Driver implication:** `suite-platform` and
+  `scientific-contract`; Driver implication remains `HOLD CURRENT OUTPUT` with no
+  Driver byte change.
+- **Failures/cleanup/ownership:** the bundled CI-inspection script first failed
+  because `python` is absent; rerunning it with available `python3` retrieved the
+  exact log. The completed watch process was closed. Repository worktree now has
+  only this required handoff update beyond pushed head `5a0aa46`; no generated
+  data, manifest, cache, lock, stage, backup, or production state changed.
+- **Residual risk:** the exact archive/reference syntax and full closure still need
+  a green pinned run; helper/R syntax, raw 46-site parity, manifest semantics,
+  offline boot, UI, and public health remain unverified. The app remains a P0
+  outage and PR #73 must stay draft/unmerged.
+- **Next action:** after explicit approval, pin the real geospatial install inputs,
+  remove post-hoc manifest version mutation, statically verify, commit/push the
+  focused fix plus this handoff, and inspect the next PR run without weakening any
+  downstream gate.

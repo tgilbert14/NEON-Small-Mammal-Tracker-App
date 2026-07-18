@@ -79,10 +79,24 @@ jobs:
       - name: Install R packages
         uses: r-lib/actions/setup-r-dependencies@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
         with:
-          packages: neonUtilities, dplyr, tibble, tidyr, stringr, jsonlite, shiny, bslib, bsicons, plotly, leaflet, DT, shinyjs, shinycssloaders, RColorBrewer, htmltools, ggplot2, cpp11, rsconnect
+          # Match validator and eventual manifest provenance exactly. These URLs
+          # are versioned CRAN sources; terra 1.8-50 is archived, while the other
+          # seven versions are current CRAN tarballs as of this release contract.
+          packages: >
+            neonUtilities, dplyr, tibble, tidyr, stringr, jsonlite, shiny,
+            bslib, bsicons, plotly, leaflet, DT, shinyjs, shinycssloaders,
+            RColorBrewer, htmltools, ggplot2, cpp11, rsconnect,
+            url::https://cran.r-project.org/src/contrib/Archive/terra/terra_1.8-50.tar.gz,
+            url::https://cran.r-project.org/src/contrib/sf_1.1-1.tar.gz,
+            url::https://cran.r-project.org/src/contrib/s2_1.1.11.tar.gz,
+            url::https://cran.r-project.org/src/contrib/units_1.0-1.tar.gz,
+            url::https://cran.r-project.org/src/contrib/wk_0.9.5.tar.gz,
+            url::https://cran.r-project.org/src/contrib/classInt_0.4-11.tar.gz,
+            url::https://cran.r-project.org/src/contrib/raster_3.6-32.tar.gz,
+            url::https://cran.r-project.org/src/contrib/sp_2.2-1.tar.gz
           pak-version: stable
           dependencies: '"hard"'
-          cache-version: small-mammal-refresh-ppm-2026-07-15-v1
+          cache-version: small-mammal-refresh-geo-closure-v2
           install-pandoc: 'false'
           install-quarto: 'false'
 
