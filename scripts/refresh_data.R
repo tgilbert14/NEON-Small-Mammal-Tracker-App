@@ -9,18 +9,15 @@
 #
 # RESUMABLE: skips sites whose .rds already exists. Delete a file to re-pull it.
 #
-# !! AFTER REBUILDING BUNDLES YOU MUST REPUBLISH !! The deployed app keeps serving
-# the OLD data until you do. Posit Connect Cloud serves the *published* git
-# snapshot, and manifest.json pins a CHECKSUM per bundled file — so a changed .rds
-# whose checksum wasn't refreshed will not take effect (and can fail the deploy).
-# Full refresh sequence, in order:
-#   1. delete data/sites/*.rds (or just the sites to refresh) and re-run THIS script
-#   2. Rscript scripts/write_manifest.R        # regenerate manifest.json checksums
-#   3. git add data/ manifest.json && git commit
-#   4. push, then republish on Connect Cloud (git-backed redeploy)
-# The live app shows the new data only once step 4 finishes — a local rebuild
-# alone changes nothing in production. (This bit us once: bundles looked updated
-# locally but the deployed app didn't change until a republish.)
+# !! A LOCAL REBUILD IS NOT A RELEASE !! Connect serves the reviewed `main`
+# snapshot, and manifest.json pins a checksum per bundled file. The supported flow
+# is the producer/validator/publisher workflow in refresh-data.yml:
+#   1. build all expected sites in an empty stage with THIS script
+#   2. rebuild indexes and generate the manifest under pinned R/package inputs
+#   3. verify exact sites, schema, indexes, checksums, helpers, and offline source
+#   4. publish only the immutable candidate to a review branch and open/update a PR
+#   5. intentionally merge the reviewed PR; Connect republishes watched `main`
+# Never hand-push a local partial refresh to production.
 #
 # Run from the project root:
 #   Rscript scripts/refresh_data.R
@@ -108,7 +105,7 @@ cat(sprintf("Bundle now has %d/%d sites.\n", n_ok, length(sites)))
 # ---- freshness assertion (did the data actually advance?) ------------------
 # A monthly re-pull that "succeeds" but brings back NO newer records is a SILENT
 # stall — NEON didn't publish, the token rate-limited, or the date window was
-# wrong — and we'd cheerfully redeploy the same data forever. So we record the
+# wrong — and we'd cheerfully propose the same data forever. So we record the
 # freshest collectDate seen across ALL bundles and compare it to the last run's
 # value (committed in data/.refresh_state.json). If it did NOT advance, we log
 # LOUDLY (and the marker is committed so the bot's commit message can say so).
@@ -142,7 +139,7 @@ if (is.na(new_max)) {
   cat(sprintf("FRESHNESS OK: freshest record advanced %s -> %s.\n",
               ifelse(is.na(prev_max), "(none)", prev_max), new_max))
 } else {
-  cat(sprintf("!! FRESHNESS WARNING: freshest record did NOT advance (still %s). NEON may not have published new data, the API may have rate-limited, or the window is wrong. Investigate before trusting this redeploy.\n",
+  cat(sprintf("!! FRESHNESS WARNING: freshest record did NOT advance (still %s). NEON may not have published new data, the API may have rate-limited, or the window is wrong. Investigate before accepting this candidate.\n",
               new_max))
 }
 

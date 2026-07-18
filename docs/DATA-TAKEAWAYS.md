@@ -96,34 +96,28 @@ mass here (r≈0.15) — a deliberate, documented omission.
 - **[RESOLVED LOW] README live-app badge and hosting language were stale.** Current authority docs
   point to Connect Cloud, label the verified outage, and describe the restricted review-branch
   release flow. The retired shinyapps target is no longer presented as current.
-- **[low] README "140+ species" vs computed 145.** `species_ranges.rds` has **145** distinct
-  species. Harmless, but the gold-standard app should state the exact number.
+- **[RESOLVED LOW] README "140+ species" vs computed 145.** README and the cover now state the
+  exact **145** distinct species represented by `species_ranges.rds`.
 
 ### Ecological (Fauna — field method)
 - **[strength]** The field method is represented correctly: bout structure (pathogen grids ~3
   consecutive nights vs 1-night diversity grids) drives the estimator choice; effort is from real
   `trapStatus` not an assumed grid; "not detected ≠ absent" is stated on-chart. A journal reviewer
   would accept MNKA + gated closed-capture as defensible indices.
-- **[med] Single-night dominance should be surfaced as a coverage stat.** 49% of bouts are k=1 and
-  silently un-estimable. Fix: show a small "X% of bouts are single-night (index-only)" line on the
-  detection card so users understand why the N̂ series is sparse — it's a sampling-design fact, not
-  missing data.
-- **[low] Detection completeness is a publishable cross-site signal.** Site detection ranges 0.42–
-  0.95 and is **biome-structured** (deserts high, closed-canopy temperate low). Worth exposing as a
-  per-site number — it directly qualifies how much any raw-count comparison across biomes can be
-  trusted, which is a cascade concern.
+- **[RESOLVED MED] Single-night dominance is surfaced as a coverage stat.** The detection card now
+  reports the percent of bouts that are single-night/index-only, including the all-single-night case,
+  so a sparse N̂ series reads as sampling design rather than missing data.
+- **[RESOLVED LOW] Detection completeness is exposed as a cross-site qualifier.** Site cards and the
+  compare view carry p̂; compare adds mean monthly N̂ and suppresses raw-count “winners” when sites'
+  detection differs materially or is un-estimable.
 
 ### Data science (Quinn — analysis-ready export)
-- **[med] Exports are per-individual only; there is no tidy bundle/site export or codebook.** The
-  only CSV download is one animal's capture history (`qcHistoryCsv`); the two-site and report outputs
-  are PDF. There is **no column codebook / metadata view** and no "download this site's tidy capture
-  table" or "download the MNKA/CPUE/detection series." Fix: add a downloads tab with (a) the cleaned
-  site capture table as CSV, (b) the monthly MNKA/CPUE/N̂ series, (c) a codebook documenting every
-  column, units, and NA convention. This is a FAIR/reproducibility gap in the flagship that every
-  clone inherits.
-- **[low] Publish the measurement-NA convention.** weight 23%/hindfoot 28% NA is mostly
-  unmeasured recaptures + empty-trap rows, but a downstream analyst can't tell that without a note.
-  State the denominator (captures vs handled-and-measured) wherever a measurement summary appears.
+- **[RESOLVED MED] Site-level tidy exports and a codebook now exist.** The About panel offers the
+  cleaned event/handling-row capture table, monthly MNKA/CPUE/N̂/p̂ series, and a column codebook with
+  units, grain, source/license, estimator caveats, and NA conventions.
+- **[RESOLVED LOW] Measurement-NA conventions are published.** The UI and codebook state that blank
+  weight/hind-foot values are unmeasured handling/empty-trap rows rather than zeros, and measurement
+  summaries identify their handled-and-measured denominator.
 
 ### Statistics (small-n honesty / correctness)
 - **[RESOLVED HIGH] `id_uncertain` was always FALSE; the multi-species-tag QC flag was dead code.**

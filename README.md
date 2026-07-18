@@ -142,10 +142,10 @@ Each site's full record is pre-downloaded into `data/sites/<SITE>.rds` (trimmed 
 two national indexes (`data/site_index.rds`, `data/species_ranges.rds`) power the picker and range
 maps — so the app runs **entirely from the bundle, instantly, with no `neonUtilities` dependency at
 runtime.** `neonUtilities` is optional: it's loaded lazily only for the live-fetch toggle, which
-appears only where the package is installed (set `SMT_LIVE=0` to force bundle-only). The bundle is
-rebuilt automatically **late on the first Saturday night of each month** (~11 pm Arizona time, an
-off-peak window so the brief redeploy doesn't interrupt active users) by a GitHub Action
-(`scripts/refresh_data.R`); the approach is documented in
+appears only where the package is installed (set `SMT_LIVE=0` to force bundle-only). A GitHub Action
+prepares a refreshed candidate **late on the first Saturday night of each month** (~11 pm Arizona
+time), verifies it, and opens or updates a review PR. Production changes only after an intentional
+merge; the approach is documented in
 [docs/data-bundling-pattern.md](docs/data-bundling-pattern.md).
 
 ### Compare with environment (co-located NEON overlays)
@@ -190,7 +190,8 @@ history is built **offline** once (run `scripts/refresh_env_data.R`, then commit
 monthly Action then runs a **light top-up** (`SMT_ENV_RECENT_MONTHS=14`) that re-pulls only the last
 ~14 months and merges them into the committed bundle, so the overlays stay current without a full
 13-year re-pull. The top-up is time-boxed and non-fatal: if it fails, the mammal bundle and index
-still redeploy and the run logs a loud warning that the overlays were not topped up.
+candidate can still proceed to review, and the run logs a loud warning that the overlays were not
+topped up.
 
 **Honest lag correlations.** The "which driver does this population track?" panel scans 0–12-month lags
 for the strongest correlation with catch-per-effort. To keep that defensible: both series are

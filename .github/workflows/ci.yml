@@ -94,12 +94,25 @@ jobs:
         run: Rscript --vanilla scripts/test_helpers.R
 
       - name: Regenerate a pinned-runtime manifest candidate
+        id: manifest
         run: |
           cp -- manifest.json "$RUNNER_TEMP/manifest-baseline.json"
           Rscript --vanilla scripts/write_manifest.R
 
       - name: Verify bundle, indexes, and exact manifest file checksums
         run: Rscript --vanilla scripts/verify_bundle.R
+
+      # A failed provenance/checksum gate must be diagnosable without granting CI
+      # write access or weakening the gate. This artifact is explicitly unvalidated,
+      # retained for one day, and must never be committed as a release candidate.
+      - name: Upload an unvalidated manifest for failed-gate diagnosis
+        if: failure() && steps.manifest.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: small-mammal-manifest-UNVALIDATED-${{ github.sha }}
+          path: manifest.json
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Source the complete app offline
         run: Rscript --vanilla -e 'Sys.setenv(SMT_LIVE="0"); source("global.R"); source("ui.R"); source("server.R"); stopifnot(inherits(ui, "shiny.tag.list") || inherits(ui, "shiny.tag"), is.function(server))'

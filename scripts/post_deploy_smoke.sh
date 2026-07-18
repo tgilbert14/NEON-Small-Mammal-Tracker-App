@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # post_deploy_smoke.sh — post-deploy liveness check for the refresh loop.
 #
-# After the monthly refresh pushes to main, Connect Cloud republishes the app.
+# After an intentional review merge to main, Connect Cloud republishes the app.
 # This closes the loop: it confirms the LIVE surfaces actually come back up. It is
 # cold-start aware — a Connect Cloud worker can take a minute-plus to wake, so each
 # URL is polled with backoff for up to ~5 minutes before it is declared down.
@@ -10,7 +10,8 @@
 # Exit 0 if every URL returns a healthy status within the retry budget; 1 otherwise.
 # The Connect app must also return the app-specific UI marker and must not match a
 # known host error page. This is semantic startup evidence, not an HTTP-only probe.
-# On failure the refresh workflow opens/updates a GitHub issue (see refresh-data.yml).
+# On failure the post-deploy workflow opens/updates a GitHub issue; on recovery it
+# closes the matching open outage issue (see post-deploy.yml).
 
 set -uo pipefail
 

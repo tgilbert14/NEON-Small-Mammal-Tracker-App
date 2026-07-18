@@ -26,6 +26,8 @@ suppressMessages({
   library(jsonlite)
 })
 
+`%||%` <- function(a, b) if (is.null(a) || length(a) == 0L) b else a
+
 appFiles <- c(
   "global.R", "ui.R", "server.R",
   list.files("R", pattern = "\\.R$", full.names = TRUE),
@@ -145,6 +147,16 @@ GEO_PINS <- c(
   raster   = "3.6-32",   # satisfied by terra 1.8-50 (needs terra >= 1.8-5)
   sp       = "2.2-1"
 )
+GEO_URLS <- c(
+  terra    = "https://cran.r-project.org/src/contrib/Archive/terra/terra_1.8-50.tar.gz",
+  sf       = "https://cran.r-project.org/src/contrib/sf_1.1-1.tar.gz",
+  s2       = "https://cran.r-project.org/src/contrib/s2_1.1.11.tar.gz",
+  units    = "https://cran.r-project.org/src/contrib/units_1.0-1.tar.gz",
+  wk       = "https://cran.r-project.org/src/contrib/wk_0.9.5.tar.gz",
+  classInt = "https://cran.r-project.org/src/contrib/classInt_0.4-11.tar.gz",
+  raster   = "https://cran.r-project.org/src/contrib/raster_3.6-32.tar.gz",
+  sp       = "https://cran.r-project.org/src/contrib/sp_2.2-1.tar.gz"
+)
 # Pin the R version too: a runner R bump (seen: 4.5.2 -> 4.6.0) changes the
 # whole build image and can invalidate binary/source assumptions on republish.
 R_PLATFORM_PIN <- "4.5.2"
@@ -164,10 +176,11 @@ repo_by_pkg <- vapply(chk$packages, function(x) {
   if (is.null(repo) || length(repo) != 1L || is.na(repo)) "" else as.character(repo)
 }, character(1), USE.NAMES = TRUE)
 
-# Packages installed from the exact `url::` CRAN tarballs truthfully record the
-# symbolic repository `CRAN`; ordinary dependencies resolved from the dated Posit
-# snapshot must record that snapshot URL. Reject any package that crosses those
-# lanes or introduces a third/blank repository value.
+# Packages installed from exact `url::` CRAN tarballs truthfully record the
+# symbolic repository `CRAN` and their URL origin in DESCRIPTION remote metadata;
+# ordinary dependencies resolved from the dated Posit snapshot must record that
+# snapshot URL. Reject crossed lanes, blank/third values, or a URL that differs by
+# even one character from the declared build input.
 geo_repo <- repo_by_pkg[intersect(names(GEO_PINS), names(repo_by_pkg))]
 runtime_repo <- repo_by_pkg[setdiff(names(repo_by_pkg), names(GEO_PINS))]
 if (length(geo_repo) != length(GEO_PINS) || any(geo_repo != "CRAN"))
@@ -186,6 +199,14 @@ for (pkg in names(GEO_PINS)) {
   if (!identical(got, unname(GEO_PINS[[pkg]])))
     bad <- c(bad, sprintf("%s=%s (want actual %s)",
                          pkg, got, unname(GEO_PINS[[pkg]])))
+  source <- as.character(chk$packages[[pkg]]$Source %||% "")
+  remote_type <- as.character(chk$packages[[pkg]]$description$RemoteType %||% "")
+  remote_url <- as.character(chk$packages[[pkg]]$description$RemoteUrl %||% "")
+  if (!source %in% c("CRAN", "url") || !identical(remote_type, "url") ||
+      !identical(remote_url, unname(GEO_URLS[[pkg]])))
+    bad <- c(bad, sprintf(
+      "%s origin Source=%s RemoteType=%s RemoteUrl=%s (want exact URL input %s)",
+      pkg, source, remote_type, remote_url, unname(GEO_URLS[[pkg]])))
 }
 if (length(bad)) {
   stop(sprintf(

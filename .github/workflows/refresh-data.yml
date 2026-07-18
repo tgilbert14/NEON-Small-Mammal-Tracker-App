@@ -23,6 +23,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: small-mammal-refresh
+  cancel-in-progress: false
+
 jobs:
   # Gate: only the FIRST Saturday night (Arizona time) runs the heavy refresh.
   # Manual runs (workflow_dispatch) always proceed.
@@ -123,7 +127,7 @@ jobs:
       # into the committed data/env bundle (the full 13-year history is built once,
       # offline). Time-boxed + non-fatal so it can never stall or block the push.
       # Non-fatal so a transient env-product hiccup can never block the mammal
-      # deploy, but its outcome is CAPTURED (id + step output) and surfaced loudly
+      # candidate, but its outcome is CAPTURED (id + step output) and surfaced loudly
       # below instead of silently swallowed, so a repeatedly-failing top-up is visible.
       - name: Top up the environmental overlays (recent months)
         id: envtopup
@@ -137,7 +141,7 @@ jobs:
       - name: Flag environmental top-up failure (loud, non-fatal)
         if: ${{ github.event.inputs.skip_download != 'true' && steps.envtopup.outcome == 'failure' }}
         run: |
-          echo "::warning title=Env overlay top-up failed::scripts/refresh_env_data.R did not finish (timeout or NEON error). The mammal bundle + index still deployed; the env overlays were NOT topped up this run."
+          echo "::warning title=Env overlay top-up failed::scripts/refresh_env_data.R did not finish (timeout or NEON error). The required mammal candidate can still be reviewed; the env overlays were NOT topped up this run."
 
       # Rebuild the site index (per-site summary + mean detection p̂ + species
       # ranges) from the committed bundles — always, so the index stays in lock-step
@@ -160,10 +164,9 @@ jobs:
       - name: Regenerate the manifest
         run: Rscript --vanilla scripts/write_manifest.R
 
-      # PRE-DEPLOY VERIFICATION GATE. Check the rebuilt bundles, indexes, and the
-      # manifest BEFORE the push (which is the deploy). If this fails the job stops
-      # here, the push never happens, and Connect Cloud keeps serving the last
-      # known-good snapshot instead of a truncated/stale refresh.
+      # PRE-PUBLICATION VERIFICATION GATE. Check the rebuilt bundles, indexes, and
+      # manifest before any review-branch write. If this fails the job stops here;
+      # no candidate is published and production remains untouched.
       - name: Verify rebuilt bundle (pre-deploy gate)
         run: |
           set -euo pipefail
@@ -215,13 +218,19 @@ jobs:
             exit 0
           fi
           branch="automation/small-mammal-data-refresh"
+          remote_head=$(git ls-remote --heads origin "refs/heads/$branch" | awk '{print $1}')
           git switch -C "$branch"
           git config user.name "neon-data-bot"
           git config user.email "neon-data-bot@users.noreply.github.com"
           git add -A data data-sample manifest.json
           git commit -m "data: propose validated small-mammal refresh [bot]" \
                      -m "Produced from ${GITHUB_SHA}; exact site set, helper contracts, indexes, manifest, and offline app source passed before publication."
-          git push --force-with-lease origin "$branch"
+          if [ -n "$remote_head" ]; then
+            git push --force-with-lease="refs/heads/$branch:$remote_head" \
+              origin "$branch:refs/heads/$branch"
+          else
+            git push origin "$branch:refs/heads/$branch"
+          fi
           pr_url=$(gh pr list --head "$branch" --state open --json url --jq '.[0].url')
           if [ -z "$pr_url" ]; then
             gh pr create --base main --head "$branch" \

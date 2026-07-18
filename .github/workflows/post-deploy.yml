@@ -53,3 +53,16 @@ jobs:
           else
             gh issue create --title "$title" --body "$body"
           fi
+
+      - name: Close a resolved production outage issue
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          title="Production health: Small Mammal semantic smoke failed"
+          number=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number')
+          if [ -n "$number" ]; then
+            run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            gh issue close "$number" --comment "Semantic production health recovered at ${GITHUB_SHA}. Evidence: ${run_url}"
+          fi

@@ -47,6 +47,15 @@ FORBIDDEN_RUNTIME_PKGS <- c("neonUtilities","arrow")
 EXPECTED_GEO_PINS <- c(
   terra="1.8-50", sf="1.1-1", s2="1.1.11", units="1.0-1",
   wk="0.9.5", classInt="0.4-11", raster="3.6-32", sp="2.2-1")
+EXPECTED_GEO_URLS <- c(
+  terra="https://cran.r-project.org/src/contrib/Archive/terra/terra_1.8-50.tar.gz",
+  sf="https://cran.r-project.org/src/contrib/sf_1.1-1.tar.gz",
+  s2="https://cran.r-project.org/src/contrib/s2_1.1.11.tar.gz",
+  units="https://cran.r-project.org/src/contrib/units_1.0-1.tar.gz",
+  wk="https://cran.r-project.org/src/contrib/wk_0.9.5.tar.gz",
+  classInt="https://cran.r-project.org/src/contrib/classInt_0.4-11.tar.gz",
+  raster="https://cran.r-project.org/src/contrib/raster_3.6-32.tar.gz",
+  sp="https://cran.r-project.org/src/contrib/sp_2.2-1.tar.gz")
 
 # ---- 1. per-site bundles -----------------------------------------------------
 site_files <- list.files("data/sites", pattern = "\\.rds$", full.names = TRUE)
@@ -164,10 +173,18 @@ if (!file.exists("manifest.json")) {
         declared <- as.character(x$description$Package %||% "")
         source <- as.character(x$Source %||% "")
         repo <- as.character(x$Repository %||% "")
-        expected_repo <- if (pkg %in% names(EXPECTED_GEO_PINS)) "CRAN" else EXPECTED_REPOSITORY
-        length(version) != 1L || is.na(version) || !nzchar(version) ||
-          !identical(declared, pkg) || !identical(source, "CRAN") ||
-          !identical(repo, expected_repo)
+        base_bad <- length(version) != 1L || is.na(version) || !nzchar(version) ||
+          !identical(declared, pkg)
+        if (pkg %in% names(EXPECTED_GEO_PINS)) {
+          remote_type <- as.character(x$description$RemoteType %||% "")
+          remote_url <- as.character(x$description$RemoteUrl %||% "")
+          base_bad || !source %in% c("CRAN", "url") || !identical(repo, "CRAN") ||
+            !identical(remote_type, "url") ||
+            !identical(remote_url, unname(EXPECTED_GEO_URLS[[pkg]]))
+        } else {
+          base_bad || !identical(source, "CRAN") ||
+            !identical(repo, EXPECTED_REPOSITORY)
+        }
       }, logical(1))
       if (any(package_problems))
         note(sprintf("manifest package provenance is invalid for %d package(s): %s",

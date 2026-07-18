@@ -344,3 +344,43 @@ Driver implication, and next action.
   CI reach offline source and upload its exact manifest candidate, commit only that
   artifact, then require one green exact-head PR run. Do not merge or claim the
   outage restored without explicit production authority and semantic smoke.
+
+### 2026-07-18 10:25 MST - URL-origin provenance made exact and diagnosable
+
+- **Published input:** product/provenance commit
+  `c92158716953f9f1a8d5d329d0d6f95fd8e966bc` was pushed only to draft PR #73.
+  GitHub evaluated its pull-request merge revision
+  `7b0df673ee2d82510b06530bc3c53dfef57dbbfa` against unchanged `main`.
+- **Pinned CI evidence (partial PASS / terminal FAIL):** Actions run
+  `29653368059`, job `88103373049`, passed the source-built geospatial closure,
+  R 4.5.2, loaded OpenBLAS 0.3.20 Haswell/one thread, complete R/JS/shell parsing
+  (including the revised About panel and cover fallback), all 11 helper contracts,
+  and 91-package/117-file manifest generation. The bundle gate again loaded 46/46
+  sites with rows and effort schema plus the 46/604/604 index rows. It failed only
+  the broad package-provenance predicate for the eight URL-installed packages;
+  offline source, validated artifact upload, and committed match remained skipped.
+- **Observed root cause:** repository-lane alignment was necessary but insufficient.
+  The verifier still required the ordinary `Source: CRAN` tuple for URL-origin
+  packages. Official rsconnect source confirms URL-installed records are a distinct
+  reproducible source type. This is the same eight-record model mismatch, not data,
+  package-version, checksum, or scientific drift.
+- **Focused repair:** both writer and bundle gates now require, for each of the eight
+  packages, the exact installed version, symbolic `Repository: CRAN`, a recognized
+  CRAN/URL source record, `RemoteType: url`, and the exact declared CRAN tarball URL.
+  Ordinary packages remain strictly `Source: CRAN` on the dated Posit snapshot. CI
+  now retains an explicitly **UNVALIDATED**, one-day diagnostic manifest after a
+  failed downstream gate so future provenance failures can be inspected without
+  repository write access or gate relaxation.
+- **Additional release/docs hardening:** refresh runs are serialized; review-branch
+  replacement uses an explicit remote-head lease; recovered semantic health closes
+  the matching outage issue; stale direct-redeploy wording was removed from the
+  refresh script, README, data-bundling pattern, smoke comments, and finding ledger.
+  These changes do not alter runtime manifest contents beyond the still-pending
+  validator artifact.
+- **Driver implication:** `HOLD CURRENT OUTPUT`; no Driver artifact change. The
+  source-app definition now remains aligned with Driver's physical-event resolver,
+  but package promotion waits for offline source, exact committed manifest, merge,
+  and semantic public health.
+- **Next action:** statically verify this exact-URL/diagnostic tranche, push it to the
+  existing draft branch, and use the next pinned run either to reach the validated
+  artifact or to inspect the retained unvalidated record without guessing.

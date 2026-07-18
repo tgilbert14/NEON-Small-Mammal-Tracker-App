@@ -9,8 +9,9 @@ turn ~1-minute live NEON downloads into instant loads. Carry it to any future pr
 ## The core idea (in one sentence)
 
 > Pre-compute the data **once** into small, compressed files committed alongside the app, have the
-> app **read those files at runtime**, and "update" by **re-running the build script and
-> redeploying** — instead of querying a live source (or standing up a database) on every request.
+> app **read those files at runtime**, and "update" by **re-running the build script, validating an
+> immutable candidate, and reviewing its release** — instead of querying a live source (or standing
+> up a database) on every request.
 
 The files *are* the database. They're read-only, versioned with the code, and shipped in the deploy
 bundle.
@@ -75,8 +76,9 @@ Four habits that make it pleasant:
 3. **Robust per item** — wrap each fetch in `tryCatch`; log and skip failures.
 4. **Compress** — `compress = "xz"` (slowest write, smallest file — fine for a build step).
 
-"**Pull newer data if needed**" = delete the file(s) you want fresh and re-run (existing files are
-skipped), then redeploy. You can even schedule this (a GitHub Action / cron) to re-bundle monthly.
+"**Pull newer data if needed**" = build into an empty stage, require the complete expected entity
+set, then validate and propose the candidate for review. A GitHub Action can schedule that monthly;
+automation should not delete or replace the known-good production bundle before the candidate passes.
 
 ---
 
@@ -109,27 +111,28 @@ Two ideas that make it robust:
 
 ## Deploy: the files travel with the app
 
-The deploy bundles the `.rds` files alongside the code (here `scripts/deploy.R` adds
-`data/sites/*.rds` to the file list). Because they're committed to the repo, they're versioned with
-the code and reproducible. Keep raw downloads out of the bundle (`.gitignore` the neon cache /
-`filesToProcess`) — only the trimmed `.rds` ship.
+The deploy bundles the `.rds` files alongside the code (here `scripts/write_manifest.R` includes
+`data/sites/*.rds` and records their checksums). Because they're committed to the repo, they're
+versioned with the code and reproducible. Keep raw downloads out of the bundle (`.gitignore` the
+NEON cache / `filesToProcess`) — only the trimmed `.rds` ship.
 
-### ⚠ Rebuilt bundles do NOT go live until you republish
+### ⚠ Rebuilt bundles do NOT go live until a reviewed release
 
 On a git-backed host (Posit Connect Cloud), the running app serves the **published snapshot**, and
 `manifest.json` pins a **SHA/MD5 checksum per bundled file**. So rebuilding a `.rds` locally changes
 nothing in production, and a changed bundle whose checksum wasn't refreshed can even fail the deploy.
 This bit us once — bundles looked updated locally but the live app kept serving the old data until a
-republish. The required sequence after any data rebuild:
+reviewed merge. The required sequence after any data rebuild:
 
-1. rebuild the bundles (`scripts/refresh_data.R`)
+1. rebuild the complete expected bundle in an empty stage (`scripts/refresh_data.R`)
 2. **regenerate the manifest** so its checksums match the new files (`scripts/write_manifest.R` →
    `rsconnect::writeManifest()`)
-3. `git add data/ manifest.json && git commit`
-4. **push + republish** on Connect Cloud (git-backed redeploy)
+3. verify exact entity set, schema, indexes, manifest provenance/checksums, and offline app source
+4. publish the immutable candidate to a restricted review branch and open/update a PR
+5. intentionally merge the reviewed PR; Connect republishes the watched production branch
 
-Miss step 2 or 4 and the deployed app silently keeps the stale data. (On a non-manifest host like
-shinyapps.io, there's no checksum step, but you still must redeploy — the bundle only updates on push.)
+Miss step 2 and the deploy can restore stale bytes; bypass steps 3–5 and provenance is no longer
+reviewable. Host-specific publication differs, but the build/validate/review boundary should remain.
 
 ---
 
