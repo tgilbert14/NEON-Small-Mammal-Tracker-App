@@ -1,10 +1,10 @@
 # Deploy & migration runbook
 
-**Current production state (verified 2026-07-18): OUTAGE.** The Pages landing is available, but
-<https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/> renders `Startup Error`.
-Release recovery is isolated in draft PR #73. Do not merge or describe production as restored until
-the pinned PR gates pass, the reviewed manifest candidate is committed, Connect republishes, and the
-semantic post-deploy workflow passes.
+**Current production state (verified 2026-07-18): HEALTHY.** Pages and
+<https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/> passed
+semantic health on runtime merge `1615ab4`. Connect reports that exact deployed commit, and a clean
+browser session exposed the app ready marker, loaded the JORN funnel, and produced no first-party
+console warning/error.
 
 The app migrated to Posit Connect Cloud in June 2026. Connect watches `main`, but no automation may
 push there directly. `.github/workflows/refresh-data.yml` builds and verifies an immutable candidate,
@@ -51,8 +51,9 @@ installed (local dev). Force bundle-only anywhere with `SMT_LIVE=0`.
    branch `main`. Connect reads `manifest.json` (`appmode: shiny`) and auto-detects the
    multi-file Shiny app (`global.R` + `ui.R` + `server.R`) — there is no single "primary
    file" to choose for a `ui.R`/`server.R` app; `global.R` is sourced automatically.
-3. It reads `manifest.json`, restores packages, and serves. A reviewed merge to watched `main`
-   triggers the republish; refresh automation itself never writes to `main`.
+3. It reads `manifest.json`, restores packages, and serves. A reviewed merge updates the source
+   revision available to Connect; confirm **Last deployed** and use **Republish** when it lags.
+   Refresh automation itself never writes to `main`, and a merge is not a deployment receipt.
 4. Copy the published URL → set `APP_URL` in `docs/index.html` (and the README badge).
 
 Regenerate the manifest whenever runtime dependencies change:

@@ -1,14 +1,14 @@
 # Small Mammal Tracker -> Driver knowledge package
 
-Status: **RELEASE CANDIDATE / APP-LOCAL CONTRACT PASS**
+Status: **PASS 1 COMPLETE / PRODUCTION VERIFIED**
 
 Learning disposition: **CONTEXT**
 
 Driver action: **HOLD CURRENT OUTPUT; no Driver artifact byte change**
 
-This package promotes only evidence that passed the pinned app validator. The final
-`main` merge and semantic public-health receipt belong in the central suite learning
-ledger because this file cannot self-pin a future merge commit.
+This package promotes only evidence that passed the pinned app validator and final
+semantic production health. The central suite learning ledger must vendor this exact
+receipt before the next companion pass begins.
 
 ## Product identity and immutable evidence
 
@@ -16,28 +16,28 @@ ledger because this file cannot self-pin a future merge commit.
   `tgilbert14/NEON-Small-Mammal-Tracker-App`
 - NEON product/table: `DP1.10072.001` / `mam_pertrapnight`
 - Audited base: `39dca56c69ef11188333effefd4b2d5bc28948ee`
-- Immutable runtime implementation: `c92158716953f9f1a8d5d329d0d6f95fd8e966bc`
-- Provenance correction head: `ebf833937dbf19a864e4d2e1f2500ca298409895`
-- Pinned validator: Actions run `29654547344`, pull-request merge revision
-  `45b5c82640a20b8c181b6b60949e20ebbeb9c5b0`
+- Final runtime merge/deployment: `1615ab4e74fd16a2698de8431acb862d6cc4cebf`
+- Final exact-head validator: run `29663236510`, job `88129323716`
+- Final main validator: run `29663335706`, job `88129588478`
+- Final semantic production health: run `29663335708`, job `88129588525`
+- Final Pages publication: run `29663335341`
 - Validated raw manifest artifact: R 4.5.2, 91 packages, 117 files, SHA-256
   `3fba04eb885b3cb6a9437b8c8b25ade25d44d47f6dcb50add025e754a6de04d7`
-- Canonical deployable manifest: the same validated record with the eight
-  wall-clock URL-package `Built` timestamps removed and their top-level deployment
-  lane normalized to `Source: CRAN` plus the absolute `https://cran.r-project.org`
-  origin Connect requires; SHA-256
+- Canonical deployable manifest: R 4.5.2, 91 packages, 117 files, current runtime
+  checksums, eight wall-clock URL-package `Built` timestamps removed, and the
+  top-level deployment lane normalized to `Source: CRAN` plus the absolute
+  `https://cran.r-project.org` origin Connect requires; SHA-256
   `f6c4a5ff74053b95e22fac7394f1930d2fe2329663737031b1c32f7a1f70bc54`
 - Bundle/index contract: 46/46 expected site bundles loaded with rows and the
   physical-effort schema; national index row counts are 46/604/604; 145 species.
 
-Run `29654547344` passed the deterministic Haswell/one-thread OpenBLAS assertion,
-complete R/JavaScript/shell parsing, all 11 scientific helper fixtures, exact package
-provenance, file checksums, bundle/index validation, and complete offline app source.
-It stopped only at the designed committed-manifest equality gate after uploading the
-validated candidate cited above. Exact-head run `29655286162` proved that all
-substantive bytes and fields reproduced, but exposed eight wall-clock `Built`
-timestamps from source compilation. The writer now canonicalizes only that
-non-semantic field; a later exact-head run must match before merge.
+Final exact-head and main runs passed deterministic Haswell/one-thread OpenBLAS,
+complete R/JavaScript/shell parsing, the six-handler Shiny registration contract, all
+11 scientific helper fixtures, exact package provenance, file checksums, all 46 site
+bundles, the 46/604/604 indexes, complete offline app source, and committed
+manifest/data equality. Connect restored the absolute CRAN dependency lane, served
+the semantic ready marker, loaded the JORN interaction funnel, and exposed no
+first-party console warning/error in a fresh browser session.
 
 ## Unit, support, and opportunity
 
@@ -108,8 +108,7 @@ HELD:
 
 - current-source Driver site/year join parity and eligible-source pin changes;
 - pooled seasonal/lag promotion until support, guild stratification, and mediators are
-  evaluated across all nine companion packages; and
-- production-shipped status until reviewed merge plus semantic public health pass.
+  evaluated across all nine companion packages.
 
 ## Reusable learning package
 
@@ -127,6 +126,13 @@ Promote to every later app/subagent brief:
   UNVALIDATED. Source-package wall-clock `Built` timestamps must be deterministically
   removed while all identity, origin, compatibility, and checksum fields remain
   hard-gated.
+- **Publication:** a merge only makes a source revision available; verify Connect's
+  **Last deployed** commit, explicitly republish when it lags, and require a semantic
+  production receipt. Treat installed-package provenance and the platform's network
+  contract as separate gates.
+- **Browser/runtime:** Shiny custom message handlers must accept exactly one payload
+  argument, including no-payload handlers; inventory and gate them so a dependency
+  upgrade cannot silently disable registration.
 - **Data/release UX:** report bundle freshness as reviewed/committed, not live; never
   turn an opaque no-CORS pre-warm into a readiness claim; automated data refreshes
   create restricted review candidates rather than writing production directly.
@@ -151,6 +157,6 @@ Driver remains unchanged. Preserve CPUE/MNKA/N-hat as qualified consumer context
 revisit ingestion only after all companion packages are complete and the synthesis
 re-evaluates the exact eligible source pin, join coverage, support, and mechanism.
 
-Next dependency: commit the validated manifest, obtain one green exact-head PR run,
-merge intentionally, and record semantic production health plus the immutable merge
-receipt in the central suite ledger before beginning Phenology.
+Next dependency: publish this exact `CONTEXT` receipt to the central Driver suite
+ledger and playbook, with Driver artifacts unchanged. Begin Phenology only after that
+documentation merge is green.

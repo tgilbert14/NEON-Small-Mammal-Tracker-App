@@ -525,3 +525,46 @@ Driver implication, and next action.
 - **Next action:** publish the focused console-contract branch, promote only its
   validated manifest artifact, require an exact-head green run, merge, republish,
   and repeat semantic marker, interaction, and first-party-console verification.
+
+### 2026-07-18 15:27 MST - pass 1 production closeout / root
+
+- **Changed/classification:** merged fully green PR #76 into `main` as
+  `1615ab4e74fd16a2698de8431acb862d6cc4cebf`, deleted the remote release branch,
+  republished that exact revision in Connect, and completed final browser/runtime
+  QA. This closeout is `app-local`, `suite-platform`, `scientific-contract`,
+  `product/UI`, and `Driver-impacting`; the Driver artifact decision remains
+  **NONE / HOLD CURRENT BYTES** with learning disposition **CONTEXT**.
+- **Pinned evidence:** exact-head run `29663236510`, job `88129323716`, and final
+  main run `29663335706`, job `88129588478`, passed R 4.5.2, the exact eight-package
+  source closure, Haswell/one-thread OpenBLAS, complete parse, six-handler arity,
+  all 11 scientific fixtures, exact 46-site/schema/index/checksum gates, offline
+  source, and committed manifest/data equality. Final manifest SHA-256 is
+  `f6c4a5ff74053b95e22fac7394f1930d2fe2329663737031b1c32f7a1f70bc54`.
+- **Publication evidence:** Connect **Last deployed** reports commit `1615ab4` at
+  15:23 MST. Semantic run `29663335708`, job `88129588525`, and Pages run
+  `29663335341` passed on that merge. Outage issue #74 is closed.
+- **Public browser result:** a fresh public session exposed
+  `ddl-app-ready=small-mammal-tracker-v1`, restored saved JORN state, and rendered
+  6,093 captures, 2,252 individuals, 21 species, 31,584 reviewed trap-nights, the
+  Overview, and all ten app tabs without Startup Error. The first-party handler
+  error is gone; the only warning/error-level entries were five upstream
+  bootstrap-datepicker language deprecations. Pages rendered the reviewed Small
+  Mammal cover, launch/repository controls, all nine companion links, exact
+  46-site/145-species framing, and `og-image.png` metadata.
+- **Expected versus actual:** expected the final PR head, merge, manifest, deployed
+  revision, semantic marker, interaction output, console, and Pages cover to agree;
+  actual matched.
+- **Evidence invalidated:** every earlier `release candidate`, `draft PR`, `outage`,
+  `republish pending`, and `first-party console error pending` statement is
+  superseded. Historical failures remain factual diagnostics.
+- **Artifacts/non-impact:** no Driver generation or scientific artifact changed.
+  Small Mammal bundled data and all derived indexes reproduced exactly. The separate
+  idea branch remained untouched.
+- **Residual risk:** visual mobile QA remains unclaimed because the browser harness
+  did not expose a reliable viewport override; static responsive, reduced-motion,
+  focus, and touch-target contracts passed. Five upstream datepicker deprecations
+  remain non-blocking. Exact current-source Driver site/year join parity remains
+  held for the later suite synthesis.
+- **Next action:** publish this documentation-only app closeout, then vendor its
+  exact `CONTEXT` receipt into the Driver suite ledger/playbook with Driver artifact
+  hashes unchanged. Do not begin Phenology before that Driver documentation merge.
