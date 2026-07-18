@@ -26,7 +26,7 @@ ledger because this file cannot self-pin a future merge commit.
   wall-clock URL-package `Built` timestamps removed and their top-level deployment
   lane normalized to `Source: CRAN` plus the absolute `https://cran.r-project.org`
   origin Connect requires; SHA-256
-  `e619343d1d6404f52260481ec611ccbd1c9f5cd349657c0799f6d535a7bc0b11`
+  `f6c4a5ff74053b95e22fac7394f1930d2fe2329663737031b1c32f7a1f70bc54`
 - Bundle/index contract: 46/46 expected site bundles loaded with rows and the
   physical-effort schema; national index row counts are 46/604/604; 145 species.
 
