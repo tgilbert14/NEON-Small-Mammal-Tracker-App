@@ -201,12 +201,13 @@ for (pkg in names(GEO_PINS)) {
                          pkg, got, unname(GEO_PINS[[pkg]])))
   source <- as.character(chk$packages[[pkg]]$Source %||% "")
   remote_type <- as.character(chk$packages[[pkg]]$description$RemoteType %||% "")
-  remote_url <- as.character(chk$packages[[pkg]]$description$RemoteUrl %||% "")
-  if (!source %in% c("CRAN", "url") || !identical(remote_type, "url") ||
-      !identical(remote_url, unname(GEO_URLS[[pkg]])))
+  remote_ref <- as.character(chk$packages[[pkg]]$description$RemotePkgRef %||% "")
+  expected_ref <- paste0("url::", unname(GEO_URLS[[pkg]]))
+  if (!identical(source, "URL") || !identical(remote_type, "url") ||
+      !identical(remote_ref, expected_ref))
     bad <- c(bad, sprintf(
-      "%s origin Source=%s RemoteType=%s RemoteUrl=%s (want exact URL input %s)",
-      pkg, source, remote_type, remote_url, unname(GEO_URLS[[pkg]])))
+      "%s origin Source=%s RemoteType=%s RemotePkgRef=%s (want exact %s)",
+      pkg, source, remote_type, remote_ref, expected_ref))
 }
 if (length(bad)) {
   stop(sprintf(

@@ -381,6 +381,17 @@ Driver implication, and next action.
   source-app definition now remains aligned with Driver's physical-event resolver,
   but package promotion waits for offline source, exact committed manifest, merge,
   and semantic public health.
-- **Next action:** statically verify this exact-URL/diagnostic tranche, push it to the
-  existing draft branch, and use the next pinned run either to reach the validated
-  artifact or to inspect the retained unvalidated record without guessing.
+- **Observed diagnostic result:** exact-head run `29654014025` (branch head
+  `a700ae0587c765ad8672f49049a781e8a303f745`, pull-request merge revision
+  `eadd5cf7f1f52fb32925f049baaef2a448ae9bee`) again passed dependency installation,
+  deterministic OpenBLAS, complete parsing, and all 11 helper contracts. Its writer
+  then rejected the still-assumed `RemoteUrl` shape. The one-day UNVALIDATED artifact
+  showed the authoritative installed tuple for every geospatial pin:
+  `Source: URL`, `Repository: CRAN`, `RemoteType: url`, and
+  `RemotePkgRef: url::<exact tarball URL>`. No diagnostic bytes were promoted.
+- **Focused correction:** writer and verifier now require that observed four-field
+  tuple exactly, including the `url::` prefix and full declared tarball URL; ordinary
+  packages remain `Source: CRAN` on the dated snapshot lane.
+- **Next action:** statically verify this observed-shape correction, push it to the
+  existing draft branch, and require the next pinned run to pass bundle/offline gates
+  before its validated manifest artifact can be considered for promotion.
