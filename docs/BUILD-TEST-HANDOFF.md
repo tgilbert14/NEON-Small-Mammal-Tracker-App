@@ -227,3 +227,39 @@ Driver implication, and next action.
   remove post-hoc manifest version mutation, statically verify, commit/push the
   focused fix plus this handoff, and inspect the next PR run without weakening any
   downstream gate.
+
+### 2026-07-18 09:28 MST - real closure passes; isolated helper pipe fails
+
+- **Approved/published fix:** explicit approval was received. Commit
+  `1bd1e24b088ebf8b7a953b9f4afb5bddbaccf850` installs the declared geospatial
+  versions from exact CRAN source URLs in both CI and refresh, removes post-hoc
+  manifest platform/version/RemoteSha mutation, and retains fail-closed checks of
+  generated manifest truth. It was pushed only to draft PR #73; `main`, production,
+  the watched refresh path, and the user's separate idea branch remain untouched.
+- **Pinned CI evidence (partial PASS / terminal FAIL):** Actions run
+  `29650640599`, job `88096273438`, on exact head `1bd1e24...` completed the full
+  native dependency build in 16m40s. Dependency installation, pinned R 4.5.2,
+  deterministic Haswell/single-thread OpenBLAS, complete R/JS/shell parsing, and
+  scientific helper contracts 01-10 passed. This closes the prior terra/GDAL
+  compile failure. Manifest generation, bundle/index/checksum verification,
+  offline app source, artifact upload, and committed-match remained skipped.
+- **Observed next root cause:** `scripts/test_helpers.R` intentionally sources
+  `R/helpers.R` without `global.R`. `mnka_series()` then reached an unqualified
+  `%>%` and failed because the pipe existed only as an ambient effect of
+  `global.R` attaching dplyr. Production startup attaches dplyr first, but the
+  analytical module was not independently sourceable as its fixture contract
+  requires.
+- **Approved focused repair:** bind `%>%` explicitly from the already-declared
+  dplyr dependency at the top of `R/helpers.R`; do not weaken the isolated fixture
+  by attaching packages in the test. The user approved completing the whole app,
+  including continued release/science gates followed by product/UI work.
+- **Classification/Driver implication:** `app-local` and `scientific-contract`;
+  Driver implication remains `HOLD CURRENT OUTPUT`. This binding has no intended
+  metric-semantic change and no Driver bytes change.
+- **Cleanup/residual risk:** the completed watcher exited normally on the failed
+  check and the bundled inspector retrieved the exact log. No data, manifest,
+  cache, lock, artifact, or deployment state changed. The rest of the fixture and
+  every later CI gate remain unverified until the next exact-head run.
+- **Next action:** statically verify the explicit pipe binding, commit/push it plus
+  this evidence to the existing draft branch, and watch CI through the remaining
+  gates without relaxing their contracts.

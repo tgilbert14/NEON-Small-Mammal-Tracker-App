@@ -11,6 +11,11 @@
 
 `%||%` <- function(a, b) if (is.null(a) || length(a) == 0 || (length(a) == 1 && is.na(a))) b else a
 
+# Helpers are also sourced directly by the fail-closed scientific fixture, where
+# global.R has not attached dplyr. Bind the declared dplyr pipe explicitly so
+# analytical functions do not depend on an ambient search-path side effect.
+`%>%` <- dplyr::`%>%`
+
 # Most-frequent non-NA value (ties -> first). Used to pick an individual's
 # "home" plot, modal species id, sex, etc.
 mode_chr <- function(x) {
