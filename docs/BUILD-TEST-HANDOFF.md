@@ -12,9 +12,9 @@ editing it.
 - Product: NEON DP1.10072.001, small mammal box trapping
 - Public cover: `https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/`
 - Public app: `https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/`
-- Release state: **PRODUCTION HEALTHY / PASS 1 COMPLETE**; Connect runtime
-  `1615ab4e74fd16a2698de8431acb862d6cc4cebf` is verified. Cover V3 is a
-  working-tree release candidate until the publication receipt below is closed.
+- Release state: **PRODUCTION HEALTHY / PASS 1 + COVER V3 COMPLETE**; Connect
+  runtime `1615ab4e74fd16a2698de8431acb862d6cc4cebf` remains verified and Pages
+  cover V3 is published from merge `2492056ee62f21b5581de69d6da6d46f2fd37b34`.
 - Driver disposition: accepted `CONTEXT`; central suite receipt merged with no Driver
   generation or scientific-artifact byte change
 
@@ -628,3 +628,45 @@ Driver implication, and next action.
   one green exact evidence-pinned head, merge intentionally, verify the public Pages
   cover and metadata at desktop/mobile widths, then append the publication closeout
   before beginning the Plant Phenology pass.
+
+### 2026-07-18 16:38 MST - cover V3 publication closeout / root
+
+- **Changed/classification:** PR #78 merged the two-commit Pages release to `main`
+  as `2492056ee62f21b5581de69d6da6d46f2fd37b34`. This is `product/UI` and
+  `suite-platform`; Driver implication is **NONE / HOLD CURRENT BYTES** and the
+  existing learning disposition remains accepted `CONTEXT`.
+- **Pinned PR evidence (PASS):** final evidence-pinned head
+  `506c4513d815adb584ed2f4740900d4e994bd5ce` passed run `29665334021`, job
+  `88134713870`, in 2m08s after the earlier design-head pass. The exact final head
+  therefore passed the complete pinned R, OpenBLAS, parse/static, scientific,
+  bundle/index/checksum, offline-source, validated-manifest, and manifest/data
+  equality ladder before merge.
+- **Post-merge evidence (PASS):** main validator run `29665434677`, job
+  `88134964949`, passed in 1m45s. Semantic production run `29665434664`, job
+  `88134965010`, passed in 52s. Pages run `29665434190` passed build job
+  `88134966473`, report job `88134997115`, and deploy job `88134997089` in 41s;
+  the published Pages artifact digest is
+  `61a841fc7986304648e995ea56f50d06cefa2c233d4cba14e60a6e4e30e74243`.
+- **Public browser result (PASS):** the live Pages URL rendered the full habitat-led
+  desktop composition and the 390px portrait source `hero-mobile-v1.jpg`, one H1,
+  the current-suite marker, production receipt, and all companion groups. At 390px
+  the DOM reported client/scroll width 375/375, no horizontal overflow, 44px nav
+  launch and 57px primary actions, and no warning/error console entries. Desktop
+  and mobile both loaded their declared image sources without asset failures.
+- **Expected versus actual:** expected PR head, merge SHA, main validator, semantic
+  health, Pages artifact, desktop layout, mobile source selection, responsive
+  geometry, and metadata to agree; actual matched. The prior mobile-QA and cover-
+  publication residuals are superseded.
+- **Artifacts/non-impact:** the Shiny runtime, bundled data, manifest SHA-256
+  `f6c4a5ff74053b95e22fac7394f1930d2fe2329663737031b1c32f7a1f70bc54`,
+  Connect deployment `1615ab4`, and Driver generation/scientific artifacts did not
+  change. No Connect republish was needed or performed.
+- **Residual risk:** GitHub's platform-owned Pages workflow reports a non-blocking
+  Node.js 20 deprecation warning for its internal `actions/checkout@v4` and
+  `actions/upload-artifact@v4`; the deploy succeeds and repository-authored pinned
+  validation actions are already current. Five upstream runtime datepicker
+  deprecations and the held current-source Driver join remain unchanged.
+- **Next action:** publish this documentation-only closeout, delete the merged cover
+  branches after the final green main receipt, then begin Plant Phenology from its
+  clean pinned baseline while carrying forward the responsive-asset, image-
+  provenance, semantic-cover, and evidence-pinned release contracts.

@@ -4,14 +4,14 @@
 > cold-booted agent doesn't re-flag shipped or deliberately-deferred work. Owned by `triage`; keep it
 > current after every review or ship. Depth: `README.md`, `DEPLOY.md`, `docs/neonize-playbook.md`.
 
-**Last verified against the build and public endpoints:** 2026-07-18 (production runtime merge `1615ab4`; cover V3 publication pending).
+**Last verified against the build and public endpoints:** 2026-07-18 (production runtime `1615ab4`; public cover V3 merge `2492056`).
 
 ## Stage
 - **Pass 1 complete / production healthy:** Pages and Connect pass semantic health.
 - Runtime merge `1615ab4` is deployed; final main CI, semantic health, and Pages publication passed.
 - The app is again the **flagship / reference** for honest statistics, reviewed releases, and
-  product patterns. The habitat-led cover V3 is locally verified and awaiting its public Pages
-  receipt. Unrelated idea branches remain outside this pass.
+  product patterns. The habitat-led cover V3 is published and verified at desktop and mobile
+  breakpoints. Unrelated idea branches remain outside this pass.
 
 ## Shipped (don't re-flag as missing)
 - National site-picker Leaflet map (by-site / by-species toggle, accessible list fallback, one-tap load).
@@ -32,9 +32,6 @@
   semantic health, and the ten-app suite. The in-app About panel links all nine companions.
 
 ## Open / in-flight
-- Publish and publicly verify the habitat-led cover V3. Local visual QA passes at desktop, 390px,
-  and the 320px reflow boundary; its provenance, social metadata, and static cover contract are
-  checked in CI.
 - Long-term: Shinylive/WebAssembly static export (zero cold-start endgame) — see `DEPLOY.md` Option B.
 
 ## Deliberately deferred / non-goals
@@ -43,6 +40,6 @@
 
 ## P-items
 - **P0 COMPLETE:** pinned release gates and semantic production health are green.
-- **P1 IN PROGRESS:** merge and publicly verify cover V3; local responsive visual QA is complete.
+- **P1 COMPLETE:** cover V3, responsive assets, social metadata, provenance, and public mobile QA are verified.
 - **P2 COMPLETE:** reviewed `CONTEXT` package is in the central Driver ledger; no Driver byte change.
 - **P3:** evaluate Shinylive only after the Connect release path is stable.
