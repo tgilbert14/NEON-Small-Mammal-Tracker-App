@@ -729,3 +729,54 @@ Driver implication, and next action.
   validator, merge intentionally, verify public Pages at desktop/390/320 and social
   metadata, then append the immutable publication closeout before resuming the
   in-flight Plant Phenology release.
+
+### 2026-07-18 18:14 MST - documentary cover V4 publication closeout / root
+
+- **Changed/classification:** PR #80 merged the documentary Pages release to `main`
+  as `dd72d518e53b5b8fa421ead831486a02c53c056a`. This is `product/UI` and
+  `suite-platform`; Driver disposition remains accepted **CONTEXT / HOLD CURRENT
+  OUTPUT**.
+- **Pinned PR evidence (PASS):** exact design/head
+  `37d9f6050e3275cb4f09fc0547de40e69ed5d2a3` passed run `29668112141`, job
+  `88142131181`, in 2m06s and uploaded validated artifact
+  `small-mammal-manifest-f2cefbb30ebbd2f8c0c3b1d99fc6c6bb7d66ebc7`.
+  The run passed pinned R/package/OpenBLAS closure, static cover and handler
+  contracts, scientific fixtures, exact 46-site bundle/index/file checksums,
+  offline source, and committed manifest/data equality.
+- **Post-merge evidence (PASS):** main validator run `29668199348`, job
+  `88142357580`, passed in 1m59s and uploaded
+  `small-mammal-manifest-dd72d518e53b5b8fa421ead831486a02c53c056a`.
+  Semantic production run `29668199351`, job `88142357582`, passed in 53s. Pages
+  run `29668199127` passed build job `88142358474`, deploy job `88142395878`, and
+  report job `88142395897` in 47s.
+- **Public browser result (PASS):** the live Pages URL renders the exact headline,
+  full-width documentary mouse/trap photograph, visible USGS/public-domain credit,
+  six live-app controls, nine companion destinations, one current-product marker,
+  and the evidence receipt. Both 4000×3000 image instances loaded successfully;
+  Open Graph metadata points to the published `og-image.jpg`. Desktop matched the
+  reviewed split composition. At 390×844 the client/scroll widths were 375/375 and
+  the nav launch remained 44px. At 320×800 they were 305/305, the compact DDL mark
+  replaced the wordmark, and the launch remained 44px. No responsive overflow or
+  missing asset remained.
+- **Runtime confirmation:** a fresh public Connect session still exposed the
+  verified JORN baseline—6,093 captures, 2,252 individuals, 21 species, 64.8%
+  recapture rate, 31,584 trap-nights, and 92 legends—without Startup Error. The
+  Pages-only release required and performed no Connect republish.
+- **Expected versus actual:** expected exact PR head, merge SHA, main validator,
+  semantic health, Pages deployment, social metadata, documentary assets, desktop
+  composition, and both mobile boundaries to agree; actual matched. The rejected
+  V3 cover remains only in history and its generated assets are not referenced by
+  V4.
+- **Artifacts/non-impact:** the Shiny runtime, bundled data, indexes, scientific
+  helpers, manifest SHA-256
+  `f6c4a5ff74053b95e22fac7394f1930d2fe2329663737031b1c32f7a1f70bc54`,
+  Connect deployment `1615ab4`, and Driver generated/scientific artifacts did not
+  change.
+- **Residual risk:** GitHub's platform-owned Pages workflow reports the same
+  non-blocking Node.js 20 deprecation for internal `actions/checkout@v4` and
+  `actions/upload-artifact@v4`; deployment succeeds. Five upstream runtime
+  datepicker deprecations and the held current-source Driver join remain unchanged.
+- **Next action:** publish this documentation-only closeout, delete the merged
+  cover branch, and resume Plant Phenology at its first validator finding:
+  `data/sites/KONA.rds` carries an empty `trend` object that must normalize to
+  `NULL` or a non-empty data frame before artifact promotion.
