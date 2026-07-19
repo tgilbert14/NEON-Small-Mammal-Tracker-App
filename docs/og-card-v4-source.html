@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1200, initial-scale=1">
+  <title>NEON Small Mammal Tracker social card source</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 1200px; height: 630px; margin: 0; overflow: hidden; }
+    body {
+      display: grid;
+      grid-template-columns: 54% 46%;
+      color: #fffef9;
+      background: #11130f;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .copy {
+      position: relative;
+      padding: 58px 46px 42px 58px;
+      display: flex;
+      flex-direction: column;
+      border-right: 7px solid #d8fa55;
+    }
+    .brand { color: #d8fa55; font-size: 16px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; }
+    h1 { margin: 68px 0 0; font-size: 75px; line-height: .93; letter-spacing: -.065em; }
+    h1 span { color: #d8fa55; }
+    .foot { margin-top: auto; display: flex; align-items: end; justify-content: space-between; gap: 30px; }
+    .product { font-size: 18px; font-weight: 850; }
+    .suite { color: rgba(255,255,255,.56); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; text-align: right; }
+    figure { position: relative; margin: 0; overflow: hidden; background: #58584d; }
+    img { width: 100%; height: 100%; object-fit: cover; object-position: 61% 50%; display: block; }
+    figure::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(17,19,15,.18), transparent 28%), linear-gradient(0deg, rgba(17,19,15,.45), transparent 28%); }
+    figcaption { position: absolute; z-index: 2; right: 22px; bottom: 18px; left: 22px; color: rgba(255,255,255,.78); font-size: 10px; line-height: 1.35; text-align: right; }
+  </style>
+</head>
+<body>
+  <section class="copy">
+    <div class="brand">NEON Explorer Suite</div>
+    <h1>One trap night.<br>A whole <span>population story.</span></h1>
+    <div class="foot">
+      <div class="product">NEON Small Mammal Tracker</div>
+      <div class="suite">Desert Data Labs<br>46 research sites</div>
+    </div>
+  </section>
+  <figure>
+    <img src="assets/pacific-pocket-mouse-sherman-trap-usgs.jpg" alt="A Pacific pocket mouse emerges from a Sherman live trap.">
+    <figcaption>Pacific pocket mouse · Cheryl Brehme, USGS · Public domain</figcaption>
+  </figure>
+</body>
+</html>

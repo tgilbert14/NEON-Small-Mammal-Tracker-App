@@ -143,6 +143,33 @@ Promote to every later app/subagent brief:
   conventions into both UI and tidy export; suppress winners the measurement design
   cannot defend.
 
+### Cover V4 suite learning (2026-07-18)
+
+- Documentary credibility is part of product trust. When field methods are central
+  to the app's promise, prefer a real, rights-cleared field photograph; store the
+  original locally, expose a visible credit, pin its hash, state what it does **not**
+  document, and use CSS-only crops rather than synthetic edits.
+- A companion cover should earn the first click before explaining the entire app.
+  Lead with one memorable outcome, make the dominant field object legible at the
+  first viewport, and offer three question-led entry paths that map to real in-app
+  tasks. Move definitions, release detail, and exhaustive provenance into a compact
+  evidence receipt instead of repeating feature cards.
+- Suite cohesion should come from navigation, evidence language, claim boundaries,
+  provenance, and the Driver handoff—not from making every cover look the same. Each
+  companion should have a product-specific visual thesis grounded in its
+  measurement: here, `trap -> tag -> recapture -> interpret`.
+- Review persuasion and scientific honesty together. The highest-conversion copy is
+  not the biggest claim; it is a clear invitation paired with an explicit boundary.
+  Small Mammals now sells the question while keeping CPUE, MNKA, and gated N-hat
+  meanings one short scroll away.
+- Treat narrow responsive QA as a release gate. The V4 pass found a 320px navigation
+  overflow that was invisible at 390px and resolved it by collapsing the brand label
+  while retaining the 44px launch target.
+
+Driver disposition remains **CONTEXT / HOLD CURRENT OUTPUT**. These are reusable
+suite design and provenance rules; they do not change a Driver scientific input,
+join, eligible-source pin, or generated artifact.
+
 Do not generalize without product-specific review:
 
 - the six `trapStatus` weights, coordinate resolver, MNKA window, and closed-capture
