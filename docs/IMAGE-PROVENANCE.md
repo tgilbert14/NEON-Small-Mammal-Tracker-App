@@ -1,86 +1,80 @@
 # Small Mammal cover image provenance
 
-Status: **CURRENT / COVER V3**
+Status: **CURRENT / COVER V4**
 
-These assets are project-created AI illustrations, not documentary field
-photographs and not evidence of a named species, site, or trapping outcome. They
-must not be used to imply animal injury, capture success, population density, or
-ecosystem condition.
+Cover V4 replaces the generated V3 habitat scene with a documentary field
+photograph. The live hero, evidence close-up, and social card now show a real
+small mammal with the humane field equipment described by the app.
 
-## Desktop habitat source
+## Documentary hero photograph
 
-- File: `docs/og-habitat-v2.png`
-- Use: desktop landing-page hero source
-- Dimensions: 1774 x 887 PNG
-- SHA-256: `28f78aaf2b02c1907a1ea2762c8b5a7068d50c718aa09d2ffa422a2c9c5294dc`
-- Added: 2026-07-18 in commit `c92158716953f9f1a8d5d329d0d6f95fd8e966bc`
-- Historical limitation: the original generation prompt was not retained. This is
-  preserved as a provenance gap rather than reconstructed and mislabelled as the
-  original prompt.
-- Alt text: “A desert mouse standing beside a humane box trap and survey flag in
-  moonlit desert habitat.”
+- File: `docs/assets/pacific-pocket-mouse-sherman-trap-usgs.jpg`
+- Title: “Pacific pocket mouse in Sherman trap”
+- Subject: Pacific pocket mouse emerging from a Sherman live trap
+- Photographer: Cheryl Brehme, U.S. Geological Survey Western Ecological
+  Research Center
+- Rights: U.S. Geological Survey public domain
+- Source page:
+  <https://www.usgs.gov/media/images/pacific-pocket-mouse-sherman-trap>
+- Original file:
+  <https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/s3fs-public/thumbnails/image/DSCN0070.JPG>
+- Retrieved: 2026-07-18
+- Dimensions: 4000 x 3000 JPEG
+- SHA-256:
+  `b678af26331a98747eba64c382f1ee7e2e1f7c1f77baecbd81dd46622a9e950a`
+- Use: desktop and mobile cover hero, plus the evidence close-up
+- Transformations: none to the stored source. Responsive crops, gradients, and
+  text treatment are applied non-destructively with CSS.
+- Alt text: “A Pacific pocket mouse emerges from the open door of a metal
+  Sherman live trap on leaf-strewn ground.”
 
-## Mobile habitat companion
-
-- Source file: `docs/hero-mobile-v1.png`
-- Delivery file: `docs/hero-mobile-v1.jpg`
-- Use: landing-page hero at viewports up to 700 CSS pixels
-- Source dimensions / SHA-256: 852 x 1846 PNG /
-  `7d62b3b1066c512f40452bedb374732a0e4a3e7924e82e90ac803efe53ccaf04`
-- Delivery dimensions / SHA-256: 852 x 1846 JPEG /
-  `14e447c12b60f1b1adf0e2cfe3985ad25e310ae0fdeddc3428f08b86a083b410`
-- Generated: 2026-07-18 with the built-in OpenAI image generation workflow,
-  using `docs/og-habitat-v2.png` as the edit target
-- Alt text: same as the desktop source; the `<picture>` element exposes one image
-  alternative regardless of selected crop.
-
-Generation prompt:
-
-> Recompose and extend the provided desert-night small-mammal scene into a
-> polished portrait mobile hero image. Preserve the same realistic desert mouse,
-> humane metal box trap, pink survey flag, moonlit Sonoran-desert vegetation,
-> distant mountains, and deep indigo/cyan/warm-sand visual identity. Keep the
-> mouse and trap fully visible in the lower half and leave calm, dark, low-detail
-> negative space across the upper half for HTML text. No text, logos, watermark,
-> extra animals, people, bait, injury, trapped animal, charts, or health symbolism.
+The photograph documents equipment and a species encounter. It is not a NEON
+site photograph, is not part of product `DP1.10072.001`, and must not be used to
+imply a NEON capture outcome, population density, or ecosystem condition.
 
 ## Social card
 
-- Source file: `docs/og-card-v3-source.png`
-- Delivery file: `docs/og-image.png`
+- Source layout: `docs/og-card-v4-source.html`
+- Delivery file: `docs/og-image.jpg`
 - Use: Open Graph and Twitter large-image card
-- Source dimensions / SHA-256: 1730 x 909 PNG /
-  `708ce2d0ab1d3fcf0f927152c7a9574b06a802c8d2eea7fa817b66cbed882845`
-- Delivery dimensions / SHA-256: 1200 x 630 PNG /
-  `d089443e74cedb2d8b9f1f02dde6bd4c5358a7d05c94ec66a9124ca79bdad0bd`
-- Generated: 2026-07-18 with the built-in OpenAI image generation workflow,
-  using the prior habitat-only `docs/og-image.png` as the edit target; resized
-  deterministically with macOS `sips`
-- Alt text: “A moonlit desert mouse beside a humane box trap under the title NEON
-  Small Mammal Tracker.”
+- Delivery dimensions: 1200 x 630 JPEG
+- Delivery SHA-256:
+  `b36c62094270bf1598f38c6162ea6fda1b5c607f513a3faeea4ed62819fdf19a`
+- Rendered: 2026-07-18 from the project-owned HTML/CSS source at an exact
+  1200 x 630 browser viewport
+- Documentary source: the USGS public-domain photograph listed above
+- Alt text: “A Pacific pocket mouse emerges from a Sherman live trap beside the
+  title One trap night. A whole population story.”
 
 Exact card text:
 
 ```text
-TERRESTRIAL CONSUMER EXPLORER
+NEON EXPLORER SUITE
+One trap night.
+A whole population story.
 NEON Small Mammal Tracker
-DESERT DATA LABS · EXPLORER SUITE
+DESERT DATA LABS
+46 RESEARCH SITES
+Pacific pocket mouse · Cheryl Brehme, USGS · Public domain
 ```
 
-Generation prompt:
+## Retired V3 illustration assets
 
-> Preserve the provided moonlit desert mouse, humane box trap, survey flag,
-> vegetation, mountains, lighting, crop, and right-side photographic details.
-> Add the exact three text lines above in the dark left-side negative space with
-> modern off-white, warm-sand, and pale-blue sans-serif typography, generous
-> social-safe margins, and one restrained cyan-to-sand three-node constellation
-> mark. Add no other words, numbers, logos, labels, badges, charts, watermarks, or
-> data claims.
+The following generated illustrations remain in version history and in the
+repository only as retired release artifacts. Cover V4 does not reference them:
+
+- `docs/og-habitat-v2.png`
+- `docs/hero-mobile-v1.png`
+- `docs/hero-mobile-v1.jpg`
+- `docs/og-card-v3-source.png`
+
+Their full prompts, hashes, and limitations are preserved in the Cover V3
+version of this file. They must not be reintroduced as documentary evidence.
 
 ## Release contract
 
-`scripts/check_cover.mjs` verifies that the delivery assets exist, the social card
-is exactly 1200 x 630, the mobile image is the declared size, social alt metadata
-is present, all suite destinations are registered, and the landing page makes no
-automatic prewarm request. Asset changes require this provenance record and the
-cover contract to change together.
+`scripts/check_cover.mjs` verifies the documentary source and social-card hashes,
+the exact 1200 x 630 delivery size, social alt metadata, suite destinations,
+scientific claim boundaries, safe live-app controls, and the absence of any V3
+hero reference or automatic app prewarm. Asset changes require this provenance
+record and the cover contract to change together.

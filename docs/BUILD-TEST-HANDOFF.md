@@ -670,3 +670,62 @@ Driver implication, and next action.
   branches after the final green main receipt, then begin Plant Phenology from its
   clean pinned baseline while carrying forward the responsive-asset, image-
   provenance, semantic-cover, and evidence-pinned release contracts.
+
+### 2026-07-18 18:06 MST - documentary cover V4 release candidate / root
+
+- **Starting state:** clean synchronized `main` at
+  `56de0436e7846154b5109aadd45703f420509842`; production runtime and Connect
+  deployment remain the verified
+  `1615ab4e74fd16a2698de8431acb862d6cc4cebf`.
+- **Changed/classification:** this `product/UI`, `suite-platform`, Pages-only
+  candidate replaces the rejected generated-habitat pitch with a documentary,
+  question-led product story. The first viewport now gives the Sherman trap and
+  animal equal billing with one promise—“One trap night. A whole population
+  story.”—then offers three real tasks: follow a returning animal, test a supported
+  population signal, or explore the nocturnal community. Repetitive feature prose
+  was removed; the field logic, scientific boundary, release receipt, and suite
+  continuation now each use a distinct editorial rhythm.
+- **Documentary provenance:** the hero/evidence source is Cheryl Brehme's USGS
+  “Pacific pocket mouse in Sherman trap,” public domain, stored unmodified at
+  4000×3000 with SHA-256
+  `b678af26331a98747eba64c382f1ee7e2e1f7c1f77baecbd81dd46622a9e950a`.
+  The visible cover states that it is real field equipment, credits the source,
+  and does not present the photograph as a NEON observation. The project-owned
+  HTML/CSS social source renders the same documentary asset at exact 1200×630;
+  delivery JPEG SHA-256 is
+  `b36c62094270bf1598f38c6162ea6fda1b5c607f513a3faeea4ed62819fdf19a`.
+- **Claims and evidence:** visible facts remain pinned to 46 sites, 178,216 reviewed
+  capture/handling rows, 93,169 tagged individuals, 145 species, 2013–2024, and
+  NEON `DP1.10072.001`. CPUE remains a within-site catch-per-effort index, MNKA a
+  conservative floor, and N-hat a gated estimate. CAN/CANNOT claims and the dated
+  July 18, 2026 production receipt remain present without dominating the pitch.
+- **Local gates (PASS):** `node --check scripts/check_cover.mjs`,
+  `node scripts/check_cover.mjs`, and `git diff --check` pass. The contract now pins
+  the documentary and social-card hashes and dimensions, requires the promise and
+  three question-led entries, all nine suite destinations, six safe purposeful app
+  controls, claim boundaries, verified facts, social metadata, visible credit,
+  unique IDs, and no insecure source, generated V3 hero reference, or unsolicited
+  prewarm.
+- **Browser QA (PASS):** local desktop and 390×844 review loaded both 4000×3000
+  documentary image instances, one H1/main/current marker, six `_blank`/`noopener`
+  app controls, and no horizontal overflow. At 390px the launch control is 44px,
+  the primary action 50px, and question targets 172–197px. A separate 320×800 pass
+  found a 39px navigation overflow, collapsed the brand wordmark below 360px, and
+  then passed exact 305/305 client/scroll widths while retaining the 44px launch
+  target.
+- **Reusable suite learning:** the app-local Driver package now records documentary
+  media, persuasion-first information architecture, question-to-task mapping,
+  product-specific visual theses, progressive evidence receipts, and 320px QA as
+  defaults for later companions. Driver disposition remains **CONTEXT / HOLD
+  CURRENT OUTPUT**.
+- **Expected versus actual:** expected a cover that earns curiosity before teaching
+  method, makes the trap unmistakable, and is more credible because every visual
+  claim is inspectable; local visual, semantic, asset, and responsive actuals match.
+  GitHub validation and public Pages publication are **PENDING**.
+- **Artifacts/non-impact:** no Shiny runtime file, bundled datum, index,
+  `manifest.json`, scientific helper, Connect deployment, or Driver generated
+  artifact changed. Connect does not need republishing for this Pages-only release.
+- **Next action:** commit and push the V4 candidate, require a green exact-head
+  validator, merge intentionally, verify public Pages at desktop/390/320 and social
+  metadata, then append the immutable publication closeout before resuming the
+  in-flight Plant Phenology release.
