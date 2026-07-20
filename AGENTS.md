@@ -67,6 +67,40 @@ write permission only to the final restricted publisher.
 HTTP 200 is not app health. Public verification must reject Posit startup/error
 pages and require an app-specific ready marker after a real render.
 
+## Landing a manifest/derived-bytes change without thrashing
+
+`manifest.json` (and, in siblings, `data/search_index.rds`) are byte-exact gates: CI
+regenerates them in the pinned validator and fails the run if the committed copy
+differs. CI is read-only, so it cannot commit the fix for you. If you have no local
+pinned R + GDAL-3.4.1 toolchain you CANNOT pre-generate a matching manifest — so the
+first run of any runtime-touching change fails that gate BY DESIGN. Promote the
+artifact; do not flail:
+
+1. Make the change and push ONCE. Do not rapid re-push — `cancel-in-progress` cancels
+   the running check, and each run source-compiles the geo closure (~10–40 min).
+2. When the run fails the "Require committed manifest ... to match" step, download the
+   VALIDATED `small-mammal-manifest-<sha>` artifact it uploaded (retention 3 days),
+   NOT the `small-mammal-manifest-UNVALIDATED-<sha>` diagnostic artifact (which must
+   never be committed). If an EARLIER gate failed, fix that first — no valid manifest
+   exists to promote yet.
+3. Commit that manifest byte-for-byte in the same PR, push once, and require the exact
+   head to go fully green before merge.
+4. If the gate still flaps after a faithful promotion, that is a determinism
+   regression (a non-canonical `Built`/`locale` field), not something to brute-force —
+   see the byte-reproducibility recipe in `docs/neonize-playbook.md` §6.
+
+One PR per change — do not open separate "closeout/receipt" PRs; fold evidence into
+the feature PR or the handoff. A cover/art change is a coordinated multi-file commit
+(the images + their `www/assets` and `docs/assets` copies + the SHA-256 pins in
+`scripts/check_cover.mjs` / `check_in_app_landing.mjs` + `docs/IMAGE-PROVENANCE.md`);
+binaries cannot auto-merge, so rebase (do not merge) when the base moved.
+
+Durable fix (owner decision, not agent-initiated): let the pinned validator WRITE its
+own output back — a deliberate `workflow_dispatch` "regenerate & commit manifest" job —
+so "promote the exact validator artifact" stops being a manual round-trip. Do not
+auto-commit on every PR; that contradicts "write permission only to the final
+restricted publisher."
+
 ## Suite learning
 
 Each completed app pass must update:
