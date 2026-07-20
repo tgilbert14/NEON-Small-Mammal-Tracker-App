@@ -978,3 +978,69 @@ Driver implication, and next action.
   when the functional app still opens generically; carry the same concise promise
   into the app, verify the real deploy commit, and gate 320 px utility chrome in
   addition to the cover itself.
+
+### 2026-07-19 19:01 MST - public Pages Living Poster correction candidate / small_mammal_live_recheck
+
+- **Starting state:** fetched clean `origin/main` at documentation closeout
+  `8d650b787075bb548d17f8380060597f5a8ff7f9` and created local branch
+  `agent/small-mammal-pages-living-poster`. Connect remains production deployment
+  #122 at runtime merge `bdf56b0`; GitHub Pages is configured from `main:/docs`.
+- **Observed mismatch/root cause:** the owner correctly reported that the artistic
+  public cover was not up. A cache-busted Pages response was byte-for-byte equal to
+  current `docs/index.html` (SHA-256
+  `4ca381e05d792761db77ac5fe105dd0ac69f88ef01839d276f9bda14e5d952e2`), and the
+  latest Pages build API reported `built` with no error on exact closeout merge
+  `8d650b7`. The file's last content commit was documentary V4 `37d9f60`; later
+  Living Poster PRs #82/#83 intentionally changed only the Connect landing. Connect
+  independently served the exact concise hook/promise/CTA and runtime image hash
+  `e9d0158a...`. This was a missing Pages implementation, not cache or publication
+  drift.
+- **Changed/classification:** replaced the long documentary V4 Pages experience
+  with a `product/UI` plus `suite-platform` Living Poster: one dominant real
+  Sherman-trap photograph, hook “One trap night. A whole population story.”,
+  promise “Follow tagged small mammals across years of return visits.”, and one
+  `Pick a place` CTA. Metric bands, methods blocks, repeated task cards, secondary
+  actions, and the full companion directory no longer compete above or below the
+  poster. A short below-fold Driver bridge, photo/data attribution, project links,
+  canonical/social metadata, skip link, focus states, reduced-motion behavior, and
+  52 px CTA remain. The static cover contract now enforces that concise boundary.
+- **Media/provenance:** no image bytes changed. Pages still uses the reviewed
+  4000 x 3000 USGS public-domain photograph with SHA-256
+  `b678af26331a98747eba64c382f1ee7e2e1f7c1f77baecbd81dd46622a9e950a` and the
+  independently composed 1200 x 630 social card with SHA-256
+  `b36c62094270bf1598f38c6162ea6fda1b5c607f513a3faeea4ed62819fdf19a`.
+- **Local static result (PASS):** `git diff --check`; Node parse and execution of
+  `scripts/check_cover.mjs`; the unchanged in-app poster contract; all six custom
+  message-handler arities; `node --check www/app.js`; safe CI YAML parse; shell
+  syntax; exact local HTTP byte serving; and photo/social hash/dimension gates
+  passed. The candidate contains one H1, one main, one safe live CTA, unique IDs,
+  no insecure asset, no unsolicited fetch, and no synthetic metric/method band.
+- **Accessibility result (PASS, static):** computed contrast ratios are acid/ink
+  15.77:1, paper/ink 18.50:1, below-fold eyebrow/paper 6.12:1, bridge text/paper
+  8.13:1, footer/paper 6.84:1, muted poster copy/ink 8.88:1, and product label/ink
+  5.98:1. The skip link, visible focus, semantic landmarks/headings, meaningful
+  image alt, 52 px CTA, 44 px footer controls, reduced-motion, increased-contrast,
+  and forced-colors alternatives are present.
+- **Independent root-owner browser result (PASS, visual/layout):** the local
+  preview passed desktop, 390 px, and 320 px review with zero horizontal overflow.
+  Desktop gives the real trap dominant visual weight and preserves the exact
+  hook/promise/CTA. At 320 x 720 the photograph measured 310 x 263, the headline
+  265 x 215, and the CTA 265 x 52; the full CTA remained visible by y=683 and all
+  substantive links were at least 44 px high. The subagent backend itself exposed
+  no browser, so console, full keyboard, and screen-reader interaction are not
+  separately claimed. No R/runtime, scientific fixture, manifest, Connect
+  interaction, or deployment result is required or claimed because only Pages
+  HTML and its static test changed.
+- **Failures/cleanup:** the first Ruby YAML probe omitted `require "date"` and was
+  rerun successfully with the class loaded. An old system HTML4 `tidy`/libxml
+  parser rejected standard HTML5 landmarks (`nav`, `main`, `section`, `figure`), so
+  it is not used as evidence. No generated asset, temporary repository file, or
+  production state was created.
+- **Ownership/status/Driver implication:** current working-tree edits to
+  `docs/index.html`, `scripts/check_cover.mjs`, and this evidence entry belong to
+  this focused candidate. They are uncommitted and unpublished. Driver implication
+  is **NONE / NO DRIVER BYTE CHANGE**; only the previously accepted artistic-poster
+  suite pattern is corrected.
+- **Next action:** commit/push the focused Pages branch, require exact-head CI,
+  merge intentionally, and bind the resulting Pages build plus cache-busted public
+  desktop/390/320 response before calling the dual-surface release complete.
