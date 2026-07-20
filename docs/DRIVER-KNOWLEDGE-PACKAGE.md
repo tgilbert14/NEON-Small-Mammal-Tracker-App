@@ -1,6 +1,6 @@
 # Small Mammal Tracker -> Driver knowledge package
 
-Status: **PASS 1 COMPLETE / PRODUCTION VERIFIED**
+Status: **PASS 1 + COVER V5 COMPLETE / PRODUCTION VERIFIED**
 
 Learning disposition: **CONTEXT**
 
@@ -8,7 +8,7 @@ Driver action: **HOLD CURRENT OUTPUT; no Driver artifact byte change**
 
 This package promotes only evidence that passed the pinned app validator and final
 semantic production health. The central suite learning ledger must vendor this exact
-receipt before the next companion pass begins.
+receipt before another companion pass begins.
 
 ## Product identity and immutable evidence
 
@@ -16,20 +16,28 @@ receipt before the next companion pass begins.
   `tgilbert14/NEON-Small-Mammal-Tracker-App`
 - NEON product/table: `DP1.10072.001` / `mam_pertrapnight`
 - Audited base: `39dca56c69ef11188333effefd4b2d5bc28948ee`
-- Final runtime merge/deployment: `1615ab4e74fd16a2698de8431acb862d6cc4cebf`
-- Final exact-head validator: run `29663236510`, job `88129323716`
-- Final main validator: run `29663335706`, job `88129588478`
-- Final semantic production health: run `29663335708`, job `88129588525`
-- Final Pages publication: run `29663335341`
-- Validated raw manifest artifact: R 4.5.2, 91 packages, 117 files, SHA-256
+- Pass 1 scientific/runtime merge: `1615ab4e74fd16a2698de8431acb862d6cc4cebf`
+- Pass 1 exact-head validator: run `29663236510`, job `88129323716`
+- Pass 1 main validator: run `29663335706`, job `88129588478`
+- Pass 1 semantic production health: run `29663335708`, job `88129588525`
+- Pass 1 Pages publication: run `29663335341`
+- Pass 1 validated raw manifest artifact: R 4.5.2, 91 packages, 117 files, SHA-256
   `3fba04eb885b3cb6a9437b8c8b25ade25d44d47f6dcb50add025e754a6de04d7`
-- Canonical deployable manifest: R 4.5.2, 91 packages, 117 files, current runtime
+- Pass 1 canonical deployable manifest: R 4.5.2, 91 packages, 117 files, current runtime
   checksums, eight wall-clock URL-package `Built` timestamps removed, and the
   top-level deployment lane normalized to `Source: CRAN` plus the absolute
   `https://cran.r-project.org` origin Connect requires; SHA-256
   `f6c4a5ff74053b95e22fac7394f1930d2fe2329663737031b1c32f7a1f70bc54`
 - Bundle/index contract: 46/46 expected site bundles loaded with rows and the
   physical-effort schema; national index row counts are 46/604/604; 145 species.
+- Cover V5 / Suite Living Poster V1: PR #86, source head `3e66ddca`, merge
+  `c4c46fce3725126231504d8f9610f52e8f929ef8`; exact-head validator
+  `29755133857`, main validator `29755368217`, semantic production health
+  `29755368297`, and Pages publication `29755366998` all passed.
+- Cover V5 canonical manifest: R 4.5.2, 91 packages, 120 files, SHA-256
+  `3fdf334febde34f93f75430bd5ef7daa61cc36f1d6ef7f540578051bee24d3fc`;
+  Connect deployment #125 published exact `c4c46fce` and passed live JORN and
+  chart-interaction checks.
 
 Final exact-head and main runs passed deterministic Haswell/one-thread OpenBLAS,
 complete R/JavaScript/shell parsing, the six-handler Shiny registration contract, all
@@ -175,6 +183,11 @@ Promote to every later app/subagent brief:
   deployment commit and Pages artifact, then inspect the deployed illustration,
   focus order, CTA-to-picker path, utility controls, focal crop, overflow, and browser
   console. Retry platform HTTP 503s without misclassifying them as source defects.
+- Small Mammal V5 passed that contract: PR #86 merged as `c4c46fce`; exact-head
+  pinned run #41 and all three `main` workflows were green; Pages served the
+  versioned poster assets byte-for-byte; and Connect deployment #125 published the
+  same revision, focused the CTA on the 46-site picker, loaded JORN, and preserved
+  working species- and environmental-driver bar interactions.
 
 Driver disposition remains **CONTEXT / HOLD CURRENT OUTPUT**. These are reusable
 suite design and provenance rules; they do not change a Driver scientific input,
@@ -194,6 +207,6 @@ Driver remains unchanged. Preserve CPUE/MNKA/N-hat as qualified consumer context
 revisit ingestion only after all companion packages are complete and the synthesis
 re-evaluates the exact eligible source pin, join coverage, support, and mechanism.
 
-Next dependency: publish this exact `CONTEXT` receipt to the central Driver suite
-ledger and playbook, with Driver artifacts unchanged. Begin Phenology only after that
-documentation merge is green.
+Next dependency: publish this exact Cover V5 `CONTEXT` receipt to the central
+Driver suite ledger and playbook, with Driver artifacts unchanged, then pause.
+Do not select another companion app until the owner resumes the suite pass.

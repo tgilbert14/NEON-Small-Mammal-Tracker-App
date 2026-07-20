@@ -1,9 +1,10 @@
 # Deploy & migration runbook
 
-**Current production state (verified 2026-07-19): HEALTHY.** Pages and
+**Current production state (verified 2026-07-20): HEALTHY.** Pages and
 <https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/> passed
-semantic health. Pages serves source `eb9e1a3`; Connect deployment #122 serves runtime `bdf56b0`.
-Both still show Cover V4 while Cover V5 completes the pinned-manifest release and live verification.
+semantic and visual health on Cover V5 / Suite Living Poster V1. Merge `c4c46fce`
+is the canonical cover release; Connect deployment #125 published that exact
+revision and started bundle-only with all 91 packages supplied by Connect.
 
 The app migrated to Posit Connect Cloud in June 2026. Connect watches `main`, but no automation may
 push there directly. `.github/workflows/refresh-data.yml` builds and verifies an immutable candidate,

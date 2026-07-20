@@ -9,11 +9,11 @@ turning 46 field sites of capture records into maps, charts, and individual prof
 [![Production](https://img.shields.io/badge/production-healthy-1a7f37)](https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/)
 [![Data](https://img.shields.io/badge/data-NEON%20DP1.10072.001-1a7f37)](https://data.neonscience.org/data-products/DP1.10072.001)
 
-**Public status (verified 2026-07-19):** the [Pages landing](https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/)
+**Public status (verified 2026-07-20):** the [Pages landing](https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/)
 and [Posit Connect Cloud app](https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/)
-are healthy. Pages serves source `eb9e1a3`; Connect deployment #122 serves runtime `bdf56b0`.
-Both retain Cover V4 until the Cover V5 Living Poster candidate completes the pinned-manifest
-release, republish, and exact-revision semantic health checks.
+are healthy on Cover V5 / Suite Living Poster V1. Pages and Connect were released
+from merge `c4c46fce`; Connect deployment #125 published that exact revision and
+completed a bundle-only start with all 91 packages supplied by Connect.
 
 Connect's source points at `main`, but automation never writes there directly. Validated monthly
 refreshes are published to `automation/small-mammal-data-refresh` as a review PR; an intentional
