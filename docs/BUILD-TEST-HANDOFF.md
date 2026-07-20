@@ -1106,15 +1106,32 @@ Driver implication, and next action.
   server, so no local full-page browser or live Shiny claim is made. Deployed
   desktop/390/320 focal crops, keyboard order, Connect binding, and console remain
   release gates.
-- **Runtime/manifest status (BLOCKED by design):** local `Rscript` is unavailable,
-  so no R parse, helper, offline-source, bundle, or manifest-generation result is
-  claimed. The current manifest remains intentionally unedited and stale: `ui.R`
-  now has MD5 `0269b7c678d0e22f55efae8e69095010`, `www/styles.css` has MD5
-  `7a854fe0d93704c0b3f8b7753e433a6a`, and the new PNG/full-WebP/compact-WebP files
-  have MD5 values `c99f9ea9bde20941cf7e51fff38e0af6`,
+- **Pinned runtime/manifest receipt (PASS 1 / candidate promoted):** draft PR #86
+  opened from head `016c7792e5b361ba2a377fe258ea42b5b3284c26`. Pinned R 4.5.2
+  run #40 (`29754771218`, PR merge revision
+  `93d426787312fb02925ccbee92f6277a721389eb`) passed dependency installation,
+  deterministic OpenBLAS, R parsing and static assets, scientific helper
+  contracts, manifest generation, exact bundle/index/checksum verification, and
+  complete offline app sourcing. As designed, only the committed-manifest
+  equality step failed on the first pass.
+- **Manifest artifact:** validated artifact `8466215095`,
+  `small-mammal-manifest-93d426787312fb02925ccbee92f6277a721389eb`, had
+  ZIP digest SHA-256
+  `3196a5e4388c8b6f488f5490992899f1f32fbfc9b0e1d8437dc8065fba855d34`.
+  Its sole file, `manifest.json` (292,684 bytes), had SHA-256
+  `3fdf334febde34f93f75430bd5ef7daa61cc36f1d6ef7f540578051bee24d3fc`
+  and was promoted byte-for-byte. Package records are unchanged. The file
+  inventory diff is exactly `ui.R` MD5
+  `0269b7c678d0e22f55efae8e69095010`, `www/styles.css` MD5
+  `7a854fe0d93704c0b3f8b7753e433a6a`, removal of the retired runtime photo,
+  and addition of PNG/full-WebP/compact-WebP MD5s
+  `c99f9ea9bde20941cf7e51fff38e0af6`,
   `eef94d4022f688e42fe2791cf38195b5`, and
-  `e78e20a1ffd7915e15deb8e8047dbc72`. A pinned validator-generated manifest must
-  be promoted byte-for-byte before merge or Connect publication.
+  `e78e20a1ffd7915e15deb8e8047dbc72`. The `wk` 0.9.5 package remains pinned
+  to repository `https://cran.r-project.org` with full `RemotePkgRef`
+  `url::https://cran.r-project.org/src/contrib/wk_0.9.5.tar.gz`, closing the
+  previously observed missing-protocol failure mode. Exact-head equality is the
+  remaining pre-merge gate.
 - **Documentation/learning:** corrected the app-local Driver knowledge package,
   project status, data takeaway, provenance, and neonize playbook. The reusable
   rule is now explicit: every companion cover shares the Living Poster structural
@@ -1125,10 +1142,11 @@ Driver implication, and next action.
   `docs/` and git history, so Connect no longer bundles dead cover media.
 - **Ownership/status/residual risk:** all working-tree changes belong to this focused
   correction; no unrelated user or idea-branch bytes were touched. Production,
-  manifest, data, and Driver repositories remain unchanged. Historical Cover V4
+  data, and Driver repositories remain unchanged; only the reviewed CI artifact
+  changed `manifest.json`. Historical Cover V4
   and rejected V3 source/social media stay versioned but unreferenced as release
   evidence; the unused V4 runtime derivative is recoverable from git history.
-- **Next action:** commit and push the candidate, open a review PR, let pinned CI
-  emit the validated manifest, promote only that artifact, require exact-head green
-  CI, merge, republish Connect, and verify both live entrances at desktop, 390, and
-  320 pixels before writing the final closeout and central Driver learning receipt.
+- **Next action:** commit and push the promoted manifest, require the next exact-head
+  run to be fully green, merge PR #86, republish Connect, and verify both live
+  entrances at desktop, 390, and 320 pixels before writing the final closeout and
+  central Driver learning receipt.

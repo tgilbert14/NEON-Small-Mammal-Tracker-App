@@ -55,7 +55,8 @@ runtime and Pages merge `eb9e1a3`; Connect remains deployment #122 from `bdf56b0
 ## P-items
 - **P0 COMPLETE:** pinned release gates and semantic production health are green.
 - **P1 IN REVIEW:** Cover V5 Suite Living Poster assets, social metadata,
-  provenance, and static contracts are complete; pinned runtime and live mobile QA
-  remain.
+  provenance, and static contracts are complete. Pinned run #40 validated and
+  emitted the exact manifest candidate; that artifact is promoted, while the
+  fully green equality rerun and live mobile QA remain.
 - **P2 COMPLETE:** reviewed `CONTEXT` package is in the central Driver ledger; no Driver byte change.
 - **P3:** evaluate Shinylive only after the Connect release path is stable.
