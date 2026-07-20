@@ -39,11 +39,14 @@ requireContract(count(/<main\b/gi) === 1, "must contain exactly one main landmar
 requireContract(/class="skip-link"[^>]+href="#main"/.test(html), "missing skip link");
 requireContract(/<nav[^>]+aria-label="Cover navigation"/.test(html), "navigation needs an accessible name");
 requireContract(/aria-current="page"/.test(html), "current suite product is not identified");
+requireContract(/<h1[^>]+aria-label="One trap night\. A whole population story\."/.test(html), "poster heading needs one continuous accessible name");
 requireContract(/One trap night\. A whole/.test(html) && /population story\./.test(html), "persuasive cover promise missing");
-requireContract(/Who came back\?/.test(html) && /Is the population changing\?/.test(html) && /Who shares the night\?/.test(html), "question-led entry points missing");
-requireContract(/What this can tell you/.test(html) && /What this cannot tell you/.test(html), "claim boundary pair missing");
-requireContract(/Last production verification: July 18, 2026/.test(html), "dated semantic verification missing");
-requireContract(/46/.test(html) && /178,216/.test(html) && /93,169/.test(html) && /145/.test(html) && /2013–2024/.test(html), "verified facts or vintage missing");
+requireContract(/Follow tagged small mammals across years of return visits\./.test(html), "plain-language poster promise missing");
+requireContract(/class="poster-cta"[\s\S]*?<span>Pick a place<\/span>/.test(html), "single poster CTA missing");
+requireContract(/One animal in a much bigger field story\./.test(html), "brief below-fold suite bridge missing");
+requireContract(/href="https:\/\/tgilbert14\.github\.io\/NEON-Driver-Cascade\/"/.test(html), "Driver suite destination missing");
+requireContract(!/(Who came back\?|Is the population changing\?|Who shares the night\?|What this can tell you|What this cannot tell you)/.test(html), "retired long-form documentary sections remain");
+requireContract(!/(178,216|93,169|2013–2024|hero-facts|signal-bar|measure-grid)/.test(html), "poster must not carry a synthetic metric or methods band");
 requireContract(!/\bfetch\s*\(/.test(html), "cover must not make an unsolicited prewarm request");
 requireContract(!/(?:href|src)="http:\/\//.test(html), "cover contains an insecure link or asset URL");
 requireContract(/rel="canonical" href="https:\/\/tgilbert14\.github\.io\/NEON-Small-Mammal-Tracker-App\/"/.test(html), "canonical URL missing");
@@ -53,10 +56,12 @@ requireContract(/assets\/pacific-pocket-mouse-sherman-trap-usgs\.jpg/.test(html)
 requireContract(/Cheryl Brehme, USGS/.test(html) && /Public domain/.test(html), "visible documentary photo credit missing");
 requireContract(!/(hero-mobile-v1|og-habitat-v2|og-card-v3-source)/.test(html), "retired generated artwork is still referenced");
 requireContract(!/min-width:\s*320px/.test(html), "fixed 320px body width breaks scrollbar-adjusted reflow");
-requireContract(/\.nav-links \.nav-open \{[\s\S]{0,80}min-height: 44px;/.test(html), "mobile launch target must be at least 44px high");
+requireContract(/\.poster-cta \{[\s\S]{0,100}min-height: 52px;/.test(html), "poster CTA must exceed the 44px touch target");
+requireContract(/@media \(max-width: 760px\)/.test(html) && /@media \(max-width: 360px\)/.test(html), "mobile and narrow reflow contracts missing");
+requireContract(/@media \(prefers-reduced-motion: reduce\)/.test(html), "reduced-motion alternative missing");
 
 const liveLinks = [...html.matchAll(/<a\b[^>]*href="https:\/\/019ec337-7100-317e-5052-c3bf32ffcb79\.share\.connect\.posit\.cloud\/"[^>]*>/g)].map((match) => match[0]);
-requireContract(liveLinks.length === 6, `expected six purposeful live-app controls, found ${liveLinks.length}`);
+requireContract(liveLinks.length === 1, `expected one primary live-app control, found ${liveLinks.length}`);
 for (const link of liveLinks) {
   requireContract(/target="_blank"/.test(link) && /rel="[^"]*noopener[^"]*"/.test(link), "live-app controls must open safely in a new tab");
 }
@@ -64,19 +69,7 @@ for (const link of liveLinks) {
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
 requireContract(new Set(ids).size === ids.length, "duplicate HTML id");
 
-const suiteUrls = [
-  "NEON-Driver-Cascade/",
-  "NEON-Plant-Phenology-Explorer/",
-  "NEON-Plant-Diversity/",
-  "NEON-Vegetation-Structure-Explorer/",
-  "NEON-Ground-Beetle-Tracker/",
-  "NEON-Mosquito-Pulse/",
-  "NEON-Breeding-Birds/",
-  "NEON-WaterChemistry-Analyte-Viewer-App/",
-  "NEON-My-Little-Inverts/"
-];
-for (const url of suiteUrls) requireContract(html.includes(url), `missing suite destination ${url}`);
-requireContract(/class="suite-link current"[^>]+aria-current="page"[^>]*href="#main"/.test(html), "Small Mammals current-page marker missing");
+requireContract(/class="product-name" aria-current="page">Small Mammal Tracker/.test(html), "Small Mammals current-page marker missing");
 
 for (const path of ["docs/assets/pacific-pocket-mouse-sherman-trap-usgs.jpg", "docs/og-card-v4-source.html", "docs/og-image.jpg"]) {
   requireContract(existsSync(path), `missing image asset ${path}`);
@@ -95,4 +88,4 @@ requireContract(socialWidth === 1200 && socialHeight === 630, `social image is $
 const [heroWidth, heroHeight] = jpegSize("docs/assets/pacific-pocket-mouse-sherman-trap-usgs.jpg");
 requireContract(heroWidth === 4000 && heroHeight === 3000, `documentary hero is ${heroWidth}x${heroHeight}, expected 4000x3000`);
 
-console.log("Cover contract passed: documentary media, persuasive entries, claim boundaries, suite registry, metadata, no-prewarm, and image dimensions.");
+console.log("Cover contract passed: concise Living Poster, documentary media, one CTA, subtle suite bridge, metadata, no-prewarm, and image dimensions.");
