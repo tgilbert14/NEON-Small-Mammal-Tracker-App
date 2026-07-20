@@ -179,9 +179,6 @@ ui <- bslib::page_fillable(
   # toggled via shinyjs show/hide("splash"); the server keeps output$pickerMap
   # + its leafletProxy marker swaps.
   div(id = "splash",
-    div(class = "splash-guide",
-      div(class = "sg-bubble", "Pick a place"),
-      div(class = "sg-mascot", MASCOT_MOUSE)),
     local({
     idx <- SITE_INDEX
     if (is.null(idx) || nrow(idx) == 0) {

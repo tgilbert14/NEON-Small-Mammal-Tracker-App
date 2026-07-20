@@ -797,7 +797,11 @@ Driver implication, and next action.
   promise, one `Pick a place` anchor, the same real field photograph and visible
   source boundary, then the existing map. The persistent bar now uses the DDL/suite
   wordmark and its mobile Help label collapses visually while retaining an explicit
-  accessible name. Added the optimized runtime derivative, provenance record,
+  accessible name. The old fixed splash mascot/bubble was removed so it cannot
+  overlay or visually compete with the documentary invitation; loader and result
+  celebration mascots remain unchanged. The documentary credit now sits on a
+  high-contrast dark scrim instead of relying on a text shadow over the photograph.
+  Added the optimized runtime derivative, provenance record,
   `scripts/check_in_app_landing.mjs`, and its CI invocation. Classification is
   `product/UI` plus `suite-platform`; Driver implication is **NONE / NO DRIVER BYTE
   CHANGE**.
@@ -823,9 +827,11 @@ Driver implication, and next action.
   so no R runtime, helper, offline boot, Shiny interaction, or manifest generation
   is claimed. The current manifest correctly remains unedited and is now stale:
   `ui.R` MD5 changed from `db1f5cf3469e11da3f383bf759bec9a5` to
-  `ccd18652f259e2989922777c3faa4ecb`; `www/styles.css` changed from
+  `388d9bae920a3e6631b796a4ccc156a1`; `www/styles.css` changed from
   `48466260299d0818ad41bb79d929299e` to
-  `1330b4a03316de540da2bade063e12b4`; and the new image MD5
+  `3c7622a4cc3ae6baa12d34ca598f407e`; `www/app.js` changed from
+  `b2d4f27f0935a7a73a145499ef37b622` to
+  `4fab7f639eafc7839bd929dafcd32fb0`; and the new image MD5
   `23dab12d5ed9283b0ad10c199277116c` is absent. A pinned validator-generated
   manifest must be promoted before merge or Connect deployment.
 - **Expected versus actual:** expected a short, artistic, immediately recognizable

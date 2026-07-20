@@ -42,12 +42,15 @@ requireContract(ui.includes('class = "btn-outline-dark btn-sm tb-help", `aria-la
 requireContract(ui.includes("Documentary field photograph · not a NEON observation") && ui.includes("Cheryl Brehme · USGS · public domain"), "documentary boundary or credit is missing");
 requireContract(ui.includes('asset_url("assets/small-mammal-field-usgs.jpg")'), "runtime documentary asset is not referenced through cache busting");
 requireContract(!/(hero-mobile-v1|og-habitat-v2|og-card-v3-source)/.test(ui), "retired generated artwork is referenced by the app landing");
+requireContract(!ui.includes('class = "splash-guide"'), "old floating splash mascot still overlays the documentary poster");
 
 for (const id of ["pickerMap", "pickMode", "rangeSpecies", "stateSel", "site", "dateRange", "provisional", "loadBtn", "compareBtn"]) {
   requireContract(ui.includes(`\"${id}\"`), `functional picker control ${id} is missing`);
 }
 
 requireContract(/\.smt-poster-cta\s*\{[\s\S]{0,180}min-height:\s*48px/.test(css), "poster CTA is not at least 48px tall");
+requireContract(/\.smt-poster-cta\s*\{[\s\S]{0,240}gap:\s*\.35em[\s\S]{0,80}box-sizing:\s*border-box/.test(css), "poster CTA spacing or width containment drifted");
+requireContract(/\.smt-poster-photo figcaption\s*\{[\s\S]{0,320}color:\s*#fffef9[\s\S]{0,80}background:\s*rgba\(17, 19, 15, \.9\)/.test(css), "photo credit lost its opaque text or dark contrast scrim");
 requireContract(css.includes("@media (max-width: 760px)") && css.includes("@media (max-width: 420px)"), "responsive poster breakpoints are missing");
 requireContract(/@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.smt-poster-cta\s*\{\s*transition:\s*none/.test(css), "poster CTA lacks reduced-motion handling");
 

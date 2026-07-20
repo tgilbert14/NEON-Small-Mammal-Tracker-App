@@ -70,23 +70,10 @@ function mascotCheer(big) {
   } catch (e) {}
 }
 
-// ---- first-visit: the splash mascot waves hello once (localStorage-gated) ----
-document.addEventListener("DOMContentLoaded", function () {
-  try {
-    if (localStorage.getItem("smtMascotSeen") === "1") return;
-    var g = document.querySelector(".splash-guide");
-    if (g) {
-      g.classList.add("wave");
-      localStorage.setItem("smtMascotSeen", "1");
-      setTimeout(function () { g.classList.remove("wave"); }, 3300);
-    }
-  } catch (e) {}
-});
-
 // ---- delighters: restore-last-site + recents (ONE localStorage namespace) ----
 // Two keys, both owned here: smtLastSite (the single code to auto-restore) and
 // smtRecents (a JSON ring buffer of the last few codes, newest first). Both are
-// READ once on shiny:connected (the same flush as smtMascotSeen) and WRITTEN in
+// READ once on shiny:connected and WRITTEN in
 // exactly one place: the smt_save_site handler the server fires on every site
 // load. Nothing else touches these keys.
 function smtReadRecents() {
