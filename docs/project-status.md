@@ -4,14 +4,18 @@
 > cold-booted agent doesn't re-flag shipped or deliberately-deferred work. Owned by `triage`; keep it
 > current after every review or ship. Depth: `README.md`, `DEPLOY.md`, `docs/neonize-playbook.md`.
 
-**Last verified against the build and public endpoints:** 2026-07-18 (production runtime `1615ab4`; public cover V3 merge `2492056`).
+**Last verified against the build and public endpoints:** 2026-07-19 (production
+runtime and Pages merge `bdf56b0`; Connect deployment #122).
 
 ## Stage
-- **Pass 1 complete / production healthy:** Pages and Connect pass semantic health.
-- Runtime merge `1615ab4` is deployed; final main CI, semantic health, and Pages publication passed.
+- **Pass 1 plus Living Poster closeout complete / production healthy:** Pages and
+  Connect pass pinned validation and semantic health.
+- Runtime merge `bdf56b0` is deployed as Connect #122; exact-head and main CI,
+  semantic health, Pages publication, and desktop/390/320 browser QA passed.
 - The app is again the **flagship / reference** for honest statistics, reviewed releases, and
-  product patterns. The habitat-led cover V3 is published and verified at desktop and mobile
-  breakpoints. Unrelated idea branches remain outside this pass.
+  product patterns. The documentary cover V4 and matching in-app Living Poster are
+  published and verified at desktop and mobile breakpoints. Unrelated idea branches
+  remain outside this pass.
 
 ## Shipped (don't re-flag as missing)
 - National site-picker Leaflet map (by-site / by-species toggle, accessible list fallback, one-tap load).
@@ -28,6 +32,9 @@
   series exports, and a codebook are live.
 - The social image is a reviewed 1200×630 titled habitat card; the cover no longer converts an
   opaque pre-warm request into a false readiness claim and has explicit focus treatment.
+- The Connect app now opens with the same documentary promise as Pages, including a
+  large Sherman trap, visible public-domain credit, and a single CTA into the existing
+  picker. Its persistent controls remain one row at 320px.
 - Authority docs now agree on the review-branch release boundary, pinned package provenance,
   semantic health, and the ten-app suite. The in-app About panel links all nine companions.
 

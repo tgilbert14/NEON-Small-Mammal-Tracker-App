@@ -165,6 +165,18 @@ Promote to every later app/subagent brief:
 - Treat narrow responsive QA as a release gate. The V4 pass found a 320px navigation
   overflow that was invisible at 390px and resolved it by collapsing the brand label
   while retaining the 44px launch target.
+- Treat the public showcase and the functional app as one invitation with two
+  surfaces. The public documentary cover was already persuasive while Connect still
+  opened on generic product chrome; the in-app Living Poster now repeats the same
+  hook, photograph, source boundary, and first action before the existing picker.
+- Reproduce the production shell at the smallest breakpoint. A structural mock that
+  omitted bslib's real 24px body gutters and complete theme control missed a 97px
+  two-row top bar. The corrected release contracts the gutters to 12px and keeps the
+  functional 44px controls on one 59px row at 320px.
+- A green source merge is not publication evidence. Record the exact Connect
+  deployment commit and public Pages artifact, then inspect the deployed photograph,
+  CTA, controls, saved-site funnel, overflow, and browser console. Retry platform HTTP
+  503s without misclassifying them as source defects.
 
 Driver disposition remains **CONTEXT / HOLD CURRENT OUTPUT**. These are reusable
 suite design and provenance rules; they do not change a Driver scientific input,

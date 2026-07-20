@@ -366,6 +366,13 @@ github.io showcase URL · live Connect Cloud URL) and render it both in `docs/in
 `.series-grid`) AND in-app (an "Explore the NEON series" block in About/footer). When a new app ships,
 add it to the registry so EVERY sibling links to it (Breeding Birds + Driver Cascade were missing).
 
+**Living Poster convergence:** a polished Pages cover does not fix a generic in-app
+first impression. Carry one short hook, one promise, one dominant measurement object,
+one source boundary, and one next action into the functional app without replacing its
+task flow. Validate both surfaces at desktop, 390px, and 320px using the actual framework
+gutters and complete persistent controls; record the exact Pages artifact and Connect
+deployment commit before calling the cover shipped.
+
 ---
 
 *Living doc. Plant-diversity (DP1.10058.001) was the first full NEONize; birds/phenology/veg/cascade
