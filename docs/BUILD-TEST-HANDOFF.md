@@ -1255,6 +1255,8 @@ Driver implication, and next action.
   (manual)` once on a scratch branch to smoke-test it; (3) mirror the `AGENTS.md`
   escape-hatch, `CLAUDE.md` front-door note, `regenerate-manifest.yml`, and playbook §8 to
   Vegetation and Driver-Cascade (veg lacks `CLAUDE.md`/`LESSONS.md`; Driver default is
-  `master` — consider renaming to `main`); (4) triage the cover cross-review findings as a
-  separate PR (runtime-touching -> land via the new regenerate flow); (5) promote the two
+  `master` — consider renaming to `main`); (4) triage the cover cross-review findings —
+  recorded in `docs/cover-cross-review-2026-07-20.md` (8 confirmed; 7 are manifest-neutral
+  scripts/docs, only the `ui.R` `<html lang>` fix touches runtime, so land that one via the
+  new regenerate flow); (5) promote the two
   new LESSONS + playbook §6/§8 to the canonical `TG-Data-Apps` playbook via `curator`.
