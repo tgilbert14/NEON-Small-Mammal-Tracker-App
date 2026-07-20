@@ -942,3 +942,39 @@ Driver implication, and next action.
 - **Production status:** this promotion changes no app behavior, science, data,
   photograph, Pages cover, Connect deployment, or Driver artifact. Require an
   exact-head green run before merge and republish.
+
+### 2026-07-19 18:08 MST - artistic Living Poster production closeout / root
+
+- **Exact release:** PR #83 merged as
+  `bdf56b0482ac76364e7055107361d58d8728d782`. Exact-head run `29710106316`,
+  job `88252772796`, and post-merge run `29710189453`, job `88252947859`,
+  passed every pinned runtime, science, bundle, offline-source, and manifest
+  equality gate. Semantic production run `29710189426` also passed.
+- **Connect receipt:** deployment #122 successfully published exact commit
+  `bdf56b0` at 18:00 MST with R 4.5.2, all 91 manifest packages provided, and a
+  four-second publish duration. The live app served the documentary Living
+  Poster and completed the saved JORN load without a disconnect.
+- **Responsive live QA (PASS):** at 320 x 800 the viewport/client/scroll widths
+  were 320/305/305 with 12 px bslib gutters, a single-row 59 px top bar, 169 px
+  brand, 77 px action cluster, 44 px Help target, 257 px poster card, and 48 px
+  CTA. At 390 x 844, client/scroll widths were 375/375 with the same 59 px bar,
+  a 327 px poster, and 48 px CTA. At 1280 x 720, client/scroll widths were
+  1265/1265 and the split poster was 1072 px wide. The 1800 x 1350 app image
+  loaded at every viewport, its credit scrim remained readable, and no legacy
+  floating mascot or horizontal overflow appeared.
+- **Interaction/browser QA (PASS):** Help opened its dialog; the functional
+  theme control changed the document to dark mode and back; the poster-to-picker
+  transition, JORN dashboard, and loading overlay completed. Browser logs held
+  no error-level entries. Remaining messages were upstream datepicker
+  deprecations and Leaflet's benign conditional-output lookup logs.
+- **Pages receipt (PASS after platform recovery):** Pages run `29710189059`
+  initially failed when GitHub's own Pages API returned HTTP 503 during Jekyll
+  metadata and deployment creation. Attempt 3 passed build job `88253461931`
+  and deploy job `88253454825` for exact merge `bdf56b0`. The public desktop and
+  390 px cover both rendered “One trap night. A whole population story.” with
+  the 4000 x 3000 rights-cleared source photograph and no horizontal overflow.
+- **Driver/suite disposition:** **NONE / NO DRIVER BYTE CHANGE**. Reusable suite
+  learning is the dual-surface convergence rule: a public cover is not complete
+  when the functional app still opens generically; carry the same concise promise
+  into the app, verify the real deploy commit, and gate 320 px utility chrome in
+  addition to the cover itself.
