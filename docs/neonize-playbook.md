@@ -320,6 +320,35 @@ so the manifest must round-trip whenever the package set changes:
 5. **Confirm the Connect build goes GREEN and semantic smoke passes.** A failed publish can leave the previous good build
    serving, so "the app still loads" is NOT proof your change shipped — verify the new element is live.
 
+**The manifest gate becomes a MERGE LOOP when the agent has no local R — kill it, don't grind it:**
+The redeploy discipline above assumes you can run `Rscript scripts/write_manifest.R` locally. A cloud
+agent (ChatGPT/Codex, a generic sandbox) usually CAN'T — Connect's toolchain is jammy **GDAL 3.4.1**
+plus the pinned geo closure, which isn't on a stock runner. With the CI gate
+(`git diff --exit-code -- manifest.json`, `permissions: contents: read`), every runtime edit then
+forces: push → CI fails the gate BY DESIGN → download the **validated** `*-manifest-<sha>` artifact
+(never the `-UNVALIDATED-` one) → commit it byte-for-byte → re-run the exact head → merge. With
+`concurrency: cancel-in-progress: true`, any quick re-push *cancels* the run, and each run
+source-compiles terra/sf (45–100 min timeouts). This IS the "failed merge over and over" the ChatGPT
+cover rework hit — the flagship's cover took ~10 PRs, and veg's single Living-Poster PR burned **13 CI
+runs**. It is process-by-design, not a git error (all those PRs did merge). Two ways out:
+- **Make the gate byte-DETERMINISTIC** so a promoted manifest stays green. In `write_manifest.R`: strip
+  each source-built package's wall-clock `Built` field; canonicalize the geo pins to the deployable lane
+  (`Source`="CRAN", `Repository`="https://cran.r-project.org"); freeze floating RSPM aliases by
+  **targeted text-substitution** (`readLines`/`gsub`/`writeLines`) — NEVER a `jsonlite` reserialize (it
+  mangles `writeManifest`'s canonical format AND destroys the exact `url::` tarball refs in
+  `RemotePkgRef`); pin `platform`=4.5.2 and `locale`="C". Then CI can "regenerate twice, require identical
+  bytes" and a faithful promotion stops flapping. A read-only `verify_manifest.R` twin (re-derive the
+  appFile closure, check per-file md5, assert no `Built`) makes "committed == regenerated" enforceable
+  without granting write.
+- **Kill the manual round-trip** (owner decision): let the pinned validator WRITE its own output back — a
+  deliberate `workflow_dispatch` "regenerate & commit manifest" job — or provision the agent env with the
+  pinned R+GDAL-3.4.1 image. Do **not** auto-commit on every PR: that breaks the "write only to the final
+  restricted publisher" boundary. Reference implementation in the flagship:
+  `.github/workflows/regenerate-manifest.yml` (manual dispatch, job-scoped `contents: write`, refuses
+  `main`, regenerate-twice determinism guard, `verify_bundle.R` before it commits). Also settle the default branch — the suite is split `main`/`master`
+  (Driver-Cascade is `master`); rename it to `main` or an agent that assumes `main` hits base-branch push
+  failures on one repo in three.
+
 **Auto-refresh + reviewed release (`.github/workflows/refresh-data.yml`) — copy this shape:**
 - **Schedule (identical across the suite):** `cron: "0 6 * * 0"` (Sunday 06:00 UTC = Saturday 23:00
   America/Phoenix, off-peak), with a **gate job** that proceeds only on the **first Saturday of the
@@ -378,6 +407,48 @@ and action into the functional app without replacing its task flow. Validate bot
 at desktop, 390px, and 320px using the actual framework gutters and complete persistent
 controls; record the exact Pages artifact and Connect deployment commit before calling the
 cover shipped.
+
+**Enforce the frame mechanically — don't just prescribe it.** Ship `scripts/check_cover.mjs` (Pages)
+and `scripts/check_in_app_landing.mjs` (the Connect echo) as zero-dependency Node CI contracts that
+assert the frame instead of trusting it: exactly one `<h1>`/`<main>`, the skip link and `aria-label`'d
+Driver nav, the single hook/promise/CTA, the full OG/Twitter set incl. the 1200×630 card, NO
+`fetch()`/`http:`/Google-fonts at load, 44px+ touch targets, and the `prefers-reduced-motion` /
+`prefers-contrast` / `forced-colors` seams — plus **asset integrity**: each image's SHA-256 cross-checked
+against `docs/IMAGE-PROVENANCE.md`, with self-parsed PNG/JPEG/WebP dimensions and byte budgets so an art
+swap can't silently regress. Require `docs/IMAGE-PROVENANCE.md` as a hash-linked artifact (per-asset
+tool·date·prompt·reference·dims·bytes·SHA-256; AI-generated vs third-party attribution kept separate;
+retired assets quarantined; an explicit "the art carries no scientific value — facts stay selectable
+HTML" boundary). Asset hygiene: a PNG master + full/compact WebP + the 1200×630 og, byte-identical in
+`docs/assets` (Pages) and `www/assets` (Connect); **no Git LFS** — budgets live in the contract test, and
+any art/copy/crop change is ONE coordinated PR touching the images, both hash pins, and the provenance
+record together (binaries can't auto-merge). This turns the two `.mjs` files into the reusable "Cover
+Contract" every companion inherits with the Living Poster frame.
+
+## 8. Working across agents (Claude + Codex)
+
+This suite is built by more than one agent — Claude Code and ChatGPT/Codex — often on the same repo,
+switching back and forth. They can't share live memory, so they collaborate through **durable
+artifacts in the repo**, and that already works if you keep four things true:
+
+- **One source of truth, two front doors.** `CLAUDE.md` (Claude) and `AGENTS.md` (Codex) stay thin;
+  the real content lives in tool-neutral docs — this playbook, `.claude/agents/LESSONS.md`,
+  `docs/BUILD-TEST-HANDOFF.md`, `docs/project-status.md`. Whichever agent boots cold lands in the same
+  context. Keep the two front doors pointing here, not duplicating it (and note the split: small-mammal
+  carries both files; veg/driver have only `AGENTS.md` — add `CLAUDE.md` there so Claude boots warm too).
+- **The handoff log IS the async channel.** `docs/BUILD-TEST-HANDOFF.md` is the dated, append-only
+  ledger both agents must close a session with. Tag each entry with the tool (`[Claude]` / `[Codex]`)
+  and end it with a one-line **next action**, so a tool switch is a clean pickup, not a cold restart.
+- **Cross-review, don't self-review.** Different model families have different blind spots, so the
+  highest-value review is the *other* vendor's agent on your diff — extend the "adversarially verify
+  the diff with a fresh agent" rule to "with the other vendor's agent." When Codex opens a PR, have
+  Claude review it; when Claude opens one, have Codex review.
+- **Let the contracts be the trust layer.** The `check_*.mjs` / `verify_*.R` gates and the manifest
+  determinism gate (§6) are tool-agnostic referees — neither agent has to trust the other's self-report;
+  CI enforces the invariants objectively. Invest in contracts, not agent-specific trust.
+
+Rough division by strength (not a rule): Codex for tight visual/UX/prototype iteration; Claude for
+cross-repo diagnosis, science-contract/honesty review, Driver synthesis, and learning-loop upkeep —
+with the handoff log carrying state between them.
 
 ---
 

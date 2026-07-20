@@ -1211,3 +1211,52 @@ Driver implication, and next action.
 - **Next action:** merge this docs-only closeout, publish the corrected Small Mammal
   receipt and Suite Living Poster V1 frame contract to the central Driver learning
   loop, then pause before selecting the next companion app.
+
+### 2026-07-20 14:45 MST - manifest merge-loop fix + cross-agent working / [Claude] Claude Code
+
+- **Starting state:** clean `main` at `047204e`. Branch
+  `claude/chatgpt-merge-issues-workflow-dmur4d` opened for this work; draft PR #88.
+  No local R/GDAL runtime in this session, so `manifest.json` cannot be regenerated here.
+- **Objective:** diagnose why the ChatGPT/Codex cover rework repeatedly "failed merges,"
+  fix the workflow, capture reusable lessons, and let Claude + Codex collaborate through
+  durable artifacts (owner switches between the two sessions).
+- **Root cause (confirmed):** the self-referential manifest/derived-bytes CI gate —
+  `ci.yml` regenerates `manifest.json` then `git diff --exit-code` with
+  `permissions: contents: read` — plus no local R and `cancel-in-progress` forces a
+  manual push -> CI-red-by-design -> promote-artifact -> re-run loop on every runtime
+  change. Not a git error; every affected PR merged. Evidence: veg PR #4 = 13/30 CI
+  runs; small-mammal cover = ~10 PRs. Codex was following its own `AGENTS.md` rule
+  ("generate only in the pinned validator; promote the exact artifact").
+- **Changed files / classification (suite-platform; docs + one additive workflow):**
+  `.github/workflows/regenerate-manifest.yml` (NEW, Option A); `AGENTS.md`; `CLAUDE.md`;
+  `docs/neonize-playbook.md` (§6 merge-loop + byte-determinism recipe, §7 Cover Contract,
+  §8 working-across-agents); `.claude/agents/LESSONS.md` (2 entries: connor determinism,
+  neonize CI-only loop); `docs/project-status.md`; this handoff. NO runtime, data,
+  manifest, or scientific-artifact byte changed; `ci.yml` stays read-only.
+- **New workflow:** `Regenerate manifest (manual)` — `workflow_dispatch`, job-scoped
+  `contents: write`, refuses `main`, reuses the pinned R 4.5.2 + terra-1.8-50 closure,
+  regenerate-twice determinism guard, `verify_bundle.R`, commits `manifest.json` back to
+  the dispatched review/PR branch under `neon-data-bot`. Removes the manual artifact
+  round-trip while keeping "write only to the final restricted publisher."
+- **Results:** `python3 yaml.safe_load` PASS on all four workflows; `git diff --check`
+  PASS; PR #88 exact-head CI in progress (docs/workflow only -> manifest gate expected
+  GREEN, no manifest-tracked file changed). A cross-vendor code review of the Codex cover
+  system (Claude reviewing Codex, adversarial verification) ran as a background workflow;
+  findings are a follow-up, not applied here.
+- **Residual risk:** the regenerate workflow is unexercised until it is on `main` (a
+  `workflow_dispatch` file must be on the default branch to be triggerable). Cover-review
+  fixes were deliberately NOT applied in this PR because they touch runtime files and
+  would re-trigger the very manifest loop being fixed.
+- **Ownership/status:** current-session work, owner `root`, pushed to
+  `claude/chatgpt-merge-issues-workflow-dmur4d`, PR #88 (draft). Merge pending CI green.
+- **Driver implication:** NONE — no Driver artifact byte changed.
+- **Next action:** (1) merge PR #88 once exact-head CI is green (docs/workflow only, so
+  Connect re-serves unchanged runtime); (2) after merge, dispatch `Regenerate manifest
+  (manual)` once on a scratch branch to smoke-test it; (3) mirror the `AGENTS.md`
+  escape-hatch, `CLAUDE.md` front-door note, `regenerate-manifest.yml`, and playbook §8 to
+  Vegetation and Driver-Cascade (veg lacks `CLAUDE.md`/`LESSONS.md`; Driver default is
+  `master` — consider renaming to `main`); (4) triage the cover cross-review findings —
+  recorded in `docs/cover-cross-review-2026-07-20.md` (8 confirmed; 7 are manifest-neutral
+  scripts/docs, only the `ui.R` `<html lang>` fix touches runtime, so land that one via the
+  new regenerate flow); (5) promote the two
+  new LESSONS + playbook §6/§8 to the canonical `TG-Data-Apps` playbook via `curator`.

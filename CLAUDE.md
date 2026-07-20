@@ -3,6 +3,13 @@
 > Read this first. It orients an agent that boots cold in this repo. Depth lives in the docs it points at.
 > This is a **Desert Data Labs (DDL)** project; the DDL business context + the full agent suite live in the
 > `TG-Data-Apps` repo (and in user scope, so every agent is available here too).
+>
+> **Worked by more than one agent (Claude Code + ChatGPT/Codex).** The tool-neutral source of truth
+> is `docs/neonize-playbook.md`, `.claude/agents/LESSONS.md`, `docs/BUILD-TEST-HANDOFF.md`, and
+> `docs/project-status.md` — read those first; `CLAUDE.md` / `AGENTS.md` only add tool-specific notes
+> on top. Close every session with a dated `BUILD-TEST-HANDOFF.md` entry tagged with your tool
+> (`[Claude]` / `[Codex]`) and a one-line **next action**, so the other agent can pick up cold. See
+> `docs/neonize-playbook.md` §8.
 
 ## What this is
 
