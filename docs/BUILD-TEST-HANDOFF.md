@@ -853,3 +853,33 @@ Driver implication, and next action.
   promote only that artifact, rerun exact-head CI, merge, republish Connect, and
   verify semantic readiness plus the unchanged site-selection funnel at desktop,
   390, and 320 pixels.
+
+### 2026-07-19 17:20 MST - exact manifest candidate promoted / root
+
+- **Exact source revision:** PR #82 head
+  `22b18e751bd33d8ec5295ffae5354eb1a03ef464`; GitHub evaluated immutable PR merge
+  revision `66229ecca3c9a7ec374b527bbf89f895657b01b2` in run `29709248008`, job
+  `88250818109`.
+- **Visual follow-up before validation:** independent review caught a mobile CTA
+  border box clipped against the card edge, cramped label/arrow spacing, a legacy
+  fixed mascot/bubble competing with the documentary poster, and photo-credit
+  contrast that depended on the image. Commit `22b18e7` fixed all four: border-box
+  containment plus gap, removal of the old splash ornament/listener, and opaque
+  white credit text on a 90%-dark scrim. Loader and result-celebration mascots remain.
+- **Pinned candidate evidence (PASS):** R 4.5.2, the complete exact dependency
+  closure, deterministic one-thread Haswell OpenBLAS, all static and scientific
+  contracts, exact bundle/index/checksum verification, and complete offline app
+  source passed. The validated manifest uploaded successfully; only the designed
+  committed-manifest equality check failed against the obsolete repository copy.
+- **Artifact receipt:** promoted only
+  `small-mammal-manifest-66229ecca3c9a7ec374b527bbf89f895657b01b2/manifest.json`;
+  SHA-256 is
+  `0e9ed990c44cda902d66428e45a6765aee7abcd98d8324f97b3248cecf7aecb9`.
+  It records 91 installed packages and 118 runtime files. Semantic comparison with
+  the prior manifest found unchanged package and metadata records, one new exact
+  runtime photograph, and only the expected checksum changes for `ui.R`,
+  `www/app.js`, and `www/styles.css`. All four checksums match the exact PR-head
+  files.
+- **Production status:** manifest promotion is a reviewed candidate action only;
+  `main`, Connect, Pages, scientific bundles, and Driver artifacts remain unchanged.
+  Require one green equality run from the new exact PR head before merge or publish.
