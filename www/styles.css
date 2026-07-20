@@ -761,6 +761,7 @@ a.recent-chip:hover, a.recent-chip:focus-visible {
 }
 
 @media (max-width: 420px) {
+  body.bslib-page-fill { padding-right: 12px; padding-left: 12px; }
   .smt-poster { border-radius: 19px; }
   .smt-poster-photo { min-height: 275px; }
   .smt-poster-copy { padding: 24px 20px 23px; }
@@ -1074,12 +1075,20 @@ a.recent-chip:hover, a.recent-chip:focus-visible {
   .top-bar-actions .tb-help { width: 44px; padding-inline: 0; justify-content: center; }
 }
 @media (max-width: 390px) {
-  .top-bar { gap: 7px; }
+  .top-bar { gap: 7px; flex-wrap: nowrap; }
   .top-bar-brand { gap: 7px; }
   .top-bar-brand .tb-mark { width: 31px; height: 31px; }
   .top-bar-brand .tb-title { font-size: 12.5px; }
   .top-bar-brand .tb-suite { display: none; }
-  .top-bar-actions { gap: 7px; }
+  .top-bar-actions { flex: none; gap: 7px; }
+  .top-bar .tb-theme-lab { display: none; }
+}
+@media (max-width: 340px) {
+  .top-bar { gap: 4px; }
+  .top-bar-brand { gap: 4px; }
+  .top-bar-brand .tb-mark { width: 30px; height: 30px; }
+  .top-bar-brand .tb-title { font-size: 11.5px; }
+  .top-bar-actions { gap: 4px; }
 }
 
 /* ---- relocated site-select panel (was the sidebar) -------------------- */
