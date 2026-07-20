@@ -2,37 +2,39 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NEON Small Mammal Tracker — Follow a tagged animal</title>
-  <meta name="description" content="Follow tagged small mammals across years of return visits in an interactive NEON data explorer.">
-  <meta name="theme-color" content="#11130f">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NEON Small Mammal Tracker — Who moves after dark?</title>
+  <meta name="description" content="Meet the tiny lives reshaping the landscape in an interactive NEON small-mammal explorer.">
+  <meta name="theme-color" content="#111512">
   <meta name="color-scheme" content="dark">
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='32' fill='%23d8fa55'/%3E%3Cpath d='M14 39V25h9l6 7 6-7h15v14H39V30l-10 11-10-11v9z' fill='%2311130f'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='32' fill='%23dce319'/%3E%3Cpath d='M14 39V25h9l6 7 6-7h15v14H39V30l-10 11-10-11v9z' fill='%23111512'/%3E%3C/svg%3E">
   <link rel="canonical" href="https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/">
-  <link rel="preload" as="image" href="assets/pacific-pocket-mouse-sherman-trap-usgs.jpg" fetchpriority="high">
+  <link rel="preload" as="image" type="image/webp"
+    imagesrcset="assets/small-mammal-living-poster-840.webp 840w, assets/small-mammal-living-poster.webp 1672w"
+    imagesizes="(max-width: 700px) 100vw, 72vw" fetchpriority="high">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="NEON Explorer Suite">
-  <meta property="og:title" content="One trap night. A whole population story.">
-  <meta property="og:description" content="Follow tagged small mammals across years of return visits.">
   <meta property="og:url" content="https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/">
-  <meta property="og:image" content="https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/og-image.jpg">
+  <meta property="og:title" content="Who moves after dark?">
+  <meta property="og:description" content="Meet the tiny lives reshaping the landscape.">
+  <meta property="og:image" content="https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="A Pacific pocket mouse leaves a Sherman live trap beside the words One trap night. A whole population story.">
+  <meta property="og:image:alt" content="Editorial screenprint of a mouse leaving an oversized metal box live trap beside the words Who moves after dark?">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="One trap night. A whole population story.">
-  <meta name="twitter:description" content="Follow tagged small mammals across years of return visits.">
-  <meta name="twitter:image" content="https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/og-image.jpg">
-  <meta name="twitter:image:alt" content="A Pacific pocket mouse leaves a Sherman live trap beside the words One trap night. A whole population story.">
+  <meta name="twitter:title" content="Who moves after dark?">
+  <meta name="twitter:description" content="Meet the tiny lives reshaping the landscape.">
+  <meta name="twitter:image" content="https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/og-image.png">
+  <meta name="twitter:image:alt" content="Editorial screenprint of a mouse and an oversized metal box live trap under a starry night sky.">
 
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
     "name": "NEON Small Mammal Tracker",
-    "description": "Follow tagged small mammals across years of return visits.",
+    "description": "Explore public NEON small-mammal capture and recapture records.",
     "applicationCategory": "EducationalApplication",
     "operatingSystem": "Any",
     "isAccessibleForFree": true,
@@ -43,543 +45,413 @@
 
   <style>
     :root {
-      --ink: #11130f;
-      --ink-soft: #1a1d17;
-      --paper: #fffef9;
-      --acid: #d8fa55;
-      --acid-soft: #e9fca4;
-      --sand: #e8d7b2;
-      --muted: rgba(255, 254, 249, .68);
-      --line: rgba(255, 254, 249, .16);
-      --shell: 1280px;
-      --ease: cubic-bezier(.2, .75, .25, 1);
+      --night: #111512;
+      --night-2: #1b211d;
+      --acid: #dce319;
+      --acid-soft: #f0f47c;
+      --ember: #e87531;
+      --paper: #f3e8cb;
+      --paper-2: #dfd2b3;
+      --ink: #172019;
+      --line: rgba(243, 232, 203, .2);
+      --sans: Aptos, "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      --serif: Iowan Old Style, Palatino Linotype, Book Antiqua, Palatino, Georgia, serif;
     }
 
     *, *::before, *::after { box-sizing: border-box; }
-    html { scroll-behavior: smooth; background: var(--ink); }
+    html { background: var(--night); scroll-behavior: smooth; }
     body {
       margin: 0;
-      color: var(--paper);
-      background: var(--ink);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
     }
     img { max-width: 100%; }
     a { color: inherit; }
-
-    .skip-link {
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--acid);
+      outline-offset: 5px;
+    }
+    .skip {
       position: fixed;
       z-index: 100;
-      top: 10px;
-      left: 10px;
-      padding: 12px 16px;
-      color: var(--ink);
-      background: var(--acid);
-      border-radius: 999px;
-      font-weight: 850;
-      text-decoration: none;
-      transform: translateY(-180%);
-      transition: transform .18s ease;
-    }
-    .skip-link:focus { transform: translateY(0); }
-
-    .topline {
-      position: absolute;
-      z-index: 20;
-      top: 0;
-      left: 0;
-      width: 44%;
-      min-height: 94px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 24px;
-      padding: 26px clamp(24px, 4vw, 64px);
-    }
-    .brand {
+      top: -80px;
+      left: 16px;
       min-height: 44px;
       display: inline-flex;
       align-items: center;
-      gap: 11px;
-      color: var(--paper);
-      text-decoration: none;
-    }
-    .brand-mark {
-      width: 40px;
-      height: 40px;
-      display: grid;
-      place-items: center;
-      flex: 0 0 auto;
-      color: var(--ink);
-      background: var(--acid);
-      border-radius: 50%;
-      font-size: .68rem;
-      font-weight: 950;
-      letter-spacing: -.03em;
-      transform: rotate(-7deg);
-    }
-    .brand-copy {
-      display: grid;
-      gap: 2px;
-      font-size: .72rem;
+      padding: 0 16px;
+      border-radius: 999px;
+      color: var(--night);
+      background: var(--paper);
       font-weight: 850;
-      line-height: 1.05;
-      letter-spacing: .13em;
-      text-transform: uppercase;
+      transition: top .2s ease;
     }
-    .brand-copy small {
-      color: var(--muted);
-      font-size: .58rem;
-      font-weight: 700;
-      letter-spacing: .11em;
-    }
-    .product-name {
-      color: rgba(255, 254, 249, .54);
-      font-size: .67rem;
-      font-weight: 800;
-      letter-spacing: .12em;
-      text-align: right;
-      text-transform: uppercase;
-    }
+    .skip:focus { top: 16px; }
 
     .poster {
       position: relative;
       min-height: 100svh;
-      display: grid;
-      grid-template-columns: 44% 56%;
       overflow: hidden;
       isolation: isolate;
-      background: var(--ink);
+      color: var(--paper);
+      background:
+        radial-gradient(circle at 12% 82%, rgba(220, 227, 25, .13), transparent 28%),
+        radial-gradient(circle at 28% 8%, rgba(232, 117, 49, .08), transparent 26%),
+        var(--night);
     }
     .poster::after {
       content: "";
       position: absolute;
-      z-index: 8;
-      top: 0;
-      bottom: 0;
-      left: calc(44% - 3px);
-      width: 6px;
-      background: var(--acid);
-      pointer-events: none;
-    }
-
-    .poster-copy {
-      position: relative;
-      z-index: 3;
-      min-width: 0;
-      min-height: 100svh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: flex-start;
-      padding: 132px clamp(28px, 5.25vw, 84px) 64px clamp(28px, 5.25vw, 84px);
-      overflow: hidden;
-      background:
-        radial-gradient(circle at 7% 88%, rgba(216, 250, 85, .14) 0 12%, transparent 12.4%),
-        radial-gradient(circle at 7% 88%, transparent 0 20%, rgba(216, 250, 85, .075) 20.3% 20.8%, transparent 21.1%),
-        linear-gradient(145deg, #161913 0%, var(--ink) 48%, #0c0e0b 100%);
-    }
-    .poster-copy::before {
-      content: "";
-      position: absolute;
       z-index: -1;
-      top: 16%;
-      right: -34%;
-      width: 76%;
-      aspect-ratio: 1;
-      border: 1px solid rgba(255, 254, 249, .07);
-      border-radius: 50%;
-      box-shadow: 0 0 0 58px rgba(255, 254, 249, .018), 0 0 0 116px rgba(255, 254, 249, .012);
-    }
-    .poster-kicker {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      margin: 0 0 26px;
-      color: var(--acid);
-      font-size: .68rem;
-      font-weight: 900;
-      letter-spacing: .2em;
-      text-transform: uppercase;
-    }
-    .poster-kicker::before {
-      content: "";
-      width: 30px;
-      height: 3px;
-      background: currentColor;
-    }
-    .poster h1 {
-      max-width: 720px;
-      margin: 0;
-      color: var(--paper);
-      font-size: clamp(4.35rem, 7.1vw, 8.5rem);
-      font-weight: 900;
-      line-height: .82;
-      letter-spacing: -.075em;
-      text-wrap: balance;
-    }
-    .poster h1 span { display: block; }
-    .poster h1 em {
-      display: inline;
-      color: var(--acid);
-      font-style: normal;
-    }
-    .poster-promise {
-      max-width: 430px;
-      margin: 32px 0 0;
-      color: var(--muted);
-      font-size: clamp(1rem, 1.35vw, 1.22rem);
-      line-height: 1.5;
-    }
-    .poster-cta {
-      min-height: 52px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      margin-top: 30px;
-      padding: 0 8px 0 24px;
-      color: var(--ink);
-      background: var(--acid);
-      border: 2px solid var(--acid);
-      border-radius: 999px;
-      box-shadow: 0 14px 34px rgba(216, 250, 85, .14);
-      font-size: .88rem;
-      font-weight: 900;
-      text-decoration: none;
-      transition: transform .18s var(--ease), background .18s ease, box-shadow .18s ease;
-    }
-    .poster-cta-icon {
-      width: 38px;
-      height: 38px;
-      display: grid;
-      place-items: center;
-      flex: 0 0 auto;
-      color: var(--paper);
-      background: var(--ink);
-      border-radius: 50%;
-      font-size: 1.15rem;
-      line-height: 1;
-      transition: transform .18s var(--ease);
-    }
-    .poster-cta:hover {
-      color: var(--ink);
-      background: var(--acid-soft);
-      box-shadow: 0 18px 42px rgba(216, 250, 85, .2);
-      transform: translateY(-3px);
-    }
-    .poster-cta:hover .poster-cta-icon { transform: translateX(3px); }
-
-    .poster-photo {
-      position: relative;
-      min-width: 0;
-      min-height: 100svh;
-      margin: 0;
-      overflow: hidden;
-      background: #5f5b4e;
-    }
-    .poster-photo::before {
-      content: "";
-      position: absolute;
-      z-index: 2;
       inset: 0;
-      background:
-        linear-gradient(90deg, rgba(17, 19, 15, .33), transparent 18%),
-        linear-gradient(0deg, rgba(17, 19, 15, .72), transparent 28%),
-        linear-gradient(180deg, rgba(17, 19, 15, .28), transparent 18%);
+      opacity: .18;
       pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='110' viewBox='0 0 110 110'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.18'/%3E%3C/svg%3E");
+      mix-blend-mode: soft-light;
     }
-    .poster-photo::after {
-      content: "";
-      position: absolute;
-      z-index: 3;
-      inset: 14px;
-      border: 1px solid rgba(255, 254, 249, .32);
-      pointer-events: none;
-    }
-    .poster-photo img {
-      width: 100%;
-      height: 100%;
-      display: block;
-      object-fit: cover;
-      object-position: 100% 50%;
-      filter: saturate(.82) contrast(1.06) brightness(.92);
-      transform: scale(1.015);
-    }
-    .poster-photo figcaption {
-      position: absolute;
-      z-index: 4;
-      right: 30px;
-      bottom: 27px;
-      left: 30px;
-      color: rgba(255, 254, 249, .88);
-      font-size: .67rem;
-      font-weight: 700;
-      line-height: 1.35;
-      letter-spacing: .035em;
-      text-align: right;
-      text-shadow: 0 2px 14px rgba(0, 0, 0, .9);
-    }
-
-    .suite-bridge {
-      display: grid;
-      grid-template-columns: minmax(0, 1.35fr) minmax(260px, .65fr);
-      gap: clamp(38px, 8vw, 120px);
-      align-items: end;
-      max-width: var(--shell);
-      margin: 0 auto;
-      padding: clamp(72px, 10vw, 132px) clamp(24px, 5vw, 70px);
-      color: var(--ink);
-      background: var(--paper);
-    }
-    .bridge-wrap { background: var(--paper); }
-    .suite-bridge .eyebrow {
-      display: block;
-      margin-bottom: 16px;
-      color: #59672a;
-      font-size: .68rem;
-      font-weight: 900;
-      letter-spacing: .18em;
-      text-transform: uppercase;
-    }
-    .suite-bridge h2 {
-      max-width: 760px;
-      margin: 0;
-      color: var(--ink);
-      font-size: clamp(2.3rem, 5vw, 5.2rem);
-      font-weight: 900;
-      line-height: .95;
-      letter-spacing: -.06em;
-      text-wrap: balance;
-    }
-    .bridge-note {
-      margin: 0;
-      color: #4d5049;
-      font-size: 1rem;
-      line-height: 1.65;
-    }
-    .bridge-link {
-      min-height: 48px;
-      display: inline-flex;
-      align-items: center;
-      gap: 12px;
-      margin-top: 22px;
-      color: var(--ink);
-      font-weight: 900;
-      text-decoration-thickness: 2px;
-      text-underline-offset: 6px;
-    }
-
-    footer {
-      border-top: 1px solid #e7e3d8;
-      color: #585b54;
-      background: var(--paper);
-    }
-    .footer-inner {
-      max-width: var(--shell);
-      min-height: 92px;
+    .topline {
+      position: relative;
+      z-index: 5;
+      width: min(1440px, calc(100% - 48px));
+      min-height: 82px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 24px;
       margin: 0 auto;
-      padding: 22px clamp(24px, 5vw, 70px);
+      border-bottom: 1px solid var(--line);
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      font-size: .78rem;
+      font-weight: 850;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .brand-mark {
+      width: 27px;
+      height: 27px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border: 1px solid rgba(220, 227, 25, .68);
+      border-radius: 50%;
+      color: var(--acid);
+    }
+    .brand-mark svg { width: 15px; height: 15px; }
+    .cover-nav { display: flex; }
+    .suite-jump {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      color: var(--paper-2);
       font-size: .76rem;
-      line-height: 1.5;
+      font-weight: 760;
+      letter-spacing: .04em;
+      text-decoration: none;
     }
-    .footer-links {
+    .suite-jump strong { color: var(--acid); }
+    .suite-jump span { margin-left: 5px; color: var(--ember); }
+    .suite-jump:hover strong { color: var(--acid-soft); }
+
+    .poster-grid {
+      width: min(1440px, calc(100% - 48px));
+      min-height: calc(100svh - 82px);
+      display: grid;
+      grid-template-columns: minmax(360px, .84fr) minmax(520px, 1.36fr);
+      align-items: stretch;
+      margin: 0 auto;
+    }
+    .poster-copy {
+      z-index: 3;
+      align-self: center;
+      max-width: 630px;
+      padding: 70px 0 88px;
+    }
+    .eyebrow {
+      margin: 0 0 22px;
+      color: var(--acid);
+      font-size: .76rem;
+      font-weight: 850;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+    h1 {
+      max-width: 690px;
+      margin: 0;
+      font-family: var(--serif);
+      font-size: clamp(4.2rem, 7.55vw, 8rem);
+      font-weight: 600;
+      letter-spacing: -.067em;
+      line-height: .82;
+      text-wrap: balance;
+    }
+    h1 span, h1 em { display: block; }
+    h1 em { color: var(--acid); font-style: normal; font-weight: 600; }
+    .promise {
+      max-width: 470px;
+      margin: 31px 0 0;
+      color: var(--paper-2);
+      font-size: clamp(1.06rem, 1.4vw, 1.3rem);
+      line-height: 1.55;
+    }
+    .poster-actions { margin-top: 34px; }
+    .button {
+      min-height: 52px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 11px;
+      padding: 0 24px;
+      border-radius: 999px;
+      color: var(--night);
+      background: var(--acid);
+      box-shadow: 0 14px 42px rgba(220, 227, 25, .17);
+      font-size: .91rem;
+      font-weight: 850;
+      text-decoration: none;
+      transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .button:hover {
+      background: var(--acid-soft);
+      box-shadow: 0 18px 50px rgba(220, 227, 25, .26);
+      transform: translateY(-2px);
+    }
+    .button svg { width: 17px; height: 17px; }
+
+    .poster-art {
+      position: relative;
+      align-self: stretch;
+      min-height: 600px;
+      margin: 0 -4vw 0 -8vw;
+    }
+    .poster-art::before {
+      content: "";
+      position: absolute;
+      z-index: 1;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(90deg, var(--night) 0%, rgba(17, 21, 18, .78) 11%, transparent 38%);
+    }
+    .poster-art picture { width: 100%; height: 100%; display: block; }
+    .poster-art img {
+      width: 100%;
+      height: 100%;
+      min-height: calc(100svh - 82px);
+      display: block;
+      object-fit: cover;
+      object-position: 61% center;
+      filter: saturate(.98) contrast(1.03);
+    }
+    .art-note {
+      position: absolute;
+      z-index: 2;
+      right: 5vw;
+      bottom: 24px;
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      margin: 0;
+      padding: 5px 9px;
+      border: 1px solid rgba(243, 232, 203, .18);
+      border-radius: 999px;
+      color: var(--paper);
+      background: rgba(17, 21, 18, .86);
+      box-shadow: 0 4px 18px rgba(0, 0, 0, .22);
+      font-size: .69rem;
+      line-height: 1.3;
+      letter-spacing: .035em;
+    }
+
+    footer {
+      padding: 30px 24px 38px;
+      color: #5b665d;
+      background: var(--paper);
+      font-size: .76rem;
+      line-height: 1.65;
+    }
+    .footer-inner {
+      width: min(1160px, 100%);
       display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      gap: 10px 22px;
+      justify-content: space-between;
+      gap: 42px;
+      margin: 0 auto;
     }
+    .footer-copy { max-width: 820px; }
+    .footer-copy > p { margin: 0; }
+    .honesty { margin-top: 10px; }
+    .honesty summary {
+      width: fit-content;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      color: var(--ink);
+      font-weight: 800;
+    }
+    .honesty p { max-width: 790px; margin: 2px 0 0; }
+    .footer-links { display: flex; gap: 8px 18px; white-space: nowrap; }
     .footer-links a {
       min-height: 44px;
       display: inline-flex;
       align-items: center;
-      color: var(--ink);
-      font-weight: 800;
+      font-weight: 750;
       text-underline-offset: 4px;
     }
 
-    :focus-visible {
-      outline: 3px solid var(--acid);
-      outline-offset: 4px;
-    }
-    .poster-cta:focus-visible {
-      outline-color: var(--paper);
-      outline-offset: 5px;
-    }
-
     @media (max-width: 980px) {
-      .topline { width: 50%; }
-      .poster { grid-template-columns: 50% 50%; }
-      .poster::after { left: calc(50% - 3px); }
-      .poster h1 { font-size: clamp(3.75rem, 8.2vw, 6.6rem); }
+      .poster-grid { grid-template-columns: .95fr 1.05fr; }
+      .poster-art { margin-right: -12vw; margin-left: -14vw; }
+      .poster-copy { padding-right: 8px; }
     }
 
-    @media (max-width: 760px) {
-      .topline {
-        position: absolute;
+    @media (max-width: 700px) {
+      .topline { width: calc(100% - 32px); min-height: 66px; }
+      .brand { font-size: .66rem; letter-spacing: .1em; }
+      .brand-mark { width: 25px; height: 25px; }
+      .suite-jump { max-width: 152px; font-size: .66rem; line-height: 1.25; text-align: right; }
+      .poster-grid {
         width: 100%;
-        min-height: 62px;
-        padding: 9px 16px;
-        background: linear-gradient(180deg, rgba(17, 19, 15, .82), rgba(17, 19, 15, .18), transparent);
+        min-height: auto;
+        display: flex;
+        flex-direction: column;
       }
-      .brand { gap: 8px; }
-      .brand-mark { width: 36px; height: 36px; font-size: .62rem; }
-      .brand-copy { font-size: .64rem; }
-      .brand-copy small { font-size: .52rem; }
-      .product-name { color: rgba(255, 254, 249, .82); font-size: .58rem; }
-
-      .poster {
-        min-height: 100svh;
-        grid-template-columns: 1fr;
-        grid-template-rows: minmax(270px, 39svh) auto;
+      .poster-art {
+        order: 1;
+        width: 100%;
+        height: 42svh;
+        min-height: 300px;
+        margin: 0;
       }
-      .poster::after {
-        top: calc(39svh - 3px);
-        right: 0;
-        bottom: auto;
-        left: 0;
-        width: auto;
-        height: 6px;
+      .poster-art::before { background: linear-gradient(0deg, var(--night) 0%, transparent 42%); }
+      .poster-art img {
+        height: 42svh;
+        min-height: 300px;
+        object-position: 72% 60%;
       }
-      .poster-photo {
-        grid-row: 1;
-        min-height: 270px;
-        height: 39svh;
-      }
-      .poster-photo img { object-position: 100% 52%; }
-      .poster-photo::before {
-        background:
-          linear-gradient(180deg, rgba(17, 19, 15, .38), transparent 30%),
-          linear-gradient(0deg, rgba(17, 19, 15, .38), transparent 24%);
-      }
-      .poster-photo::after { inset: 10px; }
-      .poster-photo figcaption {
-        right: 18px;
-        bottom: 15px;
-        left: 18px;
+      .art-note {
+        right: 16px;
+        bottom: 8px;
+        left: 16px;
+        width: fit-content;
+        max-width: calc(100% - 32px);
+        min-height: 28px;
         font-size: .6rem;
+        line-height: 1.25;
       }
       .poster-copy {
-        grid-row: 2;
-        min-height: calc(61svh + 6px);
-        justify-content: center;
-        padding: 42px clamp(22px, 8vw, 50px) 38px;
+        order: 2;
+        width: calc(100% - 32px);
+        align-self: center;
+        padding: 26px 0 38px;
       }
-      .poster-copy::before { top: 0; right: -28%; width: 62%; }
-      .poster-kicker { margin-bottom: 18px; font-size: .61rem; }
-      .poster h1 {
-        max-width: 610px;
-        font-size: clamp(3.35rem, 14.2vw, 6rem);
-        line-height: .86;
-      }
-      .poster-promise { margin-top: 23px; font-size: .98rem; line-height: 1.45; }
-      .poster-cta { min-height: 52px; margin-top: 22px; }
-
-      .suite-bridge { grid-template-columns: 1fr; gap: 34px; }
-      .bridge-note { max-width: 540px; }
-      .footer-inner { align-items: flex-start; flex-direction: column; gap: 2px; }
-      .footer-links { justify-content: flex-start; }
+      .eyebrow { margin-bottom: 13px; font-size: .65rem; }
+      h1 { font-size: clamp(3.5rem, 18.2vw, 5.35rem); line-height: .84; }
+      .promise { margin-top: 22px; font-size: 1rem; }
+      .poster-actions { margin-top: 25px; }
+      .button { width: 100%; }
+      .footer-inner { display: block; }
+      .footer-links { margin-top: 12px; white-space: normal; flex-wrap: wrap; }
     }
 
-    @media (max-width: 360px) {
-      .topline { padding-right: 12px; padding-left: 12px; }
-      .brand-copy span { display: none; }
-      .brand-copy small { font-size: .56rem; }
-      .product-name { max-width: 122px; line-height: 1.2; }
-      .poster { grid-template-rows: minmax(250px, 36svh) auto; }
-      .poster::after { top: calc(36svh - 3px); }
-      .poster-photo { min-height: 250px; height: 36svh; }
-      .poster-copy {
-        min-height: calc(64svh + 6px);
-        padding: 34px 20px 30px;
-      }
-      .poster-kicker { margin-bottom: 16px; }
-      .poster h1 { font-size: clamp(3.05rem, 15.6vw, 3.6rem); }
-      .poster-promise { margin-top: 18px; }
-      .poster-cta { width: 100%; justify-content: space-between; margin-top: 20px; }
-      .suite-bridge { padding-right: 20px; padding-left: 20px; }
+    @media (max-width: 420px) and (max-height: 860px) {
+      .poster-art, .poster-art img { height: 34svh; min-height: 34svh; }
+      .poster-copy { padding-top: 22px; }
+      h1 { font-size: clamp(3rem, 16.3vw, 3.7rem); }
+      .promise { margin-top: 18px; }
+      .poster-actions { margin-top: 20px; }
+    }
+
+    @media (max-width: 340px) {
+      .topline { gap: 10px; }
+      .brand { font-size: .61rem; }
+      .suite-jump { max-width: 126px; font-size: .61rem; }
+      .poster-copy { width: calc(100% - 24px); }
+      h1 { font-size: 2.85rem; }
     }
 
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
       *, *::before, *::after {
-        scroll-behavior: auto !important;
-        transition-duration: .001ms !important;
-        animation-duration: .001ms !important;
+        animation-duration: .01ms !important;
         animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
       }
-      .poster-cta:hover,
-      .poster-cta:hover .poster-cta-icon { transform: none; }
+      .button:hover { transform: none; }
     }
 
     @media (prefers-contrast: more) {
-      .poster-promise, .product-name, .poster-photo figcaption { color: var(--paper); }
-      .poster-photo figcaption { padding: 7px 9px; background: rgba(17, 19, 15, .94); }
-      .bridge-note, footer { color: #242620; }
+      .promise { color: var(--paper); }
+      .art-note { background: var(--night); border-color: var(--paper); }
+      footer { color: #253128; }
     }
 
     @media (forced-colors: active) {
-      .brand-mark, .poster-cta, .poster-cta-icon { border: 2px solid ButtonText; }
-      .poster::after { background: Highlight; }
+      .brand-mark, .button, .art-note { border: 2px solid ButtonText; }
     }
   </style>
 </head>
-
 <body>
-  <a class="skip-link" href="#main">Skip to the poster</a>
+  <a class="skip" href="#main">Skip to the poster</a>
 
-  <nav class="topline" aria-label="Cover navigation">
-    <a class="brand" href="#main" aria-label="NEON Explorer Suite, Small Mammal Tracker">
-      <span class="brand-mark" aria-hidden="true">DDL</span>
-      <span class="brand-copy"><span>Desert Data Labs</span><small>NEON Explorer Suite</small></span>
-    </a>
-    <span class="product-name" aria-current="page">Small Mammal Tracker</span>
-  </nav>
+  <main id="main" class="poster" tabindex="-1">
+    <header class="topline">
+      <span class="brand" aria-label="Desert Data Labs">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18M8 8l4-4 4 4M7 14h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        Desert Data Labs
+      </span>
+      <nav class="cover-nav" aria-label="NEON Explorer Suite">
+        <a class="suite-jump" href="https://tgilbert14.github.io/NEON-Driver-Cascade/">Whole suite: <strong>Driver Cascade</strong><span aria-hidden="true">↗</span></a>
+      </nav>
+    </header>
 
-  <main id="main">
-    <section class="poster" aria-labelledby="poster-title">
+    <div class="poster-grid">
       <div class="poster-copy">
-        <p class="poster-kicker">Small Mammal Tracker</p>
-        <h1 id="poster-title" aria-label="One trap night. A whole population story.">One trap night.<span>A whole <em>population story.</em></span></h1>
-        <p class="poster-promise">Follow tagged small mammals across years of return visits.</p>
-        <a class="poster-cta" href="https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/" target="_blank" rel="noopener">
-          <span>Pick a place</span><span class="poster-cta-icon" aria-hidden="true">→</span>
-        </a>
+        <p class="eyebrow">NEON Small Mammal Tracker · unofficial</p>
+        <h1 aria-label="Who moves after dark?"><span>Who moves</span><em>after dark?</em></h1>
+        <p class="promise">Meet the tiny lives reshaping the landscape.</p>
+        <div class="poster-actions">
+          <a class="button" href="https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/">
+            Meet the mammals
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h11M11 6l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
       </div>
 
-      <figure class="poster-photo">
-        <img src="assets/pacific-pocket-mouse-sherman-trap-usgs.jpg" alt="A Pacific pocket mouse emerges from the open door of a large metal Sherman live trap on leaf-strewn ground." width="4000" height="3000" fetchpriority="high" decoding="async">
-        <figcaption>Pacific pocket mouse · Cheryl Brehme, USGS · Public domain</figcaption>
+      <figure class="poster-art">
+        <picture>
+          <source type="image/webp"
+            srcset="assets/small-mammal-living-poster-840.webp 840w, assets/small-mammal-living-poster.webp 1672w"
+            sizes="(max-width: 700px) 100vw, 72vw">
+          <img src="assets/small-mammal-living-poster.png" width="1672" height="941"
+            fetchpriority="high" decoding="async"
+            alt="Editorial screenprint of a small nocturnal mouse emerging from an oversized metal box live trap beneath a starry sky.">
+        </picture>
+        <figcaption class="art-note">Editorial illustration—not a field photograph or data record.</figcaption>
       </figure>
-    </section>
-
-    <div class="bridge-wrap">
-      <section class="suite-bridge" aria-labelledby="suite-title">
-        <div>
-          <span class="eyebrow">Part of the NEON Explorer Suite</span>
-          <h2 id="suite-title">One animal in a much bigger field story.</h2>
-        </div>
-        <div>
-          <p class="bridge-note">Small Mammal Tracker is one independent way into the living network.</p>
-          <a class="bridge-link" href="https://tgilbert14.github.io/NEON-Driver-Cascade/">Meet the whole suite <span aria-hidden="true">→</span></a>
-        </div>
-      </section>
     </div>
   </main>
 
   <footer>
     <div class="footer-inner">
-      <span>Independent explorer · data from NEON DP1.10072.001</span>
-      <nav class="footer-links" aria-label="Project and source links">
+      <div class="footer-copy">
+        <p>Explore 46 places using public <a href="https://data.neonscience.org/data-products/DP1.10072.001">NEON Small Mammal Box Trapping data · DP1.10072.001</a> (CC BY 4.0). Built by Desert Data Labs; unofficial and not endorsed by NEON, Battelle, or the NSF.</p>
+        <details class="honesty">
+          <summary>What am I looking at?</summary>
+          <p>The explorer follows capture and recapture records from sampled plots and trapping nights. Those records show observed return visits and sampled community patterns; they do not by themselves measure total population size, complete animal movement, landscape-wide abundance, or what caused a change. The tagline is an ecological invitation; these records do not measure landscape effects or ecosystem engineering.</p>
+        </details>
+      </div>
+      <div class="footer-links">
         <a href="https://github.com/tgilbert14/NEON-Small-Mammal-Tracker-App">Source</a>
-        <a href="https://data.neonscience.org/data-products/DP1.10072.001">NEON data</a>
-        <a href="https://www.usgs.gov/media/images/pacific-pocket-mouse-sherman-trap">Photo source</a>
-      </nav>
+        <a href="mailto:desertdatalabs@gmail.com?subject=NEON%20Small%20Mammal%20Tracker">Feedback</a>
+      </div>
     </div>
   </footer>
 </body>

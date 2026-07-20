@@ -1,103 +1,151 @@
 # Small Mammal cover image provenance
 
-Status: **CURRENT / COVER V4**
+Status: **CANDIDATE / COVER V5 / SUITE LIVING POSTER V1**
 
-Cover V4 replaces the generated V3 habitat scene with a documentary field
-photograph. The live hero, evidence close-up, and social card now show a real
-small mammal with the humane field equipment described by the app.
+Cover V5 promotes the owner-approved artistic direction that was previously
+shown only in the suite concept board. It replaces Cover V4's documentary-photo
+treatment on both the public Pages cover and the Connect site-picker landing.
+The illustration is an invitation, never a field photograph, NEON observation,
+species record, or data visualization.
 
-## Documentary hero photograph
+## Approved concept source
 
-- File: `docs/assets/pacific-pocket-mouse-sherman-trap-usgs.jpg`
-- Title: “Pacific pocket mouse in Sherman trap”
-- Subject: Pacific pocket mouse emerging from a Sherman live trap
-- Photographer: Cheryl Brehme, U.S. Geological Survey Western Ecological
-  Research Center
-- Rights: U.S. Geological Survey public domain
-- Source page:
-  <https://www.usgs.gov/media/images/pacific-pocket-mouse-sherman-trap>
-- Original file:
-  <https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/s3fs-public/thumbnails/image/DSCN0070.JPG>
-- Retrieved: 2026-07-18
-- Dimensions: 4000 x 3000 JPEG
+- Preserved file: `docs/assets/small-mammal-living-poster-concept.jpg`
+- Original context: the `living` direction embedded in the local suite concept
+  board `neon-cover-directions.html`
+- Owner-approved copy paired with the concept:
+  - “Who moves after dark?”
+  - “Meet the tiny lives reshaping the landscape.”
+  - “Meet the mammals”
+- Original concept-board alt (preserved verbatim): “A stylized screenprint
+  illustration of a mouse leaving an oversized humane live trap.”
+- Dimensions: 900 x 600 JPEG
+- Bytes: 195,163
 - SHA-256:
-  `b678af26331a98747eba64c382f1ee7e2e1f7c1f77baecbd81dd46622a9e950a`
-- Use: desktop and mobile cover hero, plus the evidence close-up
-- Transformations: none to the stored source. Responsive crops, gradients, and
-  text treatment are applied non-destructively with CSS.
-- Alt text: “A Pacific pocket mouse emerges from the open door of a metal
-  Sherman live trap on leaf-strewn ground.”
+  `9fd6cd3d5e4fe2d54156aadb373bae94f8acc0cd526f963a94ae53de25cdd42a`
+- Use: provenance evidence only; the browser does not download this source.
 
-The photograph documents equipment and a species encounter. It is not a NEON
-site photograph, is not part of product `DP1.10072.001`, and must not be used to
-imply a NEON capture outcome, population density, or ecosystem condition.
+This file is the selected visual direction, not one of the retired V3 generated
+images. Preserving it in the repository closes the gap between the approved
+concept and the production asset.
 
-## Connect Living Poster derivative
+## Production Living Poster illustration
 
-- Runtime file: `www/assets/small-mammal-field-usgs.jpg`
-- Source: the unchanged documentary hero photograph above
-- Use: first-screen documentary image in the Connect site-picker landing
-- Dimensions: 1800 x 1350 JPEG
+- Primary file: `docs/assets/small-mammal-living-poster.png`
+- Dimensions: 1672 x 941 PNG
+- Bytes: 3,123,255
 - SHA-256:
-  `e9d0158ac56f95437f0958c5aa4037701c95f2b616e87bb54440ab08e3a50f55`
-- Transformation: resized to a maximum 1800-pixel edge and JPEG quality 82 with
-  macOS `sips`; no generative edit, compositing, content removal, or synthetic
-  detail was introduced
-- Visible credit: “Documentary field photograph · not a NEON observation” and
-  “Cheryl Brehme · USGS · public domain”
-- Alt text: the same documentary description used for the public cover
+  `b414540c6ec0172ee586ef016fc204cb2aef7bc60ad73f7dc6f8f0ea27372ef1`
+- Tool: OpenAI image generation, using the approved 900 x 600 concept as the
+  visual reference
+- Generated: 2026-07-20
+- Portable generation receipt: the reviewed output was copied byte-for-byte to
+  the primary file above; its dimensions, date, tool, reference asset, prompt,
+  and SHA-256 are the durable record (the transient tool path is not required).
+- Use: lossless fallback for the Pages cover and Connect landing; visual source
+  for responsive derivatives and the social card
+- Alt text: “Editorial screenprint of a small nocturnal mouse emerging from an
+  oversized metal box live trap beneath a starry sky.”
+- Visible disclosure: “Editorial illustration—not a field photograph or data
+  record.”
 
-This derivative keeps the interactive app visually continuous with the public
-Living Poster while avoiding a 2.5 MB first-screen transfer. Because it lives in
-`www/`, it is a runtime asset and must be included in a validator-generated
-`manifest.json` before any Connect deployment.
+Generation brief:
+
+> Faithfully extend and refine the approved Small Mammal screenprint into a
+> production-ready 16:9 landscape. Preserve the realistically recognizable
+> nocturnal mouse emerging from an oversized humane metal live trap, with the
+> trap dominant and visibly much larger than the mouse. Preserve the low angle,
+> rough ink grain, warm cream paper, charcoal night shapes, acid-chartreuse
+> ground and stars, and restrained burnt-orange foliage. Keep the subject on the
+> center-right with calm negative space left. No typography, labels, logos, UI,
+> numbers, watermark, photographic realism, glossy 3D, cartoon anatomy, extra
+> animals, tiny trap, injury, handling, or implied harm.
+
+The production image is a faithful wide expansion of the approved concept, not
+a synthetic field record. The exact composition was reviewed for the requested
+large-trap scale, non-photographic treatment, and Vegetation Living Poster vibe.
+
+## Responsive delivery files
+
+Created mechanically from the production PNG with Sharp; no generative changes
+were made after the production image was selected.
+
+| Surface | File | Dimensions | Bytes | SHA-256 |
+|---|---|---:|---:|---|
+| Pages full | `docs/assets/small-mammal-living-poster.webp` | 1672 x 941 | 542,556 | `7a1f9c78895868d0e540ad3126cf5af6b46a25ed4d02b8cf9113fa613cf2fe29` |
+| Pages compact | `docs/assets/small-mammal-living-poster-840.webp` | 840 x 473 | 105,152 | `5fc560601bbb0146ffdfc03e2cf662bc7a8e20dce790f52f218ea1bdba8904a5` |
+| Connect fallback | `www/assets/small-mammal-living-poster.png` | 1672 x 941 | 3,123,255 | `b414540c6ec0172ee586ef016fc204cb2aef7bc60ad73f7dc6f8f0ea27372ef1` |
+| Connect full | `www/assets/small-mammal-living-poster.webp` | 1672 x 941 | 542,556 | `7a1f9c78895868d0e540ad3126cf5af6b46a25ed4d02b8cf9113fa613cf2fe29` |
+| Connect compact | `www/assets/small-mammal-living-poster-840.webp` | 840 x 473 | 105,152 | `5fc560601bbb0146ffdfc03e2cf662bc7a8e20dce790f52f218ea1bdba8904a5` |
+
+The Pages and Connect files are byte-identical copies so both entrances keep the
+same art, crop vocabulary, disclosure, and approved promise. Because the `www/`
+files are runtime assets, they require a validator-generated `manifest.json`
+before Connect deployment.
+
+The full WebP has a 600 KB app-local cap rather than Vegetation's 400 KB cap so
+the grain-rich screenprint can retain its ink texture. The 840 px first-choice
+mobile derivative remains 105,152 bytes; the PNG is a lossless fallback only.
 
 ## Social card
 
-- Source layout: `docs/og-card-v4-source.html`
-- Delivery file: `docs/og-image.jpg`
-- Use: Open Graph and Twitter large-image card
-- Delivery dimensions: 1200 x 630 JPEG
+- Code-native layout source: `docs/social-card.html`
+- Layout-source SHA-256:
+  `fed45cb67e270e8f8de92d93a5c59d9b8f1734bdd75c14120edf999da6956a02`
+- Delivery file: `docs/og-image.png`
+- Delivery dimensions: 1200 x 630 PNG
+- Delivery bytes: 1,162,569
 - Delivery SHA-256:
-  `b36c62094270bf1598f38c6162ea6fda1b5c607f513a3faeea4ed62819fdf19a`
-- Rendered: 2026-07-18 from the project-owned HTML/CSS source at an exact
-  1200 x 630 browser viewport
-- Documentary source: the USGS public-domain photograph listed above
-- Alt text: “A Pacific pocket mouse emerges from a Sherman live trap beside the
-  title One trap night. A whole population story.”
+  `8001d35b5e905570773a1fb4916ec8ac78ce101e6de0f8c7eb3f0a552951f8b4`
+- Rendered: 2026-07-20 from the same project-owned illustration, palette, and
+  exact approved copy
+- Alt: “Editorial screenprint of a mouse leaving an oversized metal box live trap
+  beside the words Who moves after dark?”
 
 Exact card text:
 
 ```text
-NEON EXPLORER SUITE
-One trap night.
-A whole population story.
-NEON Small Mammal Tracker
-DESERT DATA LABS
-46 RESEARCH SITES
-Pacific pocket mouse · Cheryl Brehme, USGS · Public domain
+NEON SMALL MAMMAL TRACKER
+Who moves
+after dark?
+Meet the tiny lives reshaping the landscape.
+NEON Explorer Suite · unofficial
 ```
+
+## Historical Cover V4 documentary assets
+
+The following USGS public-domain files remain in the repository as historical
+release evidence but are no longer referenced by either live cover:
+
+- `docs/assets/pacific-pocket-mouse-sherman-trap-usgs.jpg`
+- `docs/og-card-v4-source.html`
+- `docs/og-image.jpg`
+
+The unreferenced 619,324-byte runtime derivative
+`www/assets/small-mammal-field-usgs.jpg` was removed in V5 so it does not ship in
+every Connect bundle; its history remains recoverable from Cover V4 commits.
+
+Their source was Cheryl Brehme / U.S. Geological Survey, “Pacific pocket mouse
+in Sherman trap,” retrieved 2026-07-18 from
+<https://www.usgs.gov/media/images/pacific-pocket-mouse-sherman-trap>. They must
+not be relabeled as NEON observations.
 
 ## Retired V3 illustration assets
 
-The following generated illustrations remain in version history and in the
-repository only as retired release artifacts. Cover V4 does not reference them:
+These rejected pseudo-photographic assets remain historical artifacts only and
+must not return to a live surface:
 
 - `docs/og-habitat-v2.png`
 - `docs/hero-mobile-v1.png`
 - `docs/hero-mobile-v1.jpg`
 - `docs/og-card-v3-source.png`
 
-Their full prompts, hashes, and limitations are preserved in the Cover V3
-version of this file. They must not be reintroduced as documentary evidence.
-
 ## Release contract
 
-`scripts/check_cover.mjs` verifies the documentary source and social-card hashes,
-the exact 1200 x 630 delivery size, social alt metadata, suite destinations,
-scientific claim boundaries, safe live-app controls, and the absence of any V3
-hero reference or automatic app prewarm. `scripts/check_in_app_landing.mjs`
-verifies the Connect poster copy, source disclosure, runtime derivative hash and
-dimensions, functional site-picker anchor, and responsive/accessibility CSS
-contracts. Asset changes require this provenance record and the matching contract
-to change together.
+`scripts/check_cover.mjs` verifies the exact approved hook, one-promise/one-CTA
+poster budget, shared Suite Living Poster frame, responsive image set, visible
+illustration disclosure, provenance hashes, social metadata, scope boundary,
+and responsive/accessibility rules. `scripts/check_in_app_landing.mjs` verifies
+the same copy and asset authority inside Connect while preserving the functional
+site-picker controls. Any art, copy, crop, or asset change requires this record
+and both contracts to change together.

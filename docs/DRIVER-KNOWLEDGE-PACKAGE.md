@@ -143,40 +143,38 @@ Promote to every later app/subagent brief:
   conventions into both UI and tidy export; suppress winners the measurement design
   cannot defend.
 
-### Cover V4 suite learning (2026-07-18)
+### Cover V5 / Suite Living Poster V1 learning (2026-07-20)
 
-- Documentary credibility is part of product trust. When field methods are central
-  to the app's promise, prefer a real, rights-cleared field photograph; store the
-  original locally, expose a visible credit, pin its hash, state what it does **not**
-  document, and use CSS-only crops rather than synthetic edits.
-- A companion cover should earn the first click before explaining the entire app.
-  Lead with one memorable outcome, make the dominant field object legible at the
-  first viewport, and offer three question-led entry paths that map to real in-app
-  tasks. Move definitions, release detail, and exhaustive provenance into a compact
-  evidence receipt instead of repeating feature cards.
-- Suite cohesion should come from navigation, evidence language, claim boundaries,
-  provenance, and the Driver handoff—not from making every cover look the same. Each
-  companion should have a product-specific visual thesis grounded in its
-  measurement: here, `trap -> tag -> recapture -> interpret`.
-- Review persuasion and scientific honesty together. The highest-conversion copy is
-  not the biggest claim; it is a clear invitation paired with an explicit boundary.
-  Small Mammals now sells the question while keeping CPUE, MNKA, and gated N-hat
-  meanings one short scroll away.
-- Treat narrow responsive QA as a release gate. The V4 pass found a 320px navigation
-  overflow that was invisible at 390px and resolved it by collapsing the brand label
-  while retaining the 44px launch target.
-- Treat the public showcase and the functional app as one invitation with two
-  surfaces. The public documentary cover was already persuasive while Connect still
-  opened on generic product chrome; the in-app Living Poster now repeats the same
-  hook, photograph, source boundary, and first action before the existing picker.
-- Reproduce the production shell at the smallest breakpoint. A structural mock that
-  omitted bslib's real 24px body gutters and complete theme control missed a 97px
-  two-row top bar. The corrected release contracts the gutters to 12px and keeps the
-  functional 44px controls on one 59px row at 320px.
+- An approved concept is not a release until its exact copy and media become
+  versioned product assets. Small Mammal's selected “Who moves after dark?”
+  screenprint lived only in a concept board while the repository and both deployed
+  surfaces still enforced Cover V4. Preserve the selected source, production asset,
+  prompt, hashes, and validators together so approval cannot be mistaken for ship.
+- Standardize the **frame**, not the subject: DDL identity plus one Driver suite
+  route; a 3–7-word hook; one plain-language promise; one contextual CTA; one
+  dominant editorial image; visible image/data boundary; compact scope, honesty,
+  Source, and Feedback footer. Each app still owns its palette, motif, copy, focal
+  position, and scientific limitation.
+- A companion cover should earn the first click before explaining the whole app.
+  Small Mammal now uses the owner-approved hook, seven-word promise, and one action;
+  it removes the second marketing bridge, feature directory, metrics, and methods
+  from the cover. Driver—not every companion cover—is the suite ambassador.
+- Artistic imagery needs the same evidence discipline as documentary media. The
+  screenprint is visibly labeled as editorial illustration, avoids data marks and
+  exact-species claims, and is paired with an honesty note that capture records do
+  not alone measure total population, complete movement, causal change, or
+  landscape-wide abundance.
+- Treat Pages and Connect as one invitation with two surfaces. The same hook,
+  promise, illustration, disclosure, Driver route, and CTA intent now lead into the
+  unchanged site picker; a Pages-only swap would repeat the mismatch this release
+  exists to fix.
+- Treat narrow responsive QA as a release gate. Validate the image-first seam,
+  focal crop, full CTA, one-row utility chrome, 44px controls, and zero horizontal
+  overflow at 320, 390, and the desktop breakpoint using the real bslib gutters.
 - A green source merge is not publication evidence. Record the exact Connect
-  deployment commit and public Pages artifact, then inspect the deployed photograph,
-  CTA, controls, saved-site funnel, overflow, and browser console. Retry platform HTTP
-  503s without misclassifying them as source defects.
+  deployment commit and Pages artifact, then inspect the deployed illustration,
+  focus order, CTA-to-picker path, utility controls, focal crop, overflow, and browser
+  console. Retry platform HTTP 503s without misclassifying them as source defects.
 
 Driver disposition remains **CONTEXT / HOLD CURRENT OUTPUT**. These are reusable
 suite design and provenance rules; they do not change a Driver scientific input,

@@ -12,9 +12,11 @@ editing it.
 - Product: NEON DP1.10072.001, small mammal box trapping
 - Public cover: `https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/`
 - Public app: `https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/`
-- Release state: **PRODUCTION HEALTHY / PASS 1 + COVER V3 COMPLETE**; Connect
-  runtime `1615ab4e74fd16a2698de8431acb862d6cc4cebf` remains verified and Pages
-  cover V3 is published from merge `2492056ee62f21b5581de69d6da6d46f2fd37b34`.
+- Release state: **PRODUCTION HEALTHY / PASS 1 + COVER V4 LIVE / COVER V5 IN REVIEW**;
+  Pages source `eb9e1a3e9e91096a1c1a82ebf116bf85d33405e3` and Connect deployment
+  #122 at runtime `bdf56b0` remain the verified production evidence. Cover V5
+  requires its CI-generated manifest, exact-head green run, merge, republish,
+  and live Pages/Connect receipts before this section may call it shipped.
 - Driver disposition: accepted `CONTEXT`; central suite receipt merged with no Driver
   generation or scientific-artifact byte change
 
@@ -1044,3 +1046,89 @@ Driver implication, and next action.
 - **Next action:** commit/push the focused Pages branch, require exact-head CI,
   merge intentionally, and bind the resulting Pages build plus cache-busted public
   desktop/390/320 response before calling the dual-surface release complete.
+
+### 2026-07-20 08:05 MST - owner-selected Small Mammal Living Poster V5 candidate / root
+
+- **Starting state:** fetched clean `origin/main` at Pages merge
+  `eb9e1a3e9e91096a1c1a82ebf116bf85d33405e3` and created focused branch
+  `agent/small-mammal-living-poster-v5`. Production still serves the Cover V4
+  documentary page from `eb9e1a3`; Connect remains deployment #122 at runtime
+  `bdf56b0`.
+- **Root cause:** the owner-approved “Who moves after dark?” / “Meet the tiny lives
+  reshaping the landscape.” artistic direction was never promoted. Its exact
+  900 x 600 screenprint existed only as the `living` concept embedded in the local
+  suite direction board, while PR #85 changed the Pages layout but intentionally
+  kept the USGS photograph, old copy, and validators that required both. The live
+  result was therefore current source—not a cache or Pages failure.
+- **Changed/classification:** Pages now uses the Vegetation-derived **Suite Living
+  Poster V1** frame: focusable skip target; DDL topline plus one Driver route;
+  app/unofficial eyebrow; two-line approved hook; one seven-word promise; one
+  `Meet the mammals` CTA; responsive editorial art; visible illustration boundary;
+  and a compact scope/honesty/Source/Feedback footer. The second marketing bridge,
+  documentary credit, photo seam, metric/method bands, and full suite directory are
+  absent. Connect carries a compact echo of the same hook, promise, art, boundary,
+  Driver route, and CTA into the unchanged site picker. Classification is
+  `product/UI` plus `suite-platform`; Driver scientific implication is **NONE**.
+- **Art/provenance receipt:** preserved the exact approved concept as
+  `docs/assets/small-mammal-living-poster-concept.jpg`, SHA-256
+  `9fd6cd3d5e4fe2d54156aadb373bae94f8acc0cd526f963a94ae53de25cdd42a`.
+  OpenAI image generation faithfully expanded it to a 1672 x 941 production
+  screenprint with the metal box trap dominant and visibly much larger than the mouse;
+  production PNG SHA-256 is
+  `b414540c6ec0172ee586ef016fc204cb2aef7bc60ad73f7dc6f8f0ea27372ef1`.
+  Responsive 1672 x 941 and 840 x 473 WebPs are 542,556 and 105,152 bytes with
+  SHA-256 `7a1f9c78895868d0e540ad3126cf5af6b46a25ed4d02b8cf9113fa613cf2fe29`
+  and `5fc560601bbb0146ffdfc03e2cf662bc7a8e20dce790f52f218ea1bdba8904a5`.
+  Pages and Connect copies are byte-identical. The separately composed 1200 x 630
+  social card is 1,162,569 bytes with SHA-256
+  `8001d35b5e905570773a1fb4916ec8ac78ce101e6de0f8c7eb3f0a552951f8b4`.
+- **Science/data boundary:** the art contains no text, logo, UI, data value, species
+  assertion, injury, handling, or implied NEON observation. Both covers visibly say
+  it is editorial illustration, and the footer states that sampled capture and
+  recapture records do not alone measure total population size, complete movement,
+  landscape-wide abundance, causal change, landscape effects, or ecosystem
+  engineering. The Connect first frame carries the same measured-effect boundary.
+  Picker IDs, server logic, helpers,
+  bundles, indexes, estimators, exports, and Driver generated/scientific artifacts
+  are unchanged.
+- **Static gates (PASS):** `scripts/check_cover.mjs` and
+  `scripts/check_in_app_landing.mjs`; syntax checks for all browser JavaScript and
+  both cover validators; all six Shiny custom-message arities; safe YAML parse of
+  all workflows; `bash -n scripts/post_deploy_smoke.sh`; asset hash/dimension/budget
+  gates; and `git diff --check`. The public contract requires the shared frame,
+  exact approved copy, one CTA, responsive `picture`, 44/52 px controls, high
+  contrast disclosure, 700/420/340 seams, reduced-motion/high-contrast/forced-color
+  handling, unique IDs, no external fonts, no prewarm, and one same-tab app link.
+- **Visual evidence:** the production art and rendered social card were inspected at
+  their original sizes; both preserve the selected analog screenprint, recognizable
+  mouse, and oversized trap. The in-app browser security boundary correctly refused
+  a local `file:` URL, and its isolated backend could not reach the temporary local
+  server, so no local full-page browser or live Shiny claim is made. Deployed
+  desktop/390/320 focal crops, keyboard order, Connect binding, and console remain
+  release gates.
+- **Runtime/manifest status (BLOCKED by design):** local `Rscript` is unavailable,
+  so no R parse, helper, offline-source, bundle, or manifest-generation result is
+  claimed. The current manifest remains intentionally unedited and stale: `ui.R`
+  now has MD5 `0269b7c678d0e22f55efae8e69095010`, `www/styles.css` has MD5
+  `7a854fe0d93704c0b3f8b7753e433a6a`, and the new PNG/full-WebP/compact-WebP files
+  have MD5 values `c99f9ea9bde20941cf7e51fff38e0af6`,
+  `eef94d4022f688e42fe2791cf38195b5`, and
+  `e78e20a1ffd7915e15deb8e8047dbc72`. A pinned validator-generated manifest must
+  be promoted byte-for-byte before merge or Connect publication.
+- **Documentation/learning:** corrected the app-local Driver knowledge package,
+  project status, data takeaway, provenance, and neonize playbook. The reusable
+  rule is now explicit: every companion cover shares the Living Poster structural
+  frame while keeping app-native art, palette, copy, crop, and scientific boundary;
+  Driver is the suite ambassador and companion covers link there instead of
+  repeating the directory. The unused 619,324-byte Cover V4 runtime photo
+  derivative was removed from `www/`; its source and release evidence remain in
+  `docs/` and git history, so Connect no longer bundles dead cover media.
+- **Ownership/status/residual risk:** all working-tree changes belong to this focused
+  correction; no unrelated user or idea-branch bytes were touched. Production,
+  manifest, data, and Driver repositories remain unchanged. Historical Cover V4
+  and rejected V3 source/social media stay versioned but unreferenced as release
+  evidence; the unused V4 runtime derivative is recoverable from git history.
+- **Next action:** commit and push the candidate, open a review PR, let pinned CI
+  emit the validated manifest, promote only that artifact, require exact-head green
+  CI, merge, republish Connect, and verify both live entrances at desktop, 390, and
+  320 pixels before writing the final closeout and central Driver learning receipt.

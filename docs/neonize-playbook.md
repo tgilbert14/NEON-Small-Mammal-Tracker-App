@@ -275,13 +275,14 @@ This is now the standard; the Small Mammal reference app's retired shinyapps rec
 
 **Deploy model (the new standard — Connect Cloud, git-backed):**
 - The app lives on Connect Cloud, pointed at the GitHub repo + its watched production branch.
-  **A reviewed merge to the watched branch is the deploy** — Connect Cloud auto-republishes that
-  branch. Build and data automation must publish an immutable candidate to a restricted review
+  **A reviewed merge to the watched branch is the production decision** — it makes that exact
+  revision available to Connect, but the deployment is not proven until Connect republishes it.
+  Build and data automation must publish an immutable candidate to a restricted review
   branch and open/update a PR; it must never push directly to production. There are **no
   shinyapps.io secrets, no `rsconnect/` dir, and no `deploy.R` step** (those are the legacy path).
 - Required in-repo: a lean **`manifest.json`** (`rsconnect::writeManifest()`; bundle-only, keep
   `neonUtilities` OUT via the computed-package-name trick), the committed `data/` bundles, and a
-  `docs/index.html` GitHub Pages showcase whose `APP_URL` points at the live Connect Cloud app.
+  `docs/index.html` GitHub Pages showcase whose single primary CTA points at the live Connect app.
 - Branch naming is split across the suite (`main` vs `master`) — each workflow must target a
   dedicated review branch whose PR merges into the branch its Connect app watches. Standardize new
   repos on `main`, with branch protection and required release gates.
@@ -347,8 +348,7 @@ Automation: `.github/workflows/refresh-data.yml` on the **standard schedule** ·
 candidate to a restricted review branch + PR · never pushes production directly · `manifest.json`
 present + lean (no `neonUtilities`/`arrow`) + the **entire geospatial closure** pinned and truthfully
 recorded (Connect Cloud compile gate — see §6) · GitHub **remote** exists ·
-`docs/index.html` `APP_URL` is live + the **Connect build is GREEN** (a failed publish serves the old build). NEONization: cover/landing splash · **in-app sibling links** + `docs` cross-promo
-grid covering the WHOLE suite · mobile-responsive CSS (`@media`, prefers-reduced-motion) · **QC-flag
+`docs/index.html` primary CTA is live + the **Connect build is GREEN** (a failed publish serves the old build). NEONization: cover/landing splash · **in-app sibling links** + one prominent Driver route on companion `docs` covers · mobile-responsive CSS (`@media`, prefers-reduced-motion) · **QC-flag
 system** (§ below) · metadata/codebook view · comprehensive downloads (CSV + card PNG + report PDF) ·
 entity pin-cards · current shared chrome (styles.css + app.js + pincards.js).
 
@@ -362,16 +362,22 @@ CSS class convention: standardize on `.qc-flag-<level>` (not `.qc-flag.<level>`)
 bird thresholds: memory `neonize-qc-flag-pattern`.
 
 **Sibling links + cover page:** maintain ONE registry of the suite (name · emoji · tagline · DPID ·
-github.io showcase URL · live Connect Cloud URL) and render it both in `docs/index.html` (the
-`.series-grid`) AND in-app (an "Explore the NEON series" block in About/footer). When a new app ships,
-add it to the registry so EVERY sibling links to it (Breeding Birds + Driver Cascade were missing).
+github.io showcase URL · live Connect Cloud URL). Driver Cascade is the suite ambassador: every
+companion cover gets one prominent Driver route instead of repeating the full directory. Render the
+complete registry in the in-app About/footer and on Driver. When a new app ships, update that registry
+so Driver and every in-app sibling directory can reach it.
 
-**Living Poster convergence:** a polished Pages cover does not fix a generic in-app
-first impression. Carry one short hook, one promise, one dominant measurement object,
-one source boundary, and one next action into the functional app without replacing its
-task flow. Validate both surfaces at desktop, 390px, and 320px using the actual framework
-gutters and complete persistent controls; record the exact Pages artifact and Connect
-deployment commit before calling the cover shipped.
+**Suite Living Poster V1:** every companion Pages cover uses the same structural frame:
+focusable skip target; DDL topline plus one Driver route; a 3–7-word hook; one <=12-word
+promise; one contextual CTA; one dominant app-specific editorial image in a responsive
+`picture`; visible art/data boundary; and a compact scope/honesty/Source/Feedback footer.
+No metrics, methods band, feature cards, second CTA, or full companion directory. Reuse
+the grammar, not a clone: each app owns its palette, motif, copy, focal crop, and scientific
+limitation. Carry a compact echo of the same hook, promise, art, disclosure, Driver route,
+and action into the functional app without replacing its task flow. Validate both surfaces
+at desktop, 390px, and 320px using the actual framework gutters and complete persistent
+controls; record the exact Pages artifact and Connect deployment commit before calling the
+cover shipped.
 
 ---
 
