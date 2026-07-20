@@ -450,9 +450,34 @@ Rough division by strength (not a rule): Codex for tight visual/UX/prototype ite
 cross-repo diagnosis, science-contract/honesty review, Driver synthesis, and learning-loop upkeep —
 with the handoff log carrying state between them.
 
+## 9. How we work (principles for every session)
+
+These govern every session in either tool; they outrank any single feature.
+
+- **Plan, question, and challenge before you code.** Before anything non-trivial: restate the goal in
+  your own words, surface the load-bearing assumptions, name the risks and the blast radius, and ask
+  whether this is even the right thing to build. A short written plan plus the one sharp question beats
+  charging in — a wrong assumption caught in planning is free; caught in a deploy it is not. Reversible
+  and well-scoped -> proceed. Risky, outward-facing, or ambiguous (a watched-branch change, a rename, a
+  contract/schema edit, anything touching production bytes) -> plan it and confirm first. Standing
+  preference, not a per-task ask.
+- **Promote proven patterns into skills — curator-gated.** When a pattern earns it (used across >=2 apps,
+  or it survived a real reviewed build — not just once in theory), don't leave it buried in one repo:
+  propose it to `curator`, who vets and names it and, via the `skill-creator` skill, turns it into an
+  invokable skill and promotes it to canonical `TG-Data-Apps` so the whole suite and both tools can call
+  it. Bar = proven + reusable; gate = curator approval, so the skill set stays curated, not cluttered.
+  (The Cover Contract §7 and the manifest-determinism recipe §6 are the first two candidates.)
+- **Know your tools; suggest new ones.** Start substantive work by taking stock of what's available —
+  skills, subagents, MCP tools, workflows — and pick the right one instead of hand-rolling. When a task
+  would be better served by a tool we don't have, or a newly-available one fits, say so by name and say
+  what it would do. A capability we forget we have is one we don't have.
+- **Always propose an improvement.** Close substantive work by naming at least one concrete improvement
+  you noticed — even out of scope, even small. Ideas are cheap; the only cost is forgetting to say them.
+  Log the durable ones to `LESSONS.md` / the handoff so they aren't lost.
+
 ---
 
 *Living doc. Plant-diversity (DP1.10058.001) was the first full NEONize; birds/phenology/veg/cascade
-followed. §6–7 now encode the review-branch release boundary, pinned-build evidence, the shared
-off-peak schedule, and the QC-flag generalization. Keep the suite's canonical playbook and each
-app-local copy synchronized whenever these contracts change.*
+followed. §6–9 now encode the review-branch release boundary, pinned-build evidence, the shared
+off-peak schedule, the QC-flag generalization, cross-agent working, and the how-we-work principles.
+Keep the suite's canonical playbook and each app-local copy synchronized whenever these contracts change.*
