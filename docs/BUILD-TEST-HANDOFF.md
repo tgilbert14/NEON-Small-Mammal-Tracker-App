@@ -916,3 +916,29 @@ Driver implication, and next action.
   artifact changes. Because `www/styles.css` is manifest-tracked, a fresh pinned
   manifest candidate and exact-head green run are still required before the
   320 px fix may replace deployment #120.
+
+### 2026-07-19 17:52 MST - 320 px manifest candidate promoted / root
+
+- **Exact source revision:** PR #83 head
+  `517482fa4751bbe45d1fd413fdfb739e6a56df99`; GitHub evaluated immutable PR merge
+  revision `64e026f1b07dd0fa11b997059e47bcc2234c2c2d` in run `29709950504`, job
+  `88252416500`.
+- **Pinned candidate evidence (PASS):** R 4.5.2 setup, deterministic OpenBLAS,
+  source/static parsing, scientific helper contracts, exact bundle/index/file
+  verification, and complete offline app source all passed. The validated
+  manifest uploaded successfully; only the designed equality checkpoint failed
+  because the repository still contained the pre-fix stylesheet checksum.
+- **Artifact receipt:** promoted only
+  `small-mammal-manifest-64e026f1b07dd0fa11b997059e47bcc2234c2c2d/manifest.json`;
+  manifest SHA-256 is
+  `90c1366fcd51c507cb786a45a60dd59607a6980f97fc2e4d2e21b29af326d28e` and the
+  artifact archive digest reported by GitHub is
+  `sha256:1fc493a8a7d0a555a59f7df3123fd43447b9e1c06a392c71140a29f0f1692e22`.
+  Semantic comparison found identical top-level metadata, 91-package closure,
+  and 118-file inventory; the sole change is `www/styles.css` MD5 from
+  `3c7622a4cc3ae6baa12d34ca598f407e` to
+  `1f7eeeecf91ef0e805a2df6318c9dcfe`. All 118 manifest checksums independently
+  match the exact branch files.
+- **Production status:** this promotion changes no app behavior, science, data,
+  photograph, Pages cover, Connect deployment, or Driver artifact. Require an
+  exact-head green run before merge and republish.
