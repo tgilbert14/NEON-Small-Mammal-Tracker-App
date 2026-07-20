@@ -53,6 +53,9 @@ requireContract(/\.smt-poster-cta\s*\{[\s\S]{0,240}gap:\s*\.35em[\s\S]{0,80}box-
 requireContract(/\.smt-poster-photo figcaption\s*\{[\s\S]{0,320}color:\s*#fffef9[\s\S]{0,80}background:\s*rgba\(17, 19, 15, \.9\)/.test(css), "photo credit lost its opaque text or dark contrast scrim");
 requireContract(css.includes("@media (max-width: 760px)") && css.includes("@media (max-width: 420px)"), "responsive poster breakpoints are missing");
 requireContract(/@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.smt-poster-cta\s*\{\s*transition:\s*none/.test(css), "poster CTA lacks reduced-motion handling");
+requireContract(/@media \(max-width: 420px\)[\s\S]{0,120}body\.bslib-page-fill\s*\{[^}]*padding-right:\s*12px;[^}]*padding-left:\s*12px/.test(css), "narrow mobile page gutters drifted");
+requireContract(/@media \(max-width: 390px\)[\s\S]{0,120}\.top-bar\s*\{[^}]*flex-wrap:\s*nowrap/.test(css) && /\.top-bar \.tb-theme-lab\s*\{\s*display:\s*none/.test(css), "320px top bar can wrap or retain the redundant theme label");
+requireContract(/@media \(max-width: 340px\)[\s\S]{0,180}\.top-bar-brand \.tb-title\s*\{\s*font-size:\s*11\.5px/.test(css), "very-narrow wordmark scale drifted");
 
 requireContract(existsSync(asset), `missing runtime image ${asset}`);
 requireContract(sha256(asset) === "e9d0158ac56f95437f0958c5aa4037701c95f2b616e87bb54440ab08e3a50f55", "runtime documentary derivative hash drifted");

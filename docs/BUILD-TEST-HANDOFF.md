@@ -883,3 +883,62 @@ Driver implication, and next action.
 - **Production status:** manifest promotion is a reviewed candidate action only;
   `main`, Connect, Pages, scientific bundles, and Driver artifacts remain unchanged.
   Require one green equality run from the new exact PR head before merge or publish.
+
+### 2026-07-19 17:35 MST - production poster QA found a 320 px chrome wrap / root
+
+- **Published revision (PASS):** PR #82 merged as
+  `22e7b9489677c1bddfc869e2854e97b298160538`; exact-head run `29709380251` and
+  main run `29709445267` passed the complete validator. Connect deployment #120
+  successfully published exact commit `22e7b94` with R 4.5.2 in five seconds.
+- **Live functional QA (PASS):** the documentary poster, 1800 x 1350 image,
+  source boundary/scrim, concise hook and promise, CTA-to-picker anchor, Help
+  dialog, dark-mode control, JORN picker-to-dashboard funnel, loading completion,
+  and no-disconnect state all passed. Desktop and 390 px had no horizontal
+  overflow; the 390 px card and CTA retained symmetric insets, the Help target
+  was 44 px, and the CTA was 48 px tall. No legacy floating mascot remained.
+- **Narrow defect (FAIL, release-polish):** at an exact 320 x 800 viewport the
+  app was functionally usable with no horizontal overflow, but the 184 px brand
+  plus 101 px action cluster wrapped the persistent top bar to 97 px. The static
+  mock missed this because it did not reproduce bslib's 24 px body gutters or the
+  complete dark-mode control.
+- **Focused correction:** at 420 px and below, bslib page gutters contract to
+  12 px; at 390 px and below, the top bar is one non-wrapping row and the
+  redundant decorative theme glyph is hidden while the functional 44 px theme
+  control remains. The poster gains useful image/copy width at the same
+  breakpoint; the final compact wordmark scale and gaps apply only at 340 px and
+  below. CI now contracts these rules.
+- **Exact local correction check (PASS):** a 320 x 800 browser viewport with the
+  complete 29 px theme-control surrogate measured client/scroll widths 305/305,
+  12 px bslib gutters, a single-row 59 px top bar, a 44 px Help target, a 257 px
+  poster card, and a 48 px CTA with symmetric 21 px card insets.
+- **Release boundary:** this is CSS plus its static contract and evidence only;
+  no app behavior, data, science, picker ID, image, public Pages cover, or Driver
+  artifact changes. Because `www/styles.css` is manifest-tracked, a fresh pinned
+  manifest candidate and exact-head green run are still required before the
+  320 px fix may replace deployment #120.
+
+### 2026-07-19 17:52 MST - 320 px manifest candidate promoted / root
+
+- **Exact source revision:** PR #83 head
+  `517482fa4751bbe45d1fd413fdfb739e6a56df99`; GitHub evaluated immutable PR merge
+  revision `64e026f1b07dd0fa11b997059e47bcc2234c2c2d` in run `29709950504`, job
+  `88252416500`.
+- **Pinned candidate evidence (PASS):** R 4.5.2 setup, deterministic OpenBLAS,
+  source/static parsing, scientific helper contracts, exact bundle/index/file
+  verification, and complete offline app source all passed. The validated
+  manifest uploaded successfully; only the designed equality checkpoint failed
+  because the repository still contained the pre-fix stylesheet checksum.
+- **Artifact receipt:** promoted only
+  `small-mammal-manifest-64e026f1b07dd0fa11b997059e47bcc2234c2c2d/manifest.json`;
+  manifest SHA-256 is
+  `90c1366fcd51c507cb786a45a60dd59607a6980f97fc2e4d2e21b29af326d28e` and the
+  artifact archive digest reported by GitHub is
+  `sha256:1fc493a8a7d0a555a59f7df3123fd43447b9e1c06a392c71140a29f0f1692e22`.
+  Semantic comparison found identical top-level metadata, 91-package closure,
+  and 118-file inventory; the sole change is `www/styles.css` MD5 from
+  `3c7622a4cc3ae6baa12d34ca598f407e` to
+  `1f7eeeecf91ef0e805a2df6318c9dcfe`. All 118 manifest checksums independently
+  match the exact branch files.
+- **Production status:** this promotion changes no app behavior, science, data,
+  photograph, Pages cover, Connect deployment, or Driver artifact. Require an
+  exact-head green run before merge and republish.
