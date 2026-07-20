@@ -49,6 +49,7 @@ requireContract(!/(Who came back\?|Is the population changing\?|Who shares the n
 requireContract(!/(178,216|93,169|2013–2024|hero-facts|signal-bar|measure-grid)/.test(html), "poster must not carry a synthetic metric or methods band");
 requireContract(!/\bfetch\s*\(/.test(html), "cover must not make an unsolicited prewarm request");
 requireContract(!/(?:href|src)="http:\/\//.test(html), "cover contains an insecure link or asset URL");
+requireContract(/rel="icon" href="data:image\/svg\+xml,/.test(html), "local inline favicon missing");
 requireContract(/rel="canonical" href="https:\/\/tgilbert14\.github\.io\/NEON-Small-Mammal-Tracker-App\/"/.test(html), "canonical URL missing");
 requireContract(/og:image:width" content="1200"/.test(html) && /og:image:height" content="630"/.test(html), "social dimensions missing");
 requireContract(/og:image:alt/.test(html) && /twitter:image:alt/.test(html), "social alt text missing");
