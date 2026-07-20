@@ -42,6 +42,12 @@ merge `c4c46fce`; Connect deployment #125 from that exact revision).
   semantic health, and the ten-app suite. The in-app About panel links all nine companions.
 
 ## Open / in-flight
+- **Suite-platform (draft PR #88):** manifest merge-loop fix — adds the manual
+  `Regenerate manifest` workflow (Option A: validator writes its own manifest back,
+  killing the download-artifact round-trip) plus the cross-agent working docs (playbook
+  §6 byte-determinism recipe + §8 Claude/Codex collaboration, `CLAUDE.md`/`AGENTS.md`
+  shared front door). Docs + one additive workflow; no runtime/manifest byte change.
+  Merge once CI is green, then mirror to Vegetation and Driver-Cascade.
 - Long-term: Shinylive/WebAssembly static export (zero cold-start endgame) — see `DEPLOY.md` Option B.
 
 ## Deliberately deferred / non-goals

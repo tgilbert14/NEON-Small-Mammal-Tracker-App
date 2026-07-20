@@ -4,6 +4,14 @@ This repository publishes the NEON Small Mammal Tracker and supplies a source
 product used by the separate Driver Response Atlas. Treat scientific definitions,
 bundles, manifests, and the watched `main` branch as release-critical.
 
+This repository is worked by more than one agent — ChatGPT/Codex via this file and
+Claude Code via `CLAUDE.md`. The tool-neutral source of truth is
+`docs/neonize-playbook.md`, `.claude/agents/LESSONS.md`, `docs/BUILD-TEST-HANDOFF.md`,
+and `docs/project-status.md`; read those first and keep tool-specific notes to this
+file. Close every session with a dated `BUILD-TEST-HANDOFF.md` entry tagged with your
+tool (`[Codex]` / `[Claude]`) and a one-line next action, so the other agent can pick up
+cold. See `docs/neonize-playbook.md` §8.
+
 ## Required reading
 
 Before any repository work:

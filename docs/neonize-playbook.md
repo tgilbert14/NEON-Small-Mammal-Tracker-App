@@ -424,6 +424,32 @@ any art/copy/crop change is ONE coordinated PR touching the images, both hash pi
 record together (binaries can't auto-merge). This turns the two `.mjs` files into the reusable "Cover
 Contract" every companion inherits with the Living Poster frame.
 
+## 8. Working across agents (Claude + Codex)
+
+This suite is built by more than one agent — Claude Code and ChatGPT/Codex — often on the same repo,
+switching back and forth. They can't share live memory, so they collaborate through **durable
+artifacts in the repo**, and that already works if you keep four things true:
+
+- **One source of truth, two front doors.** `CLAUDE.md` (Claude) and `AGENTS.md` (Codex) stay thin;
+  the real content lives in tool-neutral docs — this playbook, `.claude/agents/LESSONS.md`,
+  `docs/BUILD-TEST-HANDOFF.md`, `docs/project-status.md`. Whichever agent boots cold lands in the same
+  context. Keep the two front doors pointing here, not duplicating it (and note the split: small-mammal
+  carries both files; veg/driver have only `AGENTS.md` — add `CLAUDE.md` there so Claude boots warm too).
+- **The handoff log IS the async channel.** `docs/BUILD-TEST-HANDOFF.md` is the dated, append-only
+  ledger both agents must close a session with. Tag each entry with the tool (`[Claude]` / `[Codex]`)
+  and end it with a one-line **next action**, so a tool switch is a clean pickup, not a cold restart.
+- **Cross-review, don't self-review.** Different model families have different blind spots, so the
+  highest-value review is the *other* vendor's agent on your diff — extend the "adversarially verify
+  the diff with a fresh agent" rule to "with the other vendor's agent." When Codex opens a PR, have
+  Claude review it; when Claude opens one, have Codex review.
+- **Let the contracts be the trust layer.** The `check_*.mjs` / `verify_*.R` gates and the manifest
+  determinism gate (§6) are tool-agnostic referees — neither agent has to trust the other's self-report;
+  CI enforces the invariants objectively. Invest in contracts, not agent-specific trust.
+
+Rough division by strength (not a rule): Codex for tight visual/UX/prototype iteration; Claude for
+cross-repo diagnosis, science-contract/honesty review, Driver synthesis, and learning-loop upkeep —
+with the handoff log carrying state between them.
+
 ---
 
 *Living doc. Plant-diversity (DP1.10058.001) was the first full NEONize; birds/phenology/veg/cascade
