@@ -90,6 +90,7 @@ jobs:
           node --check www/confirm.js
           node scripts/check_custom_message_handlers.mjs
           node scripts/check_cover.mjs
+          node scripts/check_in_app_landing.mjs
           bash -n scripts/post_deploy_smoke.sh
 
       - name: Run scientific helper contracts
