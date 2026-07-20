@@ -25,6 +25,43 @@ rarity_key_items <- list(
   c("Uncommon", "3–5"), c("Common", "1–2")
 )
 
+# The Connect landing shares the documentary promise and field image from the
+# public Living Poster. The map remains the functional start of the app; this
+# compact face simply gives it one recognizable invitation before the controls.
+small_mammal_poster <- function(show_cta = TRUE) {
+  tags$section(
+    class = "smt-poster",
+    `aria-labelledby` = "smt-poster-title",
+    div(class = "smt-poster-copy",
+      div(class = "smt-poster-suite", "NEON Explorer Suite"),
+      div(class = "smt-poster-app", "Small Mammal Tracker"),
+      h1(id = "smt-poster-title",
+         "One trap night. A whole ", tags$em("population story.")),
+      p(class = "smt-poster-promise",
+        "Follow tagged small mammals across years of return visits."),
+      if (isTRUE(show_cta))
+        tags$a(class = "smt-poster-cta", href = "#site-picker-start",
+               "Pick a place", tags$span(`aria-hidden` = "true", " ↓")),
+      p(class = "smt-poster-note",
+        "Independent explorer · built from NEON DP1.10072.001")
+    ),
+    tags$figure(class = "smt-poster-photo",
+      tags$img(
+        src = asset_url("assets/small-mammal-field-usgs.jpg"),
+        alt = paste(
+          "A Pacific pocket mouse emerges from the open door of a metal",
+          "Sherman live trap on leaf-strewn ground."
+        ),
+        width = "1800", height = "1350", decoding = "async"
+      ),
+      tags$figcaption(
+        tags$strong("Documentary field photograph · not a NEON observation"),
+        tags$span("Cheryl Brehme · USGS · public domain")
+      )
+    )
+  )
+}
+
 ui <- bslib::page_fillable(
   theme = app_theme,
   window_title = "NEON Small Mammal Tracker",
@@ -86,12 +123,15 @@ ui <- bslib::page_fillable(
   # splash). The two controls that have to stay reachable everywhere — the theme
   # toggle and the help dialog — sit in this slim top-right bar above the hero.
   div(class = "top-bar",
-    div(class = "top-bar-brand",
-      tags$span(class = "tb-mark", "\U0001F43E"),
-      tags$span(class = "tb-title", "Small Mammal Tracker")),
+    div(class = "top-bar-brand", `aria-label` = "NEON Explorer Suite, Small Mammal Tracker",
+      tags$span(class = "tb-mark", `aria-hidden` = "true", "DDL"),
+      div(class = "tb-wordmark",
+        tags$span(class = "tb-title", "Small Mammal Tracker"),
+        tags$span(class = "tb-suite", "NEON Explorer Suite"))),
     div(class = "top-bar-actions",
-      actionButton("help", tagList(bs_icon("question-circle"), " How it works"),
-                   class = "btn-outline-dark btn-sm tb-help"),
+      actionButton("help",
+                   tagList(bs_icon("question-circle"), tags$span(class = "tb-help-label", "How it works")),
+                   class = "btn-outline-dark btn-sm tb-help", `aria-label` = "How it works"),
       div(class = "tb-theme",
         tags$span(class = "tb-theme-lab", bs_icon("circle-half")),
         input_dark_mode(id = "colorMode", mode = "light")))
@@ -139,19 +179,14 @@ ui <- bslib::page_fillable(
   # toggled via shinyjs show/hide("splash"); the server keeps output$pickerMap
   # + its leafletProxy marker swaps.
   div(id = "splash",
-    div(class = "splash-guide",
-      div(class = "sg-bubble", "Pick a site to start!"),
-      div(class = "sg-mascot", MASCOT_MOUSE)),
     local({
     idx <- SITE_INDEX
     if (is.null(idx) || nrow(idx) == 0) {
-      div(class = "splash",
-        div(class = "app-hero app-hero-splash",
-          h1(class = "app-title", "NEON Small Mammal Tracker",
-             span(class = "title-tag", "unofficial")),
-          p(class = "app-subtitle",
-            "Meet the small mammals NEON catches across the country: what lives where, who the regulars are, and what eight years of capture records reveal.")),
-        p("The site map could not load in this deployment. Reload the page to try again."))
+      div(class = "splash splash-map",
+        small_mammal_poster(show_cta = FALSE),
+        div(id = "site-picker-start", class = "picker-start picker-unavailable",
+          h2("The map is taking a field break."),
+          p("The site index did not load in this deployment. Reload the page to try again.")))
     } else {
       g_order <- vapply(GENUS_GROUPS, function(g) g$key, character(1))
       grps <- unique(idx[, c("group_key", "group_label", "group_color")])
@@ -177,15 +212,11 @@ ui <- bslib::page_fillable(
               tags$span(class = "pll-meta", sprintf("%s · %s caps", ord$state[i], format(ord$captures[i], big.mark = ",")))))))
       has_species <- !is.null(SPECIES_RANGES) && nrow(SPECIES_RANGES) > 0
       div(class = "splash splash-map",
-        div(class = "app-hero app-hero-splash",
-          h1(class = "app-title", "NEON Small Mammal Tracker",
-             span(class = "title-tag", "unofficial")),
-          p(class = "app-subtitle",
-            "Meet the small mammals NEON catches across the country: what lives where, who the regulars are, and what eight years of capture records reveal.")),
-        p("NEON live-traps small mammals at ", tags$b(nrow(idx)), " field sites across the U.S. and Puerto Rico. ",
-          "Tap a dot on the map to pick a site, or switch to ", tags$b("by species"),
-          " to see where one animal turns up across the country. ",
-          "You can also pick from the list below the map."),
+        small_mammal_poster(),
+        div(id = "site-picker-start", class = "picker-start",
+          div(class = "picker-start-kicker", "Choose a place"),
+          h2("Where should we look tonight?"),
+          p("Pick one of ", tags$b(nrow(idx)), " field sites, or switch to species to trace an animal across the network.")),
         if (has_species) div(class = "picker-mode",
           radioButtons("pickMode", NULL, inline = TRUE,
             choiceNames = list(tagList(bs_icon("geo-alt-fill"), " By site"),

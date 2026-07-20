@@ -3408,10 +3408,13 @@
       "checksum": "13f0f54d85b54d602e5050d95e0da79f"
     },
     "ui.R": {
-      "checksum": "db1f5cf3469e11da3f383bf759bec9a5"
+      "checksum": "388d9bae920a3e6631b796a4ccc156a1"
     },
     "www/app.js": {
-      "checksum": "b2d4f27f0935a7a73a145499ef37b622"
+      "checksum": "4fab7f639eafc7839bd929dafcd32fb0"
+    },
+    "www/assets/small-mammal-field-usgs.jpg": {
+      "checksum": "23dab12d5ed9283b0ad10c199277116c"
     },
     "www/confirm.js": {
       "checksum": "4746f2c20f51574be644c763d2a4ed48"
@@ -3432,7 +3435,7 @@
       "checksum": "03caa0fdc9353ecf3495715d7e5f11f5"
     },
     "www/styles.css": {
-      "checksum": "48466260299d0818ad41bb79d929299e"
+      "checksum": "3c7622a4cc3ae6baa12d34ca598f407e"
     },
     "www/vendor/confetti-1.9.2.browser.min.js": {
       "checksum": "9ffc3c59368462a9486359dfc5ed6ba8"

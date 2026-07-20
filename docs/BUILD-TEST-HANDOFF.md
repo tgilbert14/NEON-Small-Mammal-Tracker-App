@@ -780,3 +780,106 @@ Driver implication, and next action.
   cover branch, and resume Plant Phenology at its first validator finding:
   `data/sites/KONA.rds` carries an empty `trend` object that must normalize to
   `NULL` or a non-empty data frame before artifact promotion.
+
+### 2026-07-19 17:04 MST - in-app Living Poster working-tree candidate / small_mammal_inapp_living_poster
+
+- **Starting state:** clean synchronized `main` at
+  `b05cecc832790b05912a1732626a768b31a0665d`; created local branch
+  `agent/small-mammal-inapp-living-poster`. Public Pages remains documentary V4
+  from merge `dd72d518e53b5b8fa421ead831486a02c53c056a`; Connect remains the
+  verified scientific runtime `1615ab4e74fd16a2698de8431acb862d6cc4cebf`.
+- **Observed mismatch:** Pages opens with the concise “One trap night. A whole
+  population story.” documentary composition and a prominent real Sherman trap,
+  while Connect still opened with a generic blue title banner, a long explanatory
+  paragraph, and the control stack. The two surfaces did not feel like one product.
+- **Changed/classification:** `ui.R` and `www/styles.css` now give the unchanged
+  site-picker a brief Living Poster face: one seven-word hook, one nine-word
+  promise, one `Pick a place` anchor, the same real field photograph and visible
+  source boundary, then the existing map. The persistent bar now uses the DDL/suite
+  wordmark and its mobile Help label collapses visually while retaining an explicit
+  accessible name. The old fixed splash mascot/bubble was removed so it cannot
+  overlay or visually compete with the documentary invitation; loader and result
+  celebration mascots remain unchanged. The documentary credit now sits on a
+  high-contrast dark scrim instead of relying on a text shadow over the photograph.
+  Added the optimized runtime derivative, provenance record,
+  `scripts/check_in_app_landing.mjs`, and its CI invocation. Classification is
+  `product/UI` plus `suite-platform`; Driver implication is **NONE / NO DRIVER BYTE
+  CHANGE**.
+- **Behavior/science boundary:** existing picker IDs and paths are retained:
+  `pickerMap`, `pickMode`, `rangeSpecies`, `stateSel`, `site`, `dateRange`,
+  `provisional`, `loadBtn`, and `compareBtn`. No server, bundle, index, helper,
+  estimator, export, scientific claim, Pages cover, or Driver file changed. The
+  photo is visibly labeled documentary and not a NEON observation.
+- **Asset receipt:** `www/assets/small-mammal-field-usgs.jpg` is a non-generative
+  1800 x 1350, quality-82 resize of the provenance-pinned USGS public-domain source;
+  SHA-256 is
+  `e9d0158ac56f95437f0958c5aa4037701c95f2b616e87bb54440ab08e3a50f55`.
+  It is approximately 605 KB instead of transferring the 2.5 MB archival source.
+- **Local static gates (PASS):** `git diff --check`; Node syntax and the new in-app
+  landing contract; the existing documentary cover contract; Ruby safe YAML parse
+  of CI; `bash -n scripts/post_deploy_smoke.sh`; and tree-sitter parse of all 16 R
+  files passed. A headless structural mock at exact CDP-emulated 390 x 844 and
+  320 x 800 reported client/scroll widths 390/390 and 320/320, a 59 px single-row
+  top bar, 44 px Help control, and 48 px full-width poster CTA. Desktop composition
+  also rendered as the intended split poster. This is not a live Shiny/Leaflet or
+  screen-reader result.
+- **Runtime/manifest status (BLOCKED by design):** local `Rscript` is unavailable,
+  so no R runtime, helper, offline boot, Shiny interaction, or manifest generation
+  is claimed. The current manifest correctly remains unedited and is now stale:
+  `ui.R` MD5 changed from `db1f5cf3469e11da3f383bf759bec9a5` to
+  `388d9bae920a3e6631b796a4ccc156a1`; `www/styles.css` changed from
+  `48466260299d0818ad41bb79d929299e` to
+  `3c7622a4cc3ae6baa12d34ca598f407e`; `www/app.js` changed from
+  `b2d4f27f0935a7a73a145499ef37b622` to
+  `4fab7f639eafc7839bd929dafcd32fb0`; and the new image MD5
+  `23dab12d5ed9283b0ad10c199277116c` is absent. A pinned validator-generated
+  manifest must be promoted before merge or Connect deployment.
+- **Expected versus actual:** expected a short, artistic, immediately recognizable
+  bridge from Pages into the functional picker without inventing imagery or
+  changing control behavior; static copy, visual, responsive, provenance, and ID
+  contract actuals match.
+- **Failures/cleanup:** Chrome's command-line `--window-size=390` retained a
+  500-pixel layout viewport and only cropped the screenshot; this was rejected and
+  rerun with CDP device metrics at exact 390 and 320 CSS pixels. No generated V3
+  asset was reintroduced. No commit, push, PR, manifest edit, Connect republish, or
+  public state change was made.
+- **Ownership/status/residual risk:** all current changes on
+  `agent/small-mammal-inapp-living-poster` belong to this focused candidate; no
+  unrelated user changes were present. Actual Shiny binding, Leaflet behavior,
+  light/dark browser rendering, keyboard/screen-reader use, manifest equality, and
+  deployed mobile geometry remain unverified until the pinned candidate path runs.
+- **Next action:** review the working-tree poster, then intentionally commit/push
+  the focused branch; require the pinned validator to emit the exact manifest,
+  promote only that artifact, rerun exact-head CI, merge, republish Connect, and
+  verify semantic readiness plus the unchanged site-selection funnel at desktop,
+  390, and 320 pixels.
+
+### 2026-07-19 17:20 MST - exact manifest candidate promoted / root
+
+- **Exact source revision:** PR #82 head
+  `22b18e751bd33d8ec5295ffae5354eb1a03ef464`; GitHub evaluated immutable PR merge
+  revision `66229ecca3c9a7ec374b527bbf89f895657b01b2` in run `29709248008`, job
+  `88250818109`.
+- **Visual follow-up before validation:** independent review caught a mobile CTA
+  border box clipped against the card edge, cramped label/arrow spacing, a legacy
+  fixed mascot/bubble competing with the documentary poster, and photo-credit
+  contrast that depended on the image. Commit `22b18e7` fixed all four: border-box
+  containment plus gap, removal of the old splash ornament/listener, and opaque
+  white credit text on a 90%-dark scrim. Loader and result-celebration mascots remain.
+- **Pinned candidate evidence (PASS):** R 4.5.2, the complete exact dependency
+  closure, deterministic one-thread Haswell OpenBLAS, all static and scientific
+  contracts, exact bundle/index/checksum verification, and complete offline app
+  source passed. The validated manifest uploaded successfully; only the designed
+  committed-manifest equality check failed against the obsolete repository copy.
+- **Artifact receipt:** promoted only
+  `small-mammal-manifest-66229ecca3c9a7ec374b527bbf89f895657b01b2/manifest.json`;
+  SHA-256 is
+  `0e9ed990c44cda902d66428e45a6765aee7abcd98d8324f97b3248cecf7aecb9`.
+  It records 91 installed packages and 118 runtime files. Semantic comparison with
+  the prior manifest found unchanged package and metadata records, one new exact
+  runtime photograph, and only the expected checksum changes for `ui.R`,
+  `www/app.js`, and `www/styles.css`. All four checksums match the exact PR-head
+  files.
+- **Production status:** manifest promotion is a reviewed candidate action only;
+  `main`, Connect, Pages, scientific bundles, and Driver artifacts remain unchanged.
+  Require one green equality run from the new exact PR head before merge or publish.

@@ -32,6 +32,26 @@ The photograph documents equipment and a species encounter. It is not a NEON
 site photograph, is not part of product `DP1.10072.001`, and must not be used to
 imply a NEON capture outcome, population density, or ecosystem condition.
 
+## Connect Living Poster derivative
+
+- Runtime file: `www/assets/small-mammal-field-usgs.jpg`
+- Source: the unchanged documentary hero photograph above
+- Use: first-screen documentary image in the Connect site-picker landing
+- Dimensions: 1800 x 1350 JPEG
+- SHA-256:
+  `e9d0158ac56f95437f0958c5aa4037701c95f2b616e87bb54440ab08e3a50f55`
+- Transformation: resized to a maximum 1800-pixel edge and JPEG quality 82 with
+  macOS `sips`; no generative edit, compositing, content removal, or synthetic
+  detail was introduced
+- Visible credit: “Documentary field photograph · not a NEON observation” and
+  “Cheryl Brehme · USGS · public domain”
+- Alt text: the same documentary description used for the public cover
+
+This derivative keeps the interactive app visually continuous with the public
+Living Poster while avoiding a 2.5 MB first-screen transfer. Because it lives in
+`www/`, it is a runtime asset and must be included in a validator-generated
+`manifest.json` before any Connect deployment.
+
 ## Social card
 
 - Source layout: `docs/og-card-v4-source.html`
@@ -76,5 +96,8 @@ version of this file. They must not be reintroduced as documentary evidence.
 `scripts/check_cover.mjs` verifies the documentary source and social-card hashes,
 the exact 1200 x 630 delivery size, social alt metadata, suite destinations,
 scientific claim boundaries, safe live-app controls, and the absence of any V3
-hero reference or automatic app prewarm. Asset changes require this provenance
-record and the cover contract to change together.
+hero reference or automatic app prewarm. `scripts/check_in_app_landing.mjs`
+verifies the Connect poster copy, source disclosure, runtime derivative hash and
+dimensions, functional site-picker anchor, and responsive/accessibility CSS
+contracts. Asset changes require this provenance record and the matching contract
+to change together.
