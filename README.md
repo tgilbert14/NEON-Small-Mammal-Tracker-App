@@ -9,10 +9,11 @@ turning 46 field sites of capture records into maps, charts, and individual prof
 [![Production](https://img.shields.io/badge/production-healthy-1a7f37)](https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/)
 [![Data](https://img.shields.io/badge/data-NEON%20DP1.10072.001-1a7f37)](https://data.neonscience.org/data-products/DP1.10072.001)
 
-**Public status (verified 2026-07-18):** the [Pages landing](https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/)
+**Public status (verified 2026-07-19):** the [Pages landing](https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/)
 and [Posit Connect Cloud app](https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/)
-are healthy. Production serves runtime merge `1615ab4`; semantic health requires the app-specific
-ready marker and passed on that exact revision.
+are healthy. Pages serves source `eb9e1a3`; Connect deployment #122 serves runtime `bdf56b0`.
+Both retain Cover V4 until the Cover V5 Living Poster candidate completes the pinned-manifest
+release, republish, and exact-revision semantic health checks.
 
 Connect's source points at `main`, but automation never writes there directly. Validated monthly
 refreshes are published to `automation/small-mammal-data-refresh` as a review PR; an intentional
@@ -239,7 +240,7 @@ data/species_ranges.rds   per-species national ranges (the "by species" map)
 scripts/refresh_data.R    rebuild the per-site data bundle
 scripts/refresh_env_data.R  build per-site monthly environmental overlays (data/env/)
 scripts/build_site_index.R  rebuild the picker + species-range indexes
-scripts/make_og_image.R   legacy code-native social-card fallback
+scripts/make_og_image.R   code-native current-copy social-card fallback
 scripts/write_manifest.R  (re)generate manifest.json for Connect Cloud (lean, bundle-only)
 scripts/test_helpers.R    fail-closed fixture contracts for scientific helpers
 scripts/verify_bundle.R   exact site/schema/index/checksum/package release gates

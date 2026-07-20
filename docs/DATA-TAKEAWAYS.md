@@ -97,8 +97,9 @@ mass here (r≈0.15) — a deliberate, documented omission.
 - **[RESOLVED LOW] README live-app badge and hosting language were stale.** Current authority docs
   point to the healthy Connect app and describe the restricted review-branch plus verified-republish
   release flow. The retired shinyapps target is no longer presented as current.
-- **[RESOLVED LOW] README "140+ species" vs computed 145.** README and the cover now state the
-  exact **145** distinct species represented by `species_ranges.rds`.
+- **[RESOLVED LOW] README "140+ species" vs computed 145.** README and the bundled
+  indexes state the exact **145** distinct species represented by
+  `species_ranges.rds`; the artistic cover intentionally carries no data metric.
 
 ### Ecological (Fauna — field method)
 - **[strength]** The field method is represented correctly: bout structure (pathogen grids ~3

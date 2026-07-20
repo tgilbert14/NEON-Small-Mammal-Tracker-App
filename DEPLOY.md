@@ -1,10 +1,9 @@
 # Deploy & migration runbook
 
-**Current production state (verified 2026-07-18): HEALTHY.** Pages and
+**Current production state (verified 2026-07-19): HEALTHY.** Pages and
 <https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/> passed
-semantic health on runtime merge `1615ab4`. Connect reports that exact deployed commit, and a clean
-browser session exposed the app ready marker, loaded the JORN funnel, and produced no first-party
-console warning/error.
+semantic health. Pages serves source `eb9e1a3`; Connect deployment #122 serves runtime `bdf56b0`.
+Both still show Cover V4 while Cover V5 completes the pinned-manifest release and live verification.
 
 The app migrated to Posit Connect Cloud in June 2026. Connect watches `main`, but no automation may
 push there directly. `.github/workflows/refresh-data.yml` builds and verifies an immutable candidate,
@@ -16,17 +15,16 @@ shinyapps.io target and deployment records are absent.
 
 ```
   Posit Connect Cloud (or shinylive)          GitHub Pages  (docs/)
-  └─ runs global/ui/server + R/ + www/        └─ landing page → "Launch" → app URL
+  └─ runs global/ui/server + R/ + www/        └─ landing page → one CTA → app URL
      + data/*.rds indexes                        + og:image social card
-     + data/sites/*.rds bundles                  + best-effort pre-warm (not a health claim)
+     + data/sites/*.rds bundles                  + no unsolicited pre-warm request
 ```
 
-The landing page exists at [`docs/index.html`](docs/index.html) and the current 1200×630 social card
-at [`docs/og-image.png`](docs/og-image.png), derived from the versioned habitat source
-[`docs/og-habitat-v2.png`](docs/og-habitat-v2.png). `scripts/make_og_image.R` is a legacy
-code-native fallback, not the source of the current card. Set the app URL in **one place**
-— the `APP_URL` constant near the bottom of `docs/index.html` (today it points at the live
-Connect share URL) — then publish Pages.
+The landing page exists at [`docs/index.html`](docs/index.html). The current 1200×630 social-card
+delivery file is [`docs/og-image.png`](docs/og-image.png), with its code-native layout source at
+[`docs/social-card.html`](docs/social-card.html). `scripts/make_og_image.R` is the current-copy R
+fallback. The live Connect share URL is the single CTA's direct `href` in `docs/index.html`; when
+the application URL changes, update that link plus the structured metadata and README status.
 
 ---
 
@@ -54,7 +52,8 @@ installed (local dev). Force bundle-only anywhere with `SMT_LIVE=0`.
 3. It reads `manifest.json`, restores packages, and serves. A reviewed merge updates the source
    revision available to Connect; confirm **Last deployed** and use **Republish** when it lags.
    Refresh automation itself never writes to `main`, and a merge is not a deployment receipt.
-4. Copy the published URL → set `APP_URL` in `docs/index.html` (and the README badge).
+4. Copy the published URL → update the direct CTA `href` and structured `url` in
+   `docs/index.html` (and the README status).
 
 Regenerate the manifest whenever runtime dependencies change:
 ```r
@@ -62,9 +61,9 @@ Regenerate the manifest whenever runtime dependencies change:
 Rscript scripts/write_manifest.R     # writes manifest.json + self-checks neonUtilities is absent
 ```
 
-**Cold start:** the free tier sleeps. The landing page sends a best-effort opaque pre-warm request,
-but an opaque response cannot prove Shiny booted and must never produce an “app is ready” message.
-Availability is established only by the semantic post-deploy workflow.
+**Cold start:** the free tier sleeps. The landing page makes no unsolicited pre-warm request; the
+worker begins waking only after the visitor follows the CTA. Availability is established only by
+the semantic post-deploy workflow, never by an opaque network response.
 
 ## Option B — Shinylive / WebAssembly (best long-term: static, zero server)
 
@@ -80,7 +79,7 @@ payload is acceptable.
 ```r
 # install.packages("shinylive")
 shinylive::export(".", "docs/app")   # emits a static site under docs/app/
-# then APP_URL = "app/"  (relative) and you have ONE GitHub-Pages deploy: landing + app
+# then point the landing CTA at "app/" and you have ONE GitHub-Pages deploy: landing + app
 ```
 
 If the wasm + size check is clean, this is the cheapest home and removes Connect Cloud's cold
@@ -94,7 +93,8 @@ start. If anything fails, stay on Connect Cloud (Option A).
 2. Page goes live at `https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/`
    (or wire a custom subdomain — add a `CNAME` file in `docs/` and a DNS CNAME with the cloud
    proxy turned off for validation). The og:image meta already uses this Pages URL.
-3. `docs/og-image.png` is an exact 1200×630 social crop; keep the versioned source beside it.
+3. `docs/og-image.png` is an exact 1200×630 social crop; keep `docs/social-card.html` and the
+   pinned illustration beside it as its versioned sources.
 
 ## Retire the old target
 

@@ -1,69 +1,59 @@
-#----------------------------------------------------------------------
-# make_og_image.R — draws docs/og-image-fallback.png (1200x630), the legacy
-# code-native fallback social card. The current production card is the reviewed
-# habitat artwork in docs/og-image.png, with docs/og-habitat-v2.png retained as
-# its versioned source. This script must never overwrite that reviewed asset.
-#   "C:\Program Files\R\R-4.3.1\bin\Rscript.exe" scripts/make_og_image.R
-#----------------------------------------------------------------------
-ROOT <- getwd()
-out  <- file.path(ROOT, "docs", "og-image-fallback.png")
-dir.create(dirname(out), showWarnings = FALSE, recursive = TRUE)
+# ---------------------------------------------------------------------------
+# make_og_image.R — draws docs/og-image-fallback.png (1200 x 630).
+#
+# The reviewed delivery asset is docs/og-image.png and its code-native layout is
+# docs/social-card.html. This script creates a current-copy fallback from the
+# same Living Poster art without overwriting the reviewed social card.
+# ---------------------------------------------------------------------------
 
-navy <- "#0C234B"; navy2 <- "#16386e"; gold <- "#FFD200"; cardinal <- "#AB0520"; sky <- "#2f7fb5"
+root <- getwd()
+source_path <- file.path(root, "docs", "assets", "small-mammal-living-poster.png")
+out <- file.path(root, "docs", "og-image-fallback.png")
 
-draw_fallback <- function() {
-png(out, width = 1200, height = 630, res = 144)
-op <- par(mar = c(0, 0, 0, 0), bg = navy)
-on.exit({ par(op); dev.off() }, add = TRUE)
-plot.new(); plot.window(xlim = c(0, 1200), ylim = c(0, 630), xaxs = "i", yaxs = "i")
+if (!requireNamespace("png", quietly = TRUE)) {
+  stop("Package 'png' is required to render the social-card fallback.")
+}
+if (!file.exists(source_path)) stop("Missing Living Poster source: ", source_path)
 
-# background: navy with a soft top-left glow
-rect(0, 0, 1200, 630, col = navy, border = NA)
-for (i in seq(0, 1, length.out = 60)) {
-  col <- grDevices::adjustcolor(navy2, alpha.f = 0.014)
-  symbols(170, 560, circles = 30 + i * 760, inches = FALSE, add = TRUE, bg = col, fg = NA)
+art <- png::readPNG(source_path)
+# East-weighted 1.105:1 crop: keeps the mouse and the oversized humane trap.
+target_cols <- floor(dim(art)[1] * (696 / 630))
+start_col <- dim(art)[2] - target_cols + 1L
+art_crop <- art[, start_col:dim(art)[2], , drop = FALSE]
+
+night <- "#111512"
+acid <- "#DCE319"
+paper <- "#F3E8CB"
+paper_2 <- "#DFD2B3"
+ember <- "#E87531"
+
+grDevices::png(out, width = 1200, height = 630, res = 96)
+op <- par(mar = c(0, 0, 0, 0), bg = night, family = "serif")
+plot.new()
+plot.window(xlim = c(0, 1200), ylim = c(0, 630), xaxs = "i", yaxs = "i")
+
+rect(0, 0, 1200, 630, col = night, border = NA)
+rasterImage(art_crop, 504, 0, 1200, 630, interpolate = TRUE)
+for (i in seq_len(42)) {
+  alpha <- (1 - (i - 1) / 41)^2 * .82
+  x0 <- 504 + (i - 1) * 4
+  rect(x0, 0, x0 + 5, 630, col = grDevices::adjustcolor(night, alpha.f = alpha), border = NA)
 }
 
-# one paw print (a big metacarpal pad + four toe pads), faint
-paw <- function(x, y, s, col) {
-  symbols(x, y, circles = s, inches = FALSE, add = TRUE, bg = col, fg = NA)        # palm pad
-  ang <- c(118, 152, 28, 62) * pi / 180                                           # four toes
-  for (a in ang) symbols(x + cos(a) * s * 1.7, y + sin(a) * s * 1.7,
-                         circles = s * 0.55, inches = FALSE, add = TRUE, bg = col, fg = NA)
-}
-set.seed(11)
-for (k in 1:9) paw(runif(1, 80, 1130), runif(1, 70, 560), runif(1, 9, 20),
-                   grDevices::adjustcolor("white", alpha.f = runif(1, .025, .05)))
+text(70, 506, "NEON SMALL MAMMAL TRACKER", col = acid, cex = 1.02,
+     font = 2, adj = 0, family = "sans")
+text(68, 370, "Who moves", col = paper, cex = 4.35, font = 2, adj = 0)
+text(68, 284, "after dark?", col = acid, cex = 4.35, font = 2, adj = 0)
+text(70, 195, "Meet the tiny lives reshaping", col = paper_2, cex = 1.34,
+     adj = 0, family = "sans")
+text(70, 160, "the landscape.", col = paper_2, cex = 1.34,
+     adj = 0, family = "sans")
 
-# badge
-text(70, 556, "NEON · SMALL MAMMAL BOX TRAPPING · DP1.10072.001",
-     col = grDevices::adjustcolor(gold, .95), cex = .9, font = 2, adj = 0)
+symbols(940, 48, circles = 8, inches = FALSE, add = TRUE,
+        bg = NA, fg = ember, lwd = 4)
+text(958, 48, "NEON Explorer Suite · unofficial", col = paper,
+     cex = .82, font = 2, adj = 0, family = "sans")
 
-# title
-text(68, 472, "NEON Small Mammal", col = "white", cex = 3.5, font = 2, adj = 0)
-text(68, 396, "Tracker",            col = "white", cex = 3.5, font = 2, adj = 0)
-# a small gold paw accent, clear to the right of the "Tracker" wordmark
-paw(470, 398, 16, grDevices::adjustcolor(gold, .92))
-
-# subtitle
-text(70, 322, "Tap a site on the national map and explore who lives where: home",
-     col = grDevices::adjustcolor("white", .92), cex = 1.12, adj = 0)
-text(70, 292, "ranges, diversity, and detection-corrected abundance, on real NEON data.",
-     col = grDevices::adjustcolor("white", .92), cex = 1.12, adj = 0)
-
-# stat chips
-chips <- list(c("46", "field sites"), c("~178k", "captures"),
-              c("145", "species"), c("real", "public data"))
-x0 <- 70; gap <- 14; w <- 250; h <- 96; y1 <- 64
-chipfill <- grDevices::adjustcolor("white", .10)
-for (i in seq_along(chips)) {
-  xl <- x0 + (i - 1) * (w + gap)
-  rect(xl, y1, xl + w, y1 + h, col = chipfill, border = NA)
-  rect(xl, y1, xl + 6, y1 + h, col = gold, border = NA)                 # gold spine
-  text(xl + 22, y1 + 62, chips[[i]][1], col = "white", cex = 1.95, font = 2, adj = 0)
-  text(xl + 22, y1 + 28, chips[[i]][2], col = grDevices::adjustcolor("white", .85), cex = .96, adj = 0)
-}
-}
-
-draw_fallback()
+par(op)
+grDevices::dev.off()
 cat("wrote", out, "\n")

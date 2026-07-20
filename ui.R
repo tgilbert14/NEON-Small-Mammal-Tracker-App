@@ -25,38 +25,60 @@ rarity_key_items <- list(
   c("Uncommon", "3–5"), c("Common", "1–2")
 )
 
-# The Connect landing shares the documentary promise and field image from the
-# public Living Poster. The map remains the functional start of the app; this
-# compact face simply gives it one recognizable invitation before the controls.
+# The Connect landing is a compact echo of the public Living Poster. The map
+# remains the functional start; this first frame supplies the same invitation,
+# suite route, artwork, and scientific boundary before the controls.
 small_mammal_poster <- function(show_cta = TRUE) {
   tags$section(
     class = "smt-poster",
     `aria-labelledby` = "smt-poster-title",
     div(class = "smt-poster-copy",
-      div(class = "smt-poster-suite", "NEON Explorer Suite"),
-      div(class = "smt-poster-app", "Small Mammal Tracker"),
-      h1(id = "smt-poster-title",
-         "One trap night. A whole ", tags$em("population story.")),
+      div(class = "smt-poster-topline",
+        div(class = "smt-poster-brand", "Desert Data Labs"),
+        tags$nav(
+          class = "smt-poster-nav", `aria-label` = "NEON Explorer Suite",
+          tags$a(
+            class = "smt-poster-suite-link",
+            href = "https://tgilbert14.github.io/NEON-Driver-Cascade/",
+            "Whole suite: ", tags$strong("Driver Cascade"),
+            tags$span(`aria-hidden` = "true", " ↗")
+          )
+        )
+      ),
+      div(class = "smt-poster-app", "NEON Small Mammal Tracker · unofficial"),
+      h1(id = "smt-poster-title", `aria-label` = "Who moves after dark?",
+         tags$span("Who moves"), tags$em("after dark?")),
       p(class = "smt-poster-promise",
-        "Follow tagged small mammals across years of return visits."),
+        "Meet the tiny lives reshaping the landscape."),
       if (isTRUE(show_cta))
         tags$a(class = "smt-poster-cta", href = "#site-picker-start",
-               "Pick a place", tags$span(`aria-hidden` = "true", " ↓")),
+               onclick = "window.setTimeout(function(){var target=document.getElementById('site-picker-start');if(target){target.focus({preventScroll:true});}},0)",
+               "Meet the mammals", tags$span(`aria-hidden` = "true", " ↓")),
       p(class = "smt-poster-note",
-        "Independent explorer · built from NEON DP1.10072.001")
+        "Public NEON DP1.10072.001 · sampled capture records—not total population or measured landscape effects")
     ),
-    tags$figure(class = "smt-poster-photo",
-      tags$img(
-        src = asset_url("assets/small-mammal-field-usgs.jpg"),
-        alt = paste(
-          "A Pacific pocket mouse emerges from the open door of a metal",
-          "Sherman live trap on leaf-strewn ground."
+    tags$figure(class = "smt-poster-art",
+      tags$picture(
+        tags$source(
+          type = "image/webp",
+          srcset = paste(
+            paste0(asset_url("assets/small-mammal-living-poster-840.webp"), " 840w,"),
+            paste0(asset_url("assets/small-mammal-living-poster.webp"), " 1672w")
+          ),
+          sizes = "(max-width: 760px) 100vw, 58vw"
         ),
-        width = "1800", height = "1350", decoding = "async"
+        tags$img(
+          src = asset_url("assets/small-mammal-living-poster.png"),
+          alt = paste(
+            "Editorial screenprint of a small nocturnal mouse emerging from an",
+            "oversized metal box live trap beneath a starry sky."
+          ),
+          width = "1672", height = "941", fetchpriority = "high",
+          decoding = "async"
+        )
       ),
       tags$figcaption(
-        tags$strong("Documentary field photograph · not a NEON observation"),
-        tags$span("Cheryl Brehme · USGS · public domain")
+        "Editorial illustration—not a field photograph or data record."
       )
     )
   )
@@ -184,7 +206,7 @@ ui <- bslib::page_fillable(
     if (is.null(idx) || nrow(idx) == 0) {
       div(class = "splash splash-map",
         small_mammal_poster(show_cta = FALSE),
-        div(id = "site-picker-start", class = "picker-start picker-unavailable",
+        div(id = "site-picker-start", class = "picker-start picker-unavailable", tabindex = "-1",
           h2("The map is taking a field break."),
           p("The site index did not load in this deployment. Reload the page to try again.")))
     } else {
@@ -213,7 +235,7 @@ ui <- bslib::page_fillable(
       has_species <- !is.null(SPECIES_RANGES) && nrow(SPECIES_RANGES) > 0
       div(class = "splash splash-map",
         small_mammal_poster(),
-        div(id = "site-picker-start", class = "picker-start",
+        div(id = "site-picker-start", class = "picker-start", tabindex = "-1",
           div(class = "picker-start-kicker", "Choose a place"),
           h2("Where should we look tonight?"),
           p("Pick one of ", tags$b(nrow(idx)), " field sites, or switch to species to trace an animal across the network.")),
