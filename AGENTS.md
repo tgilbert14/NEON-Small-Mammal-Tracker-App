@@ -95,11 +95,14 @@ the feature PR or the handoff. A cover/art change is a coordinated multi-file co
 `scripts/check_cover.mjs` / `check_in_app_landing.mjs` + `docs/IMAGE-PROVENANCE.md`);
 binaries cannot auto-merge, so rebase (do not merge) when the base moved.
 
-Durable fix (owner decision, not agent-initiated): let the pinned validator WRITE its
-own output back — a deliberate `workflow_dispatch` "regenerate & commit manifest" job —
-so "promote the exact validator artifact" stops being a manual round-trip. Do not
-auto-commit on every PR; that contradicts "write permission only to the final
-restricted publisher."
+Durable fix (implemented on this branch — owner to adopt): the pinned validator now
+writes its own output back via the **`Regenerate manifest (manual)`** workflow
+(`.github/workflows/regenerate-manifest.yml`). Once it lands on `main`, dispatch it on
+your review/PR branch and it regenerates, verifies, and commits `manifest.json` for you —
+steps 1–3 above collapse to "push, dispatch, re-run." It is manual-only, refuses to run
+on `main`, and commits under a restricted bot identity, so "write permission only to the
+final restricted publisher" still holds. It is deliberately NOT an auto-commit on every
+PR, which would break that boundary.
 
 ## Suite learning
 

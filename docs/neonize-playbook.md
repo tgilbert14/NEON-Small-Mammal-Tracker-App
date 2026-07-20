@@ -343,7 +343,9 @@ runs**. It is process-by-design, not a git error (all those PRs did merge). Two 
 - **Kill the manual round-trip** (owner decision): let the pinned validator WRITE its own output back — a
   deliberate `workflow_dispatch` "regenerate & commit manifest" job — or provision the agent env with the
   pinned R+GDAL-3.4.1 image. Do **not** auto-commit on every PR: that breaks the "write only to the final
-  restricted publisher" boundary. Also settle the default branch — the suite is split `main`/`master`
+  restricted publisher" boundary. Reference implementation in the flagship:
+  `.github/workflows/regenerate-manifest.yml` (manual dispatch, job-scoped `contents: write`, refuses
+  `main`, regenerate-twice determinism guard, `verify_bundle.R` before it commits). Also settle the default branch — the suite is split `main`/`master`
   (Driver-Cascade is `master`); rename it to `main` or an agent that assumes `main` hits base-branch push
   failures on one repo in three.
 
