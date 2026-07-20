@@ -1,6 +1,17 @@
 # Small mammal box trapping — Expert Review by Mara (NEON DP1.10072.001)
 _Devoted product-expert review — June 2026._
 
+> **Current finding state (verified 2026-07-20):** this document preserves the
+> June review and scorecard as historical evidence. Pass 1 resolved its release
+> blockers: Compare now carries detection-qualified p̂/N̂ context and suppresses
+> indefensible raw-count winners; the single-night/index-only share is explicit;
+> tidy capture and monthly-series exports plus a codebook are live; and README/live
+> links and the exact 145-species inventory agree. Pinned CI, semantic Connect
+> health, Pages publication, and the JORN funnel passed. Cover V5 later changed only
+> cover UI/media/manifest inventory, leaving those scientific and data contracts
+> unchanged. Findings at lines below that say “remaining,” “Fix,” or show C+/B/B−
+> grades are the June baseline, not current open work.
+
 > I walked my own product's engine end to end against the trapping SOP and the closed-capture canon, and I'll say it plainly: this is the most honest small-mammal abundance app I have reviewed. The mark-recapture is gated by bout structure exactly the way the literature demands — Schnabel for k≥3, Chapman for k=2, nothing for k=1, ΣR≥3 to report, N̂ clamped to the MNKA floor, the CI built in the 1/N domain then inverted. MNKA is promoted over CPUE as the consumer signal, the Chonk Index honestly refuses to be a Scaled Mass Index, and the long-career flag correctly does NOT treat a 3-year desert heteromyid as a tag error. The `id_uncertain` bug the prior audit logged is fixed (computed outside the `summarise()` now). My remaining quarrel is in one place and it matters: the **two-site Compare table races raw captures / individuals across biomes with a winner-highlight and no detection warning** — that is exactly the within-site-index-as-cross-site-density trap I exist to stop, and the app's own detection card already holds the antidote (a 2× p̂ spread). Fix the compare, surface the single-night share and per-site p̂ as first-class numbers, ship a tidy export, and this is publishable-grade. The science is right; a handful of presentation surfaces let a raw count quietly outrun what the bout structure can defend.
 
 ## Method fidelity (is the NEON protocol represented correctly?)

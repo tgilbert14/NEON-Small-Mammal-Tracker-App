@@ -1,6 +1,12 @@
 # Small Mammal cover image provenance
 
-Status: **CANDIDATE / COVER V5 / SUITE LIVING POSTER V1**
+Status: **CURRENT / COVER V5 / SUITE LIVING POSTER V1**
+
+Production receipt: PR #86 merged as `c4c46fce`; exact-head run
+`29755133857`, main CI `29755368217`, semantic smoke `29755368297`, and Pages
+deployment `29755366998` passed. Connect deployment #125 published that exact
+revision, and the live Pages/Connect poster assets matched the versioned hashes
+below during desktop/390/320 verification on 2026-07-20.
 
 Cover V5 promotes the owner-approved artistic direction that was previously
 shown only in the suite concept board. It replaces Cover V4's documentary-photo

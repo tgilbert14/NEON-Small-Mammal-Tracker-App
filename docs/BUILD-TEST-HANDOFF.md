@@ -12,11 +12,10 @@ editing it.
 - Product: NEON DP1.10072.001, small mammal box trapping
 - Public cover: `https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/`
 - Public app: `https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/`
-- Release state: **PRODUCTION HEALTHY / PASS 1 + COVER V4 LIVE / COVER V5 IN REVIEW**;
-  Pages source `eb9e1a3e9e91096a1c1a82ebf116bf85d33405e3` and Connect deployment
-  #122 at runtime `bdf56b0` remain the verified production evidence. Cover V5
-  requires its CI-generated manifest, exact-head green run, merge, republish,
-  and live Pages/Connect receipts before this section may call it shipped.
+- Release state: **PRODUCTION HEALTHY / PASS 1 + COVER V5 COMPLETE**. PR #86
+  merged as `c4c46fce3725126231504d8f9610f52e8f929ef8`; Pages published that merge
+  and Connect deployment #125 published the same exact revision. Suite Living
+  Poster V1, the 46-site picker, and primary exploration funnels are verified live.
 - Driver disposition: accepted `CONTEXT`; central suite receipt merged with no Driver
   generation or scientific-artifact byte change
 
@@ -1150,3 +1149,65 @@ Driver implication, and next action.
   run to be fully green, merge PR #86, republish Connect, and verify both live
   entrances at desktop, 390, and 320 pixels before writing the final closeout and
   central Driver learning receipt.
+
+### 2026-07-20 09:02 MST - Cover V5 publication closeout / root
+
+- **Starting state:** clean release branch at `3e66ddcab6119b4ab0cace85a64616cb19cf766b`
+  with the validator-made manifest promoted. Production still exposed Cover V4
+  before the intentional merge; no data, estimator, export, picker, or Driver
+  scientific artifact changed in this release.
+- **Publication result (PASS):** exact-head pinned R 4.5.2 run #41
+  (`29755133857`) passed R parsing, helper contracts, static cover contracts,
+  bundle/index/checksum integrity, offline app sourcing, and committed-manifest
+  equality. PR #86 merged as `c4c46fce3725126231504d8f9610f52e8f929ef8`.
+  Main CI `29755368217`, semantic production smoke `29755368297`, and Pages
+  build/deploy `29755366998` all completed successfully.
+- **Manifest/runtime receipt (PASS):** the promoted `manifest.json` SHA-256 is
+  `3fdf334febde34f93f75430bd5ef7daa61cc36f1d6ef7f540578051bee24d3fc`.
+  Connect deployment #125, history
+  `019f8025-2682-eb5d-2ee6-84b1f3872a6b`, published exact commit `c4c46fce`
+  in five seconds using R 4.5.2 and 91 packages supplied by Connect. Its log
+  resolved `wk@0.9.5` from the complete pinned CRAN URL and the worker reached its
+  listening state; the earlier unsupported empty-protocol failure did not recur.
+- **Pages visual receipt (PASS):** the cache-busted live page was inspected at
+  1200 x 630, 390 x 844, 320 x 568, 320 x 720, and both sides of the 700 and 980 px
+  responsive seams. It showed the exact hook, promise, CTA, Driver route, visible
+  illustration boundary, dominant large trap and recognizable mouse, with no old
+  photograph or horizontal overflow. Live full/compact WebPs matched the versioned
+  SHA-256 hashes `7a1f9c78895868d0e540ad3126cf5af6b46a25ed4d02b8cf9113fa613cf2fe29`
+  and `5fc560601bbb0146ffdfc03e2cf662bc7a8e20dce790f52f218ea1bdba8904a5`.
+- **Connect visual/funnel receipt (PASS):** the same poster rendered in the live app
+  at desktop, 390 x 844, 320 x 568, and 320 x 720 with zero horizontal overflow.
+  On short 320 px devices the persistent app chrome correctly puts the CTA below
+  the first viewport rather than clipping it. Clicking `Meet the mammals` focused
+  `DIV#site-picker-start`; the 46-site picker loaded; JORN opened with all ten tabs,
+  headline metrics, report route, and exploration controls present.
+- **Interaction receipt (PASS):** clicking a species-composition bar opened the
+  full ranked-species modal. Clicking the live population environmental-driver bar
+  changed the overlay from `None` to `Plants flowering (% in flower)` at its
+  selected nine-month lead. The two startup-time Plotly registration warnings are
+  therefore non-blocking initialization noise, not broken click funnels. Browser
+  logs contained only vendor datepicker deprecations and Leaflet hidden-map lookup
+  messages during dynamic view changes; there was no JavaScript exception or
+  Shiny disconnect.
+- **Documentation/classification:** this closeout corrects stale V4/candidate status
+  in README, deploy, project-status, provenance, handoff, and the app-local Driver
+  knowledge package. Classification is `product/UI` plus `suite-platform` and
+  documentation; scientific Driver implication remains **NONE / CONTEXT / HOLD
+  CURRENT OUTPUT**.
+- **Evidence invalidated:** PR #85 / `eb9e1a3` and Connect deployment #122 remain
+  historical Cover V4 receipts, not evidence for the owner-selected artistic
+  poster. The canonical dual-surface Living Poster release is PR #86 / `c4c46fce`
+  plus Connect deployment #125.
+- **Failures/cleanup:** GitHub connector writes returned 403, so authenticated `gh`
+  CLI was used for the draft PR and merge. A temporary Connect history-tab URL
+  failed to load, but the signed-in content dashboard supplied the exact deployment
+  receipt. No generated candidate, failed asset, stale runtime photo, or temporary
+  repository file remains.
+- **Residual risk/ownership:** historical Cover V4 and rejected V3 source media stay
+  versioned and unreferenced as provenance evidence. Connect may emit harmless
+  package-build-minor and Plotly initialization warnings; both primary chart click
+  paths are proven live. The separate owner idea branch was not touched.
+- **Next action:** merge this docs-only closeout, publish the corrected Small Mammal
+  receipt and Suite Living Poster V1 frame contract to the central Driver learning
+  loop, then pause before selecting the next companion app.

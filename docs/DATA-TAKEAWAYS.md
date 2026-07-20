@@ -7,7 +7,10 @@ _Suite audit — June 2026. NEON DP1.10072.001 (Small Mammal Box Trapping)._
 > cross-site detection are surfaced; compare rows carry p̂/N̂ and suppress misleading raw-count
 > winners; tidy capture/monthly exports and a codebook are production-shipped in runtime merge
 > `1615ab4`. Pinned main CI, semantic Connect health, Pages publication, and the JORN interaction
-> funnel passed on 2026-07-18.
+> funnel passed on 2026-07-18. Cover V5 / Suite Living Poster V1 then shipped in
+> merge `c4c46fce` and Connect deployment #125 on 2026-07-20; it changed no
+> helpers, server logic, bundles, indexes, estimators, exports, or Driver scientific
+> artifacts, so every scientific finding below retains the Pass 1 authority.
 
 This app is the **flagship / gold standard** for its nine companion suite apps. Audited
 through four lenses at once: NEONize (suite cohesion + honest-stats machinery), Fauna (field method
