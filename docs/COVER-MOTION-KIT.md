@@ -68,16 +68,22 @@ Movement is the default, but it must collapse to a clean, beautiful **static** c
   night falling, a plot filling in with tagged individuals). Prototype it and judge per app; keep a static
   poster fallback and honour reduced-motion.
 
-## The AI asset pipeline (ChatGPT + Higgsfield)
+## The AI asset pipeline — tools we own (use these)
 
-- **ChatGPT / GPT-image → the still.** Prompt in the app's DNA: *"flat bold WPA-poster screenprint,
-  <subject>, <palette>, limited palette, high contrast, no text, no photorealism, 3:2."* This is the
-  screenprint art (or the scroll-video's first frame).
-- **Higgsfield → the motion.** Image-to-video on that still: a subtle seamless loop, or the scroll-video
-  source. Export muted webm + mp4.
-- **Integration (Claude wires it).** Poster-first `<video muted loop playsinline poster="…" preload="none">`;
-  budget < ~2.5 MB; lazy-load; a `prefers-reduced-motion` guard holds the still. **Log every AI asset in
-  `docs/IMAGE-PROVENANCE.md` with source/date/prompt/hash; AI art is NEVER relabelled as NEON data.**
+**Owner's toolchain (2026-07): ChatGPT Pro (20×) + a Higgsfield account.** Default to what Pro already
+covers; do not assume paid extras.
+
+1. **Still + graphics → ChatGPT Pro / GPT-image (PRIMARY).** The screenprint hero art and the scroll-video
+   first frame. Prompt in the app's DNA (ready prompts in the appendix below).
+2. **Motion → Sora, included in ChatGPT Pro (PRIMARY).** Image-to-video on the GPT-image still: a slow
+   ambient loop, or the scroll-video source. No extra cost on Pro.
+3. **Motion → Higgsfield (SECONDARY, use sparingly).** Better stylized motion control, but credit-limited
+   (only ~9 credits left as of 2026-07) — reserve for a deliberate A/B vs Sora, not routine passes.
+4. **Integration → Claude wires it.** Poster-first `<video muted loop playsinline poster="…"
+   preload="none">`; budget < ~2.5 MB; lazy-load; `prefers-reduced-motion` holds the still. **A perfect
+   loop is NOT required from the model** — a plain 10–20s clip is fine; Claude makes it loop cleanly in
+   code (short crossfade / opacity dissolve at the loop point). **Log every AI asset in
+   `docs/IMAGE-PROVENANCE.md` with source/date/prompt/hash; AI art is NEVER relabelled as NEON data.**
 
 ## Per-app divergence (be creative — the cover follows the subject)
 
@@ -100,6 +106,39 @@ population · AI art labelled and never relabelled as data · `prefers-reduced-m
 contrast on both grounds · visible focus ring · 44px touch targets · every asset logged in
 `IMAGE-PROVENANCE.md`. Validate at desktop / 390 / 320, and record the exact Pages artifact + Connect
 deployment commit before calling a cover shipped (`neonize-playbook.md` §7, the Cover Contract).
+
+## Ready prompts + how an agent uses them
+
+**How an agent uses this (Claude or Codex):** you can't call ChatGPT/Sora/Higgsfield yourself — so when a
+cover needs art or motion, **hand the owner the exact prompt below** (tuned to the app's DNA), let them
+generate the still (GPT-image) and clip (Sora) in ChatGPT Pro, then **wire the returned asset** into the
+cover (poster-first video, reduced-motion fallback) and log it in `IMAGE-PROVENANCE.md`. Prompt → owner →
+wire. Don't block on it: build the cover with the SVG/CSS stand-in first, drop the real asset in when it lands.
+
+**Small Mammal — GPT-image (the screenprint still):**
+> Bold flat editorial screenprint poster illustration, WPA / national-park style. Scene: a small nocturnal
+> desert mouse pausing at the mouth of an oversized metal Sherman box live-trap, under a starry night sky
+> with a warm gold moon low on the horizon; layered dune silhouettes and a saguaro. Palette limited to deep
+> near-black green (#111512), acid chartreuse-yellow (#dce319) as the single bold accent, warm ember orange
+> (#e87531), and cream (#f3e8cb). Flat confident shapes, high contrast, visible screenprint grain, dramatic
+> but graphic — not photorealistic, no text, no watermark. Compose the mouse and trap toward the lower area
+> with generous dark sky above for a headline. (Aspect: 4:5 portrait for a top-right art card, or 3:4 for a
+> full-height right-column bleed.)
+
+**Small Mammal — Sora (image-to-video, ambient loop from that still):**
+> Animate this poster still with subtle, calm ambient motion for a website cover background: stars twinkle
+> and drift very slowly, a faint haze rolls low over the dunes, the moon glow gently breathes, the mouse
+> gives one small whisker twitch. Minimal slow camera, a barely-perceptible parallax push-in. Keep the exact
+> flat screenprint style and palette; add or change nothing; no text. 8–12 seconds, gentle, start and end on
+> a similar frame (loop-friendly), muted.
+
+**Reusable template (any app):**
+> STILL: "Bold flat editorial screenprint poster, WPA style. Scene: <app subject>. Palette: <app ground> +
+> its ONE bold accent + 1–2 supports. Flat shapes, high contrast, screenprint grain, no text, no
+> photorealism. <aspect>."
+> MOTION: "Animate this still with subtle calm ambient motion suited to <subject> (leaves stirring / water
+> rippling / stars drifting); keep the exact style and palette, add nothing, no text; 8–12s, slow,
+> loop-friendly, muted."
 
 ---
 *Starting kit v0.1 — grew from the Small Mammal + Vegetation Living Posters and the owner's motion
