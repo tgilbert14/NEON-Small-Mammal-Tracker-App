@@ -12,6 +12,9 @@ file. Close every session with a dated `BUILD-TEST-HANDOFF.md` entry tagged with
 tool (`[Codex]` / `[Claude]`) and a one-line next action, so the other agent can pick up
 cold. See `docs/neonize-playbook.md` §8.
 
+Before coding: plan, question, and challenge the work, and always surface at least one
+improvement you notice — see `docs/neonize-playbook.md` §9.
+
 ## Required reading
 
 Before any repository work:
