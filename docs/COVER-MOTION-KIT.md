@@ -50,6 +50,11 @@ gold, …) — there is **no shared "house" accent**; the family reads through t
 Movement is the default, but it must collapse to a clean, beautiful **static** cover under
 `prefers-reduced-motion: reduce`.
 
+**This is the LIGHT tier — `neonize`'s base.** Parallax, scroll-reveals, and a scroll-cued mood on a poster
+cover are app-side (this kit). For the DEEP immersive tier — a scroll-scrubbed camera flight, a
+fly-through-the-world scene — `neonize` CALLS the canonical **Mithril** guild + the `scroll-world` /
+`scroll-film` skills (the Higgsfield scroll-scrub pipeline); don't rebuild that here.
+
 - **Parallax hero** — the art (and copy) drift on scroll + pointer, by depth, on `requestAnimationFrame`
   (passive scroll listener; transforms only, no layout thrash).
 - **Art with depth** — the subject art as a framed, slightly-tilted card with a big soft drop-shadow (+ a
