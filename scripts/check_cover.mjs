@@ -87,7 +87,7 @@ requireContract(/rel="canonical" href="https:\/\/tgilbert14\.github\.io\/NEON-Sm
 requireContract(/og:title" content="Who moves after dark\?"/.test(html) && /og:description" content="Meet the tiny lives reshaping the landscape\."/.test(html), "social copy drifted");
 requireContract(/og:image" content="https:\/\/tgilbert14\.github\.io\/NEON-Small-Mammal-Tracker-App\/og-image\.png"/.test(html), "social image URL drifted");
 requireContract(/og:image:width" content="1200"/.test(html) && /og:image:height" content="630"/.test(html), "social dimensions missing");
-requireContract(/og:image:alt/.test(html) && /twitter:image:alt/.test(html), "social alt metadata missing");
+requireContract(/property="og:image:alt" content="[^"]+"/.test(html) && /name="twitter:image:alt" content="[^"]+"/.test(html), "social alt metadata missing or has empty content");
 
 // Safety, accessibility, and responsive seams.
 requireContract(!/\bfetch\s*\(/.test(html), "cover must not make an unsolicited prewarm request");

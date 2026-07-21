@@ -79,6 +79,18 @@ for (const [path, expected] of Object.entries(assets)) {
   requireContract(provenance.includes(path) && provenance.includes(expected), `${path} provenance is incomplete`);
 }
 
+// The Pages (docs/) and Connect (www/) entrances must ship byte-identical art so
+// both doors keep the same crop, disclosure, and approved promise. Hash pins alone
+// don't guarantee it — assert the bytes directly across the two copies.
+for (const runtimePath of Object.keys(assets)) {
+  const pagesPath = runtimePath.replace(/^www\//, "docs/");
+  requireContract(existsSync(pagesPath), `missing Pages twin ${pagesPath} for ${runtimePath}`);
+  requireContract(
+    readFileSync(runtimePath).equals(readFileSync(pagesPath)),
+    `${runtimePath} and ${pagesPath} are not byte-identical`
+  );
+}
+
 requireContract(pngSize("www/assets/small-mammal-living-poster.png").join("x") === "1672x941", "runtime PNG dimensions drifted");
 requireContract(webpSize("www/assets/small-mammal-living-poster.webp").join("x") === "1672x941", "runtime full WebP dimensions drifted");
 requireContract(webpSize("www/assets/small-mammal-living-poster-840.webp").join("x") === "840x473", "runtime compact WebP dimensions drifted");

@@ -74,6 +74,10 @@
       outline: 3px solid var(--acid);
       outline-offset: 5px;
     }
+    /* Acid outline is near-invisible on the paper footer — swap to ink there. */
+    footer a:focus-visible, .honesty summary:focus-visible {
+      outline-color: var(--ink);
+    }
     .skip {
       position: fixed;
       z-index: 100;

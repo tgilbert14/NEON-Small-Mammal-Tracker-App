@@ -29,6 +29,12 @@ species record, or data visualization.
 - Bytes: 195,163
 - SHA-256:
   `9fd6cd3d5e4fe2d54156aadb373bae94f8acc0cd526f963a94ae53de25cdd42a`
+- Origin and nature: an editorial screenprint **design study** produced during
+  the suite concept-board exploration (`neon-cover-directions.html`) to fix the
+  V5 artistic direction. It is illustration — never a photograph, NEON
+  observation, species record, or data visualization. The specific generation
+  tool for this early study is not recorded in this receipt; the authoritative
+  tool/date/prompt/hash record lives with the production asset below.
 - Use: provenance evidence only; the browser does not download this source.
 
 This file is the selected visual direction, not one of the retired V3 generated
@@ -145,6 +151,18 @@ must not return to a live surface:
 - `docs/hero-mobile-v1.png`
 - `docs/hero-mobile-v1.jpg`
 - `docs/og-card-v3-source.png`
+
+## License and rights
+
+The Small Mammal cover illustrations (the concept study, the production Living
+Poster, and its responsive derivatives) are **original editorial art commissioned
+by Desert Data Labs**. The production image and social card were produced with
+OpenAI image generation, whose terms assign ownership of the generated output to
+the commissioning creator; the responsive WebP/PNG derivatives are mechanical
+transformations of that owned source. The art ships as part of this project under
+its **CC BY 4.0** license, matching the cover footer's data authority. It is
+**editorial illustration — never a NEON observation, species record, data
+product, or field photograph**, and must not be relabeled as one on any surface.
 
 ## Release contract
 
