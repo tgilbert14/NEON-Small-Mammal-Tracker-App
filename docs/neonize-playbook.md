@@ -424,6 +424,11 @@ any art/copy/crop change is ONE coordinated PR touching the images, both hash pi
 record together (binaries can't auto-merge). This turns the two `.mjs` files into the reusable "Cover
 Contract" every companion inherits with the Living Poster frame.
 
+**Motion, the scroll-video ideas, per-app divergence, and the ChatGPT + Higgsfield asset pipeline** live in
+`docs/COVER-MOTION-KIT.md` — the rough *starting kit* a subagent builds a cover from and then alters per
+project (the poster archetype is the front-door default; covers can also be immersive-scroll-led or
+data-led depending on the subject — the owner does not want them to look the same).
+
 ## 8. Working across agents (Claude + Codex)
 
 This suite is built by more than one agent — Claude Code and ChatGPT/Codex — often on the same repo,
