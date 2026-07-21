@@ -159,8 +159,10 @@ Poster, and its responsive derivatives) are **original editorial art commissione
 by Desert Data Labs**. The production image and social card were produced with
 OpenAI image generation, whose terms assign ownership of the generated output to
 the commissioning creator; the responsive WebP/PNG derivatives are mechanical
-transformations of that owned source. The art ships as part of this project under
-its **CC BY 4.0** license, matching the cover footer's data authority. It is
+transformations of that owned source. Use of the art remains subject to the
+OpenAI account terms under which it was created. The **CC BY 4.0** shown on the
+cover is the NEON **data** authority (DP1.10072.001) — it governs the data, not
+this illustration; art licensing and data licensing are separate. The art is
 **editorial illustration — never a NEON observation, species record, data
 product, or field photograph**, and must not be relabeled as one on any surface.
 
