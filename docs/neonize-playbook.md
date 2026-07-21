@@ -445,6 +445,13 @@ artifacts in the repo**, and that already works if you keep four things true:
 - **Let the contracts be the trust layer.** The `check_*.mjs` / `verify_*.R` gates and the manifest
   determinism gate (§6) are tool-agnostic referees — neither agent has to trust the other's self-report;
   CI enforces the invariants objectively. Invest in contracts, not agent-specific trust.
+- **Know the map — every repo, both tools.** Each suite repo carries the same front door: `CLAUDE.md`
+  (Claude) + `AGENTS.md` (Codex) pointing at the same tool-neutral docs, plus a project-local
+  `.claude/agents/LESSONS.md`. **Branch defaults are split and must never be assumed:** Small Mammal and
+  Vegetation deploy from **`main`**; **Driver-Cascade deploys from `master`** (Connect Cloud watches it —
+  documented, not renamed, because a rename must repoint the external Connect setting first). Driver's
+  release gate is *semantic* (`compare_manifests.R`), while the byte-exact siblings use `git diff` — worth
+  cross-pollinating (see §6).
 
 Rough division by strength (not a rule): Codex for tight visual/UX/prototype iteration; Claude for
 cross-repo diagnosis, science-contract/honesty review, Driver synthesis, and learning-loop upkeep —
