@@ -104,6 +104,20 @@ The poster archetype is perfect for a **front-door cover**, but the format shoul
 Same DNA, different personality. **Don't template one layout onto every app** — the owner explicitly does
 not want them to look the same.
 
+## Previewing a cover — always show it in chat (owner standing request)
+
+Whenever a cover is built or changed, **show the owner the result from chat** — don't just hand over a PR
+link. Render the actual page and deliver the image inline so they can judge it without leaving the session.
+
+- Headless **Chromium is preinstalled** (`/opt/pw-browsers`). Drive it with `playwright-core`
+  (`executablePath` → the bundled chrome, launch `--no-sandbox`), open the cover via a `file://` URL, and
+  screenshot **desktop hero + mobile (390px)** at `deviceScaleFactor: 2`. Add a focused-state / interaction
+  shot when the change is a focus or motion detail (e.g. the footer focus ring). Send the PNGs rendered
+  inline, not as bare attachments.
+- One rendering caveat to state each time: **system-only fonts fall back on Linux** (the headline face,
+  `Iowan Old Style`, renders as a generic serif in the screenshot) — the layout, art, palette, and copy are
+  exact; only the exact headline face differs from the owner's device.
+
 ## The floor (non-negotiable, even in a rough draft)
 
 Honesty art-note on the illustration + the `What am I looking at?` details · a detection index is never a

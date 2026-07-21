@@ -1,7 +1,9 @@
 import fs from "node:fs";
 
 const files = ["www/app.js", "www/pincards.js"];
-const handlerPattern = /Shiny\.addCustomMessageHandler\(\s*["'][^"']+["']\s*,\s*function\s*\(([^)]*)\)/g;
+// Match both handler shapes so an arrow-function callback can't slip the arity
+// check: `function (payload)`, `(payload) =>`, or a bare `payload =>`.
+const handlerPattern = /Shiny\.addCustomMessageHandler\(\s*["'][^"']+["']\s*,\s*(?:function\s*\(([^)]*)\)|\(([^)]*)\)\s*=>|([A-Za-z_$][\w$]*)\s*=>)/g;
 let seen = 0;
 const invalid = [];
 
@@ -9,7 +11,9 @@ for (const file of files) {
   const source = fs.readFileSync(file, "utf8");
   for (const match of source.matchAll(handlerPattern)) {
     seen += 1;
-    const params = match[1]
+    // match[3] is a bare single-identifier arrow param; [1]/[2] are parenthesized lists.
+    const rawParams = match[3] !== undefined ? match[3] : (match[1] ?? match[2] ?? "");
+    const params = rawParams
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean);
