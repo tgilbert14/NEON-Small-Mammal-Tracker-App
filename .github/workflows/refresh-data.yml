@@ -217,6 +217,8 @@ jobs:
             echo "Producer revision does not contain current main; refusing stale publication."
             exit 1
           fi
+          [[ -d data && ! -L data && -d data-sample && ! -L data-sample ]]
+          find data data-sample -mindepth 1 -delete
           tar -xzf "$RUNNER_TEMP/refresh-candidate/small-mammal-refresh.tgz"
           branch="automation/small-mammal-data-refresh"
           remote_head=$(git ls-remote --heads origin "refs/heads/$branch" | awk '{print $1}')
