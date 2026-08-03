@@ -20,18 +20,32 @@ env:
   OPENBLAS_NUM_THREADS: "1"
   OMP_NUM_THREADS: "1"
   SMT_LIVE: "0"
+  SMT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   contracts:
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    # A cold runner can spend more than 45 minutes acquiring Jammy geospatial
+    # system libraries before the exact source closure even starts compiling.
+    # Keep this aligned with the manual pinned generator; cache reuse is an
+    # optimization, never a prerequisite for a valid release check.
+    timeout-minutes: 100
     steps:
       - name: Checkout the immutable app revision
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ env.SMT_SOURCE_SHA }}
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Prove the exact reviewed revision is checked out
+        run: |
+          set -euo pipefail
+          actual_sha=$(git rev-parse HEAD)
+          if [[ "$actual_sha" != "$SMT_SOURCE_SHA" ]]; then
+            echo "Checked out $actual_sha; expected exact reviewed revision $SMT_SOURCE_SHA." >&2
+            exit 1
+          fi
 
       - uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
         with:
@@ -43,23 +57,27 @@ jobs:
         with:
           # The dated snapshot currently resolves terra 1.9-34, which cannot build
           # against jammy's GDAL 3.4.1. Install the complete declared closure from
-          # exact CRAN tarballs so writeManifest records versions that were really
-          # compiled in this validator; never rewrite versions after the fact.
+          # exact retained source tarballs so writeManifest records versions that
+          # were really compiled in this validator; never rewrite versions after
+          # the fact. Terra remains on CRAN's archive; the other seven packages
+          # come from the immutable 2026-07-15 Posit source snapshot.
           packages: >
-            shiny, bslib, bsicons, dplyr, tidyr, stringr, tibble, plotly,
+            shiny, bslib, bsicons, dplyr, tidyr, stringr, tibble,
             leaflet, DT, shinyjs, shinycssloaders, RColorBrewer, htmltools,
             ggplot2, jsonlite, rsconnect, cpp11,
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/plotly_4.12.0.tar.gz,
             url::https://cran.r-project.org/src/contrib/Archive/terra/terra_1.8-50.tar.gz,
-            url::https://cran.r-project.org/src/contrib/sf_1.1-1.tar.gz,
-            url::https://cran.r-project.org/src/contrib/s2_1.1.11.tar.gz,
-            url::https://cran.r-project.org/src/contrib/units_1.0-1.tar.gz,
-            url::https://cran.r-project.org/src/contrib/wk_0.9.5.tar.gz,
-            url::https://cran.r-project.org/src/contrib/classInt_0.4-11.tar.gz,
-            url::https://cran.r-project.org/src/contrib/raster_3.6-32.tar.gz,
-            url::https://cran.r-project.org/src/contrib/sp_2.2-1.tar.gz
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/sf_1.1-1.tar.gz,
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/s2_1.1.11.tar.gz,
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/units_1.0-1.tar.gz,
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/wk_0.9.5.tar.gz,
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/classInt_0.4-11.tar.gz,
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/raster_3.6-32.tar.gz,
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/sp_2.2-1.tar.gz
           pak-version: stable
           dependencies: '"hard"'
-          cache-version: small-mammal-geo-closure-v2
+          cache-version: small-mammal-geo-closure-v4
+          cache: always
           install-pandoc: 'false'
           install-quarto: 'false'
 
@@ -91,6 +109,7 @@ jobs:
           node scripts/check_custom_message_handlers.mjs
           node scripts/check_cover.mjs
           node scripts/check_in_app_landing.mjs
+          node scripts/check_workflow_runtime_budget.mjs
           bash -n scripts/post_deploy_smoke.sh
 
       - name: Run scientific helper contracts
@@ -112,7 +131,7 @@ jobs:
         if: failure() && steps.manifest.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: small-mammal-manifest-UNVALIDATED-${{ github.sha }}
+          name: small-mammal-manifest-UNVALIDATED-${{ env.SMT_SOURCE_SHA }}
           path: manifest.json
           if-no-files-found: ignore
           retention-days: 1
@@ -126,7 +145,7 @@ jobs:
       - name: Upload the validated manifest candidate
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: small-mammal-manifest-${{ github.sha }}
+          name: small-mammal-manifest-${{ env.SMT_SOURCE_SHA }}
           path: manifest.json
           if-no-files-found: error
           retention-days: 3

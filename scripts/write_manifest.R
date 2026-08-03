@@ -102,6 +102,20 @@ if (length(removed)) {
 # exact CRAN source tarballs and verified below.
 mtxt <- readLines("manifest.json", warn = FALSE)
 RSPM_SNAPSHOT <- "https://packagemanager.posit.co/cran/__linux__/jammy/2026-07-15"
+# A moving repository here can produce a package version that the declared
+# snapshot cannot restore. Fail before any canonicalization can mislabel that
+# installation as snapshot-derived.
+MOVING_REPOSITORIES <- c("https://cran.rstudio.com")
+moving_hits <- MOVING_REPOSITORIES[vapply(
+  MOVING_REPOSITORIES,
+  function(repo) any(grepl(repo, mtxt, fixed = TRUE)),
+  logical(1)
+)]
+if (length(moving_hits)) {
+  stop(sprintf(
+    "MOVING-REPOSITORY GATE FAILED: generated manifest contains %s. Install the package from an exact retained snapshot URL; do not rewrite its provenance.",
+    paste(moving_hits, collapse = ", ")), call. = FALSE)
+}
 mtxt <- gsub("https://packagemanager.posit.co/cran/latest",
              RSPM_SNAPSHOT, mtxt, fixed = TRUE)
 mtxt <- gsub("https://packagemanager.posit.co/cran/__linux__/jammy/latest",
@@ -117,7 +131,7 @@ cat(sprintf("Repo frozen to RSPM jammy snapshot %s.\n", RSPM_SNAPSHOT))
 # approved merge can trigger Connect Cloud to republish the verified closure.
 # rsconnect::writeManifest() snapshots what is actually installed in the fresh
 # GitHub runner. CI and refresh therefore install the declared versions from exact
-# CRAN tarball URLs before this script runs.
+# retained source tarball URLs before this script runs.
 # So an untouched app "spontaneously" breaks whenever a monthly refresh floats a
 # package (or R) forward to a version that won't SOURCE-COMPILE on Connect's build
 # image (Ubuntu jammy: GDAL 3.4.1, GEOS 3.10, PROJ 8.2, Abseil ~2022). The build
@@ -149,13 +163,17 @@ GEO_PINS <- c(
 )
 GEO_URLS <- c(
   terra    = "https://cran.r-project.org/src/contrib/Archive/terra/terra_1.8-50.tar.gz",
-  sf       = "https://cran.r-project.org/src/contrib/sf_1.1-1.tar.gz",
-  s2       = "https://cran.r-project.org/src/contrib/s2_1.1.11.tar.gz",
-  units    = "https://cran.r-project.org/src/contrib/units_1.0-1.tar.gz",
-  wk       = "https://cran.r-project.org/src/contrib/wk_0.9.5.tar.gz",
-  classInt = "https://cran.r-project.org/src/contrib/classInt_0.4-11.tar.gz",
-  raster   = "https://cran.r-project.org/src/contrib/raster_3.6-32.tar.gz",
-  sp       = "https://cran.r-project.org/src/contrib/sp_2.2-1.tar.gz"
+  sf       = "https://packagemanager.posit.co/cran/2026-07-15/src/contrib/sf_1.1-1.tar.gz",
+  s2       = "https://packagemanager.posit.co/cran/2026-07-15/src/contrib/s2_1.1.11.tar.gz",
+  units    = "https://packagemanager.posit.co/cran/2026-07-15/src/contrib/units_1.0-1.tar.gz",
+  wk       = "https://packagemanager.posit.co/cran/2026-07-15/src/contrib/wk_0.9.5.tar.gz",
+  classInt = "https://packagemanager.posit.co/cran/2026-07-15/src/contrib/classInt_0.4-11.tar.gz",
+  raster   = "https://packagemanager.posit.co/cran/2026-07-15/src/contrib/raster_3.6-32.tar.gz",
+  sp       = "https://packagemanager.posit.co/cran/2026-07-15/src/contrib/sp_2.2-1.tar.gz"
+)
+SNAPSHOT_SOURCE_PINS <- c(plotly = "4.12.0")
+SNAPSHOT_SOURCE_URLS <- c(
+  plotly = "https://packagemanager.posit.co/cran/2026-07-15/src/contrib/plotly_4.12.0.tar.gz"
 )
 
 # Source-built package DESCRIPTION files contain a wall-clock `Built` timestamp.
@@ -174,9 +192,16 @@ for (pkg in names(GEO_PINS)) {
     canonical$packages[[pkg]]$Repository <- "https://cran.r-project.org"
   }
 }
+for (pkg in names(SNAPSHOT_SOURCE_PINS)) {
+  if (!is.null(canonical$packages[[pkg]]$description)) {
+    canonical$packages[[pkg]]$description$Built <- NULL
+    canonical$packages[[pkg]]$Source <- "CRAN"
+    canonical$packages[[pkg]]$Repository <- RSPM_SNAPSHOT
+  }
+}
 jsonlite::write_json(canonical, "manifest.json", auto_unbox = TRUE, pretty = TRUE,
                      null = "null")
-cat("Canonicalized the CRAN deployment lane and non-semantic Built timestamps for the exact URL package closure.\n")
+cat("Canonicalized deployment lanes and non-semantic Built timestamps for exact URL package pins.\n")
 
 # Pin the R version too: a runner R bump (seen: 4.5.2 -> 4.6.0) changes the
 # whole build image and can invalidate binary/source assumptions on republish.
@@ -213,6 +238,36 @@ if (length(geo_repo) != length(GEO_PINS) ||
 if (length(runtime_repo) == 0L || any(runtime_repo != RSPM_SNAPSHOT))
   bad <- c(bad, sprintf("ordinary package repositories=[%s] (want dated snapshot %s)",
                        paste(unique(unname(runtime_repo)), collapse = ","), RSPM_SNAPSHOT))
+for (pkg in setdiff(names(chk$packages), c(names(GEO_PINS), names(SNAPSHOT_SOURCE_PINS)))) {
+  remote_type <- as.character(chk$packages[[pkg]]$description$RemoteType %||% "")
+  remote_repos <- as.character(chk$packages[[pkg]]$description$RemoteRepos %||% "")
+  if (identical(remote_type, "standard") && !identical(remote_repos, RSPM_SNAPSHOT))
+    bad <- c(bad, sprintf(
+      "%s RemoteRepos=%s (standard package must come from dated snapshot %s)",
+      pkg, remote_repos, RSPM_SNAPSHOT))
+}
+for (pkg in names(SNAPSHOT_SOURCE_PINS)) {
+  if (is.null(chk$packages[[pkg]])) {
+    bad <- c(bad, sprintf("%s=<missing> (want %s)",
+                         pkg, unname(SNAPSHOT_SOURCE_PINS[[pkg]])))
+    next
+  }
+  got <- as.character(chk$packages[[pkg]]$description$Version %||% "")
+  source <- as.character(chk$packages[[pkg]]$Source %||% "")
+  repo <- as.character(chk$packages[[pkg]]$Repository %||% "")
+  remote_type <- as.character(chk$packages[[pkg]]$description$RemoteType %||% "")
+  remote_ref <- as.character(chk$packages[[pkg]]$description$RemotePkgRef %||% "")
+  built <- as.character(chk$packages[[pkg]]$description$Built %||% "")
+  expected_ref <- paste0("url::", unname(SNAPSHOT_SOURCE_URLS[[pkg]]))
+  if (!identical(got, unname(SNAPSHOT_SOURCE_PINS[[pkg]])) ||
+      !identical(source, "CRAN") || !identical(repo, RSPM_SNAPSHOT) ||
+      !identical(remote_type, "url") || !identical(remote_ref, expected_ref) ||
+      nzchar(built))
+    bad <- c(bad, sprintf(
+      "%s snapshot origin version=%s Source=%s Repository=%s RemoteType=%s RemotePkgRef=%s Built=%s (want version %s from exact %s and no build timestamp)",
+      pkg, got, source, repo, remote_type, remote_ref, built,
+      unname(SNAPSHOT_SOURCE_PINS[[pkg]]), expected_ref))
+}
 for (pkg in names(GEO_PINS)) {
   if (is.null(chk$packages[[pkg]])) {
     bad <- c(bad, sprintf("%s=<missing> (want %s)",

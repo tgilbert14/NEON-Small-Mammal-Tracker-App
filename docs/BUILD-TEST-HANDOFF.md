@@ -1260,3 +1260,154 @@ Driver implication, and next action.
   scripts/docs, only the `ui.R` `<html lang>` fix touches runtime, so land that one via the
   new regenerate flow); (5) promote the two
   new LESSONS + playbook §6/§8 to the canonical `TG-Data-Apps` playbook via `curator`.
+
+### 2026-08-03 08:45 EDT - scheduled refresh retention and publisher repair / [Codex]
+
+- **Starting state:** fetched current `origin/main` and created isolated worktree
+  branch `codex/small-refresh-retention-fix` at exact default head
+  `2b4993c291763d0893b6849441fe5572cebc3e63`. The watched branch remains `main`;
+  public targets remain the Pages cover and Connect content recorded above. The
+  source checkout was clean, and the existing local closeout branch was not changed.
+- **Failure diagnosis/objective:** the scheduled validator reached dependency setup
+  through moving CRAN-main source paths that do not retain historical tarballs; the
+  suite audit observed missing historical `sf`/`sp` inputs before the publisher could
+  run. Repair every active install/provenance lane without weakening exact versions,
+  changing data, or publishing to production.
+- **Dependency repair:** `sf 1.1-1`, `s2 1.1.11`, `units 1.0-1`, `wk 0.9.5`,
+  `classInt 0.4-11`, `raster 3.6-32`, and `sp 2.2-1` now resolve from the immutable
+  `https://packagemanager.posit.co/cran/2026-07-15/src/contrib/` source snapshot in
+  CI, scheduled refresh, manual manifest regeneration, the manifest writer, and the
+  independent bundle verifier. `terra 1.8-50` remains on its exact CRAN archive URL.
+  All affected dependency caches moved from v2 to v3 so no stale failed closure can
+  mask the repair.
+- **Publisher repair:** the restricted refresh publisher now refuses a producer SHA
+  that does not contain current `main`, detects untracked scoped candidate files,
+  requires the promotion commit to be a direct child of the validated SHA, verifies
+  the remote review branch resolves to that exact commit, and fails on ambiguous PRs.
+  It no longer invokes `gh pr create`. With no open PR it emits a reviewer-action
+  notice; with one exact `main <- automation/small-mammal-data-refresh` PR it verifies
+  base/head/OID and records that a write user must approve the held exact-head checks.
+- **Static/source results (PASS):** `git diff --check`; Ruby/Psych parsing of CI,
+  refresh, and regeneration YAML; Bash syntax of the publisher block; parse of all
+  16 R files under local R 4.5.3; both cover contracts; stale-URL/cache/`gh pr create`
+  scans; and exact checks that `manifest.json` was not modified all passed. HTTPS HEAD
+  probes returned 200 for the retained terra archive and all seven dated Posit source
+  tarballs.
+- **Runtime results (expected BLOCKED):** `scripts/verify_bundle.R` loaded the exact
+  46-site family and 46/604/604 indexes, then rejected exactly the seven old
+  `RemotePkgRef` values in the intentionally unchanged committed manifest. This is the
+  required pre-promotion state, not a relaxed gate. `scripts/test_helpers.R` could not
+  run because this local R library lacks `dplyr`; the pinned R 4.5.2 dependency build,
+  helper fixtures, regenerated-manifest equality, and complete offline source remain
+  unclaimed until CI.
+- **Changed/classification:** modified `.github/workflows/ci.yml`,
+  `.github/workflows/refresh-data.yml`, `.github/workflows/regenerate-manifest.yml`,
+  `scripts/write_manifest.R`, `scripts/verify_bundle.R`, and this handoff. Classification
+  is `suite-platform` plus `app-local` release maintenance. `manifest.json`, all data,
+  indexes, app/runtime/scientific code, Pages, Connect, and Driver artifacts are unchanged.
+- **Failures/cleanup/ownership:** sandboxed URL probes initially failed DNS and were
+  rerun read-only with network access; all eight returned 200. At audit time no
+  temporary repository artifact, cache, candidate, commit, push, PR, dispatch, or
+  deployment had been created. Publication still requires the exact receipts below.
+- **Driver implication:** **NONE / NO DRIVER BYTE CHANGE**. Existing Small Mammal
+  `CONTEXT` semantics and scientific outputs are unchanged.
+- **Residual risk:** only pinned Ubuntu 22.04/R 4.5.2 can prove source compilation and
+  validator-made manifest bytes. The scheduled publisher behavior also remains
+  unexecuted until this repair is reviewed and merged.
+- **Next action:** review and publish this focused branch, run pinned CI, use the manual
+  regeneration workflow to commit its exact new `manifest.json`, require green checks
+  on that exact head, then merge. On the next validated refresh, a signed-in reviewer
+  opens the `main` PR (or approves the held checks on the exact updated existing PR).
+
+### 2026-08-03 10:10 EDT - moving Plotly provenance blocked before merge / [Codex]
+
+- **Exact evidence:** manual manifest promotion run `30818827839` committed direct
+  child `a34b25221ef1ba29970b8a5e749f6054fbf251b6`; explicitly dispatched exact-head
+  validator run `30820291958` passed. A semantic inspection then found the promoted
+  Plotly record came from moving `https://cran.rstudio.com` at version `4.12.1`, while
+  its top-level repository had been canonicalized to the July 15 Posit snapshot.
+- **Why green was insufficient:** the independent verifier checked only top-level
+  repository lanes for ordinary packages, so it did not compare `RemoteRepos` or
+  prove that the version existed in the declared snapshot. Direct HTTP checks proved
+  `plotly_4.12.1.tar.gz` is absent from that snapshot (404) and retained
+  `plotly_4.12.0.tar.gz` is available (200). Rewriting the moving URL would therefore
+  create false provenance and risk a Connect restore failure.
+- **Focused correction:** CI, scheduled refresh, and manual regeneration now install
+  exact retained Plotly 4.12.0 from the July 15 source snapshot and use fresh v4 caches.
+  The writer rejects `cran.rstudio.com` before canonicalization, pins Plotly's exact
+  version/source URL, removes only its non-semantic `Built` clock, and requires the
+  dated top-level lane. The independent verifier repeats that exact-source check and
+  rejects any standard package whose `RemoteRepos` is not the dated snapshot.
+- **Boundary/status:** the green `a34b252` run remains valuable diagnostic evidence
+  but is not merge authorization. No runtime, scientific, data, Pages, Connect, or
+  Driver byte changed in this follow-up. Its promoted manifest remains intentionally
+  superseded until the restricted workflow regenerates it from the corrected closure.
+- **Next action:** validate and publish this additive correction, rerun manual manifest
+  regeneration on the review branch, inspect the bot commit byte-for-byte, and require
+  one green validator on that exact final head before merging PR #91.
+
+### 2026-08-03 11:18 EDT - cold-runner dependency budget repair / [Codex]
+
+- **Starting state:** created isolated worktree branch
+  `codex/small-ci-timeout-cache-fix` from exact PR #91 head
+  `a897e6cba991982b491b85c092efbccc9f7de6da`. That head already contains the
+  validator-published manifest with R 4.5.2, exact Plotly 4.12.0 and geospatial
+  source URLs, no moving repository, 91 packages, and 120 runtime files. Watched
+  `main`, production Pages/Connect, data, science, and Driver bytes were untouched.
+- **Failure evidence:** literal-head workflow-dispatch run `30822859106`, job
+  `91716905320`, checked out and proved exact head `a897e6c...`, then hit the
+  `contracts` job's 45-minute timeout inside `Install runtime and verification
+  dependencies`. Logs show the action planned 109 MB of Ubuntu archives and 100
+  new Jammy system packages; unusually slow Azure mirror transfers consumed the
+  budget before the system dependency install completed. At `15:13:33Z` the step
+  ended `Execution halted` / `The operation was canceled`. Every OpenBLAS,
+  source/static, helper, bundle, offline boot, regenerated-manifest, artifact, and
+  equality gate was skipped. This is infrastructure-latency evidence, not a package,
+  manifest, data, or scientific-contract failure, and the cancelled run is not merge
+  authorization.
+- **Focused repair:** `.github/workflows/ci.yml` and the read-only `generate` job in
+  `.github/workflows/regenerate-manifest.yml` now share a 100-minute cold-build
+  budget. Their identical exact runtime closures use the same v4 cache identity and
+  explicitly set `cache: always`; the separate 120-minute refresh build retains its
+  own v4 cache identity and now also persists/restores it explicitly. Cache reuse is
+  an optimization only: all jobs still have enough time to validate from a cold
+  runner and no dependency, version, provenance, science, or release gate was
+  weakened.
+- **Regression contract:** new zero-dependency
+  `scripts/check_workflow_runtime_budget.mjs`, invoked by PR CI, requires the pinned
+  setup-r-dependencies action, equal 100-minute CI/regeneration budgets, at least a
+  100-minute refresh budget, the intended cache identities, and `cache: always` on
+  all three exact-closure install steps. It fails closed if a future cleanup restores
+  the 45-minute timeout or makes cache behavior implicit.
+- **Changed/classification:** modified `.github/workflows/ci.yml`,
+  `.github/workflows/regenerate-manifest.yml`, `.github/workflows/refresh-data.yml`,
+  `.claude/agents/LESSONS.md`, and this handoff; added
+  `scripts/check_workflow_runtime_budget.mjs`. Classification is `suite-platform`
+  plus `app-local` release maintenance. None of these paths appears in the manifest
+  runtime file map, so `manifest.json`, app/runtime code, data, indexes, scientific
+  outputs, Pages, Connect, and Driver artifacts are unchanged.
+- **Local evidence (PASS):** Node syntax and execution of the new runtime-budget
+  contract passed; Ruby/Psych parsed the three edited workflows; existing cover,
+  in-app landing, and custom-message contracts passed; `git diff --check` and the
+  no-manifest-runtime-path check passed. Pinned Ubuntu 22.04/R 4.5.2 validation is
+  pending after push; no local dependency-build PASS is claimed.
+- **Expected versus actual:** expected a surgical resilience change that preserves
+  every scientific and manifest invariant while making a cold mirror path survivable;
+  the local workflow/static actuals match. The exact-head CI runtime result remains
+  pending and must be bound to the final pushed SHA.
+- **Failures/cleanup/ownership:** no retry, workflow dispatch, manifest promotion,
+  refresh candidate, production write, or merge was performed while diagnosing the
+  timeout. The isolated worktree owns only the six paths above. Temporary worktree
+  cleanup remains after the pushed branch is handed off.
+- **Driver implication:** **NONE / NO DRIVER BYTE CHANGE**. The Small Mammal
+  scientific `CONTEXT` package and all Driver generation inputs are unchanged.
+- **Residual risk/improvement:** `cache: always` does not cache operating-system APT
+  mirrors, so the longer budget is the correctness boundary and the cache only lowers
+  common-path latency. This budget/cache contract should be mirrored to any sibling
+  that source-builds the same Jammy closure instead of relying on recent warm runs.
+- **Next action:** push this exact commit to the existing PR #91 review branch and
+  require one green literal-head validator. Because no manifest-tracked path changed,
+  do **not** regenerate or promote another manifest for this timeout-only commit. If
+  that exact head is green and PR head/base remain unchanged and mergeable, merge #91,
+  require post-merge main CI plus Connect semantic health, then exercise the repaired
+  review publisher with a no-download refresh before the next full scheduled data pull.

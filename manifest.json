@@ -484,11 +484,11 @@
         "Packaged": "2025-01-08 10:00:10 UTC; rsb",
         "Author": "Roger Bivand [aut, cre] (<https://orcid.org/0000-0003-2392-6140>),\n  Bill Denney [ctb] (<https://orcid.org/0000-0002-5759-428X>),\n  Richard Dunlap [ctb],\n  Diego Hernangómez [ctb] (<https://orcid.org/0000-0001-8457-4658>),\n  Hisaji Ono [ctb],\n  Josiah Parry [ctb] (<https://orcid.org/0000-0001-9910-865X>),\n  Matthieu Stigler [ctb] (<https://orcid.org/0000-0002-6802-4290>)",
         "Maintainer": "Roger Bivand <Roger.Bivand@nhh.no>",
-        "Repository": "CRAN",
+        "Repository": "RSPM",
         "Date/Publication": "2025-01-08 13:40:02 UTC",
-        "RemotePkgRef": "url::https://cran.r-project.org/src/contrib/classInt_0.4-11.tar.gz",
+        "RemotePkgRef": "url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/classInt_0.4-11.tar.gz",
         "RemoteType": "url",
-        "RemoteEtag": "\"6b856-62b31ffc518c3\"",
+        "RemoteEtag": "\"ea55926e7e0baa5d545a4db3b8e53732\"",
         "RemotePackaged": "TRUE"
       }
     },
@@ -1920,13 +1920,10 @@
         "Maintainer": "Carson Sievert <cpsievert1@gmail.com>",
         "Repository": "RSPM",
         "Date/Publication": "2026-01-24 07:50:02 UTC",
-        "Built": "R 4.5.0; ; 2026-01-25 04:20:21 UTC; unix",
-        "RemoteType": "standard",
-        "RemotePkgRef": "plotly",
-        "RemoteRef": "plotly",
-        "RemoteRepos": "https://packagemanager.posit.co/cran/__linux__/jammy/2026-07-15",
-        "RemotePkgPlatform": "x86_64-pc-linux-gnu-ubuntu-22.04",
-        "RemoteSha": "4.12.0"
+        "RemotePkgRef": "url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/plotly_4.12.0.tar.gz",
+        "RemoteType": "url",
+        "RemoteEtag": "\"d1bdc1dc28359049917142381892fb17\"",
+        "RemotePackaged": "TRUE"
       }
     },
     "png": {
@@ -2125,11 +2122,12 @@
         "Packaged": "2025-03-28 04:28:45 UTC; rhijm",
         "Author": "Robert J. Hijmans [cre, aut] (<https://orcid.org/0000-0001-5872-2872>),\n  Jacob van Etten [ctb],\n  Michael Sumner [ctb],\n  Joe Cheng [ctb],\n  Dan Baston [ctb],\n  Andrew Bevan [ctb],\n  Roger Bivand [ctb],\n  Lorenzo Busetto [ctb],\n  Mort Canty [ctb],\n  Ben Fasoli [ctb],\n  David Forrest [ctb],\n  Aniruddha Ghosh [ctb],\n  Duncan Golicher [ctb],\n  Josh Gray [ctb],\n  Jonathan A. Greenberg [ctb],\n  Paul Hiemstra [ctb],\n  Kassel Hingee [ctb],\n  Alex Ilich [ctb],\n  Institute for Mathematics Applied Geosciences [cph],\n  Charles Karney [ctb],\n  Matteo Mattiuzzi [ctb],\n  Steven Mosher [ctb],\n  Babak Naimi [ctb],\n  Jakub Nowosad [ctb],\n  Edzer Pebesma [ctb],\n  Oscar Perpinan Lamigueiro [ctb],\n  Etienne B. Racine [ctb],\n  Barry Rowlingson [ctb],\n  Ashton Shortridge [ctb],\n  Bill Venables [ctb],\n  Rafael Wueest [ctb]",
         "Maintainer": "Robert J. Hijmans <r.hijmans@gmail.com>",
-        "Repository": "CRAN",
+        "Repository": "RSPM",
         "Date/Publication": "2025-03-28 08:10:02 UTC",
-        "RemotePkgRef": "url::https://cran.r-project.org/src/contrib/raster_3.6-32.tar.gz",
+        "Encoding": "UTF-8",
+        "RemotePkgRef": "url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/raster_3.6-32.tar.gz",
         "RemoteType": "url",
-        "RemoteEtag": "\"8c945-63162994adde2\"",
+        "RemoteEtag": "\"d9c4d8998c8ab1f7d5be673d54240265\"",
         "RemotePackaged": "TRUE"
       }
     },
@@ -2234,11 +2232,11 @@
         "Packaged": "2026-06-01 09:16:23 UTC; edzer",
         "Author": "Dewey Dunnington [aut] (ORCID: <https://orcid.org/0000-0002-9415-4582>),\n  Edzer Pebesma [aut, cre] (ORCID:\n    <https://orcid.org/0000-0001-8049-7069>),\n  Ege Rubak [aut],\n  Jeroen Ooms [ctb] (configure script),\n  Google, Inc. [cph] (Original s2geometry.io source code)",
         "Maintainer": "Edzer Pebesma <edzer.pebesma@uni-muenster.de>",
-        "Repository": "CRAN",
+        "Repository": "RSPM",
         "Date/Publication": "2026-06-01 10:30:02 UTC",
-        "RemotePkgRef": "url::https://cran.r-project.org/src/contrib/s2_1.1.11.tar.gz",
+        "RemotePkgRef": "url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/s2_1.1.11.tar.gz",
         "RemoteType": "url",
-        "RemoteEtag": "\"2d632a-6532eada87873\"",
+        "RemoteEtag": "\"112b73abc1e85284c4cc750f4f4f025e\"",
         "RemotePackaged": "TRUE"
       }
     },
@@ -2340,11 +2338,11 @@
         "Packaged": "2026-05-05 13:13:39 UTC; edzer",
         "Author": "Edzer Pebesma [aut, cre] (ORCID:\n    <https://orcid.org/0000-0001-8049-7069>),\n  Roger Bivand [ctb] (ORCID: <https://orcid.org/0000-0003-2392-6140>),\n  Etienne Racine [ctb],\n  Michael Sumner [ctb],\n  Ian Cook [ctb],\n  Tim Keitt [ctb],\n  Robin Lovelace [ctb],\n  Hadley Wickham [ctb],\n  Jeroen Ooms [ctb] (ORCID: <https://orcid.org/0000-0002-4035-0289>),\n  Kirill Müller [ctb],\n  Thomas Lin Pedersen [ctb],\n  Dan Baston [ctb],\n  Dewey Dunnington [ctb] (ORCID: <https://orcid.org/0000-0002-9415-4582>),\n  Alexandre Courtiol [ctb] (ORCID:\n    <https://orcid.org/0000-0003-0637-2959>)",
         "Maintainer": "Edzer Pebesma <edzer.pebesma@uni-muenster.de>",
-        "Repository": "CRAN",
+        "Repository": "RSPM",
         "Date/Publication": "2026-05-06 11:10:02 UTC",
-        "RemotePkgRef": "url::https://cran.r-project.org/src/contrib/sf_1.1-1.tar.gz",
+        "RemotePkgRef": "url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/sf_1.1-1.tar.gz",
         "RemoteType": "url",
-        "RemoteEtag": "\"434334-6512435124bc5\"",
+        "RemoteEtag": "\"f9476c35e997c91fc425bc763c29e012\"",
         "RemotePackaged": "TRUE"
       }
     },
@@ -2501,11 +2499,12 @@
         "Packaged": "2026-02-12 22:13:59 UTC; edzer",
         "Author": "Edzer Pebesma [aut, cre],\n  Roger Bivand [aut],\n  Barry Rowlingson [ctb],\n  Virgilio Gomez-Rubio [ctb],\n  Robert Hijmans [ctb],\n  Michael Sumner [ctb],\n  Don MacQueen [ctb],\n  Jim Lemon [ctb],\n  Finn Lindgren [ctb],\n  Josh O'Brien [ctb],\n  Joseph O'Rourke [ctb],\n  Patrick Hausmann [ctb],\n  Sebastian Meyer [ctb]",
         "Maintainer": "Edzer Pebesma <edzer.pebesma@uni-muenster.de>",
-        "Repository": "CRAN",
+        "Repository": "RSPM",
         "Date/Publication": "2026-02-13 10:30:02 UTC",
-        "RemotePkgRef": "url::https://cran.r-project.org/src/contrib/sp_2.2-1.tar.gz",
+        "Encoding": "UTF-8",
+        "RemotePkgRef": "url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/sp_2.2-1.tar.gz",
         "RemoteType": "url",
-        "RemoteEtag": "\"443f16-64ab216f9fb52\"",
+        "RemoteEtag": "\"3e59a532fd777897f8735684b36e2d46\"",
         "RemotePackaged": "TRUE"
       }
     },
@@ -2820,11 +2819,11 @@
         "Packaged": "2026-03-09 14:34:42 UTC; edzer",
         "Author": "Edzer Pebesma [aut, cre] (ORCID:\n    <https://orcid.org/0000-0001-8049-7069>),\n  Thomas Mailund [aut],\n  Tomasz Kalinowski [aut],\n  James Hiebert [ctb],\n  Iñaki Ucar [aut] (ORCID: <https://orcid.org/0000-0001-6403-5550>),\n  Thomas Lin Pedersen [ctb]",
         "Maintainer": "Edzer Pebesma <edzer.pebesma@uni-muenster.de>",
-        "Repository": "CRAN",
+        "Repository": "RSPM",
         "Date/Publication": "2026-03-11 11:20:02 UTC",
-        "RemotePkgRef": "url::https://cran.r-project.org/src/contrib/units_1.0-1.tar.gz",
+        "RemotePkgRef": "url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/units_1.0-1.tar.gz",
         "RemoteType": "url",
-        "RemoteEtag": "\"5a2c4-64cbdd1787d81\"",
+        "RemoteEtag": "\"1d3c55269fb882f6e2531fbf56907a5c\"",
         "RemotePackaged": "TRUE"
       }
     },
@@ -2991,11 +2990,11 @@
         "NeedsCompilation": "yes",
         "Packaged": "2025-12-18 03:40:52 UTC; deweydunnington",
         "Author": "Dewey Dunnington [aut, cre] (ORCID:\n    <https://orcid.org/0000-0002-9415-4582>),\n  Edzer Pebesma [aut] (ORCID: <https://orcid.org/0000-0001-8049-7069>),\n  Anthony North [ctb]",
-        "Repository": "CRAN",
+        "Repository": "RSPM",
         "Date/Publication": "2025-12-18 06:10:16 UTC",
-        "RemotePkgRef": "url::https://cran.r-project.org/src/contrib/wk_0.9.5.tar.gz",
+        "RemotePkgRef": "url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/wk_0.9.5.tar.gz",
         "RemoteType": "url",
-        "RemoteEtag": "\"fe439-64633d0e96663\"",
+        "RemoteEtag": "\"8ed0be86e9286c3ac1b4fa21d2f1f2c3\"",
         "RemotePackaged": "TRUE"
       }
     },

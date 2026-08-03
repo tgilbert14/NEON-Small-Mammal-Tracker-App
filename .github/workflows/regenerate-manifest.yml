@@ -3,10 +3,11 @@ name: Regenerate manifest (manual)
 # Option A for the manifest merge-loop (see docs/neonize-playbook.md §6 and AGENTS.md).
 # Instead of an agent shuttling the CI-built manifest artifact back by hand — the loop
 # that made the ChatGPT/Codex cover rework "fail merges over and over" — the maintainer
-# dispatches this job on a review/PR branch and the pinned validator regenerates and
-# commits manifest.json for them. It is MANUAL only, uses RESTRICTED write, verifies the
-# result, and refuses to touch main: a reviewed merge to main stays the sole production
-# decision, so the "write only to the final restricted publisher" boundary is preserved.
+# dispatches this workflow on a review/PR branch. A read-only pinned validator
+# regenerates and verifies manifest.json, then a separate restricted publisher
+# accepts only that immutable artifact and only while the dispatched branch still
+# resolves to the exact source SHA. It refuses to touch main; a reviewed merge to
+# main stays the sole production decision.
 #
 # Data refreshes still go through refresh-data.yml; this job only re-derives manifest.json
 # after a runtime code change shifts file checksums.
@@ -30,26 +31,35 @@ env:
   SMT_LIVE: "0"
 
 jobs:
-  regenerate:
+  generate:
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    # Match read-only PR validation: both jobs must survive an uncached Jammy
+    # system-library install before compiling the exact retained source closure.
+    timeout-minutes: 100
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      manifest_sha256: ${{ steps.package.outputs.manifest_sha256 }}
     steps:
-      - name: Refuse to write production directly
+      - name: Require a non-production branch dispatch
         run: |
           set -euo pipefail
-          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            echo "::error::Refusing to run on main. Dispatch this on a review/PR branch; a reviewed merge to main is the only production decision." >&2
+          if [[ "$GITHUB_REF" != refs/heads/* || "$GITHUB_REF" == refs/heads/main ]]; then
+            echo "::error::Dispatch this workflow on a review branch, never main or a tag." >&2
             exit 1
           fi
 
-      - name: Checkout the dispatched branch
+      - name: Checkout the immutable dispatch revision without credentials
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.ref }}
-          fetch-depth: 0
-          persist-credentials: true
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prove the exact dispatch revision is checked out
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
       - uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
         with:
@@ -59,23 +69,26 @@ jobs:
       - name: Install the pinned runtime and geospatial closure
         uses: r-lib/actions/setup-r-dependencies@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2
         with:
-          # Exact closure copied from ci.yml so the manifest records versions that were
-          # really compiled here; terra 1.8-50 is the GDAL 3.4.1 pin (see the gotcha catalog).
+          # Exact closure copied from ci.yml so the manifest records versions that
+          # were really compiled here. Terra 1.8-50 is the archived GDAL 3.4.1 pin;
+          # the other seven packages use the immutable 2026-07-15 Posit source snapshot.
           packages: >
-            shiny, bslib, bsicons, dplyr, tidyr, stringr, tibble, plotly,
+            shiny, bslib, bsicons, dplyr, tidyr, stringr, tibble,
             leaflet, DT, shinyjs, shinycssloaders, RColorBrewer, htmltools,
             ggplot2, jsonlite, rsconnect, cpp11,
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/plotly_4.12.0.tar.gz,
             url::https://cran.r-project.org/src/contrib/Archive/terra/terra_1.8-50.tar.gz,
-            url::https://cran.r-project.org/src/contrib/sf_1.1-1.tar.gz,
-            url::https://cran.r-project.org/src/contrib/s2_1.1.11.tar.gz,
-            url::https://cran.r-project.org/src/contrib/units_1.0-1.tar.gz,
-            url::https://cran.r-project.org/src/contrib/wk_0.9.5.tar.gz,
-            url::https://cran.r-project.org/src/contrib/classInt_0.4-11.tar.gz,
-            url::https://cran.r-project.org/src/contrib/raster_3.6-32.tar.gz,
-            url::https://cran.r-project.org/src/contrib/sp_2.2-1.tar.gz
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/sf_1.1-1.tar.gz,
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/s2_1.1.11.tar.gz,
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/units_1.0-1.tar.gz,
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/wk_0.9.5.tar.gz,
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/classInt_0.4-11.tar.gz,
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/raster_3.6-32.tar.gz,
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/sp_2.2-1.tar.gz
           pak-version: stable
           dependencies: '"hard"'
-          cache-version: small-mammal-geo-closure-v2
+          cache-version: small-mammal-geo-closure-v4
+          cache: always
           install-pandoc: 'false'
           install-quarto: 'false'
 
@@ -87,25 +100,111 @@ jobs:
           Rscript --vanilla scripts/write_manifest.R
           h2=$(sha256sum manifest.json | awk '{print $1}')
           if [ "$h1" != "$h2" ]; then
-            echo "::error::write_manifest.R is not byte-deterministic; fix canonicalization (strip Built, pin locale) before committing an unstable manifest." >&2
+            echo "::error::write_manifest.R is not byte-deterministic; fix canonicalization before publication." >&2
             exit 1
           fi
 
       - name: Validate the regenerated manifest against the bundle
         run: Rscript --vanilla scripts/verify_bundle.R
 
-      - name: Commit the regenerated manifest to the dispatched branch
+      - name: Package the exact validated manifest
+        id: package
         run: |
           set -euo pipefail
+          promotion="$RUNNER_TEMP/small-mammal-manifest-promotion"
+          mkdir -p "$promotion"
+          cp -- manifest.json "$promotion/manifest.json"
+          (
+            cd "$promotion"
+            sha256sum manifest.json > MANIFEST-SHA256SUMS.txt
+          )
+          echo "manifest_sha256=$(sha256sum manifest.json | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the immutable validated manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: small-mammal-manifest-promotion-${{ github.sha }}
+          path: ${{ runner.temp }}/small-mammal-manifest-promotion
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    needs: generate
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Require the same non-production branch dispatch
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != refs/heads/* || "$GITHUB_REF" == refs/heads/main ]]; then
+            echo "::error::Refusing to publish outside a review branch." >&2
+            exit 1
+          fi
+
+      - name: Checkout the immutable dispatch revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Download the exact validated manifest
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: small-mammal-manifest-promotion-${{ github.sha }}
+          path: ${{ runner.temp }}/small-mammal-manifest-promotion
+
+      - name: Verify artifact inventory and receipt
+        env:
+          EXPECTED_MANIFEST_SHA256: ${{ needs.generate.outputs.manifest_sha256 }}
+        run: |
+          set -euo pipefail
+          promotion="$RUNNER_TEMP/small-mammal-manifest-promotion"
+          [[ -f "$promotion/manifest.json" && ! -L "$promotion/manifest.json" ]]
+          [[ -f "$promotion/MANIFEST-SHA256SUMS.txt" && ! -L "$promotion/MANIFEST-SHA256SUMS.txt" ]]
+          test "$(find "$promotion" -mindepth 1 -maxdepth 1 -type f | wc -l)" -eq 2
+          test -z "$(find "$promotion" -mindepth 1 -maxdepth 1 ! -type f -print -quit)"
+          (
+            cd "$promotion"
+            sha256sum -c MANIFEST-SHA256SUMS.txt
+          )
+          test "$(sha256sum "$promotion/manifest.json" | awk '{print $1}')" = "$EXPECTED_MANIFEST_SHA256"
+
+      - name: Publish only as a direct child of the unchanged review head
+        run: |
+          set -euo pipefail
+          branch="${GITHUB_REF#refs/heads/}"
+          git fetch --no-tags origin \
+            "refs/heads/main:refs/remotes/origin/main" \
+            "refs/heads/$branch:refs/remotes/origin/$branch"
+          remote_head=$(git rev-parse "refs/remotes/origin/$branch")
+          if [[ "$remote_head" != "$GITHUB_SHA" || "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]]; then
+            echo "::error::Review branch moved after dispatch; regenerate from its new exact head." >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor origin/main "$GITHUB_SHA"; then
+            echo "::error::Review branch no longer contains current main; update it and regenerate." >&2
+            exit 1
+          fi
+          cp -- "$RUNNER_TEMP/small-mammal-manifest-promotion/manifest.json" manifest.json
           if git diff --quiet -- manifest.json; then
-            echo "manifest.json already matches the validator — nothing to commit."
+            echo "manifest.json already matches the exact validator output."
             exit 0
           fi
-          branch="${GITHUB_REF#refs/heads/}"
-          remote_head=$(git ls-remote --heads origin "refs/heads/$branch" | awk '{print $1}')
           git config user.name "neon-data-bot"
           git config user.email "neon-data-bot@users.noreply.github.com"
           git add -- manifest.json
           git commit -m "build: regenerate manifest.json from the pinned validator [bot]" \
-                     -m "Dispatched on $branch from ${GITHUB_SHA}; regenerated twice (identical bytes) and verify_bundle.R passed. No runtime, data, or science bytes changed."
-          git push --force-with-lease="refs/heads/$branch:$remote_head" origin "HEAD:refs/heads/$branch"
+                     -m "Direct child of ${GITHUB_SHA}; regenerated twice and verify_bundle.R passed. No runtime, data, or science bytes changed."
+          published_commit=$(git rev-parse HEAD)
+          test "$(git rev-parse HEAD^)" = "$GITHUB_SHA"
+          git push origin "HEAD:refs/heads/$branch"
+          pushed_commit=$(git ls-remote --heads origin "refs/heads/$branch" | awk '{print $1}')
+          test "$pushed_commit" = "$published_commit"
+          {
+            echo "### Validated Small Mammal manifest published"
+            printf -- '- Branch: `%s`\n' "$branch"
+            printf -- '- Producer head: `%s`\n' "$GITHUB_SHA"
+            printf -- '- Exact published head: `%s`\n' "$published_commit"
+          } >> "$GITHUB_STEP_SUMMARY"
