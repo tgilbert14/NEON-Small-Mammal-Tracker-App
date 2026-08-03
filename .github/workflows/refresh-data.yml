@@ -102,6 +102,7 @@ jobs:
           pak-version: stable
           dependencies: '"hard"'
           cache-version: small-mammal-refresh-geo-closure-v4
+          cache: always
           install-pandoc: 'false'
           install-quarto: 'false'
 

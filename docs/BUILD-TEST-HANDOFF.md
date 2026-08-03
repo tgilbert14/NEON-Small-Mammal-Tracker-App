@@ -1345,3 +1345,69 @@ Driver implication, and next action.
 - **Next action:** validate and publish this additive correction, rerun manual manifest
   regeneration on the review branch, inspect the bot commit byte-for-byte, and require
   one green validator on that exact final head before merging PR #91.
+
+### 2026-08-03 11:18 EDT - cold-runner dependency budget repair / [Codex]
+
+- **Starting state:** created isolated worktree branch
+  `codex/small-ci-timeout-cache-fix` from exact PR #91 head
+  `a897e6cba991982b491b85c092efbccc9f7de6da`. That head already contains the
+  validator-published manifest with R 4.5.2, exact Plotly 4.12.0 and geospatial
+  source URLs, no moving repository, 91 packages, and 120 runtime files. Watched
+  `main`, production Pages/Connect, data, science, and Driver bytes were untouched.
+- **Failure evidence:** literal-head workflow-dispatch run `30822859106`, job
+  `91716905320`, checked out and proved exact head `a897e6c...`, then hit the
+  `contracts` job's 45-minute timeout inside `Install runtime and verification
+  dependencies`. Logs show the action planned 109 MB of Ubuntu archives and 100
+  new Jammy system packages; unusually slow Azure mirror transfers consumed the
+  budget before the system dependency install completed. At `15:13:33Z` the step
+  ended `Execution halted` / `The operation was canceled`. Every OpenBLAS,
+  source/static, helper, bundle, offline boot, regenerated-manifest, artifact, and
+  equality gate was skipped. This is infrastructure-latency evidence, not a package,
+  manifest, data, or scientific-contract failure, and the cancelled run is not merge
+  authorization.
+- **Focused repair:** `.github/workflows/ci.yml` and the read-only `generate` job in
+  `.github/workflows/regenerate-manifest.yml` now share a 100-minute cold-build
+  budget. Their identical exact runtime closures use the same v4 cache identity and
+  explicitly set `cache: always`; the separate 120-minute refresh build retains its
+  own v4 cache identity and now also persists/restores it explicitly. Cache reuse is
+  an optimization only: all jobs still have enough time to validate from a cold
+  runner and no dependency, version, provenance, science, or release gate was
+  weakened.
+- **Regression contract:** new zero-dependency
+  `scripts/check_workflow_runtime_budget.mjs`, invoked by PR CI, requires the pinned
+  setup-r-dependencies action, equal 100-minute CI/regeneration budgets, at least a
+  100-minute refresh budget, the intended cache identities, and `cache: always` on
+  all three exact-closure install steps. It fails closed if a future cleanup restores
+  the 45-minute timeout or makes cache behavior implicit.
+- **Changed/classification:** modified `.github/workflows/ci.yml`,
+  `.github/workflows/regenerate-manifest.yml`, `.github/workflows/refresh-data.yml`,
+  `.claude/agents/LESSONS.md`, and this handoff; added
+  `scripts/check_workflow_runtime_budget.mjs`. Classification is `suite-platform`
+  plus `app-local` release maintenance. None of these paths appears in the manifest
+  runtime file map, so `manifest.json`, app/runtime code, data, indexes, scientific
+  outputs, Pages, Connect, and Driver artifacts are unchanged.
+- **Local evidence (PASS):** Node syntax and execution of the new runtime-budget
+  contract passed; Ruby/Psych parsed the three edited workflows; existing cover,
+  in-app landing, and custom-message contracts passed; `git diff --check` and the
+  no-manifest-runtime-path check passed. Pinned Ubuntu 22.04/R 4.5.2 validation is
+  pending after push; no local dependency-build PASS is claimed.
+- **Expected versus actual:** expected a surgical resilience change that preserves
+  every scientific and manifest invariant while making a cold mirror path survivable;
+  the local workflow/static actuals match. The exact-head CI runtime result remains
+  pending and must be bound to the final pushed SHA.
+- **Failures/cleanup/ownership:** no retry, workflow dispatch, manifest promotion,
+  refresh candidate, production write, or merge was performed while diagnosing the
+  timeout. The isolated worktree owns only the six paths above. Temporary worktree
+  cleanup remains after the pushed branch is handed off.
+- **Driver implication:** **NONE / NO DRIVER BYTE CHANGE**. The Small Mammal
+  scientific `CONTEXT` package and all Driver generation inputs are unchanged.
+- **Residual risk/improvement:** `cache: always` does not cache operating-system APT
+  mirrors, so the longer budget is the correctness boundary and the cache only lowers
+  common-path latency. This budget/cache contract should be mirrored to any sibling
+  that source-builds the same Jammy closure instead of relying on recent warm runs.
+- **Next action:** push this exact commit to the existing PR #91 review branch and
+  require one green literal-head validator. Because no manifest-tracked path changed,
+  do **not** regenerate or promote another manifest for this timeout-only commit. If
+  that exact head is green and PR head/base remain unchanged and mergeable, merge #91,
+  require post-merge main CI plus Connect semantic health, then exercise the repaired
+  review publisher with a no-download refresh before the next full scheduled data pull.

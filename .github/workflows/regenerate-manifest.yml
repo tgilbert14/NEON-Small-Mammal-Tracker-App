@@ -33,7 +33,9 @@ env:
 jobs:
   generate:
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    # Match read-only PR validation: both jobs must survive an uncached Jammy
+    # system-library install before compiling the exact retained source closure.
+    timeout-minutes: 100
     permissions:
       contents: read
     outputs:
@@ -86,6 +88,7 @@ jobs:
           pak-version: stable
           dependencies: '"hard"'
           cache-version: small-mammal-geo-closure-v4
+          cache: always
           install-pandoc: 'false'
           install-quarto: 'false'
 
