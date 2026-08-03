@@ -1260,3 +1260,61 @@ Driver implication, and next action.
   scripts/docs, only the `ui.R` `<html lang>` fix touches runtime, so land that one via the
   new regenerate flow); (5) promote the two
   new LESSONS + playbook §6/§8 to the canonical `TG-Data-Apps` playbook via `curator`.
+
+### 2026-08-03 08:45 EDT - scheduled refresh retention and publisher repair / [Codex]
+
+- **Starting state:** fetched current `origin/main` and created isolated worktree
+  branch `codex/small-refresh-retention-fix` at exact default head
+  `2b4993c291763d0893b6849441fe5572cebc3e63`. The watched branch remains `main`;
+  public targets remain the Pages cover and Connect content recorded above. The
+  source checkout was clean, and the existing local closeout branch was not changed.
+- **Failure diagnosis/objective:** the scheduled validator reached dependency setup
+  through moving CRAN-main source paths that do not retain historical tarballs; the
+  suite audit observed missing historical `sf`/`sp` inputs before the publisher could
+  run. Repair every active install/provenance lane without weakening exact versions,
+  changing data, or publishing to production.
+- **Dependency repair:** `sf 1.1-1`, `s2 1.1.11`, `units 1.0-1`, `wk 0.9.5`,
+  `classInt 0.4-11`, `raster 3.6-32`, and `sp 2.2-1` now resolve from the immutable
+  `https://packagemanager.posit.co/cran/2026-07-15/src/contrib/` source snapshot in
+  CI, scheduled refresh, manual manifest regeneration, the manifest writer, and the
+  independent bundle verifier. `terra 1.8-50` remains on its exact CRAN archive URL.
+  All affected dependency caches moved from v2 to v3 so no stale failed closure can
+  mask the repair.
+- **Publisher repair:** the restricted refresh publisher now refuses a producer SHA
+  that does not contain current `main`, detects untracked scoped candidate files,
+  requires the promotion commit to be a direct child of the validated SHA, verifies
+  the remote review branch resolves to that exact commit, and fails on ambiguous PRs.
+  It no longer invokes `gh pr create`. With no open PR it emits a reviewer-action
+  notice; with one exact `main <- automation/small-mammal-data-refresh` PR it verifies
+  base/head/OID and records that a write user must approve the held exact-head checks.
+- **Static/source results (PASS):** `git diff --check`; Ruby/Psych parsing of CI,
+  refresh, and regeneration YAML; Bash syntax of the publisher block; parse of all
+  16 R files under local R 4.5.3; both cover contracts; stale-URL/cache/`gh pr create`
+  scans; and exact checks that `manifest.json` was not modified all passed. HTTPS HEAD
+  probes returned 200 for the retained terra archive and all seven dated Posit source
+  tarballs.
+- **Runtime results (expected BLOCKED):** `scripts/verify_bundle.R` loaded the exact
+  46-site family and 46/604/604 indexes, then rejected exactly the seven old
+  `RemotePkgRef` values in the intentionally unchanged committed manifest. This is the
+  required pre-promotion state, not a relaxed gate. `scripts/test_helpers.R` could not
+  run because this local R library lacks `dplyr`; the pinned R 4.5.2 dependency build,
+  helper fixtures, regenerated-manifest equality, and complete offline source remain
+  unclaimed until CI.
+- **Changed/classification:** modified `.github/workflows/ci.yml`,
+  `.github/workflows/refresh-data.yml`, `.github/workflows/regenerate-manifest.yml`,
+  `scripts/write_manifest.R`, `scripts/verify_bundle.R`, and this handoff. Classification
+  is `suite-platform` plus `app-local` release maintenance. `manifest.json`, all data,
+  indexes, app/runtime/scientific code, Pages, Connect, and Driver artifacts are unchanged.
+- **Failures/cleanup/ownership:** sandboxed URL probes initially failed DNS and were
+  rerun read-only with network access; all eight returned 200. At audit time no
+  temporary repository artifact, cache, candidate, commit, push, PR, dispatch, or
+  deployment had been created. Publication still requires the exact receipts below.
+- **Driver implication:** **NONE / NO DRIVER BYTE CHANGE**. Existing Small Mammal
+  `CONTEXT` semantics and scientific outputs are unchanged.
+- **Residual risk:** only pinned Ubuntu 22.04/R 4.5.2 can prove source compilation and
+  validator-made manifest bytes. The scheduled publisher behavior also remains
+  unexecuted until this repair is reviewed and merged.
+- **Next action:** review and publish this focused branch, run pinned CI, use the manual
+  regeneration workflow to commit its exact new `manifest.json`, require green checks
+  on that exact head, then merge. On the next validated refresh, a signed-in reviewer
+  opens the `main` PR (or approves the held checks on the exact updated existing PR).
