@@ -71,9 +71,10 @@ jobs:
           # were really compiled here. Terra 1.8-50 is the archived GDAL 3.4.1 pin;
           # the other seven packages use the immutable 2026-07-15 Posit source snapshot.
           packages: >
-            shiny, bslib, bsicons, dplyr, tidyr, stringr, tibble, plotly,
+            shiny, bslib, bsicons, dplyr, tidyr, stringr, tibble,
             leaflet, DT, shinyjs, shinycssloaders, RColorBrewer, htmltools,
             ggplot2, jsonlite, rsconnect, cpp11,
+            url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/plotly_4.12.0.tar.gz,
             url::https://cran.r-project.org/src/contrib/Archive/terra/terra_1.8-50.tar.gz,
             url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/sf_1.1-1.tar.gz,
             url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/s2_1.1.11.tar.gz,
@@ -84,7 +85,7 @@ jobs:
             url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/sp_2.2-1.tar.gz
           pak-version: stable
           dependencies: '"hard"'
-          cache-version: small-mammal-geo-closure-v3
+          cache-version: small-mammal-geo-closure-v4
           install-pandoc: 'false'
           install-quarto: 'false'
 

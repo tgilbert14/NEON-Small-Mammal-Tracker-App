@@ -1318,3 +1318,30 @@ Driver implication, and next action.
   regeneration workflow to commit its exact new `manifest.json`, require green checks
   on that exact head, then merge. On the next validated refresh, a signed-in reviewer
   opens the `main` PR (or approves the held checks on the exact updated existing PR).
+
+### 2026-08-03 10:10 EDT - moving Plotly provenance blocked before merge / [Codex]
+
+- **Exact evidence:** manual manifest promotion run `30818827839` committed direct
+  child `a34b25221ef1ba29970b8a5e749f6054fbf251b6`; explicitly dispatched exact-head
+  validator run `30820291958` passed. A semantic inspection then found the promoted
+  Plotly record came from moving `https://cran.rstudio.com` at version `4.12.1`, while
+  its top-level repository had been canonicalized to the July 15 Posit snapshot.
+- **Why green was insufficient:** the independent verifier checked only top-level
+  repository lanes for ordinary packages, so it did not compare `RemoteRepos` or
+  prove that the version existed in the declared snapshot. Direct HTTP checks proved
+  `plotly_4.12.1.tar.gz` is absent from that snapshot (404) and retained
+  `plotly_4.12.0.tar.gz` is available (200). Rewriting the moving URL would therefore
+  create false provenance and risk a Connect restore failure.
+- **Focused correction:** CI, scheduled refresh, and manual regeneration now install
+  exact retained Plotly 4.12.0 from the July 15 source snapshot and use fresh v4 caches.
+  The writer rejects `cran.rstudio.com` before canonicalization, pins Plotly's exact
+  version/source URL, removes only its non-semantic `Built` clock, and requires the
+  dated top-level lane. The independent verifier repeats that exact-source check and
+  rejects any standard package whose `RemoteRepos` is not the dated snapshot.
+- **Boundary/status:** the green `a34b252` run remains valuable diagnostic evidence
+  but is not merge authorization. No runtime, scientific, data, Pages, Connect, or
+  Driver byte changed in this follow-up. Its promoted manifest remains intentionally
+  superseded until the restricted workflow regenerates it from the corrected closure.
+- **Next action:** validate and publish this additive correction, rerun manual manifest
+  regeneration on the review branch, inspect the bot commit byte-for-byte, and require
+  one green validator on that exact final head before merging PR #91.

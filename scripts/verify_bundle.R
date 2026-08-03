@@ -56,6 +56,9 @@ EXPECTED_GEO_URLS <- c(
   classInt="https://packagemanager.posit.co/cran/2026-07-15/src/contrib/classInt_0.4-11.tar.gz",
   raster="https://packagemanager.posit.co/cran/2026-07-15/src/contrib/raster_3.6-32.tar.gz",
   sp="https://packagemanager.posit.co/cran/2026-07-15/src/contrib/sp_2.2-1.tar.gz")
+EXPECTED_SNAPSHOT_SOURCE_PINS <- c(plotly="4.12.0")
+EXPECTED_SNAPSHOT_SOURCE_URLS <- c(
+  plotly="https://packagemanager.posit.co/cran/2026-07-15/src/contrib/plotly_4.12.0.tar.gz")
 
 # ---- 1. per-site bundles -----------------------------------------------------
 site_files <- list.files("data/sites", pattern = "\\.rds$", full.names = TRUE)
@@ -184,9 +187,25 @@ if (!file.exists("manifest.json")) {
             !identical(repo, "https://cran.r-project.org") ||
             !identical(remote_type, "url") ||
             !identical(remote_ref, expected_ref) || nzchar(built)
+        } else if (pkg %in% names(EXPECTED_SNAPSHOT_SOURCE_PINS)) {
+          remote_type <- as.character(x$description$RemoteType %||% "")
+          remote_ref <- as.character(x$description$RemotePkgRef %||% "")
+          built <- as.character(x$description$Built %||% "")
+          expected_ref <- paste0(
+            "url::", unname(EXPECTED_SNAPSHOT_SOURCE_URLS[[pkg]]))
+          base_bad ||
+            !identical(version, unname(EXPECTED_SNAPSHOT_SOURCE_PINS[[pkg]])) ||
+            !identical(source, "CRAN") ||
+            !identical(repo, EXPECTED_REPOSITORY) ||
+            !identical(remote_type, "url") ||
+            !identical(remote_ref, expected_ref) || nzchar(built)
         } else {
+          remote_type <- as.character(x$description$RemoteType %||% "")
+          remote_repos <- as.character(x$description$RemoteRepos %||% "")
+          moving_standard <- identical(remote_type, "standard") &&
+            !identical(remote_repos, EXPECTED_REPOSITORY)
           base_bad || !identical(source, "CRAN") ||
-            !identical(repo, EXPECTED_REPOSITORY)
+            !identical(repo, EXPECTED_REPOSITORY) || moving_standard
         }
       }, logical(1))
       if (any(package_problems))
@@ -203,6 +222,17 @@ if (!file.exists("manifest.json")) {
         want <- unname(EXPECTED_GEO_PINS[[pkg]])
         if (!identical(got, want))
           note(sprintf("manifest geospatial pin mismatch: %s=%s (expected %s)",
+                       pkg, got, want))
+      }
+      for (pkg in names(EXPECTED_SNAPSHOT_SOURCE_PINS)) {
+        if (!pkg %in% keys) {
+          note(sprintf("manifest lacks required snapshot-source package: %s", pkg))
+          next
+        }
+        got <- as.character(pkgs[[pkg]]$description$Version %||% "")
+        want <- unname(EXPECTED_SNAPSHOT_SOURCE_PINS[[pkg]])
+        if (!identical(got, want))
+          note(sprintf("manifest snapshot-source pin mismatch: %s=%s (expected %s)",
                        pkg, got, want))
       }
     }
