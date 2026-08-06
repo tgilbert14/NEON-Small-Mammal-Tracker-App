@@ -72,8 +72,9 @@ jobs:
           # Exact closure copied from ci.yml so the manifest records versions that
           # were really compiled here. Terra 1.8-50 is the archived GDAL 3.4.1 pin;
           # the other seven packages use the immutable 2026-07-15 Posit source snapshot.
+          # Keep bslib at the manifest-reviewed 0.11.0, never the moving fallback.
           packages: >
-            shiny, bslib, bsicons, dplyr, tidyr, stringr, tibble,
+            shiny, bslib@0.11.0, bsicons, dplyr, tidyr, stringr, tibble,
             leaflet, DT, shinyjs, shinycssloaders, RColorBrewer, htmltools,
             ggplot2, jsonlite, rsconnect, cpp11,
             url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/plotly_4.12.0.tar.gz,
@@ -87,7 +88,7 @@ jobs:
             url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/sp_2.2-1.tar.gz
           pak-version: stable
           dependencies: '"hard"'
-          cache-version: small-mammal-geo-closure-v4
+          cache-version: small-mammal-geo-closure-v5
           cache: always
           install-pandoc: 'false'
           install-quarto: 'false'

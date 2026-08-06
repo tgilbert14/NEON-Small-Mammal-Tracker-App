@@ -1474,3 +1474,44 @@ Driver implication, and next action.
   child bot commit, require literal-head CI, merge intentionally, confirm the exact
   Connect-deployed commit, and close with live Pages/Connect 1280/390/320 plus picker
   interaction evidence.
+
+### 2026-08-05 19:50 MST - bslib moving-repository repair / [Codex]
+
+- **Failed-run evidence (FAIL, production unchanged):** manual **Regenerate
+  manifest (manual)** run
+  [`31066379084`](https://github.com/tgilbert14/NEON-Small-Mammal-Tracker-App/actions/runs/31066379084),
+  generate job
+  [`92504852729`](https://github.com/tgilbert14/NEON-Small-Mammal-Tracker-App/actions/runs/31066379084/job/92504852729),
+  passed every prior dispatch, checkout, pinned-R, dependency-setup, numeric, and
+  source/static gate. Its first manifest generation then failed closed: the
+  versionless `bslib` request had resolved `0.12.0` from moving repository
+  `https://cran.rstudio.com`, while committed `manifest.json` records reviewed
+  `bslib` `0.11.0` from the dated Jammy snapshot.
+- **Root cause and repair:** the CI `contracts`, scheduled/manual refresh
+  `build_candidate`, and manual regeneration `generate` dependency lanes all left
+  `bslib` versionless. Each now requests `bslib@0.11.0`. CI and manual regeneration
+  move `small-mammal-geo-closure-v4` → `small-mammal-geo-closure-v5`; refresh moves
+  `small-mammal-refresh-geo-closure-v4` →
+  `small-mammal-refresh-geo-closure-v5`. The cache rollover prevents any earlier
+  versionless closure from satisfying the new run.
+- **Executable boundary:** `scripts/check_workflow_runtime_budget.mjs` now requires
+  the `bslib@0.11.0` request and exact new cache namespace in all three
+  manifest-producing jobs, in addition to the existing action pins, cold-build
+  budgets, and `cache: always` contract. `scripts/write_manifest.R` and its
+  moving-repository gate are unchanged; the repair changes installation inputs,
+  not provenance after the fact.
+- **Local result (PASS):** Ruby/Psych parsed all three workflows; the enhanced
+  workflow runtime/cache contract and an independent exact-count audit passed;
+  cover and in-app landing contracts passed; `git diff --check` passed. This local
+  macOS/R 4.5.3 library cannot reproduce the authoritative Ubuntu 22.04/R 4.5.2
+  dependency installation, so no regenerated manifest or full bundle PASS is
+  claimed.
+- **Writes/classification:** workflow, executable workflow-contract, and this
+  append-only receipt only; classification `suite-platform / release
+  determinism`. No app/science/data/manifest/Driver byte, push, dispatch,
+  publisher, Connect, Pages, or production state changed.
+- **Next action:** commit this repair locally, then push only when authorized and
+  redispatch **Regenerate manifest (manual)** from the exact new review head. Treat
+  the rolled cache as a cold closure, require generated `bslib` `0.11.0` with dated
+  snapshot provenance and no moving `RemoteRepos`, inspect the immutable promotion
+  artifact/direct-child bot commit, and require literal-head CI before merge.
