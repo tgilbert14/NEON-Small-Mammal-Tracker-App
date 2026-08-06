@@ -37,7 +37,7 @@ requireContract(ui.includes('`aria-labelledby` = "smt-poster-title"') && ui.incl
 requireContract(ui.includes("Desert Data Labs") && ui.includes("Whole suite: ") && ui.includes("https://tgilbert14.github.io/NEON-Driver-Cascade/"), "shared DDL/Driver topline is incomplete");
 requireContract(ui.includes("NEON Small Mammal Tracker · unofficial"), "app eyebrow or unofficial boundary missing");
 requireContract(ui.includes("Public NEON DP1.10072.001 · sampled capture records—not total population or measured landscape effects"), "first-frame scientific boundary missing");
-requireContract(ui.includes("Editorial illustration—not a field photograph or data record."), "illustration disclosure missing");
+requireContract(!ui.includes("Editorial illustration—not a field photograph or data record."), "in-app poster must omit the redundant visible illustration badge");
 requireContract(ui.includes("Editorial screenprint of a small nocturnal mouse") && ui.includes("oversized metal box live trap beneath a starry sky."), "art alt text drifted");
 requireContract(ui.includes('asset_url("assets/small-mammal-living-poster.png")'), "PNG fallback is not cache-busted");
 requireContract(ui.includes('asset_url("assets/small-mammal-living-poster.webp")') && ui.includes('asset_url("assets/small-mammal-living-poster-840.webp")'), "responsive WebP set is incomplete");
@@ -60,7 +60,7 @@ requireContract(/\.picker-start:focus-visible\s*\{[^}]*outline:\s*3px solid var\
 requireContract(/\.smt-poster h1\s*\{[\s\S]{0,260}font-family:\s*Iowan Old Style/.test(css), "editorial serif headline drifted");
 requireContract(/\.smt-poster-cta\s*\{[\s\S]{0,180}min-height:\s*48px/.test(css), "poster CTA is not at least 48px tall");
 requireContract(/\.smt-poster-cta\s*\{[\s\S]{0,260}gap:\s*\.35em[\s\S]{0,100}box-sizing:\s*border-box/.test(css), "poster CTA spacing or width containment drifted");
-requireContract(/\.smt-poster-art figcaption\s*\{[\s\S]{0,420}color:\s*#f3e8cb[\s\S]{0,100}background:\s*rgba\(17, 21, 18, \.9\)/.test(css), "art disclosure lost its contrast scrim");
+requireContract(!/\.smt-poster-art\s+figcaption\b/.test(css), "retired illustration-badge CSS remains");
 requireContract(css.includes("@media (max-width: 760px)") && css.includes("@media (max-width: 420px)") && css.includes("@media (max-width: 350px)"), "responsive poster seams are incomplete");
 requireContract(/@media \(max-width: 760px\)[\s\S]{0,360}\.smt-poster-art\s*\{[^}]*grid-row:\s*1/.test(css), "mobile art-first order drifted");
 requireContract(/@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.smt-poster-cta\s*\{\s*transition:\s*none/.test(css), "poster CTA lacks reduced-motion handling");
@@ -80,7 +80,7 @@ for (const [path, expected] of Object.entries(assets)) {
 }
 
 // The Pages (docs/) and Connect (www/) entrances must ship byte-identical art so
-// both doors keep the same crop, disclosure, and approved promise. Hash pins alone
+// both doors keep the same crop, art authority, and approved promise. Hash pins alone
 // don't guarantee it — assert the bytes directly across the two copies.
 for (const runtimePath of Object.keys(assets)) {
   const pagesPath = runtimePath.replace(/^www\//, "docs/");

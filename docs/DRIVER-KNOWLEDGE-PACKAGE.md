@@ -160,7 +160,8 @@ Promote to every later app/subagent brief:
   prompt, hashes, and validators together so approval cannot be mistaken for ship.
 - Standardize the **frame**, not the subject: DDL identity plus one Driver suite
   route; a 3–7-word hook; one plain-language promise; one contextual CTA; one
-  dominant editorial image; visible image/data boundary; compact scope, honesty,
+  dominant editorial image with meaningful alt text and durable provenance; no
+  ornamental illustration badge; compact scope, honesty,
   Source, and Feedback footer. Each app still owns its palette, motif, copy, focal
   position, and scientific limitation.
 - A companion cover should earn the first click before explaining the whole app.
@@ -168,12 +169,12 @@ Promote to every later app/subagent brief:
   it removes the second marketing bridge, feature directory, metrics, and methods
   from the cover. Driver—not every companion cover—is the suite ambassador.
 - Artistic imagery needs the same evidence discipline as documentary media. The
-  screenprint is visibly labeled as editorial illustration, avoids data marks and
-  exact-species claims, and is paired with an honesty note that capture records do
+  screenprint is identified as editorial illustration in alt text and provenance,
+  avoids data marks and exact-species claims, and is paired with an honesty note that capture records do
   not alone measure total population, complete movement, causal change, or
   landscape-wide abundance.
 - Treat Pages and Connect as one invitation with two surfaces. The same hook,
-  promise, illustration, disclosure, Driver route, and CTA intent now lead into the
+  promise, illustration authority, Driver route, and CTA intent now lead into the
   unchanged site picker; a Pages-only swap would repeat the mismatch this release
   exists to fix.
 - Treat narrow responsive QA as a release gate. Validate the image-first seam,

@@ -1411,3 +1411,66 @@ Driver implication, and next action.
   that exact head is green and PR head/base remain unchanged and mergeable, merge #91,
   require post-merge main CI plus Connect semantic health, then exercise the repaired
   review publisher with a no-download refresh before the next full scheduled data pull.
+
+### 2026-08-05 19:31 MST - visible illustration-badge removal candidate / [Codex]
+
+- **Outcome/source:** implemented on isolated branch `codex/remove-visible-art-badge`
+  from GitHub-verified default `main` commit
+  `86a94bcf53037fa693781b005d90c89349c746c6`. No historical receipt was rewritten.
+  Classification is `product/UI` plus `suite-platform`; science, data, and Driver
+  disposition remain `CONTEXT / NO DRIVER BYTE CHANGE`.
+- **Scope:** removed only the visible illustration `figcaption` from the Pages and
+  in-app Living Posters and deleted the now-dead `.art-note` /
+  `.smt-poster-art figcaption` rules. The approved hook, promise, CTA, responsive
+  image family and hashes, exact descriptive alt text, provenance receipt, DPID,
+  sampled-capture honesty disclosure, and all scientific claim limits are unchanged.
+  The cover contracts now fail if the badge markup, sentence, or retired CSS returns.
+- **Normative closeout:** current provenance, Cover Kit, Driver package, project
+  status, and app-local playbook now place editorial-art status in meaningful alt
+  text and durable provenance without spending poster space on an ornamental badge.
+  This does not alter the factual Cover V5 publication history above.
+- **Static/local results (PASS):** all R files parsed under local R 4.5.3; Node
+  syntax, `check_custom_message_handlers.mjs`, `check_cover.mjs`,
+  `check_in_app_landing.mjs`, `check_workflow_runtime_budget.mjs`, shell syntax for
+  `post_deploy_smoke.sh`, and `git diff --check` passed. The local library lacks
+  `dplyr`, so helper/offline-source tests remain the pinned validator's job.
+- **Focused visual/accessibility result (PASS):** a read-only local Pages render was
+  inspected at 1280×900, 390×844, and 320×720. At both compact widths the art leads,
+  the 52 px CTA stays inside the first viewport, the root widths are exactly
+  375/375 and 305/305 (client/scroll), the badge count is zero, the image loads with
+  the unchanged alt, and the console has no warning/error. Keyboard order is Skip →
+  Driver → CTA, each with a 3 px visible outline. This is Pages source evidence, not
+  a Connect publication receipt.
+- **Expected manifest gate (BLOCKED pending pinned regeneration):**
+  `Rscript --vanilla scripts/verify_bundle.R` loaded all 46 bundles and indexes,
+  then failed closed on exactly `ui.R` and `www/styles.css`. Their committed/new
+  MD5 values are `0269b7c678d0e22f55efae8e69095010` →
+  `378a4e69dec6606007fdfdf6e4c08709` and
+  `7a854fe0d93704c0b3f8b7753e433a6a` →
+  `3649840101086fbc7264011193595240`. Do not hand-edit the manifest or generate it
+  from this noncanonical macOS/R 4.5.3 library.
+- **Exact derived-byte route:** after this source commit is pushed to a review
+  branch, dispatch **`Regenerate manifest (manual)`** on that branch (no custom
+  inputs). Its pinned Ubuntu 22.04/R 4.5.2 validator uploads
+  `small-mammal-manifest-promotion-<source-sha>` and its restricted publisher
+  commits the verified `manifest.json` only if the branch still equals that source
+  SHA. Ordinary PR CI also exposes `small-mammal-manifest-<source-sha>` after all
+  preceding gates pass.
+- **Post-merge publication/health route:** Connect is git-backed and watches
+  `main`; the reviewed merge is the automatic publication trigger. Confirm Connect
+  **Last deployed** and use the signed-in **Republish** control only if it lags.
+  Main push also runs **`Verify production after main publication`** / job
+  `semantic_health`; `scripts/post_deploy_smoke.sh` rejects host error text and
+  requires marker name `ddl-app-ready` (the UI emits content
+  `small-mammal-tracker-v1`) on the Connect surface.
+- **Writes/cleanup/residual risk:** no push, PR, workflow dispatch, manifest edit,
+  Connect action, Pages deployment, production probe, data change, or Driver write
+  occurred. Temporary local preview servers were stopped and their agent browser
+  tab was closed. Exact manifest bytes, full R fixtures/offline boot, in-app runtime
+  geometry, merge identity, Connect restore, and semantic production health remain
+  unclaimed until the review/publish ladder runs.
+- **Next action:** commit this source candidate locally; then publish it only when
+  authorized, run the exact manual manifest workflow, inspect and retain its direct-
+  child bot commit, require literal-head CI, merge intentionally, confirm the exact
+  Connect-deployed commit, and close with live Pages/Connect 1280/390/320 plus picker
+  interaction evidence.

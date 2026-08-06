@@ -520,14 +520,6 @@ table.dataTable td, table.dataTable th { border-color: #eef1ec !important; color
   width: 100%; height: 100%; min-height: 460px; display: block;
   object-fit: cover; object-position: 62% 52%; filter: saturate(.98) contrast(1.03);
 }
-.smt-poster-art figcaption {
-  position: absolute; z-index: 2; right: 17px; bottom: 15px; left: 17px;
-  width: fit-content; max-width: calc(100% - 34px); padding: 8px 10px;
-  border: 1px solid rgba(243, 232, 203, .18); border-radius: 999px;
-  color: #f3e8cb; background: rgba(17, 21, 18, .9); font-size: 11px; line-height: 1.35;
-  text-align: right;
-}
-
 .picker-start { max-width: 760px; margin: 34px auto 8px; text-align: center; }
 .picker-start:focus-visible { outline: 3px solid var(--sky); outline-offset: 6px; border-radius: 8px; }
 .picker-start-kicker {
