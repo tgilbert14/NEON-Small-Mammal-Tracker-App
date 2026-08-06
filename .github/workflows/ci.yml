@@ -60,9 +60,10 @@ jobs:
           # exact retained source tarballs so writeManifest records versions that
           # were really compiled in this validator; never rewrite versions after
           # the fact. Terra remains on CRAN's archive; the other seven packages
-          # come from the immutable 2026-07-15 Posit source snapshot.
+          # come from the immutable 2026-07-15 Posit source snapshot. Keep bslib
+          # at the manifest-reviewed 0.11.0 instead of pak's moving CRAN fallback.
           packages: >
-            shiny, bslib, bsicons, dplyr, tidyr, stringr, tibble,
+            shiny, bslib@0.11.0, bsicons, dplyr, tidyr, stringr, tibble,
             leaflet, DT, shinyjs, shinycssloaders, RColorBrewer, htmltools,
             ggplot2, jsonlite, rsconnect, cpp11,
             url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/plotly_4.12.0.tar.gz,
@@ -76,7 +77,7 @@ jobs:
             url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/sp_2.2-1.tar.gz
           pak-version: stable
           dependencies: '"hard"'
-          cache-version: small-mammal-geo-closure-v4
+          cache-version: small-mammal-geo-closure-v5
           cache: always
           install-pandoc: 'false'
           install-quarto: 'false'

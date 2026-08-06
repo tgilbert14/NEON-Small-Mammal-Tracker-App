@@ -33,8 +33,8 @@ There are also two rough **motion mockups** published as owner Artifacts (the "D
   (`clamp(~4rem, 7.3vw, ~7.6rem)`, `line-height:.82`, `letter-spacing:-.065em`, **one line in the app's
   accent**) → a one-line **promise** (≤12 words) → **one primary CTA** into the Connect app.
 - Art: a **screenprint illustration** of the subject, full-height, `object-fit:cover`, **bleeding left**
-  into the dark via `linear-gradient(90deg, ground → transparent)`, with an **honesty art-note**
-  ("Editorial illustration — not a field photo or data record").
+  into the dark via `linear-gradient(90deg, ground → transparent)`. Carry its editorial-art status in
+  meaningful alt text and the durable provenance receipt; do not add a redundant visible badge.
 - Footer (paper ground): **DPID + CC BY 4.0 + "unofficial, not endorsed"**, a `What am I looking at?`
   honesty `<details>`, and Source / Feedback links.
 - Responsive at 980 / 700 / 420 / 340; the art stacks on top on phones.
@@ -120,8 +120,8 @@ link. Render the actual page and deliver the image inline so they can judge it w
 
 ## The floor (non-negotiable, even in a rough draft)
 
-Honesty art-note on the illustration + the `What am I looking at?` details · a detection index is never a
-population · AI art labelled and never relabelled as data · `prefers-reduced-motion` honoured · legible
+Meaningful illustration alt text + durable provenance + the `What am I looking at?` details · a detection
+index is never a population · AI art recorded and never relabelled as data · `prefers-reduced-motion` honoured · legible
 contrast on both grounds · visible focus ring · 44px touch targets · every asset logged in
 `IMAGE-PROVENANCE.md`. Validate at desktop / 390 / 320, and record the exact Pages artifact + Connect
 deployment commit before calling a cover shipped (`neonize-playbook.md` §7, the Cover Contract).

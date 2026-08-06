@@ -70,7 +70,8 @@ requireContract(!/(One trap night|A whole population story|Follow tagged small m
 requireContract(/<picture>[\s\S]*?small-mammal-living-poster-840\.webp 840w,[\s\S]*?small-mammal-living-poster\.webp 1672w[\s\S]*?small-mammal-living-poster\.png/.test(html), "responsive Living Poster art set is incomplete");
 requireContract(/width="1672" height="941"[\s\S]{0,120}fetchpriority="high" decoding="async"/.test(html), "poster art needs intrinsic dimensions and high-priority async decoding");
 requireContract(/alt="Editorial screenprint of a small nocturnal mouse emerging from an oversized metal box live trap beneath a starry sky\."/.test(html), "art alt text drifted");
-requireContract(/Editorial illustration—not a field photograph or data record\./.test(html), "visible illustration boundary missing");
+requireContract(!/Editorial illustration—not a field photograph or data record\./.test(html), "poster must omit the redundant visible illustration badge");
+requireContract(!/<figcaption\b[^>]*class="art-note"/i.test(html) && !/\.art-note\b/.test(html), "poster retains illustration-badge markup or dead CSS");
 requireContract(!/(pacific-pocket-mouse-sherman-trap-usgs|small-mammal-field-usgs|Photo source|Cheryl Brehme)/.test(html), "historical documentary media remains live");
 
 // Footer honesty and metadata.
@@ -98,7 +99,6 @@ requireContract(/\.button \{[\s\S]{0,120}min-height:\s*52px/.test(html), "CTA mu
 requireContract(/\.suite-jump \{[\s\S]{0,100}min-height:\s*44px/.test(html), "suite jump lacks a 44px touch target");
 requireContract(/\.honesty summary \{[\s\S]{0,120}min-height:\s*44px/.test(html), "honesty disclosure lacks a 44px touch target");
 requireContract(/\.footer-links a \{[\s\S]{0,100}min-height:\s*44px/.test(html), "footer links lack 44px touch targets");
-requireContract(/\.art-note \{[\s\S]{0,460}background:\s*rgba\(17, 21, 18, \.86\)/.test(html), "illustration disclosure lacks a reliable contrast scrim");
 requireContract(/@media \(max-width: 700px\)/.test(html) && /@media \(max-width: 420px\) and \(max-height: 860px\)/.test(html) && /@media \(max-width: 340px\)/.test(html), "responsive seams are incomplete");
 requireContract(/@media \(prefers-reduced-motion: reduce\)/.test(html), "reduced-motion alternative missing");
 requireContract(/@media \(prefers-contrast: more\)/.test(html) && /@media \(forced-colors: active\)/.test(html), "high-contrast accommodations missing");

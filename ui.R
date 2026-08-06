@@ -76,9 +76,6 @@ small_mammal_poster <- function(show_cta = TRUE) {
           width = "1672", height = "941", fetchpriority = "high",
           decoding = "async"
         )
-      ),
-      tags$figcaption(
-        "Editorial illustration—not a field photograph or data record."
       )
     )
   )

@@ -42,6 +42,11 @@ merge `c4c46fce`; Connect deployment #125 from that exact revision).
   semantic health, and the ten-app suite. The in-app About panel links all nine companions.
 
 ## Open / in-flight
+- **Suite-platform (local candidate, 2026-08-05):** remove the ornamental
+  illustration badge from Pages and the in-app Living Poster while preserving the
+  exact art, descriptive alt text, durable provenance, and visible scientific
+  limit. Static and local responsive checks pass; the pinned validator must still
+  regenerate `manifest.json` before review can turn this into a release.
 - **Suite-platform (draft PR #88):** manifest merge-loop fix — adds the manual
   `Regenerate manifest` workflow (Option A: validator writes its own manifest back,
   killing the download-artifact round-trip) plus the cross-agent working docs (playbook

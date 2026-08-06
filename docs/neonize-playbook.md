@@ -399,10 +399,11 @@ so Driver and every in-app sibling directory can reach it.
 **Suite Living Poster V1:** every companion Pages cover uses the same structural frame:
 focusable skip target; DDL topline plus one Driver route; a 3–7-word hook; one <=12-word
 promise; one contextual CTA; one dominant app-specific editorial image in a responsive
-`picture`; visible art/data boundary; and a compact scope/honesty/Source/Feedback footer.
+`picture` with meaningful alt text and durable provenance; no ornamental illustration
+badge; and a compact scope/honesty/Source/Feedback footer.
 No metrics, methods band, feature cards, second CTA, or full companion directory. Reuse
 the grammar, not a clone: each app owns its palette, motif, copy, focal crop, and scientific
-limitation. Carry a compact echo of the same hook, promise, art, disclosure, Driver route,
+limitation. Carry a compact echo of the same hook, promise, art authority, Driver route,
 and action into the functional app without replacing its task flow. Validate both surfaces
 at desktop, 390px, and 320px using the actual framework gutters and complete persistent
 controls; record the exact Pages artifact and Connect deployment commit before calling the

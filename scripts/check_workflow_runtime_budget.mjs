@@ -2,7 +2,8 @@ import fs from "node:fs";
 
 const PINNED_SETUP_R_DEPS =
   "r-lib/actions/setup-r-dependencies@d3c5be51b12e724e68f33216ca3c148b66d5f0b6";
-const SHARED_CACHE_VERSION = "small-mammal-geo-closure-v4";
+const PINNED_BSLIB = "bslib@0.11.0";
+const SHARED_CACHE_VERSION = "small-mammal-geo-closure-v5";
 
 function fail(message) {
   throw new Error(`Workflow runtime-budget contract failed: ${message}`);
@@ -44,6 +45,9 @@ function requireCachedClosure(path, jobName, expectedCacheVersion) {
   }
 
   const step = steps[0];
+  if (!step.includes(PINNED_BSLIB)) {
+    fail(`${path} jobs.${jobName} must install ${PINNED_BSLIB}`);
+  }
   if (!step.includes(`cache-version: ${expectedCacheVersion}`)) {
     fail(`${path} jobs.${jobName} must use cache-version ${expectedCacheVersion}`);
   }
@@ -69,8 +73,8 @@ if (timeoutMinutes(refresh, "build_candidate") < 100) {
 
 requireCachedClosure(ci, "contracts", SHARED_CACHE_VERSION);
 requireCachedClosure(regeneration, "generate", SHARED_CACHE_VERSION);
-requireCachedClosure(refresh, "build_candidate", "small-mammal-refresh-geo-closure-v4");
+requireCachedClosure(refresh, "build_candidate", "small-mammal-refresh-geo-closure-v5");
 
 console.log(
-  "Workflow runtime-budget contract passed: 100-minute PR/regeneration budgets and always-on exact-closure caches.",
+  "Workflow runtime-budget contract passed: 100-minute PR/regeneration budgets, pinned bslib, and rolled exact-closure caches.",
 );

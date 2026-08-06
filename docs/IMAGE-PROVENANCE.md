@@ -58,8 +58,8 @@ concept and the production asset.
   for responsive derivatives and the social card
 - Alt text: “Editorial screenprint of a small nocturnal mouse emerging from an
   oversized metal box live trap beneath a starry sky.”
-- Visible disclosure: “Editorial illustration—not a field photograph or data
-  record.”
+- Surface policy: meaningful alt text and this durable receipt carry the image's
+  editorial-art status; the cover intentionally has no separate illustration badge.
 
 Generation brief:
 
@@ -91,7 +91,7 @@ were made after the production image was selected.
 | Connect compact | `www/assets/small-mammal-living-poster-840.webp` | 840 x 473 | 105,152 | `5fc560601bbb0146ffdfc03e2cf662bc7a8e20dce790f52f218ea1bdba8904a5` |
 
 The Pages and Connect files are byte-identical copies so both entrances keep the
-same art, crop vocabulary, disclosure, and approved promise. Because the `www/`
+same art, crop vocabulary, accessible art status, and approved promise. Because the `www/`
 files are runtime assets, they require a validator-generated `manifest.json`
 before Connect deployment.
 
@@ -169,8 +169,8 @@ product, or field photograph**, and must not be relabeled as one on any surface.
 ## Release contract
 
 `scripts/check_cover.mjs` verifies the exact approved hook, one-promise/one-CTA
-poster budget, shared Suite Living Poster frame, responsive image set, visible
-illustration disclosure, provenance hashes, social metadata, scope boundary,
+poster budget, shared Suite Living Poster frame, responsive image set, meaningful
+alt text, absence of a redundant visible illustration badge, provenance hashes, social metadata, scope boundary,
 and responsive/accessibility rules. `scripts/check_in_app_landing.mjs` verifies
 the same copy and asset authority inside Connect while preserving the functional
 site-picker controls. Any art, copy, crop, or asset change requires this record

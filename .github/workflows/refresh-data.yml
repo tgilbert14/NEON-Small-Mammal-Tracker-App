@@ -85,10 +85,11 @@ jobs:
         with:
           # Match validator and eventual manifest provenance exactly. Terra
           # 1.8-50 remains on CRAN's archive; the other seven versions come from
-          # the immutable 2026-07-15 Posit source snapshot.
+          # the immutable 2026-07-15 Posit source snapshot. Keep bslib at the
+          # manifest-reviewed 0.11.0 instead of pak's moving CRAN fallback.
           packages: >
             neonUtilities, dplyr, tibble, tidyr, stringr, jsonlite, shiny,
-            bslib, bsicons, leaflet, DT, shinyjs, shinycssloaders,
+            bslib@0.11.0, bsicons, leaflet, DT, shinyjs, shinycssloaders,
             RColorBrewer, htmltools, ggplot2, cpp11, rsconnect,
             url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/plotly_4.12.0.tar.gz,
             url::https://cran.r-project.org/src/contrib/Archive/terra/terra_1.8-50.tar.gz,
@@ -101,7 +102,7 @@ jobs:
             url::https://packagemanager.posit.co/cran/2026-07-15/src/contrib/sp_2.2-1.tar.gz
           pak-version: stable
           dependencies: '"hard"'
-          cache-version: small-mammal-refresh-geo-closure-v4
+          cache-version: small-mammal-refresh-geo-closure-v5
           cache: always
           install-pandoc: 'false'
           install-quarto: 'false'
