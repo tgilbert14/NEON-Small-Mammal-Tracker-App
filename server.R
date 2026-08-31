@@ -1186,7 +1186,7 @@ server <- function(input, output, session) {
       "The national site map couldn't load its data (data/site_index.rds is missing or unreadable in this deployment). The rest of the app still works, so pick a site, or try the demo."
     ))
     leaflet(options = leafletOptions(minZoom = 2, worldCopyJump = TRUE)) %>%
-      addProviderTiles("CartoDB.Positron", options = providerTileOptions(noWrap = TRUE)) %>%
+      add_suite_basemap("CartoDB.Positron", noWrap = TRUE) %>%
       setView(lng = -96, lat = 41, zoom = 4) %>%
       add_site_markers()
   })
@@ -2488,8 +2488,8 @@ server <- function(input, output, session) {
                        n = sum(.data$count), .groups = "drop")
     view <- input$view %||% "Esri.WorldImagery"
 
-    leaflet(geo, options = leafletOptions(attributionControl = FALSE)) %>%
-      addProviderTiles(view) %>%
+    leaflet(geo) %>%
+      add_suite_basemap(view) %>%
       setView(lng = mean(geo$lng), lat = mean(geo$lat), zoom = 13) %>%
       addScaleBar("bottomleft", options = scaleBarOptions(imperial = FALSE)) %>%
       addCircleMarkers(~lng, ~lat, radius = ~pmax(5, sqrt(count) * 3.4 * r),
@@ -2511,8 +2511,8 @@ server <- function(input, output, session) {
   output$map <- renderLeaflet({
     m <- mapBase()
     if (is.null(m)) {
-      return(leaflet(options = leafletOptions(attributionControl = FALSE)) %>%
-        addProviderTiles("CartoDB.DarkMatter") %>% setView(-98, 39, 3) %>%
+      return(leaflet() %>%
+        add_suite_basemap("CartoDB.DarkMatter") %>% setView(-98, 39, 3) %>%
         addControl(htmltools::HTML(
           "<div style='background:#fff;color:#6b7a85;border:1px solid #e2e7df;padding:8px 12px;border-radius:8px;font-family:Rubik;box-shadow:0 2px 8px rgba(27,96,81,.12)'>\U0001F5FA️ No geographic coordinates for this site &amp; window.</div>"),
           position = "topright"))

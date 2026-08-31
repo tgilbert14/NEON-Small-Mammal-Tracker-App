@@ -32,6 +32,46 @@ options(shiny.sanitize.errors = TRUE)
 # dependency (local dev, a lean Connect Cloud build, or a shinylive static export).
 
 # ---- helpers + metadata ---------------------------------------------------
+# ---- basemap --------------------------------------------------------------
+# CARTO watermarks unauthenticated basemaps.cartocdn.com raster tiles ("API KEY
+# REQUIRED", since 2026-08-26; suite record: NEON-Driver-Cascade
+# docs/SUITE-BASEMAP-INCIDENT-2026-08.md). The key rides in the tile URL, so it
+# is a public rate-limited identifier, not a credential; Sys.getenv keeps it out
+# of git and makes rotation a Connect Cloud setting. addProviderTiles() cannot
+# carry it (the bundled CartoDB template has no {apikey} slot), hence addTiles().
+# Accepts either a leaflet provider name or a CARTO variant, so ui.R basemap
+# choices stay exactly as they are and any non-CARTO provider passes straight
+# through. Without the key it falls back to Esri's keyless grey canvas — clean,
+# but content-free past z16 at rural sites, so the cap keeps the zoom honest.
+add_suite_basemap <- function(map, basemap = "light_all", noWrap = FALSE) {
+  variant <- switch(basemap,
+    "light_all" = ,
+    "CartoDB.Positron" = "light_all",
+    "dark_all" = ,
+    "CartoDB.DarkMatter" = "dark_all",
+    NULL)
+  if (is.null(variant))
+    return(leaflet::addProviderTiles(map, basemap,
+      options = leaflet::providerTileOptions(noWrap = noWrap)))
+  key <- Sys.getenv("CARTO_BASEMAP_KEY", "")
+  if (nzchar(key)) {
+    leaflet::addTiles(map,
+      urlTemplate = sprintf(
+        "https://{s}.basemaps.cartocdn.com/%s/{z}/{x}/{y}{r}.png?key=%s", variant, key),
+      attribution = paste(
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        '&copy; <a href="https://carto.com/attributions">CARTO</a>'),
+      options = leaflet::tileOptions(subdomains = "abcd", maxZoom = 20, noWrap = noWrap))
+  } else {
+    leaflet::addTiles(map,
+      urlTemplate = sprintf(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_%s_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+        if (identical(variant, "dark_all")) "Dark" else "Light"),
+      attribution = 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
+      options = leaflet::tileOptions(maxNativeZoom = 16, maxZoom = 19, noWrap = noWrap))
+  }
+}
+
 source("R/site_metadata.R", local = FALSE)
 source("R/helpers.R", local = FALSE)
 source("R/seasonal_env.R", local = FALSE)   # the cascade's seasonal-aggregate driver read
