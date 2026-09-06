@@ -3242,151 +3242,151 @@
       "checksum": "09eaf8b677d24ddcc48b6fa0e23e6040"
     },
     "data/search_index.rds": {
-      "checksum": "be7b84a7b3b412f232abe724f3919ccc"
+      "checksum": "7be1ef74d8ee3af5d2a422baff60f2d9"
     },
     "data/site_index.rds": {
-      "checksum": "9b4c4a621514bcc57e1833281e6dbac1"
+      "checksum": "dc6df543b8ae6af4228de899736fa5ed"
     },
     "data/sites/ABBY.rds": {
-      "checksum": "f27ec86fa8289498ba813de95c8441d0"
+      "checksum": "f57eab25c5ecb2c618b32fb72e3edf81"
     },
     "data/sites/BARR.rds": {
-      "checksum": "00d2f99ddd16dd8088783685bd10499d"
+      "checksum": "720a0883c0262ab1c39e2bbab195dfac"
     },
     "data/sites/BART.rds": {
-      "checksum": "78b1db0946a2eccfe92365ede0402071"
+      "checksum": "a4aaaa7546fcfd237f1b583381bf0776"
     },
     "data/sites/BLAN.rds": {
-      "checksum": "4732f7d596eff0755f285d8ee352f0af"
+      "checksum": "02a6fb3ab504fb2ec5fab37f4e0d2f38"
     },
     "data/sites/BONA.rds": {
-      "checksum": "fb912b0ae33b05f0cc810b59562a3171"
+      "checksum": "5670054d897bc9f9ee9179d2a79cf0ed"
     },
     "data/sites/CLBJ.rds": {
-      "checksum": "2e704f21c4cc81bbdc4f370d8ffed547"
+      "checksum": "5bbc10f67b9ec677e0233e46f8c61a4b"
     },
     "data/sites/CPER.rds": {
-      "checksum": "50164621a1d0e62a8cb52992d5b21415"
+      "checksum": "11113ac207287ba8c4fa6d3405223e40"
     },
     "data/sites/DCFS.rds": {
-      "checksum": "f5066a6cbdc8bd3905f2fe1a9b94b936"
+      "checksum": "7afedf9caf6c5cea997bcfacb27f497f"
     },
     "data/sites/DEJU.rds": {
-      "checksum": "e425e4b211f993cdb7bbcb650cf9ae2f"
+      "checksum": "5803cb0303f5c1f586510b6a478bd92f"
     },
     "data/sites/DELA.rds": {
-      "checksum": "3cc8102c55414849566adacc67bbe6b8"
+      "checksum": "f4028d2385eb5776d0137b5599b2ca8d"
     },
     "data/sites/DSNY.rds": {
-      "checksum": "f8ac84ed0249cf38b3a0b8db405d3949"
+      "checksum": "d58d4f90c8e20bd3ecc558cdc6d33caf"
     },
     "data/sites/GRSM.rds": {
-      "checksum": "695e56d135f3c3edca1684c9b3f0e3fa"
+      "checksum": "44c11040d0360f2d07b6863c2e58072a"
     },
     "data/sites/GUAN.rds": {
-      "checksum": "f2d40dfbdd190c018bc1d42dc7909bdd"
+      "checksum": "9f54fe922ec459e5e464c907b4eba49c"
     },
     "data/sites/HARV.rds": {
-      "checksum": "7857ac5689bc5cdf0b544320fae8c921"
+      "checksum": "8be05fbeaf1cf1a5876284a85d5dbc6c"
     },
     "data/sites/HEAL.rds": {
-      "checksum": "d762740f5cde47bed0b3ed4cfd438aa0"
+      "checksum": "1163c95414af355534bf9238644b96aa"
     },
     "data/sites/JERC.rds": {
-      "checksum": "c0e4fbccb6bfa543ca745ff1db7aa115"
+      "checksum": "d2634b4bba361127b2de7f7a0b049e88"
     },
     "data/sites/JORN.rds": {
-      "checksum": "b4b05a48b59c40258ae46d81ae6183f9"
+      "checksum": "a9eb6ff4870110bd8c04364230671059"
     },
     "data/sites/KONA.rds": {
-      "checksum": "b6fa43bae203e9b842cd07f8b30a6496"
+      "checksum": "bf3a6f8b3f74d763907118875ffc4de6"
     },
     "data/sites/KONZ.rds": {
-      "checksum": "f14d45e45438417fbbbf4374e9cfa29f"
+      "checksum": "65d9a86d4e96d05d33a617ee2bf1c30a"
     },
     "data/sites/LAJA.rds": {
-      "checksum": "ab65de5257e0d8369ee44724136b5eda"
+      "checksum": "0eb6dfd148d09382b98956443190c301"
     },
     "data/sites/LENO.rds": {
-      "checksum": "33b460bc154c0dea7a19f1929a610562"
+      "checksum": "4eaa5d0d828ba617615e0a961f7b9ee0"
     },
     "data/sites/MLBS.rds": {
-      "checksum": "05d83f23078cd5c1d546af21510cbc5c"
+      "checksum": "bad85c29737326bef9d15cb384209ebd"
     },
     "data/sites/MOAB.rds": {
-      "checksum": "13f022151ea678fa8f1a5eb19cc7cd98"
+      "checksum": "ba6231b9085d987b0aa14681342f9f62"
     },
     "data/sites/NIWO.rds": {
-      "checksum": "1b84833226a0635fd0001d58c8463b6a"
+      "checksum": "8c5ee2c15b64b62b26bd38ad47d6865e"
     },
     "data/sites/NOGP.rds": {
-      "checksum": "9a58cabe375d286dbbf9ba547790d20e"
+      "checksum": "0793fe717e4f326ba46c169dadfcbb32"
     },
     "data/sites/OAES.rds": {
-      "checksum": "dba1fe7ac64f2d52195f7d8a8908ec78"
+      "checksum": "68f0434c44937539c54b90ea44b20a2e"
     },
     "data/sites/ONAQ.rds": {
-      "checksum": "35ee1ce2842e84cdd92aba1bea4805d3"
+      "checksum": "e64c14a97fee778d401e0bb480676135"
     },
     "data/sites/ORNL.rds": {
-      "checksum": "a893c7f2458c0f514096bf782bde88c6"
+      "checksum": "837dffd703b668ea7de237744db2b105"
     },
     "data/sites/OSBS.rds": {
-      "checksum": "c4cc53b632801f32f126063a270955ad"
+      "checksum": "2a93df19e58fc6007b99c08196efe8e0"
     },
     "data/sites/RMNP.rds": {
-      "checksum": "829e1c98119b85e7f0bed204543a329c"
+      "checksum": "a1816f71c9e7662fb2b5e4a78ad39fb3"
     },
     "data/sites/SCBI.rds": {
-      "checksum": "24119fe8801f32f839b50348aa7f8580"
+      "checksum": "5fcab10c001f1797ff027274ab232581"
     },
     "data/sites/SERC.rds": {
-      "checksum": "78aeef23c7d70bc74762c065a1c19fbc"
+      "checksum": "5a7f817e21ec08cd9c420e5a80e55d89"
     },
     "data/sites/SJER.rds": {
-      "checksum": "86bee9ba2c0f8d36725ba6cfe000a666"
+      "checksum": "7e8bc0ea84ea81b3b5be7041193ad9b5"
     },
     "data/sites/SOAP.rds": {
-      "checksum": "136a3b5727a2815a5081195194bc09cc"
+      "checksum": "5ff43dd12f259b712b148b9a386e04f2"
     },
     "data/sites/SRER.rds": {
-      "checksum": "c11d1f231ab8e473758bca2c81e06487"
+      "checksum": "9ea15dcabd70768a5a911a6d781ce38a"
     },
     "data/sites/STEI.rds": {
-      "checksum": "e862cb2261f65fa570eced2c76475106"
+      "checksum": "58e6666b0ad4aece012fb2a7946af2a4"
     },
     "data/sites/STER.rds": {
-      "checksum": "14f43e56dcdce9bbd6b0cc5f29f93b66"
+      "checksum": "2c8c3bf48488809fecc9fbace51d142e"
     },
     "data/sites/TALL.rds": {
-      "checksum": "9e736886d012f264d5717d8edbc54bb7"
+      "checksum": "c069660977cf15ff38f65022e063fd8d"
     },
     "data/sites/TEAK.rds": {
-      "checksum": "6ed5355d270a9a8d768d9a35e5260d13"
+      "checksum": "e0dce36084b9fa918cfccd481c13f46c"
     },
     "data/sites/TOOL.rds": {
-      "checksum": "f7336a1953da3eeafcef5e5285f9a16b"
+      "checksum": "23f3c5622137f495025a93556afd7d41"
     },
     "data/sites/TREE.rds": {
-      "checksum": "2a44fe9981bdc03115b24bfda04e4684"
+      "checksum": "98a541ebfa57d2e8e7449d7c510be95d"
     },
     "data/sites/UKFS.rds": {
-      "checksum": "577d718f0497cd10c73b06621c9351d5"
+      "checksum": "9bdb9ce50f9e6a79f0726ff8c39725d9"
     },
     "data/sites/UNDE.rds": {
-      "checksum": "633c72fa8b6a4b3e59de3213607c41ea"
+      "checksum": "3f8de7825ea8ff63418b036bd9adc4bb"
     },
     "data/sites/WOOD.rds": {
-      "checksum": "baedf9e015153cc95c508014b4239bc4"
+      "checksum": "1bcf57161bed5f1912ab276840f791b8"
     },
     "data/sites/WREF.rds": {
-      "checksum": "ea9e9f1ef352aec362acc262eac4c03f"
+      "checksum": "f0f030e81854748f6d9827372b1cb6dd"
     },
     "data/sites/YELL.rds": {
-      "checksum": "a99514d5510982e2a9f48042efe3e278"
+      "checksum": "266bbcc126750ee3393838d7fb4b3b36"
     },
     "data/species_ranges.rds": {
-      "checksum": "6c0124cebcec71fdbf6aade16a2f9fb9"
+      "checksum": "fdde8da661baec2784b6614231fea7ce"
     },
     "global.R": {
       "checksum": "09f8805af826ebdf447ef34bfb075726"
