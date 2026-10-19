@@ -229,18 +229,25 @@ check(nrow(bc) == 1L && bc$k == 2L && bc$sumR == 4L && bc$N_marked == 21 &&
       "Chapman bout uses M net of deaths and Poisson limits on R")
 
 # Roll-up: June has TEST_001 twice (two bouts) and TEST_002 once; July has
-# TEST_001 alone, so its grid set differs (design break).
+# TEST_001 alone (one grid instead of two: a design break); August has TEST_003
+# alone (a different plot, still one grid and three nights: not a break).
 roll <- rbind(fx$all, cc_bout(shift = 19, sfx = "2")$all, ch,
-              cc_bout(shift = 30, sfx = "3")$all)
+              cc_bout(shift = 30, sfx = "3")$all, cc_bout("TEST_003", shift = 61, sfx = "4")$all)
 rb <- bout_closed_capture(roll)
 rs <- closed_capture_series(roll, rb)$series
 jun <- rs[rs$ym == "2020-06", ]
 p1 <- mean(rb$N[rb$plotID == "TEST_001" & rb$ym == "2020-06"])
-p2 <- rb$N[rb$plotID == "TEST_002"]
-check(nrow(rs) == 2L && abs(jun$N - mean(c(p1, p2))) < 1e-9 &&
+p2 <- rb$N[rb$plotID == "TEST_002" & rb$ym == "2020-06"]
+check(nrow(rs) == 3L && abs(jun$N - mean(c(p1, p2))) < 1e-9 &&
         jun$n_grids == 2L && jun$n_bouts == 3L && jun$lo >= jun$mnka && jun$hi >= jun$N &&
-        !jun$design_break && rs$design_break[rs$ym == "2020-07"],
-      "monthly N-hat is a mean per grid (same-plot bouts averaged first) with a design-break flag")
+        !jun$design_break && rs$design_break[rs$ym == "2020-07"] &&
+        !rs$design_break[rs$ym == "2020-08"] && rs$grids[rs$ym == "2020-08"] == "TEST_003",
+      "monthly N-hat is a mean per grid; design breaks follow grid count and nights, not plot identity")
+jul <- rs[rs$ym == "2020-07", ]; bj <- rb[rb$ym == "2020-07", ]
+aug <- rs[rs$ym == "2020-08", ]; ba <- rb[rb$ym == "2020-08", ]
+check(nrow(bj) == 1L && identical(jul$lo, bj$lo) && identical(jul$hi, bj$hi) &&
+        identical(aug$lo, ba$lo) && identical(aug$hi, ba$hi),
+      "a single-bout month keeps that bout's own lo and hi exactly")
 
 # ---- regression on committed bundles (before/after record) ------------------
 # docs/audit-fixes/2026-10-18-closed-capture-before-after.md. Each bundle is

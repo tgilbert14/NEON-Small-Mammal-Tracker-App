@@ -3254,7 +3254,7 @@ server <- function(input, output, session) {
     hi_clipped <- any(!is.finite(s$hi))
     s$hi[!is.finite(s$hi)] <- s$N[!is.finite(s$hi)] * 2
     s$p_pct <- round(100 * s$p)
-    # Break the lines at a design change (a different set of estimable grids, or a
+    # Break the lines at a design change (a different number of estimable grids, or a
     # change in nights per bout such as NEON's 2020-11 move to fewer nights): an NA
     # row just before each break month stops plotly connecting across it.
     if (any(s$design_break)) {
@@ -3493,7 +3493,7 @@ server <- function(input, output, session) {
           "","","an INDEX, not a census; counts animals known alive, not corrected for detection",
           "raw count of handling events that month (a numerator, no denominator)","","captures per 100 trap-nights, a within-site relative index, NOT a cross-site density (detection differs by biome)","",
           "blank for single-night / low-recapture months that can't be detection-corrected (about half of bouts are single-night by design)",
-          "blank whenever Nhat is un-estimable; Chao (1989) log-normal 95% interval on the monthly mean of Poisson-limited (Krebs 1999) bout estimates, never below the per-grid MNKA",
+          "blank whenever Nhat is un-estimable; 95% interval: a one-bout month keeps that bout's Poisson (Krebs 1999) limits; a multi-bout month uses a Chao (1989) log-normal interval on the monthly mean, or lo = MNKA and hi = max(Nhat, mean bout upper limit) when f0 or varN is not positive; never below the per-grid MNKA",
           "blank whenever Nhat is un-estimable or the upper interval is not finite",
           "0–1; deserts run high, closed-canopy temperate sites low","Nhat is per grid while mnka and captures are site totals, so compare Nhat with mnka / n_grids, not with mnka"),
         stringsAsFactors = FALSE, row.names = NULL)

@@ -18,9 +18,13 @@ downloaded.
    sumR >= 3); the 1/N normal inversion is kept only for Schnabel bouts with sumR >= 50.
 4. **The monthly series is a mean per estimable grid**, not a sum over whichever grids
    passed the gate. Two bouts on one plot in one month are averaged first. The monthly
-   95% interval is a Chao (1989) log-normal interval on the animals beyond MNKA.
-   `design_break` marks a month whose set of estimable plots, or rounded nights per
-   bout, differs from the previous estimable month; the chart breaks the line there.
+   95% interval follows a three-case rule (lead decision 2026-10-18): a month with one
+   estimable bout keeps that bout's own limits; a month with several bouts uses a Chao (1989)
+   log-normal interval on the animals beyond MNKA when f0 > 0 and varN > 0, else lo = MNKA and
+   hi = max(N, mean of the bouts' finite hi), with hi = Inf if any bout hi is unbounded.
+   `design_break` marks a month whose number of estimable grids, or rounded nights per
+   bout, differs from the previous estimable month; which plots they are does not count.
+   The chart breaks the line there.
 
 Bout assignment, nights (k), the number of bouts, the number of single-night bouts and
 the number of estimable bouts are unchanged at all 46 sites (placeholders never added a
@@ -82,16 +86,15 @@ match the audit (SRER 5277, HARV 7717 expected vs 7713, ABBY 2598; HARV 0.81, JO
 - Every monthly row: lo <= N <= hi, lo >= MNKA, no NaN, dates ascending. No month has an
   unbounded upper limit at these four sites.
 - Every estimable bout: lo <= N <= hi and lo >= MNKA.
-- Audit regression check, single-grid single-bout months, monthly hi >= N + 1.96 N / sqrt(sumR)
-  of that bout: SRER 0 of 1, HARV 3 of 8, ABBY 2 of 9, JORN 3 of 3 months fall below it.
-  Four of the eight are "detection near-complete" (clamped) bouts, where f0 = N - MNKA = 0
-  and the Chao interval collapses to lo = hi = N by spec. The other four are bouts where the
-  delta-method varN gives a Chao interval narrower than the bout's own Poisson interval
-  (e.g. JORN 2021-10: month [11.1, 18.8], bout [11, 28.7]). This is a question for the HK
-  review, not a code defect.
-- Design breaks: SRER 16 of 39 months, HARV 35 of 51, ABBY 27 of 29, JORN 12 of 31. Most
-  are a different set of estimable grids from one month to the next, so the HARV chart shows
-  28 isolated months (drawn as a point with an interval bar) out of 51.
+- Audit regression check, single-grid months, monthly hi >= N + 1.96 N / sqrt(sumR) of that
+  bout: SRER 0 of 1, HARV 1 of 8, ABBY 0 of 9, JORN 0 of 3 months fall below it. The HARV
+  month (2019-07, a clamped "detection near-complete" bout) is one where the bout's own
+  Poisson hi (28.7) is below that bound. All single-grid months at these four sites have one
+  bout, so they now carry the bout's own limits. (The first version of this branch used the
+  Chao interval in every month and fell below the bound in 8 months.)
+- Design breaks: SRER 14 of 39 months, HARV 30 of 51, ABBY 26 of 29, JORN 12 of 31, almost
+  all from the number of estimable grids changing between months. Isolated months (drawn as
+  a point with an interval bar): SRER 11, HARV 20, ABBY 25, JORN 8.
 
 ## Not changed by this fix
 

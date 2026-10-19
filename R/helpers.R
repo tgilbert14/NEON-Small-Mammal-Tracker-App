@@ -1350,8 +1350,9 @@ hill_numbers <- function(d) {
 # sampling at some sites). Recapture status for real tags is recomputed WITHIN
 # bout (the raw `recapture` column carries cross-bout history).
 #
-# The monthly roll-up (closed_capture_series) is a MEAN PER ESTIMABLE GRID with
-# a Chao (1989) log-normal interval on the animals beyond MNKA.
+# The monthly roll-up (closed_capture_series) is a MEAN PER ESTIMABLE GRID; its
+# interval is the bout's own limits in a one-bout month, else a Chao (1989)
+# log-normal interval on the animals beyond MNKA (see the rule above that function).
 # ---------------------------------------------------------------------------
 RECAP_GATE <- 3L   # minimum ΣRₜ (real tags) to report a point estimate
 RECAP_GOOD <- 7L   # ΣRₜ at/above which precision is "good" (else low-precision)
@@ -1494,13 +1495,17 @@ bout_closed_capture <- function(d) {
 # GRID, so the line does not track how many grids happened to pass the gate.
 # Two bouts on the same plot in one month are averaged first (plot-month), then
 # plot-months are averaged within the month; varN follows the same means.
-# Monthly p̂ is pooled on real tags, ΣC / Σ(k·N_marked). The 95% interval is a
-# Chao (1989) log-normal interval on the animals beyond MNKA (f0 = N − MNKA),
-# so lo ≥ MNKA; an unbounded bout upper limit keeps the month's hi at Inf.
-# `design_break` marks a month whose set of estimable plots, or rounded mean
+# Monthly p̂ is pooled on real tags, ΣC / Σ(k·N_marked). The 95% interval
+# follows one three-case rule: a month with one estimable bout keeps that bout's
+# own limits; a month with several bouts uses a Chao (1989) log-normal interval
+# on the animals beyond MNKA (f0 = N − MNKA) when f0 > 0 and varN > 0, and
+# otherwise lo = MNKA, hi = max(N, mean of the bouts' finite hi). lo ≥ MNKA
+# always, and an unbounded bout upper limit keeps the month's hi at Inf.
+# `design_break` marks a month whose number of estimable grids, or rounded mean
 # nights per bout, differs from the previous estimable month (the chart breaks
-# the line there). Only months with at least one estimable bout get an
-# abundance; others stay index-only.
+# the line there); which plots they are does not break it (`grids` lists them).
+# Only months with at least one estimable bout get an abundance; others stay
+# index-only.
 closed_capture_series <- function(d, bouts = NULL) {
   if (is.null(bouts)) bouts <- bout_closed_capture(d)
   if (is.null(bouts) || nrow(bouts) == 0) return(NULL)
@@ -1540,17 +1545,31 @@ closed_capture_series <- function(d, bouts = NULL) {
       N = mean(.data$N), .groups = "drop") %>%
     dplyr::mutate(date = as.Date(paste0(.data$ym, "-01"))) %>%
     dplyr::arrange(.data$date)
+  # per-month bout limits: the single bout's own lo/hi, and the mean finite hi
+  bl <- est %>% dplyr::group_by(.data$ym) %>%
+    dplyr::summarise(bout_lo = dplyr::first(.data$lo), bout_hi = dplyr::first(.data$hi),
+                     hi_fin_mean = if (any(is.finite(.data$hi)))
+                       mean(.data$hi[is.finite(.data$hi)]) else NA_real_,
+                     .groups = "drop")
+  series <- dplyr::left_join(series, bl, by = "ym")
+  single <- series$n_bouts == 1L                                    # case (a)
   f0 <- series$N - series$mnka
-  ok <- is.finite(f0) & f0 > 0 & is.finite(series$varN) & series$varN > 0
+  chao <- !single & is.finite(f0) & f0 > 0 &                         # case (b)
+    is.finite(series$varN) & series$varN > 0
   K <- rep(NA_real_, nrow(series))
-  K[ok] <- exp(1.96 * sqrt(log(1 + series$varN[ok] / f0[ok]^2)))
+  K[chao] <- exp(1.96 * sqrt(log(1 + series$varN[chao] / f0[chao]^2)))
   series$se <- sqrt(pmax(series$varN, 0))
-  series$lo <- ifelse(ok, series$mnka + f0 / K, series$mnka)
-  series$hi <- ifelse(ok, series$mnka + f0 * K, series$N)
-  series$hi[series$hi_inf] <- Inf
+  # case (c): several bouts, no usable f0 / varN
+  series$lo <- ifelse(chao, series$mnka + f0 / K, series$mnka)
+  series$hi <- ifelse(chao, series$mnka + f0 * K,
+                      pmax(series$N, series$hi_fin_mean, na.rm = TRUE))
+  series$hi[!single & series$hi_inf] <- Inf
+  series$lo[single] <- series$bout_lo[single]
+  series$hi[single] <- series$bout_hi[single]
   series$lo <- pmax(series$lo, series$mnka)
+  series$bout_lo <- series$bout_hi <- series$hi_fin_mean <- NULL
   k_round <- round(series$k_mean)
-  series$design_break <- c(FALSE, (series$grids[-1] != series$grids[-nrow(series)]) |
+  series$design_break <- c(FALSE, (series$n_grids[-1] != series$n_grids[-nrow(series)]) |
                                   (k_round[-1] != k_round[-nrow(series)]))
   list(series = series, n_bouts = nrow(bouts), n_single = n_single,
        n_estimable = nrow(est),
