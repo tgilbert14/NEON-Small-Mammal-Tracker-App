@@ -36,11 +36,14 @@ was recomputed from the bundled `.rds` files, not taken from the README.
   `cor(MNKA, CPUE)`: JORN **0.83**, HARV **0.72**, but **SRER only 0.51**. The two abundance indices
   diverge most exactly where the cascade leans on the consumer signal — promoting MNKA over the
   cascade's CPUE is the right call (`mnka_series()`).
-- **Detection completeness swings 2× across sites — the raw count is honest only at deserts.** Mean
-  per-bout detection completeness (MNKA / N̂, Schnabel/Chapman): site median **0.80**, range **0.42
-  (LAJA) → 0.95 (JORN)**. Temperate **HARV catches only ~57%** of the animals present per bout
-  (mean p̂ 0.30); desert **JORN catches ~95%** (mean p̂ 0.63). An uncorrected count undercounts
-  temperate sites far worse than deserts (`closed_capture_series()`).
+- **Detection differs across sites, so a raw count is closest to honest at deserts.** Mean
+  per-bout detection completeness (MNKA / N̂, Schnabel/Chapman on real ear tags): site median **0.86**, range **0.47
+  (LAJA) to 0.96 (SERC, JORN)** over 45 estimable sites. Temperate **HARV catches about 81%** of the animals present per bout
+  (pooled per-night p̂ 0.43); desert **JORN catches about 96%** (p̂ 0.66), so per-night detection is roughly 1.5x higher at JORN. These are model estimates under closure and equal catchability. An uncorrected count undercounts
+  temperate sites more than deserts (`closed_capture_series()`).
+  2026-10-18: earlier figures counted NEON SOP C.8 placeholder IDs and dead animals as marked individuals; recomputed with real-tag marks. Source: `docs/audit-fixes/2026-10-18-closed-capture-before-after.md`.
+  The picker map's detection chips read `mean_p` from `data/site_index.rds`, which the refresh
+  workflow rebuilds, so they show the old estimator (HARV 0.30, JORN 0.63) until the next index rebuild.
 - **Half of all trapping bouts cannot be detection-corrected at all.** Of **8,200 bouts** pooled,
   **49% are single-night** (k=1) — no within-bout recaptures, so Schnabel/Chapman can't run and only
   MNKA/CPUE apply. The app correctly gates these to "single-night / index only."
@@ -84,7 +87,7 @@ individual counted alive in every month between its first and last capture in a 
 per **100 trap-nights**, denominator computed from this site's actual `trapStatus` (a trap available
 one night; sprung/disturbed = ½ TN; Nelson & Clark 1973) — never a fixed 100-trap grid. Detection-
 corrected abundance = closed-capture per bout: **Schnabel** (k≥3 nights) or **Chapman** (k=2), gated
-to ≥3 within-bout recaptures, clamped to ≥ MNKA, CI built in the 1/N domain then inverted (Otis et al.
+to ≥3 within-bout recaptures of real ear tags, clamped to ≥ MNKA, bout CI from Poisson limits on recaptures (Krebs 1999; 1/N domain only when ΣR ≥ 50), monthly value a mean per estimable grid (Otis et al.
 1978). Richness/Chao1, Hill q0/q1/q2, and the species-accumulation curve all run on
 `species_level_only()` so a "Rodentia sp." is never its own species. The "Chonk Index" is honestly an
 adult weight percentile within species — NOT a Scaled Mass Index, because hindfoot barely scales with
@@ -148,7 +151,7 @@ mass here (r≈0.15) — a deliberate, documented omission.
   flips between temp and flowering across sites and even the *lag* differs between two deserts (SRER
   3 mo, JORN 9 mo). Read as "investigate," never "X drives the population."
 - **CPUE is a within-site index, not a cross-site density.** Different grids, night-counts, and
-  detection (0.42–0.95) mean a raw CPUE comparison across biomes is not an abundance comparison.
+  detection (completeness 0.47 to 0.96) mean a raw CPUE comparison across biomes is not an abundance comparison.
 - **Detection-corrected N̂ is a defensible index, not a census** — it assumes a closed population and
   equal catchability over the bout, and exists for only ~half of bouts (the multi-night ones).
 - **Richness is composition, not productivity** — SRER's 29 species over its sparse desert is the
@@ -162,7 +165,7 @@ This app is the **consumer rung** (climate → plants → **consumers**) and the
 shared machinery. It contributes:
 
 1. **The defensible consumer signal: MNKA, not CPUE.** SRER's loose `cor(MNKA,CPUE)=0.51` and the
-   0.42–0.95 detection spread confirm the cascade decision to promote MNKA and reuse this app's
+   0.47 to 0.96 detection-completeness spread confirm the cascade decision to promote MNKA and reuse this app's
    `helpers.R` (`mnka_series`, `bout_closed_capture`) rather than a bespoke CPUE.
 2. **A consumer rung that is deer-mouse-dominated nationally but heteromyid at the deserts** — the
    biome split the cascade depends on. The desert sites (SRER, JORN) where the consumer signal is
