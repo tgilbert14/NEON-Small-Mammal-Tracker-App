@@ -278,6 +278,21 @@ mam_tag_present <- function(tag_id) {
   !is.na(tag_id) & nzchar(trimws(tag))
 }
 
+# NEON placeholder tag IDs. Per NEON.DOC.000481 SOP C.8 (and SOP C step 3 for an
+# animal that escapes before it is tagged), an untagged capture is issued
+# NEON.MAM.Dxx.O<3-digit plot><trapCoordinate><YYYYMMDD> (about 1% are older
+# short forms without the date, e.g. NEON.MAM.D01.O001F1). The ID identifies a
+# capture EVENT, not an animal: it is issued once and can never be recaptured,
+# so it must not count as a mark. Ear tags such as "OL1001" / "OR1001" (left /
+# right ear plus digits) are real marks and are excluded by the lookahead.
+MAM_PLACEHOLDER_TAG_RE <- "^NEON[.]MAM[.]D[0-9]{2}[.]O(?![LR][0-9]+$)"
+mam_is_placeholder_tag <- function(tag_id) {
+  t <- as.character(tag_id)
+  !is.na(t) & grepl(MAM_PLACEHOLDER_TAG_RE, t, perl = TRUE)
+}
+# A real, recapturable mark: a present tag that is not a placeholder.
+mam_tag_marked <- function(tag_id) mam_tag_present(tag_id) & !mam_is_placeholder_tag(tag_id)
+
 mam_multi_trap_marker <- function(remarks) {
   x <- tolower(as.character(remarks))
   vapply(x, function(value) {
@@ -1289,37 +1304,80 @@ hill_numbers <- function(d) {
 }
 
 # ---------------------------------------------------------------------------
-# Detection-corrected abundance — closed-capture estimation per trapping bout.
+# Detection-corrected abundance: closed-capture estimation per trapping bout.
 #
 # NEON traps each grid in multi-night "bouts" (pathogen grids ~3 consecutive
 # nights; diversity grids 1 night). On a closed multi-night bout we can correct
 # the raw count for animals we never caught, using recaptures WITHIN the bout.
 #
-# Tier-1, dependency-free (base R + dplyr). Estimators:
+# Tier-1, dependency-free (base R + dplyr). Estimators on REAL ear tags only:
 #   k >= 3 nights : Schnabel (1938)   N = Σ(Cₜ·Mₜ) / Σ Rₜ
 #   k == 2 nights : Chapman (1951)    N = (M+1)(C+1)/(R+1) − 1
-#   k == 1 night  : no estimate (index only — that's what MNKA/CPUE are for)
-# Detection p̂ under Otis et al. (1978) Model M0: p̂ = ΣCₜ / (k·N).
-# Guard (critical): Schnabel → ∞ as ΣR → 0, so require ΣR ≥ 3 to report; clamp
-# N ≥ MNKA (minimum known alive is a hard floor); CI computed in the 1/N domain
-# (the estimate is skewed) then inverted, never ±SE on N directly.
-# Spec: Fauna review (Schnabel 1938; Chapman 1951; Otis et al. 1978; Krebs 2017).
+#   k == 1 night  : no estimate (index only; that is what MNKA/CPUE are for)
+# Detection p̂ under Otis et al. (1978) Model M0: p̂ = ΣCₜ / (k·N_marked), on
+# real-tag captures and the real-tag estimate only.
 #
-# Bout grouping: distinct (plotID, collectDate, tagID); within a plot a new bout
-# starts when the gap to the previous trapping night is > 2 days (NEON allows a
-# 1-night slip), keyed off consecutive collectDates (NOT a hardcoded "3 nights",
-# since NEON reduced sampling at some sites). Recapture status is recomputed
-# WITHIN bout (the raw `recapture` column carries cross-bout history).
+# Marks. A mark is a real ear tag (mam_tag_marked). NEON SOP C.8 issues a
+# placeholder tagID NEON.MAM.Dxx.O<plot><trapCoordinate><YYYYMMDD> once per
+# UNTAGGED capture; it names a capture event, not an animal, and can never be
+# recaptured, so it never enters Cₜ, Uₜ, Rₜ or Mₜ. Each placeholder capture
+# event is instead added to the bout as a known-alive animal (n_unmarked) on
+# top of the real-tag estimate: N = N_marked + n_unmarked, and the same constant
+# shifts MNKA and both interval limits. A placeholder row the crew marked
+# recapture = "Y" is a repeat sighting of an animal already counted, so it adds
+# nothing (n_unmarked_recap records how many were dropped).
+# Deaths. A real-tag animal with fate "dead" on night t is in Cₜ (and in Rₜ if
+# it was marked earlier in the bout), then leaves the marked pool:
+#   Mₜ = Σ_{s<t} Uₛ − Σ_{s<t} Dₛ   (floored at 0).
+#
+# Guards: report only when ΣR (real tags) ≥ RECAP_GATE (3); clamp N_marked ≥
+# MNKA of real tags (minimum known alive is a hard floor).
+# Bout 95% limits (both skewed, never ±SE on N):
+#   Schnabel, ΣR < 50 : Krebs (1999) Poisson limits on the recapture count,
+#                       N_lo = Σ(CM)/R_hi, N_hi = Σ(CM)/R_lo, finite for ΣR ≥ 3.
+#   Schnabel, ΣR ≥ 50 : normal limits in the 1/N domain, then inverted.
+#   Chapman           : the same Poisson limits on R plugged into Chapman.
+# varN is stored for the monthly roll-up only (Schnabel: delta-method
+# var(1/N)·N⁴ even when the Poisson limits are used; Chapman: Seber's variance).
+# Spec: Fauna review (Schnabel 1938; Chapman 1951; Otis et al. 1978; Krebs 1999,
+# 2017); NEON.DOC.000481 SOP C.8 for the placeholder convention.
+#
+# Bout grouping: distinct (plotID, collectDate, tagID) over ALL tagged capture
+# rows, placeholders included, so the nights and k of a bout do not depend on
+# the mark rule; within a plot a new bout starts when the gap to the previous
+# trapping night is > 2 days (NEON allows a 1-night slip), keyed off
+# consecutive collectDates (NOT a hardcoded "3 nights", since NEON reduced
+# sampling at some sites). Recapture status for real tags is recomputed WITHIN
+# bout (the raw `recapture` column carries cross-bout history).
+#
+# The monthly roll-up (closed_capture_series) is a MEAN PER ESTIMABLE GRID with
+# a Chao (1989) log-normal interval on the animals beyond MNKA.
 # ---------------------------------------------------------------------------
-RECAP_GATE <- 3L   # minimum ΣRₜ to report a point estimate
+RECAP_GATE <- 3L   # minimum ΣRₜ (real tags) to report a point estimate
 RECAP_GOOD <- 7L   # ΣRₜ at/above which precision is "good" (else low-precision)
+RECAP_POISSON_MAX <- 50L  # below this ΣR, Schnabel bout limits are Poisson (Krebs 1999)
+
+# Krebs (1999) Poisson 95% limits on an observed recapture count R.
+recap_poisson_limits <- function(R) {
+  c(lo = stats::qchisq(0.025, 2 * R) / 2,
+    hi = stats::qchisq(0.975, 2 * R + 2) / 2)
+}
 
 bout_closed_capture <- function(d) {
-  cap <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$plotID), !is.na(.data$date)) %>%
-    dplyr::distinct(.data$plotID, .data$date, .data$tagID, .data$ym)
-  if (nrow(cap) == 0) return(NULL)
+  keep <- mam_tag_present(d$tagID) & !is.na(d$plotID) & !is.na(d$date)
+  if (!any(keep)) return(NULL)
+  src <- d[keep, , drop = FALSE]
+  fate <- if ("fate" %in% names(src)) as.character(src$fate) else rep(NA_character_, nrow(src))
+  recap <- if ("recapture" %in% names(src)) as.character(src$recapture) else rep(NA_character_, nrow(src))
+  src <- tibble::tibble(plotID = src$plotID, date = src$date, tagID = as.character(src$tagID),
+                        ym = src$ym, dead = !is.na(fate) & fate == "dead",
+                        recapY = !is.na(recap) & recap == "Y")
+  # one row per (plot, night, tag); duplicates that disagree resolve to any()
+  cap <- src %>% dplyr::group_by(.data$plotID, .data$date, .data$tagID, .data$ym) %>%
+    dplyr::summarise(dead = any(.data$dead), recapY = any(.data$recapY), .groups = "drop")
 
-  # assign bouts: consecutive nights within a plot (gap > 2 days -> new bout)
+  # assign bouts: consecutive nights within a plot (gap > 2 days -> new bout),
+  # over every tagged capture so nights / k are unchanged by the mark rule
   cap <- cap %>% dplyr::arrange(.data$plotID, .data$date)
   cap <- cap %>% dplyr::group_by(.data$plotID) %>%
     dplyr::mutate(gap = as.integer(.data$date - dplyr::lag(.data$date)),
@@ -1327,124 +1385,178 @@ bout_closed_capture <- function(d) {
                   bout = cumsum(.data$new_bout)) %>%
     dplyr::ungroup() %>%
     dplyr::mutate(boutID = paste0(.data$plotID, "#", .data$bout))
+  cap$ph <- mam_is_placeholder_tag(cap$tagID)
+  real <- cap[!cap$ph, , drop = FALSE]
 
-  # --- per-bout sufficient statistics, computed with a handful of grouped
-  #     ops over the WHOLE table (not one dplyr call per bout — that was ~100x
-  #     slower). Per night t within a bout: C = caught, U = newly marked,
-  #     R = C-U recaps, M = marked-before-t = cumsum(U)-U.
+  # --- per-bout sufficient statistics on REAL tags, computed with a handful of
+  #     grouped ops over the WHOLE table (not one dplyr call per bout; that was
+  #     ~100x slower). Per night t within a bout: C = caught, U = newly marked,
+  #     R = C-U recaps, D = marked animals that died that night,
+  #     M = marked and alive before t = (cumsum(U)-U) - (cumsum(D)-D).
   nights <- cap %>% dplyr::distinct(.data$boutID, .data$date) %>%
     dplyr::arrange(.data$boutID, .data$date) %>%
     dplyr::group_by(.data$boutID) %>% dplyr::mutate(t = dplyr::row_number()) %>%
     dplyr::ungroup()
-  Cn <- cap %>% dplyr::count(.data$boutID, .data$date, name = "C")     # caught/night
-  Un <- cap %>% dplyr::group_by(.data$boutID, .data$tagID) %>%
+  Cn <- real %>% dplyr::count(.data$boutID, .data$date, name = "C")    # caught/night
+  Un <- real %>% dplyr::group_by(.data$boutID, .data$tagID) %>%
     dplyr::summarise(first = min(.data$date), .groups = "drop") %>%
     dplyr::count(.data$boutID, date = .data$first, name = "U")         # new/night
+  Dn <- real %>% dplyr::filter(.data$dead) %>%
+    dplyr::count(.data$boutID, .data$date, name = "D")                 # died/night
   per <- nights %>%
     dplyr::left_join(Cn, by = c("boutID", "date")) %>%
-    dplyr::left_join(Un, by = c("boutID", "date"))
-  per$C[is.na(per$C)] <- 0L; per$U[is.na(per$U)] <- 0L
+    dplyr::left_join(Un, by = c("boutID", "date")) %>%
+    dplyr::left_join(Dn, by = c("boutID", "date"))
+  per$C[is.na(per$C)] <- 0L; per$U[is.na(per$U)] <- 0L; per$D[is.na(per$D)] <- 0L
   per <- per %>% dplyr::arrange(.data$boutID, .data$t) %>%
     dplyr::group_by(.data$boutID) %>%
-    dplyr::mutate(M = cumsum(.data$U) - .data$U, R = .data$C - .data$U) %>%
+    dplyr::mutate(M = pmax((cumsum(.data$U) - .data$U) - (cumsum(.data$D) - .data$D), 0L),
+                  R = .data$C - .data$U) %>%
     dplyr::ungroup()
   agg <- per %>% dplyr::group_by(.data$boutID) %>%
     dplyr::summarise(k = max(.data$t), sumC = sum(.data$C), sumR = sum(.data$R),
                      num = sum(.data$C * .data$M),
-                     U1 = .data$U[.data$t == 1][1],
+                     M1 = .data$U[.data$t == 1][1] - .data$D[.data$t == 1][1],
                      C2 = .data$C[.data$t == 2][1],
                      R2 = .data$R[.data$t == 2][1], .groups = "drop")
   bmeta <- cap %>% dplyr::group_by(.data$boutID) %>%
     dplyr::summarise(plotID = dplyr::first(.data$plotID), ym = dplyr::first(.data$ym),
-                     start = min(.data$date), mnka = dplyr::n_distinct(.data$tagID),
+                     start = min(.data$date),
+                     mnka_marked = dplyr::n_distinct(.data$tagID[!.data$ph]),
+                     n_unmarked = sum(.data$ph & !.data$recapY),
+                     n_unmarked_recap = sum(.data$ph & .data$recapY),
+                     n_dead = dplyr::n_distinct(.data$tagID[!.data$ph & .data$dead]),
                      .groups = "drop")
   est <- dplyr::left_join(bmeta, agg, by = "boutID")
 
   # --- estimator: pure arithmetic per bout (scalars; the loop is microseconds) -
-  estimate_row <- function(k, sumC, sumR, num, U1, C2, R2, mnka) {
-    out <- list(N = NA_real_, lo = NA_real_, hi = NA_real_, p = NA_real_,
-                sumR = as.integer(if (is.na(sumR)) 0L else sumR), varN = NA_real_,
-                status = "single-night")
+  estimate_row <- function(k, sumC, sumR, num, M1, C2, R2, mnka_m, n_un) {
+    out <- list(N_marked = NA_real_, N = NA_real_, lo = NA_real_, hi = NA_real_,
+                p = NA_real_, sumR = as.integer(if (is.na(sumR)) 0L else sumR),
+                varN = NA_real_, status = "single-night")
     if (is.na(k) || k < 2) return(out)
     if (is.na(sumR) || sumR < RECAP_GATE) { out$status <- "insufficient recaptures"; return(out) }
+    pl <- recap_poisson_limits(sumR)
     if (k >= 3) {                                  # Schnabel
       N <- num / sumR
       var_invN <- sumR / (num^2)
-      invN <- 1 / N
-      ci_inv <- invN + c(1, -1) * 1.96 * sqrt(var_invN)   # lo 1/N -> hi N
-      lo <- if (ci_inv[1] > 0) 1 / ci_inv[1] else NA_real_
-      hi <- if (ci_inv[2] > 0) 1 / ci_inv[2] else Inf
-      varN <- var_invN * N^4                       # delta-method var(N) for roll-up
+      if (sumR < RECAP_POISSON_MAX) {              # Krebs (1999) Poisson limits on ΣR
+        lo <- num / pl[["hi"]]
+        hi <- num / pl[["lo"]]
+      } else {                                     # normal limits in 1/N, inverted
+        ci_inv <- 1 / N + c(1, -1) * 1.96 * sqrt(var_invN)   # lo 1/N -> hi N
+        lo <- if (ci_inv[1] > 0) 1 / ci_inv[1] else NA_real_
+        hi <- if (ci_inv[2] > 0) 1 / ci_inv[2] else Inf
+      }
+      # delta-method var(N) for the roll-up, from var(1/N), whichever limits
+      varN <- var_invN * N^4
     } else {                                        # k == 2: Chapman
-      M <- U1; C <- C2; R <- R2
+      M <- M1; C <- C2; R <- R2
       N <- ((M + 1) * (C + 1) / (R + 1)) - 1
       varN <- ((M + 1) * (C + 1) * (M - R) * (C - R)) / ((R + 1)^2 * (R + 2))
-      se <- sqrt(max(varN, 0)); lo <- N - 1.96 * se; hi <- N + 1.96 * se
+      lo <- (M + 1) * (C + 1) / (pl[["hi"]] + 1) - 1
+      hi <- (M + 1) * (C + 1) / (pl[["lo"]] + 1) - 1
     }
     clamped <- FALSE
-    if (is.finite(N) && N < mnka) { N <- mnka; clamped <- TRUE }   # MNKA is a hard floor
-    lo <- max(lo, mnka, na.rm = TRUE)
-    p  <- sumC / (k * N)
-    out$N <- round(N, 1); out$lo <- round(lo, 1)
-    out$hi <- if (is.finite(hi)) round(hi, 1) else Inf
-    out$p <- round(min(max(p, 0), 1), 3); out$varN <- varN
+    if (is.finite(N) && N < mnka_m) { N <- mnka_m; clamped <- TRUE }   # MNKA is a hard floor
+    lo <- max(lo, mnka_m, na.rm = TRUE)
+    if (is.finite(hi) && hi < N) hi <- N           # keep lo <= N <= hi after the clamp
+    p  <- sumC / (k * N)                           # real-tag captures over N_marked
+    N_m <- round(N, 1)
+    out$N_marked <- N_m
+    out$N  <- N_m + n_un
+    out$lo <- round(lo, 1) + n_un
+    out$hi <- if (is.finite(hi)) round(hi, 1) + n_un else Inf
+    out$p  <- round(min(max(p, 0), 1), 3); out$varN <- varN
     out$status <- if (clamped) "detection near-complete"
                   else if (sumR < RECAP_GOOD) "low-precision" else "ok"
     out
   }
   res <- lapply(seq_len(nrow(est)), function(i)
     estimate_row(est$k[i], est$sumC[i], est$sumR[i], est$num[i],
-                 est$U1[i], est$C2[i], est$R2[i], est$mnka[i]))
-  est$N      <- vapply(res, function(z) z$N, numeric(1))
-  est$lo     <- vapply(res, function(z) z$lo, numeric(1))
-  est$hi     <- vapply(res, function(z) z$hi, numeric(1))
-  est$p      <- vapply(res, function(z) z$p, numeric(1))
-  est$sumR   <- vapply(res, function(z) z$sumR, integer(1))
-  est$varN   <- vapply(res, function(z) z$varN, numeric(1))
-  est$status <- vapply(res, function(z) z$status, character(1))
+                 est$M1[i], est$C2[i], est$R2[i], est$mnka_marked[i], est$n_unmarked[i]))
+  est$mnka     <- est$mnka_marked + est$n_unmarked
+  est$N_marked <- vapply(res, function(z) z$N_marked, numeric(1))
+  est$N        <- vapply(res, function(z) z$N, numeric(1))
+  est$lo       <- vapply(res, function(z) z$lo, numeric(1))
+  est$hi       <- vapply(res, function(z) z$hi, numeric(1))
+  est$p        <- vapply(res, function(z) z$p, numeric(1))
+  est$sumR     <- vapply(res, function(z) z$sumR, integer(1))
+  est$varN     <- vapply(res, function(z) z$varN, numeric(1))
+  est$status   <- vapply(res, function(z) z$status, character(1))
+  est <- est[, c("boutID", "plotID", "ym", "start", "k", "sumC", "sumR", "num",
+                 "mnka", "N", "lo", "hi", "p", "varN", "status",
+                 "N_marked", "mnka_marked", "n_unmarked", "n_unmarked_recap", "n_dead")]
   est[order(est$start), ]
 }
 
-# Roll per-bout estimates up to a per-month site series: SUM N̂ across grids
-# (abundance adds), pool p̂ as ΣC/Σ(k·N̂), MNKA floor per month. Only months with
-# at least one estimable bout get an abundance; others stay index-only.
+# Roll per-bout estimates up to a per-month site series as a MEAN PER ESTIMABLE
+# GRID, so the line does not track how many grids happened to pass the gate.
+# Two bouts on the same plot in one month are averaged first (plot-month), then
+# plot-months are averaged within the month; varN follows the same means.
+# Monthly p̂ is pooled on real tags, ΣC / Σ(k·N_marked). The 95% interval is a
+# Chao (1989) log-normal interval on the animals beyond MNKA (f0 = N − MNKA),
+# so lo ≥ MNKA; an unbounded bout upper limit keeps the month's hi at Inf.
+# `design_break` marks a month whose set of estimable plots, or rounded mean
+# nights per bout, differs from the previous estimable month (the chart breaks
+# the line there). Only months with at least one estimable bout get an
+# abundance; others stay index-only.
 closed_capture_series <- function(d, bouts = NULL) {
   if (is.null(bouts)) bouts <- bout_closed_capture(d)
   if (is.null(bouts) || nrow(bouts) == 0) return(NULL)
   est <- dplyr::filter(bouts, .data$status %in% c("ok", "low-precision", "detection near-complete"),
                        is.finite(.data$N))
   # single-night (k=1) bouts can carry NO within-bout recapture, so Schnabel/
-  # Chapman can never run on them — they're MNKA/CPUE-only BY DESIGN, not missing
+  # Chapman can never run on them; they are MNKA/CPUE-only BY DESIGN, not missing
   # data. Surface the count so a sparse N̂ series reads as a sampling-design fact.
   n_single <- sum(bouts$status == "single-night", na.rm = TRUE)
+  n_unmarked_total <- sum(bouts$n_unmarked, na.rm = TRUE)
+  n_dead_total <- sum(bouts$n_dead, na.rm = TRUE)
   if (nrow(est) == 0)
     return(list(series = NULL, n_bouts = nrow(bouts), n_single = n_single,
-                n_estimable = 0, mean_p = NA_real_, mean_detect = NA_real_))
-  series <- est %>% dplyr::group_by(.data$ym) %>%
+                n_estimable = 0, mean_p = NA_real_, mean_detect = NA_real_,
+                n_unmarked_total = n_unmarked_total, n_dead_total = n_dead_total))
+  pm <- est %>% dplyr::group_by(.data$ym, .data$plotID) %>%
     dplyr::summarise(
-      # ckN / capt MUST be summed over the per-bout N̂ BEFORE `N` is reassigned to
-      # the month total below: within one summarise(), once `N = sum(.data$N)` runs,
-      # a later `.data$N` is that scalar month-sum, not the per-bout column — so
-      # ckN/capt (and thus pooled p̂ = capt/ckN) would silently use N_tot in place of
-      # N̂ᵢ in multi-grid months (the N_tot factor then cancels in p̂, leaving p̂
-      # k-weighted instead of the intended (k·N̂)-weighted). Keep these two first.
-      ckN = sum(.data$k * .data$N),
-      capt = sum(.data$p * .data$k * .data$N),   # = ΣCₜ recovered from p̂=ΣC/(kN)
-      N = sum(.data$N),
-      mnka = sum(.data$mnka),
-      varN = sum(.data$varN, na.rm = TRUE),
-      n_grids = dplyr::n(), .groups = "drop") %>%
-    dplyr::mutate(
-      se = sqrt(pmax(.data$varN, 0)),
-      lo = pmax(.data$mnka, .data$N - 1.96 * .data$se),
-      hi = .data$N + 1.96 * .data$se,
-      p  = round(.data$capt / .data$ckN, 3),
-      date = as.Date(paste0(.data$ym, "-01"))) %>%
+      n_bouts = dplyr::n(),
+      varN = sum(.data$varN, na.rm = TRUE) / dplyr::n()^2,
+      sumC = sum(.data$sumC),
+      kN = sum(.data$k * .data$N_marked),
+      k_mean = mean(.data$k),
+      hi_inf = any(!is.finite(.data$hi)),
+      N_marked = mean(.data$N_marked),
+      mnka = mean(.data$mnka),
+      N = mean(.data$N), .groups = "drop")
+  series <- pm %>% dplyr::group_by(.data$ym) %>%
+    dplyr::summarise(
+      n_grids = dplyr::n_distinct(.data$plotID),
+      grids = paste(sort(unique(.data$plotID)), collapse = ","),
+      n_bouts = sum(.data$n_bouts),
+      varN = sum(.data$varN) / dplyr::n_distinct(.data$plotID)^2,
+      k_mean = mean(.data$k_mean),
+      p = round(sum(.data$sumC) / sum(.data$kN), 3),
+      hi_inf = any(.data$hi_inf),
+      mnka = mean(.data$mnka),
+      N = mean(.data$N), .groups = "drop") %>%
+    dplyr::mutate(date = as.Date(paste0(.data$ym, "-01"))) %>%
     dplyr::arrange(.data$date)
+  f0 <- series$N - series$mnka
+  ok <- is.finite(f0) & f0 > 0 & is.finite(series$varN) & series$varN > 0
+  K <- rep(NA_real_, nrow(series))
+  K[ok] <- exp(1.96 * sqrt(log(1 + series$varN[ok] / f0[ok]^2)))
+  series$se <- sqrt(pmax(series$varN, 0))
+  series$lo <- ifelse(ok, series$mnka + f0 / K, series$mnka)
+  series$hi <- ifelse(ok, series$mnka + f0 * K, series$N)
+  series$hi[series$hi_inf] <- Inf
+  series$lo <- pmax(series$lo, series$mnka)
+  k_round <- round(series$k_mean)
+  series$design_break <- c(FALSE, (series$grids[-1] != series$grids[-nrow(series)]) |
+                                  (k_round[-1] != k_round[-nrow(series)]))
   list(series = series, n_bouts = nrow(bouts), n_single = n_single,
        n_estimable = nrow(est),
-       mean_p = round(stats::weighted.mean(est$p, est$k * est$N), 3),
-       mean_detect = round(stats::weighted.mean(pmin(est$mnka / est$N, 1), est$N), 3))
+       mean_p = round(stats::weighted.mean(est$p, est$k * est$N_marked), 3),
+       mean_detect = round(stats::weighted.mean(pmin(est$mnka / est$N, 1), est$N), 3),
+       n_unmarked_total = n_unmarked_total, n_dead_total = n_dead_total)
 }
 
 # Reproductive activity per row (adults): scrotal males / pregnant-or-lactating
