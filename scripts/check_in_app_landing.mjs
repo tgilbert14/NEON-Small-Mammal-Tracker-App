@@ -29,6 +29,7 @@ function webpSize(path) {
 }
 
 requireContract(ui.includes("small_mammal_poster <- function"), "Living Poster helper is missing");
+requireContract(/title = "NEON Small Mammal Tracker"/.test(ui) && /lang = "en"/.test(ui) && !/window_title/.test(ui), "document title/lang missing");
 requireContract(ui.includes('`aria-label` = "Who moves after dark?"') && ui.includes('tags$span("Who moves"), tags$em("after dark?")'), "approved hook or accessible name drifted");
 requireContract(ui.includes("Meet the tiny lives reshaping the landscape."), "approved one-line promise drifted");
 requireContract(ui.includes("Meet the mammals"), "approved CTA drifted");
