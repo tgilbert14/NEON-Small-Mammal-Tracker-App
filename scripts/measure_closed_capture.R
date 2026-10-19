@@ -29,6 +29,7 @@ rows <- lapply(sort(list.files(sites_dir, pattern = "[.]rds$", full.names = TRUE
     b[b$status %in% c("ok", "low-precision", "detection near-complete") & is.finite(b$N), ]
   s <- cc$series
   peak <- if (!is.null(est) && nrow(est)) est[which.max(est$N), ] else NULL
+  has_m <- !is.null(est) && nrow(est) > 0 && "N_marked" %in% names(est)
   data.frame(
     site = site,
     n_bouts = if (is.null(cc)) 0L else cc$n_bouts,
@@ -37,6 +38,13 @@ rows <- lapply(sort(list.files(sites_dir, pattern = "[.]rds$", full.names = TRUE
     sum_N_estimable = if (is.null(est)) 0 else round(sum(est$N), 1),
     mean_p = if (is.null(cc)) NA_real_ else cc$mean_p,
     mean_detect = if (is.null(cc)) NA_real_ else cc$mean_detect,
+    # completeness on ear-tagged animals only (no untagged add-on)
+    mean_detect_marked = if (!has_m) NA_real_ else
+      round(stats::weighted.mean(pmin(est$mnka_marked / est$N_marked, 1), est$N_marked), 3),
+    # share of estimable bouts clamped to MNKA (status "detection near-complete")
+    clamp_share = if (is.null(est) || !nrow(est)) NA_real_ else
+      round(mean(est$status == "detection near-complete"), 3),
+    addon_share = if (!has_m) NA_real_ else round(sum(est$n_unmarked) / sum(est$N), 3),
     n_months = if (is.null(s)) 0L else nrow(s),
     mean_monthly_N = if (is.null(s) || !nrow(s)) NA_real_ else round(mean(s$N), 1),
     n_design_breaks = if (is.null(s) || !"design_break" %in% names(s)) NA_integer_ else

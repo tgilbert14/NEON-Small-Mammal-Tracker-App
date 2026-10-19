@@ -349,7 +349,8 @@ render_report_pdf <- function(file, d, label, is_demo = FALSE, cc = NULL) {
   y <- draw_para(paste("Detection:", p_txt,
     "Schnabel (>=3 nights) or Chapman (2) on within-bout recaptures of real ear tags; untagged captures count once as known alive,",
     "the dead leave the marked pool. N >= MNKA and needs >= 3 recaptures, else MNKA only. Bout limits: Poisson on recaptures",
-    "(Krebs 1999); the monthly value is the mean per estimable grid."),
+    "(Krebs 1999); the monthly value is the mean per estimable grid. These are MNKA over N-hat for ear-tagged animals;",
+    "Schnabel assumes equal catchability, so trap-happy desert sites read high, and untagged captures are counted as fully detected."),
     y, 9)
 
   # ---------- PAGE 3 (notable + charts) ----------

@@ -282,8 +282,8 @@ mam_tag_present <- function(tag_id) {
 # animal that escapes before it is tagged), an untagged capture is issued
 # NEON.MAM.Dxx.O<3-digit plot><trapCoordinate><YYYYMMDD> (about 1% are older
 # short forms without the date, e.g. NEON.MAM.D01.O001F1). The ID identifies a
-# capture EVENT, not an animal: it is issued once and can never be recaptured,
-# so it must not count as a mark. Ear tags such as "OL1001" / "OR1001" (left /
+# capture EVENT, not an animal: it is never a mark (short-form IDs without the
+# date can recur on 2 to 3 dates, but they still name events, not an animal). Ear tags such as "OL1001" / "OR1001" (left /
 # right ear plus digits) are real marks and are excluded by the lookahead.
 MAM_PLACEHOLDER_TAG_RE <- "^NEON[.]MAM[.]D[0-9]{2}[.]O(?![LR][0-9]+$)"
 mam_is_placeholder_tag <- function(tag_id) {
@@ -1455,6 +1455,8 @@ bout_closed_capture <- function(d) {
       M <- M1; C <- C2; R <- R2
       N <- ((M + 1) * (C + 1) / (R + 1)) - 1
       varN <- ((M + 1) * (C + 1) * (M - R) * (C - R)) / ((R + 1)^2 * (R + 2))
+      # Poisson limits on R are used even where R/C > 0.10 (Krebs's binomial
+      # zone); they are wider there, a conservative choice.
       lo <- (M + 1) * (C + 1) / (pl[["hi"]] + 1) - 1
       hi <- (M + 1) * (C + 1) / (pl[["lo"]] + 1) - 1
     }
@@ -1501,8 +1503,9 @@ bout_closed_capture <- function(d) {
 # on the animals beyond MNKA (f0 = N − MNKA) when f0 > 0 and varN > 0, and
 # otherwise lo = MNKA, hi = max(N, mean of the bouts' finite hi). lo ≥ MNKA
 # always, and an unbounded bout upper limit keeps the month's hi at Inf.
-# `design_break` marks a month whose rounded mean nights per bout differs from
-# the previous estimable month (e.g. NEON moving grids from 3 nights to 1): the
+# `design_break` marks a month whose modal nights per bout (`k_mode`, the most
+# frequent k among its estimable bouts, ties to the larger k) differs from the
+# previous estimable month (e.g. NEON moving grids from 3 nights to 1): the
 # line breaks where nights per bout change. A change in how many grids, or which
 # grids, were estimable is not a break, since the per-grid mean keeps those
 # months comparable (`n_grids` and `grids` record them).
@@ -1526,11 +1529,14 @@ closed_capture_series <- function(d, bouts = NULL) {
   pm <- est %>% dplyr::group_by(.data$ym, .data$plotID) %>%
     dplyr::summarise(
       n_bouts = dplyr::n(),
+      # var of a mean of bouts assumed independent; same-plot repeat bouts in a
+      # month share animals, so this is marginally understated
       varN = sum(.data$varN, na.rm = TRUE) / dplyr::n()^2,
       sumC = sum(.data$sumC),
       kN = sum(.data$k * .data$N_marked),
       k_mean = mean(.data$k),
       hi_inf = any(!is.finite(.data$hi)),
+      unmarked = mean(.data$n_unmarked),
       N_marked = mean(.data$N_marked),
       mnka = mean(.data$mnka),
       N = mean(.data$N), .groups = "drop")
@@ -1539,10 +1545,15 @@ closed_capture_series <- function(d, bouts = NULL) {
       n_grids = dplyr::n_distinct(.data$plotID),
       grids = paste(sort(unique(.data$plotID)), collapse = ","),
       n_bouts = sum(.data$n_bouts),
+      # var of a mean of plot-months assumed independent across grids (and, via
+      # the step above, across same-plot repeat bouts, which share animals, so
+      # varN is marginally understated)
       varN = sum(.data$varN) / dplyr::n_distinct(.data$plotID)^2,
       k_mean = mean(.data$k_mean),
       p = round(sum(.data$sumC) / sum(.data$kN), 3),
       hi_inf = any(.data$hi_inf),
+      unmarked = mean(.data$unmarked),
+      N_marked = mean(.data$N_marked),
       mnka = mean(.data$mnka),
       N = mean(.data$N), .groups = "drop") %>%
     dplyr::mutate(date = as.Date(paste0(.data$ym, "-01"))) %>%
@@ -1550,6 +1561,7 @@ closed_capture_series <- function(d, bouts = NULL) {
   # per-month bout limits: the single bout's own lo/hi, and the mean finite hi
   bl <- est %>% dplyr::group_by(.data$ym) %>%
     dplyr::summarise(bout_lo = dplyr::first(.data$lo), bout_hi = dplyr::first(.data$hi),
+                     k_mode = { tk <- table(.data$k); kv <- as.integer(names(tk)); max(kv[tk == max(tk)]) },
                      hi_fin_mean = if (any(is.finite(.data$hi)))
                        mean(.data$hi[is.finite(.data$hi)]) else NA_real_,
                      .groups = "drop")
@@ -1570,8 +1582,7 @@ closed_capture_series <- function(d, bouts = NULL) {
   series$hi[single] <- series$bout_hi[single]
   series$lo <- pmax(series$lo, series$mnka)
   series$bout_lo <- series$bout_hi <- series$hi_fin_mean <- NULL
-  k_round <- round(series$k_mean)
-  series$design_break <- c(FALSE, k_round[-1] != k_round[-nrow(series)])
+  series$design_break <- c(FALSE, series$k_mode[-1] != series$k_mode[-nrow(series)])
   list(series = series, n_bouts = nrow(bouts), n_single = n_single,
        n_estimable = nrow(est),
        mean_p = round(stats::weighted.mean(est$p, est$k * est$N_marked), 3),

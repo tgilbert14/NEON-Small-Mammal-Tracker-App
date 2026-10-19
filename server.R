@@ -1396,7 +1396,7 @@ server <- function(input, output, session) {
       # real-tag marks); rerun scripts/measure_closed_capture.R before changing them.
       tags$p("Detection differs across biomes: closed-canopy temperate sites (e.g. HARV) catch about ",
         tags$b("~81%"), " of the animals present per bout (mean per-night p̂ ≈ 0.43), while open deserts (e.g. JORN) catch about ",
-        tags$b("~96%"), " (mean p̂ ≈ 0.66), so per-night detection runs roughly 1.5x higher in the desert. An uncorrected count undercounts temperate sites more than deserts. These are estimates from ear-tagged animals, so read them as approximate."),
+        tags$b("~96%"), " (mean p̂ ≈ 0.66), so per-night detection runs roughly 1.5x higher in the desert. These are MNKA over N-hat for ear-tagged animals; Schnabel assumes equal catchability, so trap-happy desert sites read high, and untagged captures are counted as fully detected. An uncorrected count undercounts temperate sites more than deserts."),
       tags$p("That's why the green winner-highlight is ", tags$b("suppressed"),
         " on captures / individuals / trap-nights when these two sites' detection differs materially: “more captures” there would be a trapability statement, not an abundance one."),
       tags$p(class = "rank-modal-insight", style = "margin-top:10px",
@@ -3254,13 +3254,16 @@ server <- function(input, output, session) {
     hi_clipped <- any(!is.finite(s$hi))
     s$hi[!is.finite(s$hi)] <- s$N[!is.finite(s$hi)] * 2
     s$p_pct <- round(100 * s$p)
+    # hover splits N-hat into the tagged estimate and the untagged add-on
+    s$split <- sprintf("%.1f tagged + %.1f untagged counted once · p̂ %d%%",
+                       s$N_marked, s$unmarked, as.integer(s$p_pct))
     # Break the lines where nights per bout change (e.g. NEON's move to fewer
     # nights per bout; a change in grid count is not a break): an NA
     # row just before each break month stops plotly connecting across it.
     if (any(s$design_break)) {
       gaps <- s[s$design_break, , drop = FALSE]
       gaps$date <- gaps$date - 1
-      gaps[, c("N", "lo", "hi", "mnka", "p_pct")] <- NA
+      gaps[, c("N", "lo", "hi", "mnka", "p_pct", "split")] <- NA
       s <- rbind(s, gaps)
       s <- s[order(s$date, !is.na(s$N)), , drop = FALSE]
     }
@@ -3308,8 +3311,8 @@ server <- function(input, output, session) {
       add_trace(data = s, x = ~date, y = ~N, type = "scatter", mode = "lines+markers",
         name = "estimated abundance per grid (N̂)", line = list(color = acc(), width = 3),
         marker = list(size = 7, color = acc()),
-        customdata = ~p_pct, text = ~n_grids,
-        hovertemplate = paste0("%{x|%b %Y}<br>N̂ %{y:.1f} per grid · p̂ %{customdata}%",
+        customdata = ~split, text = ~n_grids,
+        hovertemplate = paste0("%{x|%b %Y}<br>N̂ %{y:.1f} per grid = %{customdata}",
                                "<br>%{text} grid(s) averaged",
                                if (hi_clipped) "<br>an unbounded upper limit is clipped for drawing" else "",
                                "<extra></extra>"))
@@ -3495,7 +3498,7 @@ server <- function(input, output, session) {
           "blank for single-night / low-recapture months that can't be detection-corrected (about half of bouts are single-night by design)",
           "blank whenever Nhat is un-estimable; 95% interval: a one-bout month keeps that bout's Poisson (Krebs 1999) limits; a multi-bout month uses a Chao (1989) log-normal interval on the monthly mean, or lo = MNKA and hi = max(Nhat, mean bout upper limit) when f0 or varN is not positive; never below the per-grid MNKA",
           "blank whenever Nhat is un-estimable or the upper interval is not finite",
-          "0–1; deserts run high, closed-canopy temperate sites low","Nhat is per grid while mnka and captures are site totals, so compare Nhat with mnka / n_grids, not with mnka; the chart line breaks where nights per bout change, not where n_grids changes"),
+          "0–1; deserts run high, closed-canopy temperate sites low; a bout whose raw Schnabel N falls below MNKA is clamped to MNKA (detection near-complete), so trap-happy sites can read high","Nhat is per grid while mnka and captures are site totals, so compare Nhat with mnka / n_grids, not with mnka; the chart line breaks where nights per bout change, not where n_grids changes"),
         stringsAsFactors = FALSE, row.names = NULL)
       # Provenance / license row (NEON CC BY 4.0) — first row of the codebook so
       # any analyst who opens the dictionary sees the source + attribution terms.

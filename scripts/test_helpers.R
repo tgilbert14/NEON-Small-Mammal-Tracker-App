@@ -228,25 +228,82 @@ check(nrow(bc) == 1L && bc$k == 2L && bc$sumR == 4L && bc$N_marked == 21 &&
         abs(bc$hi - round(110 / (pl[["lo"]] + 1) - 1, 1)) < 1e-9,
       "Chapman bout uses M net of deaths and Poisson limits on R")
 
+# Death on a recapture night. Night 1 catches A-H (8 new). A is recaptured on
+# night 2 and dies; B and C are recaptured on night 3. M = 0, 8, 7, so
+# num = 1*8 + 2*7 = 22 and sumR = 3 (raw N 7.3). Keeping A in M on night 3 would
+# give num 24 (raw N 8.0). The raw estimate is below the 8 known alive, so the
+# bout is clamped to MNKA.
+dd <- rbind(cc_rows("TEST_004", "2020-06-01", LETTERS[1:8]),
+            cc_rows("TEST_004", "2020-06-02", "A", fate = "dead"),
+            cc_rows("TEST_004", "2020-06-03", c("B", "C")))
+bd <- bout_closed_capture(dd)
+check(bd$k == 3L && bd$num == 22 && bd$sumR == 3L && round(bd$num / bd$sumR, 1) == 7.3 &&
+        bd$n_dead == 1L && bd$N_marked == 8 && bd$status == "detection near-complete",
+      "an animal that dies on its recapture night leaves M from the next night")
+
+# High recapture: five animals on all three nights plus one new on night 3 gives
+# num = 5*5 + 6*5 = 55, sumR = 10, raw N 5.5 below the 6 known alive.
+hr <- rbind(cc_rows("TEST_005", rep(c("2020-06-01", "2020-06-02", "2020-06-03"), each = 5),
+                    rep(sprintf("K%d", 1:5), 3)),
+            cc_rows("TEST_005", "2020-06-03", "K6"),
+            cc_rows("TEST_005", "2020-06-02", "NEON.MAM.D14.O005A120200602"))
+bh <- bout_closed_capture(hr)
+check(bh$num == 55 && bh$sumR == 10L && bh$status == "detection near-complete" &&
+        bh$N_marked == bh$mnka_marked && bh$mnka == 7L && bh$lo == bh$mnka && bh$N == 7,
+      "a raw Schnabel N below MNKA is clamped to MNKA, with lo at MNKA after the add-on")
+
+# sumR >= 50 switches Schnabel to normal limits in the 1/N domain: night 1
+# catches 100, nights 2 and 3 each recapture 25 and catch 75 new.
+night_tags <- list(sprintf("Q%03d", 1:100),
+                   c(sprintf("Q%03d", 1:25), sprintf("Q%03d", 101:175)),
+                   c(sprintf("Q%03d", 26:50), sprintf("Q%03d", 176:250)))
+big <- do.call(rbind, lapply(1:3, function(i)
+  cc_rows("TEST_006", as.Date("2020-06-01") + i - 1, night_tags[[i]])))
+bb <- bout_closed_capture(big)
+v_inv <- 50 / 27500^2
+ci_inv <- 1 / (27500 / 50) + c(1, -1) * 1.96 * sqrt(v_inv)
+check(bb$sumR == 50L && bb$num == 27500 && bb$N_marked == 550 &&
+        abs(bb$lo - round(1 / ci_inv[1], 1)) < 1e-9 && abs(bb$hi - round(1 / ci_inv[2], 1)) < 1e-9 &&
+        abs(bb$hi - round(27500 / recap_poisson_limits(50)[["lo"]], 1)) > 1,
+      "Schnabel bouts with sumR >= 50 use 1/N-normal limits, not Poisson")
+
 # Roll-up (3-night bouts unless noted): June has TEST_001 twice (two bouts) and
 # TEST_002 once; July has TEST_001 alone (one grid instead of two, same nights:
-# not a break); August has TEST_003 alone (a different plot: not a break); September has a 2-night
-# Chapman bout (nights per bout change: a break).
-ch_sep <- ch; ch_sep$date <- ch_sep$date + 92; ch_sep$ym <- format(ch_sep$date, "%Y-%m")
-ch_sep$tagID <- paste0(ch_sep$tagID, "s")
+# not a break); August has TEST_003 alone (a different plot: not a break);
+# September has a 2-night Chapman bout (modal nights change: a break); October
+# has one 3-night and one 2-night bout (a tie goes to the larger k: a break).
+shift_ch <- function(days, sfx, plot = "TEST_002") {
+  x <- ch; x$plotID <- plot; x$date <- x$date + days
+  x$ym <- format(x$date, "%Y-%m"); x$tagID <- paste0(x$tagID, sfx); x
+}
 roll <- rbind(fx$all, cc_bout(shift = 19, sfx = "2")$all, cc_bout("TEST_002", shift = 9, sfx = "b")$all,
-              cc_bout(shift = 30, sfx = "3")$all, cc_bout("TEST_003", shift = 61, sfx = "4")$all, ch_sep)
+              cc_bout(shift = 30, sfx = "3")$all, cc_bout("TEST_003", shift = 61, sfx = "4")$all,
+              shift_ch(92, "s"), cc_bout(shift = 122, sfx = "5")$all, shift_ch(122, "o"))
 rb <- bout_closed_capture(roll)
 rs <- closed_capture_series(roll, rb)$series
 jun <- rs[rs$ym == "2020-06", ]
 p1 <- mean(rb$N[rb$plotID == "TEST_001" & rb$ym == "2020-06"])
 p2 <- rb$N[rb$plotID == "TEST_002" & rb$ym == "2020-06"]
-check(nrow(rs) == 4L && abs(jun$N - mean(c(p1, p2))) < 1e-9 &&
+check(nrow(rs) == 5L && abs(jun$N - mean(c(p1, p2))) < 1e-9 &&
         jun$n_grids == 2L && jun$n_bouts == 3L && jun$lo >= jun$mnka && jun$hi >= jun$N &&
-        !jun$design_break && !rs$design_break[rs$ym == "2020-07"] &&
-        !rs$design_break[rs$ym == "2020-08"] && rs$grids[rs$ym == "2020-08"] == "TEST_003" &&
-        rs$design_break[rs$ym == "2020-09"],
-      "monthly N-hat is a mean per grid; the line breaks only where nights per bout change")
+        identical(as.integer(rs$k_mode), c(3L, 3L, 3L, 2L, 3L)) &&
+        identical(rs$design_break, c(FALSE, FALSE, FALSE, TRUE, TRUE)) &&
+        rs$grids[rs$ym == "2020-08"] == "TEST_003",
+      "monthly N-hat is a mean per grid; the line breaks only where modal nights per bout change")
+# Chao (1989) log-normal interval for the three-bout June month, by hand
+jb <- rb[rb$ym == "2020-06", ]
+j1 <- jb[jb$plotID == "TEST_001", ]; j2 <- jb[jb$plotID == "TEST_002", ]
+v_j <- (sum(j1$varN) / 4 + j2$varN) / 4
+m_j <- (mean(j1$mnka) + j2$mnka) / 2
+n_j <- (mean(j1$N) + j2$N) / 2
+f0_j <- n_j - m_j
+K_j <- exp(1.96 * sqrt(log(1 + v_j / f0_j^2)))
+check(f0_j > 0 && v_j > 0 && abs(jun$varN - v_j) < 1e-6 &&
+        abs(jun$lo - (m_j + f0_j / K_j)) < 1e-6 && abs(jun$hi - (m_j + f0_j * K_j)) < 1e-6,
+      "a multi-bout month uses the Chao log-normal interval exactly")
+check(abs(jun$unmarked - (mean(j1$n_unmarked) + j2$n_unmarked) / 2) < 1e-9 &&
+        abs(jun$N - (jun$N_marked + jun$unmarked)) < 1e-9,
+      "monthly N-hat splits into tagged N_marked plus the untagged add-on")
 jul <- rs[rs$ym == "2020-07", ]; bj <- rb[rb$ym == "2020-07", ]
 aug <- rs[rs$ym == "2020-08", ]; ba <- rb[rb$ym == "2020-08", ]
 check(nrow(bj) == 1L && identical(jul$lo, bj$lo) && identical(jul$hi, bj$hi) &&
@@ -270,13 +327,14 @@ harv <- reg_site("HARV")
 h3 <- harv$b[harv$b$boutID == "HARV_001#3", ]
 check(nrow(h3) == 1L && near(h3$N, 42.67, 0.10),
       sprintf("HARV_001#3 N-hat on real tags is about 43 (was about 116), got %.1f", h3$N))
-check(near(est_sum(harv), 7713, 0.02) && near(harv$cc$mean_detect, 0.815, 0.02) &&
-        near(harv$cc$mean_p, 0.434, 0.02) && harv$cc$n_unmarked_total > 0,
+check(near(est_sum(harv), 7713, 0.02) && near(harv$cc$mean_detect, 0.815, 0.005) &&
+        near(harv$cc$mean_p, 0.434, 0.005) && harv$cc$n_unmarked_total > 0,
       "HARV sum of bout N-hat, completeness and pooled p-hat match the recorded values")
 srer <- reg_site("SRER")
 check(sum(mam_is_placeholder_tag(srer$d$tagID)) == 413L &&
         sum(mam_tag_present(srer$d$tagID)) == 9962L &&
-        near(est_sum(srer), 5277, 0.02) && near(srer$cc$mean_detect, 0.862, 0.02),
+        near(est_sum(srer), 5277, 0.02) && near(srer$cc$mean_detect, 0.862, 0.005) &&
+        near(srer$cc$mean_p, 0.492, 0.005),
       "SRER placeholder count and real-tag estimates match the recorded values")
 abby <- reg_site("ABBY")
 s_all <- rbind(harv$cc$series[, c("N", "lo", "hi", "mnka")],

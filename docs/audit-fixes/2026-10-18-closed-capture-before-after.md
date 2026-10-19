@@ -22,8 +22,9 @@ downloaded.
    estimable bout keeps that bout's own limits; a month with several bouts uses a Chao (1989)
    log-normal interval on the animals beyond MNKA when f0 > 0 and varN > 0, else lo = MNKA and
    hi = max(N, mean of the bouts' finite hi), with hi = Inf if any bout hi is unbounded.
-   `design_break` marks a month whose rounded mean nights per bout differs from the
-   previous estimable month: the line breaks where nights per bout change. A change in the
+   `design_break` marks a month whose modal nights per bout (`k_mode`, the most frequent k
+   among its estimable bouts, ties to the larger k) differs from the previous estimable
+   month: the line breaks where nights per bout change. A change in the
    number or identity of estimable grids is not a break (the per-grid mean keeps those months
    comparable); `n_grids` and `grids` record them.
 
@@ -73,6 +74,34 @@ MNKA / N-hat weighted by N-hat.
   to 0.948 (JORN).
 - Pooled p-hat over sites: median 0.435 -> 0.482, range 0.178-0.627 -> 0.195-0.662.
 
+### Completeness caveat (HK review, 2026-10-18)
+
+Completeness is MNKA over N-hat. When raw Schnabel N falls below MNKA (the trap-happy
+signature) the bout is clamped to MNKA and its completeness is forced to 1 (status
+"detection near-complete"). That happens on 582 of 3,113 estimable bouts suite-wide
+(`clamp_share` in the per-site CSV): SRER 0.102 (11/108), HARV 0.147 (22/150), ABBY 0.197
+(12/61), JORN 0.453 (39/86); SERC 0.380 (27/71). Untagged captures enter both MNKA and N-hat,
+so they also read as fully detected. On ear-tagged animals only (`mean_detect_marked`),
+completeness is HARV 0.780 and JORN 0.960, suite median 0.846, range 0.460 to 0.960, next to
+the shipped 0.815, 0.962, 0.862 and 0.472 to 0.964. The app copy keeps the shipped numbers
+and says that trap-happy desert sites read high and untagged captures count as fully detected.
+
+### What the add-on is
+
+- Species: untagged captures are mostly shrews at eastern sites (ABBY 88% *Sorex*, HARV 48%
+  *Blarina*) and escaped heteromyids at desert sites (SRER 46% *Chaetodipus*, 16%
+  *Dipodomys*; JORN 36% *Chaetodipus*, 21% *Dipodomys*).
+- Share of summed estimable N-hat that is the add-on (`addon_share`): SRER 5.7%, HARV 15.6%,
+  ABBY 23.8%, WREF 23.9% (JORN 4.9%).
+- Placeholder capture events counted vs dropped as recapture Y (`n_unmarked` /
+  `n_unmarked_recap`): SRER 371 / 42, HARV 1,762 / 71, ABBY 1,151 / 9.
+- Two biases. An untagged animal caught again on a later night of the bout gets a new
+  placeholder and counts again, so the add-on can run high. And real tags whose first-ever
+  capture is flagged recapture Y (SRER 3.6%, HARV 5.2%, ABBY 3.3%, JORN 4.8%) may be animals
+  first handled untagged, which bounds from above how often one animal is counted both ways.
+- HARV_001#3's lower limit 37 is the MNKA floor (15 tagged + 22 untagged), not a Poisson
+  limit; the Poisson lower limit on the tagged part falls below the 15 known alive.
+
 ### Difference from the audit's expected p-hat
 
 The audit expected mean_p HARV 0.296 -> 0.367 and JORN 0.627 -> 0.623 (ratio about 1.7x).
@@ -93,10 +122,10 @@ match the audit (SRER 5277, HARV 7717 expected vs 7713, ABBY 2598; HARV 0.81, JO
   Poisson hi (28.7) is below that bound. All single-grid months at these four sites have one
   bout, so they now carry the bout's own limits. (The first version of this branch used the
   Chao interval in every month and fell below the bound in 8 months.)
-- Design breaks (nights per bout only): SRER 4 of 39 months, HARV 14 of 51, ABBY 2 of 29,
-  JORN 4 of 31. Isolated months (drawn as a point with an interval bar): SRER 1, HARV 9,
-  ABBY 0, JORN 2. HARV breaks often because its monthly mean nights per bout moves between
-  2 and 3 as 2-night and 3-night bouts mix (R rounds 2.5 to 2).
+- Design breaks (modal nights per bout, `k_mode`): SRER 4 of 39 months, HARV 10 of 51, ABBY 2
+  of 29, JORN 4 of 31. Isolated months (drawn as a point with an interval bar): SRER 1, HARV 6,
+  ABBY 1, JORN 2. HARV still breaks where 2-night and 3-night bouts trade places as the most
+  common bout length (14 breaks with round(k_mean)).
 
 ## Not changed by this fix
 
