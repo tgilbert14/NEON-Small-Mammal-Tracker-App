@@ -1515,3 +1515,29 @@ Driver implication, and next action.
   the rolled cache as a cold closure, require generated `bslib` `0.11.0` with dated
   snapshot provenance and no moving `RemoteRepos`, inspect the immutable promotion
   artifact/direct-child bot commit, and require literal-head CI before merge.
+
+### 2026-10-18 - audit items 4, 5, 21, 23: repro tokens, QC card, title/lang, real-tag estimator / [Claude]
+
+- **Source:** TG-Data-Apps `docs/audits/neon-suite-audit-2026-10-18.md` items 4 (P0), 5, 21, 23 and the
+  Small Mammal appendix. Lead on Fable 5.1, two Opus 5.5 workers, HK review on Fable.
+- **PR #95** `fix/repro-tokens-qc-card-title`: `flag_repro()` exact tokens (SRER reproductive females
+  Mar 100 -> 41, May 100 -> 76, Nov 98 -> 22), `unname()` in `individual_qc_flags()` plus a tryCatch
+  backstop on the QC card, `page_fillable(title=, lang="en")` with a landing-contract check.
+  20 helper checks.
+- **PR 2** `fix/closed-capture-real-tags`: marks are real ear tags only (`mam_is_placeholder_tag`),
+  dead animals leave M_t, untagged captures added once as known-alive, p-hat on N_marked, Krebs
+  Poisson bout limits (1/N inversion only for sumR >= 50), mean-per-grid monthly roll-up with Chao
+  log-normal interval and a line break where nights per bout change. Sum N-hat over estimable bouts:
+  SRER 5734 -> 5277, ABBY 3411 -> 2598, HARV 11151 -> 7713, JORN 2606 -> 2534; HARV peak month
+  2,160 (summed) -> 268 per grid; HARV_001#3 116 -> 42.7. Copy recomputed (HARV ~81% vs JORN ~96%
+  completeness, p-hat 0.43 vs 0.66, about 1.5x, with the clamp and add-on caveats). 28 helper checks.
+  Numbers and commands: `docs/audit-fixes/2026-10-18-*`.
+- **Manifest:** md5 checksums of the changed app files refreshed by text edit; terra 1.8-50, no
+  neonUtilities. CI's regenerate-and-compare gate is the authority.
+- **Not done:** `data/site_index.rds` still carries the old `mean_p` (picker chips show HARV 0.30);
+  k counts capture nights not trapped nights (HK item 5); Individuals tile still counts placeholder
+  IDs (tooltip now says so); PR #65 (HK plan) does not cover these items and stays open.
+- **Next action:** Tim merges #95 then PR 2 (resolve the trivial `R/helpers.R` / manifest overlap by
+  taking PR 2's manifest and re-running the checksum refresh), then dispatches `refresh-data.yml`
+  with `skip_download=true` so the indexes rebuild on the new estimator, and curls the live page
+  for `<title>` and `<html lang="en">`.
