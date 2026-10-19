@@ -645,8 +645,10 @@ server <- function(input, output, session) {
               if (!is.na(row$nickname[1])) sprintf(" (%s)", row$nickname[1]) else "") else ""
     # detection completeness: one understated labelled number, present only where
     # this site has an estimable closed-capture bout (mean_p), so a raw cross-site
-    # count is read against how well the traps actually detect here (~0.57 closed-
-    # canopy temperate vs ~0.95 deserts). Absent — not "—" — where unavailable.
+    # count is read against how well the traps actually detect here (per-night p̂
+    # ~0.43 at HARV vs ~0.66 at JORN on real-tag marks; the chip reads data/site_index.rds,
+    # which keeps the pre-2026-10-18 estimator until the refresh workflow rebuilds it).
+    # Absent, not "—", where unavailable.
     det_line <- if (!is.na(row$mean_p[1]))
       sprintf("<div class='pm-pop-det' title='Mean per-night detection probability across this site&rsquo;s estimable closed-capture bouts. See the Population tab&rsquo;s detection card.'>detection ~%d%%/night</div>",
               round(100 * row$mean_p[1])) else ""
@@ -712,8 +714,8 @@ server <- function(input, output, session) {
             stat(row$species[1], "species")),
           div(class = "si-row si-star", "Most caught: ", star),
           # detection completeness — present only where an estimable closed-capture
-          # bout exists. Qualifies the raw counts above (deserts ~0.95, closed-
-          # canopy temperate ~0.57), with the detail on hover, not always-on text.
+          # bout exists. Qualifies the raw counts above (per-night p̂ ~0.66 at JORN,
+          # ~0.43 at HARV), with the detail on hover, not always-on text.
           if (!is.na(row$mean_p[1]))
             div(class = "si-row si-det",
               title = "Mean per-night detection probability across this site’s estimable closed-capture bouts. Full breakdown on the Population tab’s detection card.",
@@ -1285,8 +1287,8 @@ server <- function(input, output, session) {
     # detection-corrected read so the cross-site comparison carries the
     # correction the app computes everywhere else: per-site mean p̂ (how well
     # this biome's traps catch what's present) + the mean monthly N̂ across
-    # estimable bouts. The 2x p̂ spread (HARV ~0.57 temperate vs JORN ~0.95
-    # desert) is exactly what makes a raw cross-site count a detection statement,
+    # estimable grids. The p̂ spread (HARV ~0.43 temperate vs JORN ~0.66 desert,
+    # about 1.5x; docs/audit-fixes/2026-10-18-closed-capture-before-after.md) is what makes a raw cross-site count a detection statement,
     # not a density one — so we surface it AND gate the winner-highlight on it.
     cc <- tryCatch(closed_capture_series(d), error = function(e) NULL)
     nhat_pm <- if (!is.null(cc) && !is.null(cc$series) && nrow(cc$series) > 0)
@@ -1367,8 +1369,8 @@ server <- function(input, output, session) {
           # raw counts above do not.
           row("Detection p̂ (per night)", pa$p_hat, pb$p_hat, fmt = pfmt,
               tip = "Mean per-night capture probability from the closed-capture (Schnabel/Chapman) estimates. Deserts run high (~0.6+); closed-canopy temperate sites run low, so a raw count undercounts temperate sites worse."),
-          row("Mean N̂ per month", pa$nhat_pm, pb$nhat_pm, fmt = function(x) if (is.na(x)) "—" else format(x, big.mark = ","),
-              tip = "Mean detection-corrected abundance per month across estimable (multi-night) bouts: the cross-biome comparison the raw captures can't make honestly."))),
+          row("Mean N̂ per grid-month", pa$nhat_pm, pb$nhat_pm, fmt = function(x) if (is.na(x)) "—" else format(x, big.mark = ","),
+              tip = "Mean detection-corrected abundance per estimable grid per month, averaged over months with an estimable (multi-night) bout. Animals per grid, not a density, but a fairer cross-biome read than raw captures."))),
       div(class = "compare-species",
         div(class = "cmp-col", div(class = "cmp-col-h", "Top species · ", pa$site), sp_list(pa)),
         div(class = "cmp-col", div(class = "cmp-col-h", "Top species · ", pb$site), sp_list(pb))),
@@ -1390,14 +1392,16 @@ server <- function(input, output, session) {
       div(class = "rank-modal-sub",
         "Raw captures, individuals, and trap-nights count what the traps caught, which depends on how ",
         tags$b("detectable"), " the animals are, not just how many there are."),
-      tags$p("Detection completeness swings about 2x across biomes: closed-canopy temperate sites (e.g. HARV) catch only ",
-        tags$b("~57%"), " of the animals present per bout (mean p̂ ≈ 0.30), while open deserts (e.g. JORN) catch ",
-        tags$b("~95%"), " (mean p̂ ≈ 0.63). So an uncorrected count undercounts temperate sites far worse than deserts."),
+      # Numbers from docs/audit-fixes/2026-10-18-closed-capture-before-after.md (HARV vs JORN,
+      # real-tag marks); rerun scripts/measure_closed_capture.R before changing them.
+      tags$p("Detection differs across biomes: closed-canopy temperate sites (e.g. HARV) catch about ",
+        tags$b("~81%"), " of the animals present per bout (mean per-night p̂ ≈ 0.43), while open deserts (e.g. JORN) catch about ",
+        tags$b("~96%"), " (mean p̂ ≈ 0.66), so per-night detection runs roughly 1.5x higher in the desert. An uncorrected count undercounts temperate sites more than deserts. These are estimates from ear-tagged animals, so read them as approximate."),
       tags$p("That's why the green winner-highlight is ", tags$b("suppressed"),
         " on captures / individuals / trap-nights when these two sites' detection differs materially: “more captures” there would be a trapability statement, not an abundance one."),
       tags$p(class = "rank-modal-insight", style = "margin-top:10px",
         bs_icon("lightbulb"), " For an apples-to-apples cross-biome read, use the ",
-        tags$b("Detection p̂"), " and ", tags$b("Mean N̂ per month"),
+        tags$b("Detection p̂"), " and ", tags$b("Mean N̂ per grid-month"),
         " rows below: those carry the closed-capture correction this app computes everywhere else.")
     ))
   })
@@ -1440,7 +1444,7 @@ server <- function(input, output, session) {
         vb(cs$total_captures, "Captures",      "bullseye",        "#38a8e8", "captures",
            tip = "Total times an animal was caught & handled. Click to see captures by plot."),
         vb(cs$individuals,    "Individuals",   "fingerprint",     "#43b8e8", "individuals",
-           tip = "Distinct animals (unique ear-tag IDs). Click for the most-caught individuals."),
+           tip = "Distinct tag IDs. NEON issues a placeholder ID once per untagged capture, so an animal released untagged counts once per capture. Click for the most-caught individuals."),
         vb(cs$species,        "Species",       "diagram-3-fill",  "#5fb56a", "species",
            tip = "Distinct species identified. Click for species ranked by abundance."),
         vb(cs$recap_rate,     "Recapture rate","arrow-repeat",    "#138086", "recapture", pct = TRUE,
@@ -3208,7 +3212,11 @@ server <- function(input, output, session) {
         chip(pct(cc$mean_detect), "of population caught / bout", dcol("#43b8e8")),
         chip(cc$n_estimable,      sprintf("estimable bouts (of %d)", cc$n_bouts), dcol("#5fb56a")),
         if (!is.na(sn_pct))
-          chip(paste0(sn_pct, "%"), "single-night (index-only)", dcol("#9aa7b4"))))
+          chip(paste0(sn_pct, "%"), "single-night (index-only)", dcol("#9aa7b4")),
+        # NEON SOP C.8 placeholder IDs: one per untagged capture, never a mark
+        if ((cc$n_unmarked_total %||% 0) > 0)
+          chip(format(cc$n_unmarked_total, big.mark = ","),
+               "untagged captures counted once, never as marks", dcol("#8a97a8"))))
   })
 
   # The driver overlaid on the detection plot: the sidebar pick if any, else the
@@ -3240,8 +3248,28 @@ server <- function(input, output, session) {
                               "<span style='font-size:13px'>This site's grids are single-night, or had too few within-bout recaptures.<br>",
                               "MNKA & CPUE above are the right index for these.</span>"), "\U0001F50E"))
     s <- cc$series
-    # cap any infinite upper bound for plotting (shouldn't occur post-roll-up, but be safe)
+    # An unbounded bout upper limit keeps that month's hi at Inf (a real case, e.g.
+    # a Schnabel bout with ΣR ≥ 50 whose 1/N interval crosses 0). Clip it to 2·N̂
+    # for drawing only, and say so in the band's legend name.
+    hi_clipped <- any(!is.finite(s$hi))
     s$hi[!is.finite(s$hi)] <- s$N[!is.finite(s$hi)] * 2
+    s$p_pct <- round(100 * s$p)
+    # Break the lines at a design change (a different set of estimable grids, or a
+    # change in nights per bout such as NEON's 2020-11 move to fewer nights): an NA
+    # row just before each break month stops plotly connecting across it.
+    if (any(s$design_break)) {
+      gaps <- s[s$design_break, , drop = FALSE]
+      gaps$date <- gaps$date - 1
+      gaps[, c("N", "lo", "hi", "mnka", "p_pct")] <- NA
+      s <- rbind(s, gaps)
+      s <- s[order(s$date, !is.na(s$N)), , drop = FALSE]
+    }
+    # a month isolated between two breaks has no neighbour to draw its band to;
+    # give it an error bar so its interval stays visible
+    seg <- cumsum(is.na(s$N))
+    seg_n <- stats::ave(!is.na(s$N), seg, FUN = sum)
+    iso <- s[!is.na(s$N) & seg_n == 1, , drop = FALSE]
+    band_name <- if (hi_clipped) "95% interval (clipped where unbounded)" else "95% interval"
     # Overlay an environmental driver. Honour the sidebar pick if the user made
     # one; otherwise AUTO-overlay the BEST-correlated driver at its best lag (the
     # winner from the ranking above) — but only when the link is real (|r| >= 0.2)
@@ -3272,23 +3300,31 @@ server <- function(input, output, session) {
         line = list(width = 0), showlegend = FALSE, hoverinfo = "skip") %>%
       add_trace(data = s, x = ~date, y = ~lo, type = "scatter", mode = "lines", fill = "tonexty",
         fillcolor = "rgba(12,35,75,0.13)", line = list(width = 0),
-        name = "95% interval", hoverinfo = "skip") %>%
+        name = band_name, hoverinfo = "skip") %>%
       add_trace(data = s, x = ~date, y = ~mnka, type = "scatter", mode = "lines+markers",
-        name = "MNKA (known alive)", line = list(color = dcol("#8a97a8"), width = 2),
+        name = "MNKA per grid (known alive)", line = list(color = dcol("#8a97a8"), width = 2),
         marker = list(size = 5, color = dcol("#8a97a8")),
-        hovertemplate = "%{x|%b %Y}<br>MNKA %{y}<extra></extra>") %>%
+        hovertemplate = "%{x|%b %Y}<br>MNKA %{y:.1f} per grid<extra></extra>") %>%
       add_trace(data = s, x = ~date, y = ~N, type = "scatter", mode = "lines+markers",
-        name = "estimated abundance (N̂)", line = list(color = acc(), width = 3),
+        name = "estimated abundance per grid (N̂)", line = list(color = acc(), width = 3),
         marker = list(size = 7, color = acc()),
-        customdata = ~round(100 * p),
-        hovertemplate = "%{x|%b %Y}<br>N̂ %{y} · p̂ %{customdata}%<extra></extra>")
+        customdata = ~p_pct, text = ~n_grids,
+        hovertemplate = paste0("%{x|%b %Y}<br>N̂ %{y:.1f} per grid · p̂ %{customdata}%",
+                               "<br>%{text} grid(s) averaged",
+                               if (hi_clipped) "<br>an unbounded upper limit is clipped for drawing" else "",
+                               "<extra></extra>"))
+    if (nrow(iso))
+      p <- p %>% add_trace(data = iso, x = ~date, y = ~N, type = "scatter", mode = "markers",
+        marker = list(size = 1, color = "rgba(0,0,0,0)"), showlegend = FALSE, hoverinfo = "skip",
+        error_y = list(type = "data", symmetric = FALSE, array = ~(hi - N),
+                       arrayminus = ~(N - lo), color = "rgba(12,35,75,0.35)", thickness = 6, width = 0))
     # the auto-best label rides its OWN line (y=1.12) so it can't collide with the
     # right-anchored ctx note; coloured to match the shaded driver + its y2 axis
     annos <- if (!is.null(best_label)) list(list(text = best_label,
         x = 0, y = 1.12, xref = "paper", yref = "paper", xanchor = "left", yanchor = "bottom",
         showarrow = FALSE, font = list(color = ENV_LAYERS[[es$layer]]$color, size = 11))) else list()
     p <- plotly_theme(p) %>% plotly::layout(
-      xaxis = list(title = ""), yaxis = list(title = "animals on the grid(s)", rangemode = "tozero"),
+      xaxis = list(title = ""), yaxis = list(title = "animals per sampled grid", rangemode = "tozero"),
       margin = list(l = 50, r = 30, t = if (!is.null(best_label)) 72 else 48, b = 40),
       annotations = annos) %>% ctx_anno()   # t roomy for ctx caption / best-match label
     if (!is.null(es)) p <- p %>% plotly::layout(yaxis2 = env_axis_spec(es$layer, show = TRUE, unit_label = ulab))
@@ -3301,7 +3337,7 @@ server <- function(input, output, session) {
     s <- cc$series
     lift <- if (any(s$mnka > 0)) round(100 * (sum(s$N) / sum(s$mnka) - 1)) else NA
     div(class = "detect-note", bs_icon("info-circle"),
-      HTML(sprintf(" Across estimable bouts, the corrected estimate runs about <b>%s%%</b> above the raw known-alive count: the animals the traps missed. Estimates are summed across grids per month; months with too few recaptures are omitted.",
+      HTML(sprintf(" Across estimable bouts, the corrected estimate runs about <b>%s%%</b> above the raw known-alive count: the animals the traps missed. Each month is the mean per estimable grid (same-plot bouts in one month averaged first); months with too few recaptures are omitted.",
                    ifelse(is.na(lift), "—", lift))))
   })
 
@@ -3342,7 +3378,7 @@ server <- function(input, output, session) {
     date           = list(units = "ISO date (YYYY-MM-DD)", note = "the capture/handling date (collectDate, day precision)"),
     ym             = list(units = "month (YYYY-MM)", note = "derived from date; the grain the monthly series aggregates to"),
     year           = list(units = "calendar year (YYYY)", note = "derived from date"),
-    tagID          = list(units = "ear-tag ID (unique within site, lifelong)", note = "NA = an untagged/empty-trap row; NEON never recycles a tag within a site"),
+    tagID          = list(units = "ear-tag ID (unique within site, lifelong)", note = "NA = an empty-trap row; NEON never recycles a tag within a site. NEON.MAM.Dxx.O... is the SOP C.8 placeholder issued once per untagged capture, not a lasting animal ID"),
     short          = list(units = "short species label", note = "derived display name (genus initial + species), for compact tables"),
     taxonID        = list(units = "NEON taxon code (join key)", note = "NEON DP1.10072.001 taxonomy; the stable code behind scientificName"),
     scientificName = list(units = "Latin binomial", note = "NEON DP1.10072.001 taxonomy; genus-only 'X sp.' and ambiguous 'A/B' kept as recorded"),
@@ -3410,11 +3446,11 @@ server <- function(input, output, session) {
         dc <- cc$series %>% dplyr::transmute(.data$ym,
           Nhat = round(.data$N, 1), Nhat_lo = round(.data$lo, 1),
           Nhat_hi = ifelse(is.finite(.data$hi), round(.data$hi, 1), NA_real_),
-          p_hat = .data$p)
+          p_hat = .data$p, n_grids = .data$n_grids)
         site_m <- dplyr::left_join(site_m, dc, by = "ym")
       } else {
         site_m$Nhat <- NA_real_; site_m$Nhat_lo <- NA_real_
-        site_m$Nhat_hi <- NA_real_; site_m$p_hat <- NA_real_
+        site_m$Nhat_hi <- NA_real_; site_m$p_hat <- NA_real_; site_m$n_grids <- NA_integer_
       }
       site_m <- data.frame(siteID = mode_chr(d$siteID), site_m[order(site_m$ym), ],
                            stringsAsFactors = FALSE)
@@ -3443,23 +3479,23 @@ server <- function(input, output, session) {
       ser <- data.frame(
         file = "monthly-series",
         column = c("siteID","ym","mnka","captures","trap_nights","cpue_per100tn",
-                   "Nhat","Nhat_lo","Nhat_hi","p_hat","n_plots"),
+                   "n_plots","Nhat","Nhat_lo","Nhat_hi","p_hat","n_grids"),
         units = c(
           "NEON 4-letter code","month (YYYY-MM)",
           "Minimum Number Known Alive (Krebs 1966), summed across plots",
           "handling events that month","trap-nights of effort that month",
-          "captures per 100 trap-nights (within-site index)",
-          "detection-corrected abundance (Schnabel/Chapman); blank where un-estimable",
+          "captures per 100 trap-nights (within-site index)","distinct plots sampled",
+          "mean detection-corrected abundance per estimable grid (Schnabel/Chapman on real ear tags, plus untagged captures once); blank where un-estimable",
           "lower confidence bound for detection-corrected abundance",
           "upper confidence bound for detection-corrected abundance",
-          "per-night detection probability (Model M0)","distinct plots sampled"),
+          "per-night detection probability of ear-tagged animals (Model M0), pooled over the month","estimable grids averaged into Nhat that month"),
         note = c(
           "","","an INDEX, not a census; counts animals known alive, not corrected for detection",
-          "raw count of handling events that month (a numerator, no denominator)","","captures per 100 trap-nights, a within-site relative index, NOT a cross-site density (detection differs by biome)",
+          "raw count of handling events that month (a numerator, no denominator)","","captures per 100 trap-nights, a within-site relative index, NOT a cross-site density (detection differs by biome)","",
           "blank for single-night / low-recapture months that can't be detection-corrected (about half of bouts are single-night by design)",
-          "blank whenever Nhat is un-estimable; interval method matches the detection estimator",
+          "blank whenever Nhat is un-estimable; Chao (1989) log-normal 95% interval on the monthly mean of Poisson-limited (Krebs 1999) bout estimates, never below the per-grid MNKA",
           "blank whenever Nhat is un-estimable or the upper interval is not finite",
-          "0–1; deserts run high, closed-canopy temperate sites low",""),
+          "0–1; deserts run high, closed-canopy temperate sites low","Nhat is per grid while mnka and captures are site totals, so compare Nhat with mnka / n_grids, not with mnka"),
         stringsAsFactors = FALSE, row.names = NULL)
       # Provenance / license row (NEON CC BY 4.0) — first row of the codebook so
       # any analyst who opens the dictionary sees the source + attribution terms.

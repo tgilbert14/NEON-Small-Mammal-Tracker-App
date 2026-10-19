@@ -3392,10 +3392,10 @@
       "checksum": "09f8805af826ebdf447ef34bfb075726"
     },
     "R/helpers.R": {
-      "checksum": "94bd18c3bc208cf5edd51c32fdcb6362"
+      "checksum": "0d707500abec4d5259c25487f90584bb"
     },
     "R/report_pdf.R": {
-      "checksum": "a31115dc4692ed6d84abe1d6fe479290"
+      "checksum": "6f85c1e9477ad4a6834593f1cbdf1941"
     },
     "R/seasonal_env.R": {
       "checksum": "dac63e6aa78b665e297bfc608b7e86b0"
@@ -3404,10 +3404,10 @@
       "checksum": "9336d112293f9e6daadf0cb5aa5657f4"
     },
     "server.R": {
-      "checksum": "65e5c61ee785b3f3f5d3ee8ba80953f8"
+      "checksum": "c60c1aff2bd7a7308cdef11f85daf1ce"
     },
     "ui.R": {
-      "checksum": "378a4e69dec6606007fdfdf6e4c08709"
+      "checksum": "4d009638e807d127d77ba4575feb44e1"
     },
     "www/app.js": {
       "checksum": "4fab7f639eafc7839bd929dafcd32fb0"

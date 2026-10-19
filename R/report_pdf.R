@@ -343,12 +343,13 @@ render_report_pdf <- function(file, d, label, is_demo = FALSE, cc = NULL) {
     y, 8.5, PG$muted)
   y <- draw_h4("Methods: detection-corrected abundance", y)
   p_txt <- if (!is.null(cc) && !is.null(cc$series) && nrow(cc$series) > 0 && !is.na(cc$mean_p))
-    sprintf("~%.0f%% per-bout capture probability (Model M0), across %d of %d estimable bouts.",
+    sprintf("~%.0f%% per-night capture probability of ear-tagged animals (Model M0), across %d of %d estimable bouts.",
             100 * cc$mean_p, cc$n_estimable, cc$n_bouts)
   else "not estimable here (single-night grids or too few within-bout recaptures - MNKA & CPUE are the right index for these)."
-  y <- draw_para(paste("Per-bout detection:", p_txt,
-    "Closed-capture estimators (Schnabel for >=3-night bouts, Chapman for 2) on within-bout recaptures;",
-    "N is floored at MNKA and a point estimate needs >= 3 within-bout recaptures, else the month shows the MNKA index only."),
+  y <- draw_para(paste("Detection:", p_txt,
+    "Schnabel (>=3 nights) or Chapman (2) on within-bout recaptures of real ear tags; untagged captures count once as known alive,",
+    "the dead leave the marked pool. N >= MNKA and needs >= 3 recaptures, else MNKA only. Bout limits: Poisson on recaptures",
+    "(Krebs 1999); the monthly value is the mean per estimable grid."),
     y, 9)
 
   # ---------- PAGE 3 (notable + charts) ----------
