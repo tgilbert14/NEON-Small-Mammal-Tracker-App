@@ -1501,9 +1501,11 @@ bout_closed_capture <- function(d) {
 # on the animals beyond MNKA (f0 = N − MNKA) when f0 > 0 and varN > 0, and
 # otherwise lo = MNKA, hi = max(N, mean of the bouts' finite hi). lo ≥ MNKA
 # always, and an unbounded bout upper limit keeps the month's hi at Inf.
-# `design_break` marks a month whose number of estimable grids, or rounded mean
-# nights per bout, differs from the previous estimable month (the chart breaks
-# the line there); which plots they are does not break it (`grids` lists them).
+# `design_break` marks a month whose rounded mean nights per bout differs from
+# the previous estimable month (e.g. NEON moving grids from 3 nights to 1): the
+# line breaks where nights per bout change. A change in how many grids, or which
+# grids, were estimable is not a break, since the per-grid mean keeps those
+# months comparable (`n_grids` and `grids` record them).
 # Only months with at least one estimable bout get an abundance; others stay
 # index-only.
 closed_capture_series <- function(d, bouts = NULL) {
@@ -1569,8 +1571,7 @@ closed_capture_series <- function(d, bouts = NULL) {
   series$lo <- pmax(series$lo, series$mnka)
   series$bout_lo <- series$bout_hi <- series$hi_fin_mean <- NULL
   k_round <- round(series$k_mean)
-  series$design_break <- c(FALSE, (series$n_grids[-1] != series$n_grids[-nrow(series)]) |
-                                  (k_round[-1] != k_round[-nrow(series)]))
+  series$design_break <- c(FALSE, k_round[-1] != k_round[-nrow(series)])
   list(series = series, n_bouts = nrow(bouts), n_single = n_single,
        n_estimable = nrow(est),
        mean_p = round(stats::weighted.mean(est$p, est$k * est$N_marked), 3),

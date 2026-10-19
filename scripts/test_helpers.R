@@ -228,21 +228,25 @@ check(nrow(bc) == 1L && bc$k == 2L && bc$sumR == 4L && bc$N_marked == 21 &&
         abs(bc$hi - round(110 / (pl[["lo"]] + 1) - 1, 1)) < 1e-9,
       "Chapman bout uses M net of deaths and Poisson limits on R")
 
-# Roll-up: June has TEST_001 twice (two bouts) and TEST_002 once; July has
-# TEST_001 alone (one grid instead of two: a design break); August has TEST_003
-# alone (a different plot, still one grid and three nights: not a break).
-roll <- rbind(fx$all, cc_bout(shift = 19, sfx = "2")$all, ch,
-              cc_bout(shift = 30, sfx = "3")$all, cc_bout("TEST_003", shift = 61, sfx = "4")$all)
+# Roll-up (3-night bouts unless noted): June has TEST_001 twice (two bouts) and
+# TEST_002 once; July has TEST_001 alone (one grid instead of two, same nights:
+# not a break); August has TEST_003 alone (a different plot: not a break); September has a 2-night
+# Chapman bout (nights per bout change: a break).
+ch_sep <- ch; ch_sep$date <- ch_sep$date + 92; ch_sep$ym <- format(ch_sep$date, "%Y-%m")
+ch_sep$tagID <- paste0(ch_sep$tagID, "s")
+roll <- rbind(fx$all, cc_bout(shift = 19, sfx = "2")$all, cc_bout("TEST_002", shift = 9, sfx = "b")$all,
+              cc_bout(shift = 30, sfx = "3")$all, cc_bout("TEST_003", shift = 61, sfx = "4")$all, ch_sep)
 rb <- bout_closed_capture(roll)
 rs <- closed_capture_series(roll, rb)$series
 jun <- rs[rs$ym == "2020-06", ]
 p1 <- mean(rb$N[rb$plotID == "TEST_001" & rb$ym == "2020-06"])
 p2 <- rb$N[rb$plotID == "TEST_002" & rb$ym == "2020-06"]
-check(nrow(rs) == 3L && abs(jun$N - mean(c(p1, p2))) < 1e-9 &&
+check(nrow(rs) == 4L && abs(jun$N - mean(c(p1, p2))) < 1e-9 &&
         jun$n_grids == 2L && jun$n_bouts == 3L && jun$lo >= jun$mnka && jun$hi >= jun$N &&
-        !jun$design_break && rs$design_break[rs$ym == "2020-07"] &&
-        !rs$design_break[rs$ym == "2020-08"] && rs$grids[rs$ym == "2020-08"] == "TEST_003",
-      "monthly N-hat is a mean per grid; design breaks follow grid count and nights, not plot identity")
+        !jun$design_break && !rs$design_break[rs$ym == "2020-07"] &&
+        !rs$design_break[rs$ym == "2020-08"] && rs$grids[rs$ym == "2020-08"] == "TEST_003" &&
+        rs$design_break[rs$ym == "2020-09"],
+      "monthly N-hat is a mean per grid; the line breaks only where nights per bout change")
 jul <- rs[rs$ym == "2020-07", ]; bj <- rb[rb$ym == "2020-07", ]
 aug <- rs[rs$ym == "2020-08", ]; ba <- rb[rb$ym == "2020-08", ]
 check(nrow(bj) == 1L && identical(jul$lo, bj$lo) && identical(jul$hi, bj$hi) &&

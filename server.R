@@ -3254,8 +3254,8 @@ server <- function(input, output, session) {
     hi_clipped <- any(!is.finite(s$hi))
     s$hi[!is.finite(s$hi)] <- s$N[!is.finite(s$hi)] * 2
     s$p_pct <- round(100 * s$p)
-    # Break the lines at a design change (a different number of estimable grids, or a
-    # change in nights per bout such as NEON's 2020-11 move to fewer nights): an NA
+    # Break the lines where nights per bout change (e.g. NEON's move to fewer
+    # nights per bout; a change in grid count is not a break): an NA
     # row just before each break month stops plotly connecting across it.
     if (any(s$design_break)) {
       gaps <- s[s$design_break, , drop = FALSE]
@@ -3495,7 +3495,7 @@ server <- function(input, output, session) {
           "blank for single-night / low-recapture months that can't be detection-corrected (about half of bouts are single-night by design)",
           "blank whenever Nhat is un-estimable; 95% interval: a one-bout month keeps that bout's Poisson (Krebs 1999) limits; a multi-bout month uses a Chao (1989) log-normal interval on the monthly mean, or lo = MNKA and hi = max(Nhat, mean bout upper limit) when f0 or varN is not positive; never below the per-grid MNKA",
           "blank whenever Nhat is un-estimable or the upper interval is not finite",
-          "0–1; deserts run high, closed-canopy temperate sites low","Nhat is per grid while mnka and captures are site totals, so compare Nhat with mnka / n_grids, not with mnka"),
+          "0–1; deserts run high, closed-canopy temperate sites low","Nhat is per grid while mnka and captures are site totals, so compare Nhat with mnka / n_grids, not with mnka; the chart line breaks where nights per bout change, not where n_grids changes"),
         stringsAsFactors = FALSE, row.names = NULL)
       # Provenance / license row (NEON CC BY 4.0) — first row of the codebook so
       # any analyst who opens the dictionary sees the source + attribution terms.

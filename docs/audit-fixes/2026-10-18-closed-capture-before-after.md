@@ -22,9 +22,10 @@ downloaded.
    estimable bout keeps that bout's own limits; a month with several bouts uses a Chao (1989)
    log-normal interval on the animals beyond MNKA when f0 > 0 and varN > 0, else lo = MNKA and
    hi = max(N, mean of the bouts' finite hi), with hi = Inf if any bout hi is unbounded.
-   `design_break` marks a month whose number of estimable grids, or rounded nights per
-   bout, differs from the previous estimable month; which plots they are does not count.
-   The chart breaks the line there.
+   `design_break` marks a month whose rounded mean nights per bout differs from the
+   previous estimable month: the line breaks where nights per bout change. A change in the
+   number or identity of estimable grids is not a break (the per-grid mean keeps those months
+   comparable); `n_grids` and `grids` record them.
 
 Bout assignment, nights (k), the number of bouts, the number of single-night bouts and
 the number of estimable bouts are unchanged at all 46 sites (placeholders never added a
@@ -92,9 +93,10 @@ match the audit (SRER 5277, HARV 7717 expected vs 7713, ABBY 2598; HARV 0.81, JO
   Poisson hi (28.7) is below that bound. All single-grid months at these four sites have one
   bout, so they now carry the bout's own limits. (The first version of this branch used the
   Chao interval in every month and fell below the bound in 8 months.)
-- Design breaks: SRER 14 of 39 months, HARV 30 of 51, ABBY 26 of 29, JORN 12 of 31, almost
-  all from the number of estimable grids changing between months. Isolated months (drawn as
-  a point with an interval bar): SRER 11, HARV 20, ABBY 25, JORN 8.
+- Design breaks (nights per bout only): SRER 4 of 39 months, HARV 14 of 51, ABBY 2 of 29,
+  JORN 4 of 31. Isolated months (drawn as a point with an interval bar): SRER 1, HARV 9,
+  ABBY 0, JORN 2. HARV breaks often because its monthly mean nights per bout moves between
+  2 and 3 as 2-night and 3-night bouts mix (R rounds 2.5 to 2).
 
 ## Not changed by this fix
 
