@@ -344,5 +344,52 @@ check(near(est_sum(abby), 2598, 0.02) &&
         all(s_all$lo <= s_all$N & s_all$N <= s_all$hi & s_all$lo >= s_all$mnka) &&
         !anyNA(s_all),
       "ABBY sum matches and every monthly interval brackets N-hat above MNKA")
+# ---- flag_repro(): exact, NA-safe, case-insensitive SOP token matching ------
+# NEON.DOC.000481vQ tokens. Substring matching once read "not pregnant" as
+# pregnant, "nonenlarged" as enlarged and "not plugged" as plugged, and missed
+# the estrous token "swollen" -- so nearly every adult female scored as
+# reproductive. Each row below pins one token to its label.
+repro_fx <- data.frame(
+  testes          = c("nonscrotal",   NA,        NA,  "scrotal", NA,         NA,          NA,        NA,       NA,     "SCROTAL", NA),
+  pregnancyStatus = c("not pregnant", "not",     NA,  NA,        "pregnant", NA,          NA,        NA,       NA,     NA,        ""),
+  nipples         = c("nonenlarged",  NA,        NA,  NA,        NA,         "enlarged",  NA,        NA,       NA,     NA,        "unknown"),
+  vagina          = c("not plugged",  "neither", NA,  NA,        NA,         NA,          "swollen", "plugged", "both", NA,        "Swollen "),
+  stringsAsFactors = FALSE)
+repro_out <- flag_repro(repro_fx)$repro
+check(identical(repro_out[1:3], rep("non-reproductive", 3)),
+      "flag_repro: not pregnant / not / nonenlarged / not plugged / neither / all-NA stay non-reproductive")
+check(identical(repro_out[4], "breeding male") && identical(repro_out[10], "breeding male"),
+      "flag_repro: testes scrotal (any case) is a breeding male; nonscrotal is not")
+check(identical(repro_out[5], "pregnant female"),
+      "flag_repro: pregnancyStatus pregnant is a pregnant female")
+check(identical(repro_out[6:9], rep("lactating/receptive female", 4)),
+      "flag_repro: nipples enlarged and vagina swollen/plugged/both are lactating/receptive")
+check(identical(repro_out[11], "lactating/receptive female"),
+      "flag_repro: mixed-case, padded 'Swollen ' still matches the estrous token")
+repro_zero <- flag_repro(repro_fx[0, , drop = FALSE])
+check(is.data.frame(repro_zero) && nrow(repro_zero) == 0L && "repro" %in% names(repro_zero),
+      "flag_repro: a zero-row frame returns zero rows with a repro column")
+repro_nocol <- flag_repro(data.frame(tagID = c("a", "b"), stringsAsFactors = FALSE))
+check(identical(repro_nocol$repro, rep("non-reproductive", 2)),
+      "flag_repro: frames missing the reproductive columns fall through to non-reproductive")
+
+# ---- individual_qc_flags(): unknown/NA life stages must not crash the card --
+# A named-vector lookup on "unknown"/NA produced NA names, which data.frame()
+# took as row names ("row names contain missing values").
+qc_hist <- function(stage) data.frame(
+  date = as.Date(c("2020-03-01", "2020-04-01", "2020-05-01")),
+  plotID = "SRER_001", trapCoordinate = c("A1", "A2", "A1"),
+  lifeStage = stage, sex = "F", scientificName = "Chaetodipus penicillatus",
+  weight = c(14, 15, 15), hindfootLength = c(22, 22, 22), tailLength = NA_real_,
+  earLength = NA_real_, totalLength = NA_real_, recapture = c("N", "Y", "Y"),
+  fate = "released", stringsAsFactors = FALSE)
+qc_row <- data.frame(tagID = "T1", spatial_conflict = FALSE, career_days = 61,
+                     id_uncertain = FALSE, stringsAsFactors = FALSE)
+qc_a <- try(individual_qc_flags(qc_hist(c("subadult", "unknown", "adult")), qc_row), silent = TRUE)
+check(is.list(qc_a) && !inherits(qc_a, "try-error"),
+      "individual_qc_flags: an 'unknown' life stage in the history does not error")
+qc_b <- try(individual_qc_flags(qc_hist(c(NA, "adult", "adult")), qc_row), silent = TRUE)
+check(is.list(qc_b) && !inherits(qc_b, "try-error"),
+      "individual_qc_flags: an NA life stage in the history does not error")
 
 cat(sprintf("\nAll %d helper contract tests passed.\n", passed))
