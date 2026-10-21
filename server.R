@@ -962,6 +962,16 @@ server <- function(input, output, session) {
   # ---- selecting an individual -------------------------------------------
   pick_individual <- function(tag, navigate = TRUE) {
     if (is.null(tag) || is.na(tag) || tag == "") return()
+    # Only real ear tags have a dossier (build_leaderboard drops NEON SOP C.8
+    # placeholder IDs). A placeholder arriving from a QC drill, map popup or pin
+    # degrades to a notice instead of opening an empty dossier.
+    if (is.null(rv$lb) || !(tag %in% rv$lb$tagID)) {
+      showNotification(if (mam_is_placeholder_tag(tag))
+        "That record is an untagged capture (a one-time NEON placeholder ID), so there is no individual dossier for it."
+        else "No individual dossier for that tag in the loaded data.",
+        type = "message", duration = 6)
+      return(invisible())
+    }
     rv$tag <- tag
     # keep BOTH pickers (sidebar + the inline Home-Range one) in lockstep
     if (!identical(input$indiv, tag))   updateSelectizeInput(session, "indiv",   selected = tag)
@@ -1444,7 +1454,8 @@ server <- function(input, output, session) {
         vb(cs$total_captures, "Captures",      "bullseye",        "#38a8e8", "captures",
            tip = "Total times an animal was caught & handled. Click to see captures by plot."),
         vb(cs$individuals,    "Individuals",   "fingerprint",     "#43b8e8", "individuals",
-           tip = "Distinct tag IDs. NEON issues a placeholder ID once per untagged capture, so an animal released untagged counts once per capture. Click for the most-caught individuals."),
+           tip = sprintf("Distinct ear-tagged animals. NEON logged %s further captures without a lasting tag ID (mostly shrews at eastern sites); those are counted as captures, not individuals. Click for the most-caught individuals.",
+                         format(cs$untagged_captures %||% 0L, big.mark = ","))),
         vb(cs$species,        "Species",       "diagram-3-fill",  "#5fb56a", "species",
            tip = "Distinct species identified. Click for species ranked by abundance."),
         vb(cs$recap_rate,     "Recapture rate","arrow-repeat",    "#138086", "recapture", pct = TRUE,
@@ -2647,9 +2658,14 @@ server <- function(input, output, session) {
       dplyr::slice_head(n = 14) %>% dplyr::arrange(.data$individuals)
     if (nrow(s) == 0) return(note_plot("No identified captures", "\U0001F9EC"))
     s$label <- paste0(s$emoji, " ", s$scientificName)
-    s$recaps_per <- round(s$captures / s$individuals, 1)  # captures per animal (trap-happiness)
-    s$hover <- paste0(format(s$individuals, big.mark = ","), " individuals \U00B7 ",
-                      format(s$captures, big.mark = ","), " captures (", s$recaps_per, "\U00D7/animal)")
+    # captures per ear-tagged animal (trap-happiness); NA for a species seen only untagged
+    s$recaps_per <- ifelse(s$individuals > 0,
+                           round((s$captures - s$untagged_captures) / pmax(s$individuals, 1), 1), NA_real_)
+    s$hover <- paste0(format(s$individuals, big.mark = ","), " ear-tagged individuals \U00B7 ",
+                      format(s$captures, big.mark = ","), " captures",
+                      ifelse(is.na(s$recaps_per), "", paste0(" (", s$recaps_per, "\U00D7/tagged animal)")),
+                      ifelse(s$untagged_captures > 0,
+                             paste0(" \U00B7 ", format(s$untagged_captures, big.mark = ","), " untagged"), ""))
     # colour = the species' IDENTITY hue (the same palette the plot map + community
     # charts use), so each bar reads as that species at a glance instead of a drab
     # single-hue ramp. Trap-happiness (captures per individual) rides on the hover.
@@ -3381,7 +3397,7 @@ server <- function(input, output, session) {
     date           = list(units = "ISO date (YYYY-MM-DD)", note = "the capture/handling date (collectDate, day precision)"),
     ym             = list(units = "month (YYYY-MM)", note = "derived from date; the grain the monthly series aggregates to"),
     year           = list(units = "calendar year (YYYY)", note = "derived from date"),
-    tagID          = list(units = "ear-tag ID (unique within site, lifelong)", note = "NA = an empty-trap row; NEON never recycles a tag within a site. NEON.MAM.Dxx.O... is the SOP C.8 placeholder issued once per untagged capture, not a lasting animal ID"),
+    tagID          = list(units = "ear-tag ID (unique within site, lifelong)", note = "NA = an empty-trap row; NEON never recycles a tag within a site. NEON.MAM.Dxx.O... is the SOP C.8 placeholder issued once per untagged capture, not a lasting animal ID, so the Individuals counts use real ear tags only and placeholder rows count as captures"),
     short          = list(units = "short species label", note = "derived display name (genus initial + species), for compact tables"),
     taxonID        = list(units = "NEON taxon code (join key)", note = "NEON DP1.10072.001 taxonomy; the stable code behind scientificName"),
     scientificName = list(units = "Latin binomial", note = "NEON DP1.10072.001 taxonomy; genus-only 'X sp.' and ambiguous 'A/B' kept as recorded"),

@@ -6,7 +6,8 @@
 #
 # Default helpers are the current R/helpers.R; pass --helpers=<path> to run an
 # older copy of the estimator (for example R/helpers.R exported from an earlier
-# commit) for a before/after comparison. Default output is
+# commit) for a before/after comparison (the 2026-10-20 columns need the
+# current helpers). Default output is
 # docs/audit-fixes/2026-10-18-closed-capture-by-site.csv. The script reads only
 # committed bundles and makes no network calls.
 
@@ -25,6 +26,24 @@ rows <- lapply(sort(list.files(sites_dir, pattern = "[.]rds$", full.names = TRUE
   d <- clean_mam(readRDS(f))
   b <- bout_closed_capture(d)
   cc <- closed_capture_series(d, b)
+  cs <- community_stats(d)
+  # bouts that trapped but caught no tagged animal (kept since 2026-10-20)
+  zero <- if (is.null(b)) logical(0) else
+    b$mnka_marked == 0 & b$n_unmarked == 0 & b$n_unmarked_recap == 0
+  # estimable bouts with k >= 3 trapped nights but only 2 nights carrying a
+  # tagged capture: Chapman under the old night rule, Schnabel now
+  ch2sch <- 0L
+  if (!is.null(b) && nrow(b)) {
+    capn <- unique(d[mam_tag_present(d$tagID) & !is.na(d$plotID) & !is.na(d$date),
+                     c("plotID", "date")])
+    bb <- b[order(b$plotID, b$start), ]
+    nxt <- ave(as.numeric(bb$start), bb$plotID, FUN = function(x) c(x[-1], Inf))
+    ncap <- vapply(seq_len(nrow(bb)), function(i)
+      sum(capn$plotID == bb$plotID[i] & capn$date >= bb$start[i] & as.numeric(capn$date) < nxt[i]),
+      integer(1))
+    ch2sch <- sum(bb$k >= 3 & ncap == 2 &
+                    bb$status %in% c("ok", "low-precision", "detection near-complete") & is.finite(bb$N))
+  }
   est <- if (is.null(b)) b else
     b[b$status %in% c("ok", "low-precision", "detection near-complete") & is.finite(b$N), ]
   s <- cc$series
@@ -53,6 +72,11 @@ rows <- lapply(sort(list.files(sites_dir, pattern = "[.]rds$", full.names = TRUE
     n_dead_total = if (is.null(cc) || is.null(cc$n_dead_total)) NA_real_ else cc$n_dead_total,
     peak_bout = if (is.null(peak)) NA_character_ else peak$boutID,
     peak_bout_N = if (is.null(peak)) NA_real_ else peak$N,
+    individuals_marked = cs$individuals,
+    untagged_captures = cs$untagged_captures %||% NA_integer_,
+    n_bouts_trapped = if (is.null(b)) 0L else nrow(b),
+    n_zero_capture_bouts = sum(zero),
+    n_chapman_to_schnabel = ch2sch,
     stringsAsFactors = FALSE)
 })
 res <- do.call(rbind, rows)

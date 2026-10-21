@@ -171,7 +171,7 @@ chart_species <- function(d, cs) {
       hjust = -0.12, size = 3, colour = PG$muted) +
     ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = c(0, 0.18))) +
     ggplot2::labs(title = "Species composition, by capture count",
-      subtitle = "Bar = total captures; label = distinct individuals",
+      subtitle = "Bar = total captures; label = distinct ear-tagged individuals",
       x = "captures", y = NULL, caption = scope_cap(cs)) +
     theme_report() + ggplot2::theme(panel.grid.major.y = ggplot2::element_blank(),
       axis.text.y = ggplot2::element_text(face = "italic", colour = PG$ink))
@@ -236,7 +236,7 @@ render_report_pdf <- function(file, d, label, is_demo = FALSE, cc = NULL) {
   fr <- tryCatch(flag_repro(d), error = function(e) NULL); repro_txt <- "-"
   if (!is.null(fr)) {
     fh <- fr[!is.na(fr$tagID), ]
-    nd <- function(lvl) dplyr::n_distinct(fh$tagID[fh$repro == lvl])
+    nd <- function(lvl) dplyr::n_distinct(fh$tagID[fh$repro == lvl & mam_tag_marked(fh$tagID)])
     repro_txt <- sprintf("%s breeding males | %s pregnant | %s lactating/receptive (distinct individuals)",
       fmt_int(nd("breeding male")), fmt_int(nd("pregnant female")), fmt_int(nd("lactating/receptive female")))
   }
@@ -279,6 +279,8 @@ render_report_pdf <- function(file, d, label, is_demo = FALSE, cc = NULL) {
     c(format(cs$trap_nights, big.mark = ","), "trap-nights"),
     c(as.character(cs$legendary), "10+ caught")), y, ncol = 3)
   y <- draw_para(paste("Counts are minima from box-trapping conditioned on effort - not a landscape census.",
+    sprintf("Individuals are distinct ear-tagged animals; %s further captures had no lasting tag ID and count as captures only.",
+            format(cs$untagged_captures %||% 0L, big.mark = ",")),
     "Trap-nights: set-and-empty = 1, partial = 0.5, not-set = 0. Recapture rate counts cross-session",
     "re-encounters, distinct from the within-bout recaptures used to estimate detection."),
     y, fontsize = 8, col = PG$muted, gapAfter = 0.08)
@@ -290,7 +292,7 @@ render_report_pdf <- function(file, d, label, is_demo = FALSE, cc = NULL) {
     c(ifelse(is.na(hn$q2), "-", format(hn$q2, nsmall = 1)), "dominant (q2)"),
     c(ifelse(is.na(hn$even), "-", format(hn$even, nsmall = 2)), "evenness")), y, ncol = 4, cellH = 0.46)
   y <- draw_para(sprintf(paste("Hill numbers are effective species counts (q0 >= q1 >= q2);",
-    "evenness = q1/q0 (1 = even). Abundances are distinct individuals per species (genus-only IDs",
+    "evenness = q1/q0 (1 = even). Abundances are distinct ear-tagged individuals per species (genus-only IDs",
     "excluded), so a heavily re-trapped animal isn't double-counted. Descriptive of this sample,",
     "not effort-rarefied; n = %s individuals."), format(hn$n_ind, big.mark = ",")), y, fontsize = 9)
 
@@ -419,7 +421,7 @@ render_compare_pdf <- function(file, dA, labelA, dB, labelB) {
   }
   rows <- list(
     mrow("Captures", A$cs$total_captures, B$cs$total_captures),
-    mrow("Individuals", A$cs$individuals, B$cs$individuals),
+    mrow("Individuals (ear-tagged)", A$cs$individuals, B$cs$individuals),
     mrow("Species (richness)", A$cs$species, B$cs$species),
     mrow("Effective common species (Hill q1)", A$hn$q1, B$hn$q1, fmt = function(x) format(round(x, 1), nsmall = 1)),
     mrow("Evenness (0-1)", A$hn$even, B$hn$even, fmt = function(x) format(round(x, 2), nsmall = 2)),
@@ -438,7 +440,7 @@ render_compare_pdf <- function(file, dA, labelA, dB, labelB) {
     y <- y + 0.24
   }
   y <- y + 0.05
-  grid.text("Higher value per row in bold navy. Diversity is Hill numbers over distinct individuals.",
+  grid.text("Higher value per row in bold navy. Diversity is Hill numbers over distinct ear-tagged individuals.",
             x = unit(0, "npc"), y = gy(y), just = c("left", "top"), gp = gpar(fontsize = 8, col = PG$muted))
   y <- y + 0.34
 

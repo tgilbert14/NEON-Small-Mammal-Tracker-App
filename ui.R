@@ -319,7 +319,7 @@ ui <- bslib::page_fillable(
           uiOutput("speciesBarInsight"),
           div(class = "chart-hint", bs_icon("hand-index-thumb"), " Tap a bar for that species' full breakdown."),
           spin(plotlyOutput("speciesBar", height = "440px")),
-          chart_caption("Species ranked by ", tags$b("abundance"), " (distinct individuals), top 14 shown. Each bar carries that species' identity colour (shared with the plot map); captures-per-individual (trap-happiness) is on the hover. Counts are handled animals with a species-level ID at this site and window (genus-only “sp.” records excluded from the ranking headline); it shows relative composition here, ", tags$b("not"), " absolute density or a cross-site total.")),
+          chart_caption("Species ranked by ", tags$b("abundance"), " (distinct ear-tagged individuals; untagged captures are on the hover), top 14 shown. Each bar carries that species' identity colour (shared with the plot map); captures-per-individual (trap-happiness) is on the hover. Counts are handled animals with a species-level ID at this site and window (genus-only “sp.” records excluded from the ranking headline); it shows relative composition here, ", tags$b("not"), " absolute density or a cross-site total.")),
         # the plain-English story sits underneath
         card(
           card_head("stars", "The story so far",
@@ -460,12 +460,12 @@ ui <- bslib::page_fillable(
                 tags$li(tags$b("q = 1"), " · ", tags$b("exp(Shannon)"), ": the effective number of ", tags$em("common"), " species."),
                 tags$li(tags$b("q = 2"), " · ", tags$b("inverse Simpson"), ": the effective number of ", tags$em("dominant"), " species.")),
               p("They always shrink (q0 ≥ q1 ≥ q2). When q1 sits close to q0 the community is ", tags$b("even"), "; when it drops far below, a few species ", tags$b("dominate"), "."),
-              p(tags$em("Abundance = distinct individuals per species, so a much-recaptured animal isn't counted twice. Hill 1973; Jost 2006; Chao et al. 2014.")))),
+              p(tags$em("Abundance = distinct ear-tagged individuals per species, so a much-recaptured animal isn't counted twice and an untagged capture is not an animal. Hill 1973; Jost 2006; Chao et al. 2014.")))),
           uiOutput("hillInsight"),
           layout_columns(col_widths = c(7, 5),
             spin(plotlyOutput("hillPlot", height = "260px")),
             uiOutput("hillNote")),
-          chart_caption("Hill diversity profile in ", tags$b("effective number of species"), " (Hill 1973; Jost 2006): q=0 richness (counts every species equally), q=1 = exp(Shannon) (common species), q=2 = inverse Simpson (dominant species); always q0 ≥ q1 ≥ q2, and q1/q0 near 1 means an even community. Abundance = ", tags$b("distinct individuals"), " per species (not captures), species-level IDs only. A within-site ", tags$b("diversity structure"), ", ", tags$b("not"), " a cross-site diversity ranking (it isn't coverage-standardised).")),
+          chart_caption("Hill diversity profile in ", tags$b("effective number of species"), " (Hill 1973; Jost 2006): q=0 richness (counts every species equally), q=1 = exp(Shannon) (common species), q=2 = inverse Simpson (dominant species); always q0 ≥ q1 ≥ q2, and q1/q0 near 1 means an even community. Abundance = ", tags$b("distinct ear-tagged individuals"), " per species (not captures, not untagged placeholder IDs), species-level IDs only. A within-site ", tags$b("diversity structure"), ", ", tags$b("not"), " a cross-site diversity ranking (it isn't coverage-standardised).")),
         card(full_screen = TRUE,
           card_head("activity", "Captures over time · by species",
             info_pop("Captures over time",

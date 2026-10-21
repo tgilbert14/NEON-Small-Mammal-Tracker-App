@@ -67,7 +67,7 @@ rows <- lapply(files, function(f) {
     dplyr::group_by(.data$scientificName) %>%
     dplyr::summarise(
       captures    = dplyr::n(),
-      individuals = dplyr::n_distinct(.data$tagID),
+      individuals = dplyr::n_distinct(.data$tagID[mam_tag_marked(.data$tagID)]),  # real ear tags only
       year_min    = suppressWarnings(min(.data$year, na.rm = TRUE)),
       year_max    = suppressWarnings(max(.data$year, na.rm = TRUE)),
       .groups = "drop")

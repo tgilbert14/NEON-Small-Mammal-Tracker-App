@@ -63,7 +63,7 @@ rows <- lapply(files, function(f) {
     lng         = if (nrow(meta)) meta$lng[1]    else NA_real_,
     bio         = if (nrow(meta)) meta$bio[1]    else NA_character_,
     captures    = n_cap,
-    individuals = length(unique(caps$tagID)),
+    individuals = length(unique(caps$tagID[mam_tag_marked(caps$tagID)])),  # real ear tags only
     species     = length(unique(caps_sp$scientificName)),
     mean_p      = mean_p,
     top_species = top_sp %||% NA_character_,
@@ -104,7 +104,7 @@ rng_rows <- lapply(files, function(f) {
   meta <- neon_sites[neon_sites$site == code, ]
   caps %>%
     dplyr::group_by(scientificName) %>%
-    dplyr::summarise(individuals = dplyr::n_distinct(tagID),
+    dplyr::summarise(individuals = dplyr::n_distinct(tagID[mam_tag_marked(tagID)]),  # real ear tags
                      captures = dplyr::n(), .groups = "drop") %>%
     dplyr::mutate(site = code,
                   name  = if (nrow(meta)) meta$name[1]  else code,

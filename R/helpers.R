@@ -584,9 +584,12 @@ max_dist_moved <- function(tx, ty) {
 
 # ---------------------------------------------------------------------------
 # build_leaderboard(): one row per individual with every metric the UI ranks.
+# Individuals are real ear tags only (mam_tag_marked): a NEON SOP C.8
+# placeholder ID names one untagged capture event, not an animal, so it never
+# gets a leaderboard row, a rarity tier or a dossier.
 # ---------------------------------------------------------------------------
 build_leaderboard <- function(d) {
-  base <- dplyr::filter(d, !is.na(.data$tagID))
+  base <- d[mam_tag_marked(d$tagID), , drop = FALSE]
   if (nrow(base) == 0) return(NULL)
 
   ind <- base %>%
@@ -713,7 +716,9 @@ community_stats <- function(d, lb = NULL) {
 
   list(
     total_captures = nrow(handled),
-    individuals    = dplyr::n_distinct(handled$tagID),
+    # distinct real ear tags; placeholder IDs are capture events, not animals
+    individuals    = dplyr::n_distinct(handled$tagID[mam_tag_marked(handled$tagID)]),
+    untagged_captures = sum(mam_is_placeholder_tag(handled$tagID)),
     # species-level IDs only (excludes genus-only "X sp." / ambiguous "A/B"),
     # so this matches the richness used by Hill numbers, Chao1, and the map
     species        = dplyr::n_distinct(species_level_only(
@@ -755,7 +760,10 @@ species_summary <- function(d) {
   hh %>%
     dplyr::group_by(.data$scientificName) %>%
     dplyr::summarise(
-      individuals = dplyr::n_distinct(.data$tagID),
+      # individuals = distinct real ear tags; untagged_captures = placeholder
+      # capture events (counted in captures, never as individuals)
+      individuals = dplyr::n_distinct(.data$tagID[mam_tag_marked(.data$tagID)]),
+      untagged_captures = sum(mam_is_placeholder_tag(.data$tagID)),
       captures    = dplyr::n(),
       .groups = "drop"
     ) %>%
@@ -806,7 +814,7 @@ species_measurements <- function(d) {
     as.integer(sum(abs(v - m) > 5 * s))
   }
   out <- h %>% dplyr::group_by(.data$scientificName) %>% dplyr::summarise(
-    n_ind  = dplyr::n_distinct(.data$tagID),
+    n_ind  = dplyr::n_distinct(.data$tagID[mam_tag_marked(.data$tagID)]),   # ear-tagged animals
     w_n  = npos(.data$weight),  w_med  = med(.data$weight),  w_lo  = lo(.data$weight),  w_hi  = hi(.data$weight),  w_min  = rmin(.data$weight),         w_max  = rmax(.data$weight),         w_nflag  = nflag(.data$weight),
     hf_n = npos(.data$hindfootLength), hf_med = med(.data$hindfootLength), hf_lo = lo(.data$hindfootLength), hf_hi = hi(.data$hindfootLength), hf_min = rmin(.data$hindfootLength), hf_max = rmax(.data$hindfootLength), hf_nflag = nflag(.data$hindfootLength),
     tl_n = npos(.data$tailLength),     tl_med = med(.data$tailLength),     tl_lo = lo(.data$tailLength),     tl_hi = hi(.data$tailLength),     tl_min = rmin(.data$tailLength),     tl_max = rmax(.data$tailLength),     tl_nflag = nflag(.data$tailLength),
@@ -1207,19 +1215,24 @@ species_accum <- function(d, perms = 40) {
   bouts <- split(h$scientificName, h$ym)
   k <- length(bouts)
   # deterministic permutation seeds (no Math.random / set.seed dependence on RNG state)
-  perm_mat <- vapply(seq_len(perms), function(p) {
+  # matrix() keeps a one-month window (k = 1) two-dimensional for rowMeans/apply
+  perm_mat <- matrix(nrow = k, vapply(seq_len(perms), function(p) {
     ord <- order((seq_len(k) * (p * 2 + 1)) %% (k + 1))  # cheap varied orderings
     seen <- character(0); rich <- integer(k)
     for (i in seq_len(k)) { seen <- union(seen, bouts[[ord[i]]]); rich[i] <- length(seen) }
     rich
-  }, integer(k))
+  }, integer(k)))
   mean_rich <- rowMeans(perm_mat)
   sd_rich   <- apply(perm_mat, 1, stats::sd)
 
-  # f1 / f2 = species represented by exactly 1 / 2 distinct individuals
-  cnt <- h %>% dplyr::distinct(.data$tagID, .data$scientificName) %>%
+  # f1 / f2 = species represented by exactly 1 / 2 distinct MARKED individuals
+  # (real ear tags; a placeholder ID is a capture event, not an animal).
+  # sobs stays on every capture, so a species seen only untagged still counts.
+  sobs <- dplyr::n_distinct(h$scientificName)
+  cnt <- h[mam_tag_marked(h$tagID), , drop = FALSE] %>%
+    dplyr::distinct(.data$tagID, .data$scientificName) %>%
     dplyr::count(.data$scientificName)
-  f1 <- sum(cnt$n == 1); f2 <- sum(cnt$n == 2); sobs <- nrow(cnt)
+  f1 <- sum(cnt$n == 1); f2 <- sum(cnt$n == 2)
   # Bias-corrected Chao1 (exact at f2==0, lower-variance than the classic
   # f1^2/(2 f2) form which is upward-biased & unstable for small f2).
   chao1 <- sobs + (f1 * (f1 - 1)) / (2 * (f2 + 1))
@@ -1254,8 +1267,11 @@ species_accum <- function(d, perms = 40) {
 #   q2 = inverse Simpson 1/Σpᵢ²      = effective # of "dominant" species
 # Higher q downweights rare species, so q0 ≥ q1 ≥ q2 always. When q1/q0 is near
 # 1 the community is even; when it's small a few species dominate.
-# Abundance = distinct INDIVIDUALS per species (not captures), so a heavily
-# re-trapped animal isn't double-counted.
+# Abundance = distinct MARKED individuals per species (real ear tags, not
+# captures and not placeholder capture-event IDs), so a heavily re-trapped
+# animal isn't double-counted and an untagged capture is not an animal. q0 is
+# the species with at least one marked animal, so a species seen only untagged
+# is in richness elsewhere but not in this profile.
 # ---------------------------------------------------------------------------
 ## Monthly breeding phenology, deduped to one row per (individual, calendar
 ## month) so recaptures don't inflate the n or the proportion (matches the
@@ -1288,6 +1304,7 @@ repro_by_month <- function(d) {
 hill_numbers <- function(d) {
   h <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$scientificName))
   h <- species_level_only(h)                       # same species list as richness/Chao1
+  h <- h[mam_tag_marked(h$tagID), , drop = FALSE]  # abundance = marked animals
   ab <- h %>% dplyr::distinct(.data$tagID, .data$scientificName) %>%
     dplyr::count(.data$scientificName, name = "n")
   n <- ab$n
@@ -1738,7 +1755,9 @@ stat_breakdown <- function(d, lb, which) {
       name = paste0(s$emoji, "  <i>", s$scientificName, "</i>",
                     ifelse(is.na(s$nickname), "", paste0(" <span class='dim'>· ", s$nickname, "</span>"))),
       metric = paste0(fmt_int(s$captures), " caps"),
-      sub = paste0(fmt_int(s$individuals), " individuals"))
+      sub = paste0(fmt_int(s$individuals), " ear-tagged individuals",
+                   ifelse(s$untagged_captures > 0,
+                          paste0(" · ", fmt_int(s$untagged_captures), " untagged captures"), "")))
     return(pack("Species, ranked by abundance", "Every species caught here, most common first",
       if (nrow(s)) sprintf("The <b><i>%s</i></b> dominates; the bottom of the list is where the rare finds hide.", s$scientificName[1]) else "",
       rows, "\U0001F9EC"))
@@ -1755,7 +1774,9 @@ stat_breakdown <- function(d, lb, which) {
   if (which == "captures") {
     cby <- d %>% dplyr::filter(!is.na(.data$tagID), !is.na(.data$plotID)) %>%
       dplyr::group_by(.data$plotID) %>%
-      dplyr::summarise(caps = dplyr::n(), inds = dplyr::n_distinct(.data$tagID), .groups = "drop") %>%
+      dplyr::summarise(caps = dplyr::n(),
+                       inds = dplyr::n_distinct(.data$tagID[mam_tag_marked(.data$tagID)]),  # real ear tags
+                       .groups = "drop") %>%
       dplyr::arrange(dplyr::desc(.data$caps))
     rows <- tibble::tibble(rank = seq_len(nrow(cby)),
       name = paste0("\U0001F4CD ", cby$plotID), metric = paste0(fmt_int(cby$caps), " caps"),
