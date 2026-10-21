@@ -584,9 +584,12 @@ max_dist_moved <- function(tx, ty) {
 
 # ---------------------------------------------------------------------------
 # build_leaderboard(): one row per individual with every metric the UI ranks.
+# Individuals are real ear tags only (mam_tag_marked): a NEON SOP C.8
+# placeholder ID names one untagged capture event, not an animal, so it never
+# gets a leaderboard row, a rarity tier or a dossier.
 # ---------------------------------------------------------------------------
 build_leaderboard <- function(d) {
-  base <- dplyr::filter(d, !is.na(.data$tagID))
+  base <- d[mam_tag_marked(d$tagID), , drop = FALSE]
   if (nrow(base) == 0) return(NULL)
 
   ind <- base %>%
@@ -713,7 +716,9 @@ community_stats <- function(d, lb = NULL) {
 
   list(
     total_captures = nrow(handled),
-    individuals    = dplyr::n_distinct(handled$tagID),
+    # distinct real ear tags; placeholder IDs are capture events, not animals
+    individuals    = dplyr::n_distinct(handled$tagID[mam_tag_marked(handled$tagID)]),
+    untagged_captures = sum(mam_is_placeholder_tag(handled$tagID)),
     # species-level IDs only (excludes genus-only "X sp." / ambiguous "A/B"),
     # so this matches the richness used by Hill numbers, Chao1, and the map
     species        = dplyr::n_distinct(species_level_only(
@@ -755,7 +760,10 @@ species_summary <- function(d) {
   hh %>%
     dplyr::group_by(.data$scientificName) %>%
     dplyr::summarise(
-      individuals = dplyr::n_distinct(.data$tagID),
+      # individuals = distinct real ear tags; untagged_captures = placeholder
+      # capture events (counted in captures, never as individuals)
+      individuals = dplyr::n_distinct(.data$tagID[mam_tag_marked(.data$tagID)]),
+      untagged_captures = sum(mam_is_placeholder_tag(.data$tagID)),
       captures    = dplyr::n(),
       .groups = "drop"
     ) %>%
@@ -806,7 +814,7 @@ species_measurements <- function(d) {
     as.integer(sum(abs(v - m) > 5 * s))
   }
   out <- h %>% dplyr::group_by(.data$scientificName) %>% dplyr::summarise(
-    n_ind  = dplyr::n_distinct(.data$tagID),
+    n_ind  = dplyr::n_distinct(.data$tagID[mam_tag_marked(.data$tagID)]),   # ear-tagged animals
     w_n  = npos(.data$weight),  w_med  = med(.data$weight),  w_lo  = lo(.data$weight),  w_hi  = hi(.data$weight),  w_min  = rmin(.data$weight),         w_max  = rmax(.data$weight),         w_nflag  = nflag(.data$weight),
     hf_n = npos(.data$hindfootLength), hf_med = med(.data$hindfootLength), hf_lo = lo(.data$hindfootLength), hf_hi = hi(.data$hindfootLength), hf_min = rmin(.data$hindfootLength), hf_max = rmax(.data$hindfootLength), hf_nflag = nflag(.data$hindfootLength),
     tl_n = npos(.data$tailLength),     tl_med = med(.data$tailLength),     tl_lo = lo(.data$tailLength),     tl_hi = hi(.data$tailLength),     tl_min = rmin(.data$tailLength),     tl_max = rmax(.data$tailLength),     tl_nflag = nflag(.data$tailLength),
@@ -1207,19 +1215,24 @@ species_accum <- function(d, perms = 40) {
   bouts <- split(h$scientificName, h$ym)
   k <- length(bouts)
   # deterministic permutation seeds (no Math.random / set.seed dependence on RNG state)
-  perm_mat <- vapply(seq_len(perms), function(p) {
+  # matrix() keeps a one-month window (k = 1) two-dimensional for rowMeans/apply
+  perm_mat <- matrix(nrow = k, vapply(seq_len(perms), function(p) {
     ord <- order((seq_len(k) * (p * 2 + 1)) %% (k + 1))  # cheap varied orderings
     seen <- character(0); rich <- integer(k)
     for (i in seq_len(k)) { seen <- union(seen, bouts[[ord[i]]]); rich[i] <- length(seen) }
     rich
-  }, integer(k))
+  }, integer(k)))
   mean_rich <- rowMeans(perm_mat)
   sd_rich   <- apply(perm_mat, 1, stats::sd)
 
-  # f1 / f2 = species represented by exactly 1 / 2 distinct individuals
-  cnt <- h %>% dplyr::distinct(.data$tagID, .data$scientificName) %>%
+  # f1 / f2 = species represented by exactly 1 / 2 distinct MARKED individuals
+  # (real ear tags; a placeholder ID is a capture event, not an animal).
+  # sobs stays on every capture, so a species seen only untagged still counts.
+  sobs <- dplyr::n_distinct(h$scientificName)
+  cnt <- h[mam_tag_marked(h$tagID), , drop = FALSE] %>%
+    dplyr::distinct(.data$tagID, .data$scientificName) %>%
     dplyr::count(.data$scientificName)
-  f1 <- sum(cnt$n == 1); f2 <- sum(cnt$n == 2); sobs <- nrow(cnt)
+  f1 <- sum(cnt$n == 1); f2 <- sum(cnt$n == 2)
   # Bias-corrected Chao1 (exact at f2==0, lower-variance than the classic
   # f1^2/(2 f2) form which is upward-biased & unstable for small f2).
   chao1 <- sobs + (f1 * (f1 - 1)) / (2 * (f2 + 1))
@@ -1254,8 +1267,11 @@ species_accum <- function(d, perms = 40) {
 #   q2 = inverse Simpson 1/Σpᵢ²      = effective # of "dominant" species
 # Higher q downweights rare species, so q0 ≥ q1 ≥ q2 always. When q1/q0 is near
 # 1 the community is even; when it's small a few species dominate.
-# Abundance = distinct INDIVIDUALS per species (not captures), so a heavily
-# re-trapped animal isn't double-counted.
+# Abundance = distinct MARKED individuals per species (real ear tags, not
+# captures and not placeholder capture-event IDs), so a heavily re-trapped
+# animal isn't double-counted and an untagged capture is not an animal. q0 is
+# the species with at least one marked animal, so a species seen only untagged
+# is in richness elsewhere but not in this profile.
 # ---------------------------------------------------------------------------
 ## Monthly breeding phenology, deduped to one row per (individual, calendar
 ## month) so recaptures don't inflate the n or the proportion (matches the
@@ -1288,6 +1304,7 @@ repro_by_month <- function(d) {
 hill_numbers <- function(d) {
   h <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$scientificName))
   h <- species_level_only(h)                       # same species list as richness/Chao1
+  h <- h[mam_tag_marked(h$tagID), , drop = FALSE]  # abundance = marked animals
   ab <- h %>% dplyr::distinct(.data$tagID, .data$scientificName) %>%
     dplyr::count(.data$scientificName, name = "n")
   n <- ab$n
@@ -1342,12 +1359,18 @@ hill_numbers <- function(d) {
 # Spec: Fauna review (Schnabel 1938; Chapman 1951; Otis et al. 1978; Krebs 1999,
 # 2017); NEON.DOC.000481 SOP C.8 for the placeholder convention.
 #
-# Bout grouping: distinct (plotID, collectDate, tagID) over ALL tagged capture
-# rows, placeholders included, so the nights and k of a bout do not depend on
-# the mark rule; within a plot a new bout starts when the gap to the previous
-# trapping night is > 2 days (NEON allows a 1-night slip), keyed off
-# consecutive collectDates (NOT a hardcoded "3 nights", since NEON reduced
-# sampling at some sites). Recapture status for real tags is recomputed WITHIN
+# Bout grouping: k counts trapped nights (trap_effort > 0), so an empty night
+# inside a bout still counts toward detection; bouts are assigned over trapped
+# nights, captures join by plot and night. A trapped plot-night is a distinct
+# (plotID, collectDate) with any row of trap_effort > 0 (fallback: is_set, then
+# the tagged capture rows when neither column exists). Within a plot a new bout
+# starts when the gap to the previous trapped night is > 2 days (NEON allows a
+# 1-night slip), keyed off consecutive trapped dates (NOT a hardcoded
+# "3 nights", since NEON reduced sampling at some sites). A bout that trapped
+# but caught no tagged animal stays in the table (sumC = 0, NA estimates).
+# Capture rows are distinct (plotID, collectDate, tagID) over ALL tagged rows,
+# placeholders included; a capture on a night with no effort breaks the effort
+# contract and stops. Recapture status for real tags is recomputed WITHIN
 # bout (the raw `recapture` column carries cross-bout history).
 #
 # The monthly roll-up (closed_capture_series) is a MEAN PER ESTIMABLE GRID; its
@@ -1365,41 +1388,67 @@ recap_poisson_limits <- function(R) {
 }
 
 bout_closed_capture <- function(d) {
+  if (is.null(d) || nrow(d) == 0) return(NULL)
   keep <- mam_tag_present(d$tagID) & !is.na(d$plotID) & !is.na(d$date)
-  if (!any(keep)) return(NULL)
-  src <- d[keep, , drop = FALSE]
-  fate <- if ("fate" %in% names(src)) as.character(src$fate) else rep(NA_character_, nrow(src))
-  recap <- if ("recapture" %in% names(src)) as.character(src$recapture) else rep(NA_character_, nrow(src))
-  src <- tibble::tibble(plotID = src$plotID, date = src$date, tagID = as.character(src$tagID),
-                        ym = src$ym, dead = !is.na(fate) & fate == "dead",
-                        recapY = !is.na(recap) & recap == "Y")
-  # one row per (plot, night, tag); duplicates that disagree resolve to any()
-  cap <- src %>% dplyr::group_by(.data$plotID, .data$date, .data$tagID, .data$ym) %>%
-    dplyr::summarise(dead = any(.data$dead), recapY = any(.data$recapY), .groups = "drop")
-
-  # assign bouts: consecutive nights within a plot (gap > 2 days -> new bout),
-  # over every tagged capture so nights / k are unchanged by the mark rule
-  cap <- cap %>% dplyr::arrange(.data$plotID, .data$date)
-  cap <- cap %>% dplyr::group_by(.data$plotID) %>%
+  # trapped plot-nights: any row with effort on that plot and night
+  trapped <- if ("trap_effort" %in% names(d)) {
+    e <- suppressWarnings(as.numeric(d$trap_effort)); is.finite(e) & e > 0
+  } else if ("is_set" %in% names(d)) {
+    d$is_set %in% TRUE
+  } else keep
+  trapped <- trapped & !is.na(d$plotID) & !is.na(d$date)
+  if (!any(trapped)) {
+    if (any(keep)) stop(sprintf(
+      "bout_closed_capture: effort contract broken: capture on %s %s has no trapped night",
+      d$plotID[keep][1], format(d$date[keep][1])), call. = FALSE)
+    return(NULL)
+  }
+  ym_all <- if ("ym" %in% names(d)) as.character(d$ym) else format(d$date, "%Y-%m")
+  tn <- tibble::tibble(plotID = d$plotID[trapped], date = d$date[trapped],
+                       ym = ym_all[trapped]) %>%
+    dplyr::distinct(.data$plotID, .data$date, .keep_all = TRUE) %>%
+    dplyr::arrange(.data$plotID, .data$date) %>%
+    dplyr::group_by(.data$plotID) %>%
     dplyr::mutate(gap = as.integer(.data$date - dplyr::lag(.data$date)),
                   new_bout = is.na(.data$gap) | .data$gap > 2,
                   bout = cumsum(.data$new_bout)) %>%
     dplyr::ungroup() %>%
-    dplyr::mutate(boutID = paste0(.data$plotID, "#", .data$bout))
+    dplyr::mutate(boutID = paste0(.data$plotID, "#", .data$bout)) %>%
+    dplyr::group_by(.data$boutID) %>%
+    dplyr::mutate(t = dplyr::row_number()) %>%
+    dplyr::ungroup()
+
+  src <- d[keep, , drop = FALSE]
+  fate <- if ("fate" %in% names(src)) as.character(src$fate) else rep(NA_character_, nrow(src))
+  recap <- if ("recapture" %in% names(src)) as.character(src$recapture) else rep(NA_character_, nrow(src))
+  src <- tibble::tibble(plotID = src$plotID, date = src$date, tagID = as.character(src$tagID),
+                        dead = !is.na(fate) & fate == "dead",
+                        recapY = !is.na(recap) & recap == "Y")
+  # one row per (plot, night, tag); duplicates that disagree resolve to any()
+  cap <- src %>% dplyr::group_by(.data$plotID, .data$date, .data$tagID) %>%
+    dplyr::summarise(dead = any(.data$dead), recapY = any(.data$recapY), .groups = "drop")
+  # join captures onto the trapped-night bouts by (plot, night)
+  cap <- dplyr::left_join(cap, tn[, c("plotID", "date", "boutID")], by = c("plotID", "date"))
+  if (anyNA(cap$boutID)) {
+    bad <- cap[is.na(cap$boutID), , drop = FALSE][1, ]
+    stop(sprintf(
+      "bout_closed_capture: effort contract broken: capture on %s %s has no trapped night",
+      bad$plotID, format(bad$date)), call. = FALSE)
+  }
   cap$ph <- mam_is_placeholder_tag(cap$tagID)
   real <- cap[!cap$ph, , drop = FALSE]
 
   # --- per-bout sufficient statistics on REAL tags, computed with a handful of
   #     grouped ops over the WHOLE table (not one dplyr call per bout; that was
-  #     ~100x slower). Per night t within a bout: C = caught, U = newly marked,
-  #     R = C-U recaps, D = marked animals that died that night,
-  #     M = marked and alive before t = (cumsum(U)-U) - (cumsum(D)-D).
-  nights <- cap %>% dplyr::distinct(.data$boutID, .data$date) %>%
-    dplyr::arrange(.data$boutID, .data$date) %>%
-    dplyr::group_by(.data$boutID) %>% dplyr::mutate(t = dplyr::row_number()) %>%
-    dplyr::ungroup()
+  #     ~100x slower). Per trapped night t within a bout: C = caught, U = newly
+  #     marked, R = C-U recaps, D = marked animals that died that night,
+  #     M = marked and alive before t = (cumsum(U)-U) - (cumsum(D)-D). A trapped
+  #     night with no capture has C = U = R = D = 0 and still counts in k and M.
+  nights <- tn[, c("boutID", "date", "t")]
   Cn <- real %>% dplyr::count(.data$boutID, .data$date, name = "C")    # caught/night
-  Un <- real %>% dplyr::group_by(.data$boutID, .data$tagID) %>%
+  Un <- if (nrow(real) == 0) tibble::tibble(boutID = character(), date = as.Date(character()),
+                                            U = integer()) else
+    real %>% dplyr::group_by(.data$boutID, .data$tagID) %>%
     dplyr::summarise(first = min(.data$date), .groups = "drop") %>%
     dplyr::count(.data$boutID, date = .data$first, name = "U")         # new/night
   Dn <- real %>% dplyr::filter(.data$dead) %>%
@@ -1420,14 +1469,19 @@ bout_closed_capture <- function(d) {
                      M1 = .data$U[.data$t == 1][1] - .data$D[.data$t == 1][1],
                      C2 = .data$C[.data$t == 2][1],
                      R2 = .data$R[.data$t == 2][1], .groups = "drop")
-  bmeta <- cap %>% dplyr::group_by(.data$boutID) %>%
+  # bout ym and start come from its first trapped night (tn is date-ordered)
+  bmeta <- tn %>% dplyr::group_by(.data$boutID) %>%
     dplyr::summarise(plotID = dplyr::first(.data$plotID), ym = dplyr::first(.data$ym),
-                     start = min(.data$date),
-                     mnka_marked = dplyr::n_distinct(.data$tagID[!.data$ph]),
+                     start = min(.data$date), .groups = "drop")
+  cmeta <- cap %>% dplyr::group_by(.data$boutID) %>%
+    dplyr::summarise(mnka_marked = dplyr::n_distinct(.data$tagID[!.data$ph]),
                      n_unmarked = sum(.data$ph & !.data$recapY),
                      n_unmarked_recap = sum(.data$ph & .data$recapY),
                      n_dead = dplyr::n_distinct(.data$tagID[!.data$ph & .data$dead]),
                      .groups = "drop")
+  bmeta <- dplyr::left_join(bmeta, cmeta, by = "boutID")
+  for (v in c("mnka_marked", "n_unmarked", "n_unmarked_recap", "n_dead"))
+    bmeta[[v]] <- dplyr::coalesce(as.integer(bmeta[[v]]), 0L)   # zero-capture bouts
   est <- dplyr::left_join(bmeta, agg, by = "boutID")
 
   # --- estimator: pure arithmetic per bout (scalars; the loop is microseconds) -
@@ -1709,7 +1763,9 @@ stat_breakdown <- function(d, lb, which) {
       name = paste0(s$emoji, "  <i>", s$scientificName, "</i>",
                     ifelse(is.na(s$nickname), "", paste0(" <span class='dim'>· ", s$nickname, "</span>"))),
       metric = paste0(fmt_int(s$captures), " caps"),
-      sub = paste0(fmt_int(s$individuals), " individuals"))
+      sub = paste0(fmt_int(s$individuals), " ear-tagged individuals",
+                   ifelse(s$untagged_captures > 0,
+                          paste0(" · ", fmt_int(s$untagged_captures), " untagged captures"), "")))
     return(pack("Species, ranked by abundance", "Every species caught here, most common first",
       if (nrow(s)) sprintf("The <b><i>%s</i></b> dominates; the bottom of the list is where the rare finds hide.", s$scientificName[1]) else "",
       rows, "\U0001F9EC"))
@@ -1726,7 +1782,9 @@ stat_breakdown <- function(d, lb, which) {
   if (which == "captures") {
     cby <- d %>% dplyr::filter(!is.na(.data$tagID), !is.na(.data$plotID)) %>%
       dplyr::group_by(.data$plotID) %>%
-      dplyr::summarise(caps = dplyr::n(), inds = dplyr::n_distinct(.data$tagID), .groups = "drop") %>%
+      dplyr::summarise(caps = dplyr::n(),
+                       inds = dplyr::n_distinct(.data$tagID[mam_tag_marked(.data$tagID)]),  # real ear tags
+                       .groups = "drop") %>%
       dplyr::arrange(dplyr::desc(.data$caps))
     rows <- tibble::tibble(rank = seq_len(nrow(cby)),
       name = paste0("\U0001F4CD ", cby$plotID), metric = paste0(fmt_int(cby$caps), " caps"),

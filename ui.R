@@ -319,7 +319,7 @@ ui <- bslib::page_fillable(
           uiOutput("speciesBarInsight"),
           div(class = "chart-hint", bs_icon("hand-index-thumb"), " Tap a bar for that species' full breakdown."),
           spin(plotlyOutput("speciesBar", height = "440px")),
-          chart_caption("Species ranked by ", tags$b("abundance"), " (distinct individuals), top 14 shown. Each bar carries that species' identity colour (shared with the plot map); captures-per-individual (trap-happiness) is on the hover. Counts are handled animals with a species-level ID at this site and window (genus-only “sp.” records excluded from the ranking headline); it shows relative composition here, ", tags$b("not"), " absolute density or a cross-site total.")),
+          chart_caption("Species ranked by ", tags$b("abundance"), " (distinct ear-tagged individuals; untagged captures are on the hover), top 14 shown. Each bar carries that species' identity colour (shared with the plot map); captures-per-individual (trap-happiness) is on the hover. Counts are handled animals with a species-level ID at this site and window (genus-only “sp.” records excluded from the ranking headline); it shows relative composition here, ", tags$b("not"), " absolute density or a cross-site total.")),
         # the plain-English story sits underneath
         card(
           card_head("stars", "The story so far",
@@ -391,7 +391,7 @@ ui <- bslib::page_fillable(
               p("The ", tags$span(style="color:#0C234B;font-weight:700", "navy line + band"), " is the estimated abundance N̂ per sampled grid with a 95% interval; the ", tags$span(style="color:#6b7a89;font-weight:700", "grey line"), " is MNKA (minimum known alive) per grid. The gap between them ", tags$em("is"), " the detection correction. Each month is the ", tags$b("mean per estimable grid"), " (two bouts on one plot in a month are averaged first), so the line does not rise just because more grids were trapped; the line breaks where the usual nights per bout (the most common k that month) change."),
               p("When a driver leads this population (per the ranking above), its monthly value is overlaid here at that best lag (right axis) so you can watch the abundance track it."),
               tags$ul(
-                tags$li(tags$b("k ≥ 3 nights"), " → Schnabel estimator; ", tags$b("k = 2"), " → Chapman. Single-night grids can't be estimated (that's what MNKA/CPUE are for)."),
+                tags$li(tags$b("k ≥ 3 nights"), " → Schnabel estimator; ", tags$b("k = 2"), " → Chapman. Single-night grids can't be estimated (that's what MNKA/CPUE are for). Bouts (and the single-night share) are trapping bouts counted from trapped nights, including bouts that caught nothing."),
                 tags$li("Only real ear tags count as marks. NEON gives an untagged capture a one-time placeholder ID, so each untagged capture is added once as a known-alive animal, never as a mark. An animal that dies in the trap leaves the marked pool. Untagged captures are mostly shrews at eastern sites (ABBY 88% Sorex, HARV 48% Blarina) and escaped heteromyids at desert sites; an untagged animal caught again on a later night counts again, so that part of N̂ can run high."),
                 tags$li("p̂ is the ", tags$b("per-night detection probability"), " (Model M0) of the ear-tagged animals: the share of present animals we'd expect to catch on any one night."),
                 tags$li("We hide the estimate when there are ", tags$b("fewer than 3 within-bout recaptures"), ", too few to be stable."),
@@ -460,12 +460,12 @@ ui <- bslib::page_fillable(
                 tags$li(tags$b("q = 1"), " · ", tags$b("exp(Shannon)"), ": the effective number of ", tags$em("common"), " species."),
                 tags$li(tags$b("q = 2"), " · ", tags$b("inverse Simpson"), ": the effective number of ", tags$em("dominant"), " species.")),
               p("They always shrink (q0 ≥ q1 ≥ q2). When q1 sits close to q0 the community is ", tags$b("even"), "; when it drops far below, a few species ", tags$b("dominate"), "."),
-              p(tags$em("Abundance = distinct individuals per species, so a much-recaptured animal isn't counted twice. Hill 1973; Jost 2006; Chao et al. 2014.")))),
+              p(tags$em("Abundance = distinct ear-tagged individuals per species, so a much-recaptured animal isn't counted twice and an untagged capture is not an animal. Hill 1973; Jost 2006; Chao et al. 2014.")))),
           uiOutput("hillInsight"),
           layout_columns(col_widths = c(7, 5),
             spin(plotlyOutput("hillPlot", height = "260px")),
             uiOutput("hillNote")),
-          chart_caption("Hill diversity profile in ", tags$b("effective number of species"), " (Hill 1973; Jost 2006): q=0 richness (counts every species equally), q=1 = exp(Shannon) (common species), q=2 = inverse Simpson (dominant species); always q0 ≥ q1 ≥ q2, and q1/q0 near 1 means an even community. Abundance = ", tags$b("distinct individuals"), " per species (not captures), species-level IDs only. A within-site ", tags$b("diversity structure"), ", ", tags$b("not"), " a cross-site diversity ranking (it isn't coverage-standardised).")),
+          chart_caption("Hill diversity profile in ", tags$b("effective number of species"), " (Hill 1973; Jost 2006): q=0 richness (counts every species equally), q=1 = exp(Shannon) (common species), q=2 = inverse Simpson (dominant species); always q0 ≥ q1 ≥ q2, and q1/q0 near 1 means an even community. Abundance = ", tags$b("distinct ear-tagged individuals"), " per species (not captures, not untagged placeholder IDs), species-level IDs only. A within-site ", tags$b("diversity structure"), ", ", tags$b("not"), " a cross-site diversity ranking (it isn't coverage-standardised).")),
         card(full_screen = TRUE,
           card_head("activity", "Captures over time · by species",
             info_pop("Captures over time",

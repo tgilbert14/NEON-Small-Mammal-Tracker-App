@@ -328,19 +328,21 @@ h3 <- harv$b[harv$b$boutID == "HARV_001#3", ]
 check(nrow(h3) == 1L && near(h3$N, 42.67, 0.10),
       sprintf("HARV_001#3 N-hat on real tags is about 43 (was about 116), got %.1f", h3$N))
 check(near(est_sum(harv), 7713, 0.02) && near(harv$cc$mean_detect, 0.815, 0.005) &&
-        near(harv$cc$mean_p, 0.434, 0.005) && harv$cc$n_unmarked_total > 0,
+        near(harv$cc$mean_p, 0.434, 0.005) && harv$cc$n_unmarked_total > 0 && harv$cc$n_bouts == 372L &&
+        sum(harv$b$sumC == 0 & harv$b$n_unmarked == 0 & harv$b$n_unmarked_recap == 0) == 15L,
       "HARV sum of bout N-hat, completeness and pooled p-hat match the recorded values")
 srer <- reg_site("SRER")
 check(sum(mam_is_placeholder_tag(srer$d$tagID)) == 413L &&
         sum(mam_tag_present(srer$d$tagID)) == 9962L &&
         near(est_sum(srer), 5277, 0.02) && near(srer$cc$mean_detect, 0.862, 0.005) &&
-        near(srer$cc$mean_p, 0.492, 0.005),
-      "SRER placeholder count and real-tag estimates match the recorded values")
+        near(srer$cc$mean_p, 0.491, 0.005) && srer$cc$n_bouts == 229L &&
+        community_stats(srer$d)$individuals == 3563L,
+      "SRER placeholder count, trapped-night bouts, real-tag estimates and ear-tagged individuals match the recorded values")
 abby <- reg_site("ABBY")
 s_all <- rbind(harv$cc$series[, c("N", "lo", "hi", "mnka")],
                srer$cc$series[, c("N", "lo", "hi", "mnka")],
                abby$cc$series[, c("N", "lo", "hi", "mnka")])
-check(near(est_sum(abby), 2598, 0.02) &&
+check(near(est_sum(abby), 2599, 0.02) && near(abby$cc$mean_p, 0.453, 0.005) &&
         all(s_all$lo <= s_all$N & s_all$N <= s_all$hi & s_all$lo >= s_all$mnka) &&
         !anyNA(s_all),
       "ABBY sum matches and every monthly interval brackets N-hat above MNKA")
@@ -391,5 +393,85 @@ check(is.list(qc_a) && !inherits(qc_a, "try-error"),
 qc_b <- try(individual_qc_flags(qc_hist(c(NA, "adult", "adult")), qc_row), silent = TRUE)
 check(is.list(qc_b) && !inherits(qc_b, "try-error"),
       "individual_qc_flags: an NA life stage in the history does not error")
+
+
+# ---- k counts trapped nights, not nights with a tagged capture (2026-10-20) --
+# Fixtures go through clean_mam() so trap_effort comes from the effort contract.
+# Night 1 marks KA-KF (6); night 2 has only an empty-but-set trap; night 3
+# recaptures KA-KD and marks KG. Schnabel (k = 3): M = 0, 6, 6 and
+# num = 5 * 6 = 30, sumR = 4, N = 7.5. Chapman (k = 2): (6+1)(5+1)/(4+1) - 1 = 7.4.
+k_fixture <- function(night2_status, plot = "TEST_K01") {
+  n <- c("2021-07-01", "2021-07-02", "2021-07-03")
+  tags <- c(sprintf("K%s", LETTERS[1:6]), NA, sprintf("K%s", LETTERS[c(1:4, 7)]))
+  nights <- c(rep(n[1], 6), n[2], rep(n[3], 5))
+  status <- c(rep("5 - capture", 6), night2_status, rep("5 - capture", 5))
+  clean_mam(data.frame(
+    collectDate = nights, nightuid = paste0("N", match(nights, n)),
+    plotID = plot, trapCoordinate = c(sprintf("A%d", 1:6), "B1", sprintf("A%d", 1:5)),
+    trapStatus = status, tagID = tags, remarks = NA_character_, siteID = "TEST",
+    scientificName = ifelse(is.na(tags), NA, "Species alpha"),
+    recapture = ifelse(nights == n[3] & !is.na(tags) & tags != "KG", "Y", "N"),
+    fate = ifelse(is.na(tags), NA, "released"), stringsAsFactors = FALSE))
+}
+ke <- bout_closed_capture(k_fixture("6 - trap set and empty"))
+check(nrow(ke) == 1L && ke$k == 3L && ke$sumR == 4L && ke$num == 30 &&
+        ke$N_marked == round(30 / 4, 1) && ke$N == 7.5 && ke$mnka_marked == 7L &&
+        ke$p == round(ke$sumC / (3 * ke$N_marked), 3),
+      "an empty-but-set middle night counts in k: the bout is Schnabel (k = 3), not Chapman")
+kn <- bout_closed_capture(k_fixture("1 - trap not set"))
+check(nrow(kn) == 1L && kn$k == 2L && kn$sumR == 4L &&
+        kn$N_marked == round((6 + 1) * (5 + 1) / (4 + 1) - 1, 1),
+      "a not-set middle night (effort 0) does not count: the bout is Chapman (k = 2)")
+# A bout that trapped three nights and caught nothing stays in the table.
+z_rows <- data.frame(
+  collectDate = c("2021-08-01", "2021-08-02", "2021-08-03"), nightuid = c("Z1", "Z2", "Z3"),
+  plotID = "TEST_K02", trapCoordinate = "A1", trapStatus = "6 - trap set and empty",
+  tagID = NA_character_, remarks = NA_character_, siteID = "TEST",
+  scientificName = NA_character_, stringsAsFactors = FALSE)
+zd <- clean_mam(z_rows)
+zb <- bout_closed_capture(zd)
+zs <- tryCatch(closed_capture_series(zd, zb), error = function(e) e)
+check(nrow(zb) == 1L && zb$k == 3L && zb$sumC == 0L && zb$mnka_marked == 0L &&
+        zb$n_unmarked == 0L && zb$status == "insufficient recaptures" && is.na(zb$N) &&
+        !inherits(zs, "error") && zs$n_estimable == 0 && zs$n_bouts == 1L,
+      "a zero-capture trapped bout is kept (k = 3, sumC = 0) and the roll-up tolerates it")
+# A capture on a plot-night with no effort breaks the effort contract and stops.
+kb <- k_fixture("6 - trap set and empty")
+kb$trap_effort[kb$date == as.Date("2021-07-03")] <- 0
+check(expect_error(bout_closed_capture(kb)),
+      "a capture on a night with no trap effort stops instead of joining no bout")
+
+# ---- individuals count real ear tags only (2026-10-20) -----------------------
+# Two marked tags each caught twice plus three placeholder capture events of one
+# species; a second species appears only as one placeholder row.
+ph_tag <- function(coord, day) sprintf("NEON.MAM.D14.O001%s202108%02d", coord, day)
+mi_raw <- data.frame(
+  collectDate = c("2021-08-01", "2021-08-01", "2021-08-02", "2021-08-02",
+                  "2021-08-01", "2021-08-02", "2021-08-02", "2021-08-02"),
+  nightuid = c("M1", "M1", "M2", "M2", "M1", "M2", "M2", "M2"),
+  plotID = "TEST_M01",
+  trapCoordinate = c("A1", "A2", "A1", "A2", "A3", "A3", "A4", "A5"),
+  trapStatus = "5 - capture",
+  tagID = c("RA", "RB", "RA", "RB", ph_tag("A3", 1), ph_tag("A3", 2), ph_tag("A4", 2), ph_tag("A5", 2)),
+  remarks = NA_character_, siteID = "TEST",
+  scientificName = c(rep("Species gamma", 7), "Species delta"),
+  recapture = c("N", "N", "Y", "Y", "N", "N", "N", "N"),
+  stringsAsFactors = FALSE)
+mi7 <- clean_mam(mi_raw[1:7, ])
+cs7 <- community_stats(mi7)
+ss7 <- species_summary(mi7)
+lb7 <- build_leaderboard(mi7)
+check(cs7$individuals == 2L && cs7$untagged_captures == 3L && cs7$total_captures == 7L &&
+        nrow(ss7) == 1L && ss7$individuals == 2L && ss7$untagged_captures == 3L &&
+        ss7$captures == 7L && nrow(lb7) == 2L && setequal(lb7$tagID, c("RA", "RB")),
+      "individuals, species individuals and the leaderboard count real ear tags only")
+mi8 <- clean_mam(mi_raw)
+sa8 <- species_accum(mi8)
+hn8 <- hill_numbers(mi8)
+cs8 <- community_stats(mi8)
+check(sa8$sobs == 2L && sa8$f1 == 0L && sa8$f2 == 1L && cs8$species == 2L &&
+        cs8$individuals == 2L && cs8$untagged_captures == 4L &&
+        hn8$n_ind == 2L && hn8$q0 == 1,
+      "Chao1 f1/f2 and Hill abundance ignore placeholders; richness keeps a placeholder-only species")
 
 cat(sprintf("\nAll %d helper contract tests passed.\n", passed))
