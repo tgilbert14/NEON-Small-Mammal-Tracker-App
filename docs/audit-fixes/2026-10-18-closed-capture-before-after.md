@@ -173,7 +173,8 @@ almost always catches something on a trapped pathogen-grid night. Across all 46 
 540 bouts changed k, 17 estimable bouts moved from Chapman to Schnabel, 7 old bouts merged
 into a neighbour, and 972 zero-capture bouts appeared (CPER 173, LENO 70, TOOL 69, DSNY 66);
 most of these are single-night diversity grids that trapped and caught nothing, which raises
-the single-night share in the detection header. The Individuals tile drops most at forest
+the single-night share in the detection header (bouts there are trapping bouts counted
+from trapped nights, including bouts that caught nothing). The Individuals tile drops most at forest
 sites with many untagged shrews (WREF -38%, ABBY -37%, TALL -32%, HARV -28%).
 
 Command (from the repository root):

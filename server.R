@@ -3217,7 +3217,7 @@ server <- function(input, output, session) {
         div(class = "detect-head",
           chip(paste0(sn_pct, "%"), "single-night (index-only)", dcol("#9aa7b4"))),
         div(style = "font-size:.82rem; opacity:.72; margin-top:6px; max-width:48ch;",
-          "Every bout here is single-night, so abundance is index-only (MNKA/CPUE) by design: there's no within-bout recapture to detection-correct.")))
+          "Every bout here is single-night, so abundance is index-only (MNKA/CPUE) by design: there's no within-bout recapture to detection-correct. Bouts are trapping bouts counted from trapped nights, including bouts that caught nothing.")))
     }
     lead <- if (!is.na(cc$mean_detect))
       insight_banner("incognito", tone = "navy",
@@ -3357,7 +3357,7 @@ server <- function(input, output, session) {
     s <- cc$series
     lift <- if (any(s$mnka > 0)) round(100 * (sum(s$N) / sum(s$mnka) - 1)) else NA
     div(class = "detect-note", bs_icon("info-circle"),
-      HTML(sprintf(" Across estimable bouts, the corrected estimate runs about <b>%s%%</b> above the raw known-alive count: the animals the traps missed. Each month is the mean per estimable grid (same-plot bouts in one month averaged first); months with too few recaptures are omitted.",
+      HTML(sprintf(" Across estimable bouts, the corrected estimate runs about <b>%s%%</b> above the raw known-alive count: the animals the traps missed. Each month is the mean per estimable grid (same-plot bouts in one month averaged first); months with too few recaptures are omitted. Bouts in the chips above are trapping bouts counted from trapped nights, including bouts that caught nothing.",
                    ifelse(is.na(lift), "—", lift))))
   })
 
