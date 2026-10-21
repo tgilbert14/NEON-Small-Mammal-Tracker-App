@@ -2251,7 +2251,8 @@ server <- function(input, output, session) {
     lb <- rv$lb; row <- lb[lb$tagID == tag, ]; req(nrow(row) == 1)
     d <- rv$data
     hist <- individual_history(d, tag)
-    flags <- individual_qc_flags(hist, row)
+    flags <- tryCatch(individual_qc_flags(hist, row), error = function(e)
+      list(list(level = "info", text = "QC flags could not be computed for this animal.")))
     rmeta <- rarity_meta(row$rarity[1])   # not `rm` — that shadows base::rm()
 
     tile <- function(v, l) div(class = "qc-tile", div(class = "qc-tile-v", v), div(class = "qc-tile-l", l))
