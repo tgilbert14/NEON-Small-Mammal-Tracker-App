@@ -3242,10 +3242,10 @@
       "checksum": "09eaf8b677d24ddcc48b6fa0e23e6040"
     },
     "data/search_index.rds": {
-      "checksum": "be7b84a7b3b412f232abe724f3919ccc"
+      "checksum": "5a5730890fbb262ffc72e4cfc4f03f24"
     },
     "data/site_index.rds": {
-      "checksum": "9b4c4a621514bcc57e1833281e6dbac1"
+      "checksum": "4e008765b6fd045fbb1496dfc262116b"
     },
     "data/sites/ABBY.rds": {
       "checksum": "f27ec86fa8289498ba813de95c8441d0"
@@ -3386,7 +3386,7 @@
       "checksum": "a99514d5510982e2a9f48042efe3e278"
     },
     "data/species_ranges.rds": {
-      "checksum": "6c0124cebcec71fdbf6aade16a2f9fb9"
+      "checksum": "ba876047b08e5476c01a0b2c1540836c"
     },
     "global.R": {
       "checksum": "09f8805af826ebdf447ef34bfb075726"
