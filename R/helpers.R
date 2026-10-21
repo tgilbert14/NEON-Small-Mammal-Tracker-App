@@ -1342,12 +1342,18 @@ hill_numbers <- function(d) {
 # Spec: Fauna review (Schnabel 1938; Chapman 1951; Otis et al. 1978; Krebs 1999,
 # 2017); NEON.DOC.000481 SOP C.8 for the placeholder convention.
 #
-# Bout grouping: distinct (plotID, collectDate, tagID) over ALL tagged capture
-# rows, placeholders included, so the nights and k of a bout do not depend on
-# the mark rule; within a plot a new bout starts when the gap to the previous
-# trapping night is > 2 days (NEON allows a 1-night slip), keyed off
-# consecutive collectDates (NOT a hardcoded "3 nights", since NEON reduced
-# sampling at some sites). Recapture status for real tags is recomputed WITHIN
+# Bout grouping: k counts trapped nights (trap_effort > 0), so an empty night
+# inside a bout still counts toward detection; bouts are assigned over trapped
+# nights, captures join by plot and night. A trapped plot-night is a distinct
+# (plotID, collectDate) with any row of trap_effort > 0 (fallback: is_set, then
+# the tagged capture rows when neither column exists). Within a plot a new bout
+# starts when the gap to the previous trapped night is > 2 days (NEON allows a
+# 1-night slip), keyed off consecutive trapped dates (NOT a hardcoded
+# "3 nights", since NEON reduced sampling at some sites). A bout that trapped
+# but caught no tagged animal stays in the table (sumC = 0, NA estimates).
+# Capture rows are distinct (plotID, collectDate, tagID) over ALL tagged rows,
+# placeholders included; a capture on a night with no effort breaks the effort
+# contract and stops. Recapture status for real tags is recomputed WITHIN
 # bout (the raw `recapture` column carries cross-bout history).
 #
 # The monthly roll-up (closed_capture_series) is a MEAN PER ESTIMABLE GRID; its
@@ -1365,41 +1371,67 @@ recap_poisson_limits <- function(R) {
 }
 
 bout_closed_capture <- function(d) {
+  if (is.null(d) || nrow(d) == 0) return(NULL)
   keep <- mam_tag_present(d$tagID) & !is.na(d$plotID) & !is.na(d$date)
-  if (!any(keep)) return(NULL)
-  src <- d[keep, , drop = FALSE]
-  fate <- if ("fate" %in% names(src)) as.character(src$fate) else rep(NA_character_, nrow(src))
-  recap <- if ("recapture" %in% names(src)) as.character(src$recapture) else rep(NA_character_, nrow(src))
-  src <- tibble::tibble(plotID = src$plotID, date = src$date, tagID = as.character(src$tagID),
-                        ym = src$ym, dead = !is.na(fate) & fate == "dead",
-                        recapY = !is.na(recap) & recap == "Y")
-  # one row per (plot, night, tag); duplicates that disagree resolve to any()
-  cap <- src %>% dplyr::group_by(.data$plotID, .data$date, .data$tagID, .data$ym) %>%
-    dplyr::summarise(dead = any(.data$dead), recapY = any(.data$recapY), .groups = "drop")
-
-  # assign bouts: consecutive nights within a plot (gap > 2 days -> new bout),
-  # over every tagged capture so nights / k are unchanged by the mark rule
-  cap <- cap %>% dplyr::arrange(.data$plotID, .data$date)
-  cap <- cap %>% dplyr::group_by(.data$plotID) %>%
+  # trapped plot-nights: any row with effort on that plot and night
+  trapped <- if ("trap_effort" %in% names(d)) {
+    e <- suppressWarnings(as.numeric(d$trap_effort)); is.finite(e) & e > 0
+  } else if ("is_set" %in% names(d)) {
+    d$is_set %in% TRUE
+  } else keep
+  trapped <- trapped & !is.na(d$plotID) & !is.na(d$date)
+  if (!any(trapped)) {
+    if (any(keep)) stop(sprintf(
+      "bout_closed_capture: effort contract broken: capture on %s %s has no trapped night",
+      d$plotID[keep][1], format(d$date[keep][1])), call. = FALSE)
+    return(NULL)
+  }
+  ym_all <- if ("ym" %in% names(d)) as.character(d$ym) else format(d$date, "%Y-%m")
+  tn <- tibble::tibble(plotID = d$plotID[trapped], date = d$date[trapped],
+                       ym = ym_all[trapped]) %>%
+    dplyr::distinct(.data$plotID, .data$date, .keep_all = TRUE) %>%
+    dplyr::arrange(.data$plotID, .data$date) %>%
+    dplyr::group_by(.data$plotID) %>%
     dplyr::mutate(gap = as.integer(.data$date - dplyr::lag(.data$date)),
                   new_bout = is.na(.data$gap) | .data$gap > 2,
                   bout = cumsum(.data$new_bout)) %>%
     dplyr::ungroup() %>%
-    dplyr::mutate(boutID = paste0(.data$plotID, "#", .data$bout))
+    dplyr::mutate(boutID = paste0(.data$plotID, "#", .data$bout)) %>%
+    dplyr::group_by(.data$boutID) %>%
+    dplyr::mutate(t = dplyr::row_number()) %>%
+    dplyr::ungroup()
+
+  src <- d[keep, , drop = FALSE]
+  fate <- if ("fate" %in% names(src)) as.character(src$fate) else rep(NA_character_, nrow(src))
+  recap <- if ("recapture" %in% names(src)) as.character(src$recapture) else rep(NA_character_, nrow(src))
+  src <- tibble::tibble(plotID = src$plotID, date = src$date, tagID = as.character(src$tagID),
+                        dead = !is.na(fate) & fate == "dead",
+                        recapY = !is.na(recap) & recap == "Y")
+  # one row per (plot, night, tag); duplicates that disagree resolve to any()
+  cap <- src %>% dplyr::group_by(.data$plotID, .data$date, .data$tagID) %>%
+    dplyr::summarise(dead = any(.data$dead), recapY = any(.data$recapY), .groups = "drop")
+  # join captures onto the trapped-night bouts by (plot, night)
+  cap <- dplyr::left_join(cap, tn[, c("plotID", "date", "boutID")], by = c("plotID", "date"))
+  if (anyNA(cap$boutID)) {
+    bad <- cap[is.na(cap$boutID), , drop = FALSE][1, ]
+    stop(sprintf(
+      "bout_closed_capture: effort contract broken: capture on %s %s has no trapped night",
+      bad$plotID, format(bad$date)), call. = FALSE)
+  }
   cap$ph <- mam_is_placeholder_tag(cap$tagID)
   real <- cap[!cap$ph, , drop = FALSE]
 
   # --- per-bout sufficient statistics on REAL tags, computed with a handful of
   #     grouped ops over the WHOLE table (not one dplyr call per bout; that was
-  #     ~100x slower). Per night t within a bout: C = caught, U = newly marked,
-  #     R = C-U recaps, D = marked animals that died that night,
-  #     M = marked and alive before t = (cumsum(U)-U) - (cumsum(D)-D).
-  nights <- cap %>% dplyr::distinct(.data$boutID, .data$date) %>%
-    dplyr::arrange(.data$boutID, .data$date) %>%
-    dplyr::group_by(.data$boutID) %>% dplyr::mutate(t = dplyr::row_number()) %>%
-    dplyr::ungroup()
+  #     ~100x slower). Per trapped night t within a bout: C = caught, U = newly
+  #     marked, R = C-U recaps, D = marked animals that died that night,
+  #     M = marked and alive before t = (cumsum(U)-U) - (cumsum(D)-D). A trapped
+  #     night with no capture has C = U = R = D = 0 and still counts in k and M.
+  nights <- tn[, c("boutID", "date", "t")]
   Cn <- real %>% dplyr::count(.data$boutID, .data$date, name = "C")    # caught/night
-  Un <- real %>% dplyr::group_by(.data$boutID, .data$tagID) %>%
+  Un <- if (nrow(real) == 0) tibble::tibble(boutID = character(), date = as.Date(character()),
+                                            U = integer()) else
+    real %>% dplyr::group_by(.data$boutID, .data$tagID) %>%
     dplyr::summarise(first = min(.data$date), .groups = "drop") %>%
     dplyr::count(.data$boutID, date = .data$first, name = "U")         # new/night
   Dn <- real %>% dplyr::filter(.data$dead) %>%
@@ -1420,14 +1452,19 @@ bout_closed_capture <- function(d) {
                      M1 = .data$U[.data$t == 1][1] - .data$D[.data$t == 1][1],
                      C2 = .data$C[.data$t == 2][1],
                      R2 = .data$R[.data$t == 2][1], .groups = "drop")
-  bmeta <- cap %>% dplyr::group_by(.data$boutID) %>%
+  # bout ym and start come from its first trapped night (tn is date-ordered)
+  bmeta <- tn %>% dplyr::group_by(.data$boutID) %>%
     dplyr::summarise(plotID = dplyr::first(.data$plotID), ym = dplyr::first(.data$ym),
-                     start = min(.data$date),
-                     mnka_marked = dplyr::n_distinct(.data$tagID[!.data$ph]),
+                     start = min(.data$date), .groups = "drop")
+  cmeta <- cap %>% dplyr::group_by(.data$boutID) %>%
+    dplyr::summarise(mnka_marked = dplyr::n_distinct(.data$tagID[!.data$ph]),
                      n_unmarked = sum(.data$ph & !.data$recapY),
                      n_unmarked_recap = sum(.data$ph & .data$recapY),
                      n_dead = dplyr::n_distinct(.data$tagID[!.data$ph & .data$dead]),
                      .groups = "drop")
+  bmeta <- dplyr::left_join(bmeta, cmeta, by = "boutID")
+  for (v in c("mnka_marked", "n_unmarked", "n_unmarked_recap", "n_dead"))
+    bmeta[[v]] <- dplyr::coalesce(as.integer(bmeta[[v]]), 0L)   # zero-capture bouts
   est <- dplyr::left_join(bmeta, agg, by = "boutID")
 
   # --- estimator: pure arithmetic per bout (scalars; the loop is microseconds) -
