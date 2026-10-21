@@ -78,9 +78,12 @@ there is no parity patch to re-apply to the current Driver.
 | Closed-capture N-hat | gated Schnabel/Chapman estimate with interval and p-hat | detection-corrected estimate under bout/model assumptions | app-local only; do not absorb into Driver yet |
 
 Coverage is a scientific qualifier, not a UI footnote: 49% of 8,200 pooled bouts are
-single-night/index-only. Mean detection completeness varies from about 0.42 to 0.95
+single-night/index-only. Mean detection completeness varies from about 0.47 to 0.96
 among sites. The app therefore carries p-hat/mean N-hat into Compare and suppresses a
 raw-count winner when detection differs materially or is un-estimable.
+
+2026-10-18: earlier figures counted NEON SOP C.8 placeholder IDs and dead animals as marked
+individuals; recomputed with real-tag marks (`docs/audit-fixes/2026-10-18-closed-capture-before-after.md`).
 
 ## Driver joins and mechanism claim
 
