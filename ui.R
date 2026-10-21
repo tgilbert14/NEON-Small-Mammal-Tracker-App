@@ -83,8 +83,8 @@ small_mammal_poster <- function(show_cta = TRUE) {
 
 ui <- bslib::page_fillable(
   theme = app_theme,
-  window_title = "NEON Small Mammal Tracker",
-  fillable = FALSE,
+  title = "NEON Small Mammal Tracker",
+  lang = "en",
 
   # ---- head: fonts, icons, libs, our CSS/JS ------------------------------
   tags$head(

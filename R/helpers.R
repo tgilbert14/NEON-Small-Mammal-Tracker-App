@@ -1076,7 +1076,7 @@ individual_qc_flags <- function(hist, lb_row) {
   #     to that day's most-advanced stage first, so a same-day (adult, juvenile)
   #     pair (or a two-plot-one-day record) can't be misread as a regression.
   ord <- c(juvenile = 1L, subadult = 2L, adult = 3L)
-  hs <- data.frame(date = hist$date, st = ord[as.character(hist$lifeStage)])
+  hs <- data.frame(date = hist$date, st = unname(ord[as.character(hist$lifeStage)]))
   hs <- hs[!is.na(hs$st) & !is.na(hs$date), , drop = FALSE]
   if (nrow(hs) >= 2) {
     per_day <- tapply(hs$st, as.character(hs$date), max)
@@ -1645,17 +1645,25 @@ closed_capture_series <- function(d, bouts = NULL) {
 }
 
 # Reproductive activity per row (adults): scrotal males / pregnant-or-lactating
-# females. Returns the input rows with a `repro` factor added.
+# females. Returns the input rows with a `repro` label added. Matching is
+# exact-token (trimmed, lowercased, NA-safe) against the NEON.DOC.000481vQ
+# vocabulary: testes scrotal/nonscrotal; pregnancyStatus pregnant/not pregnant;
+# nipples enlarged/nonenlarged; vagina swollen (estrous), plugged, both,
+# neither, not plugged. Substring matching is wrong here: "not pregnant",
+# "nonenlarged" and "not plugged" all contain the positive token. The committed
+# bundles store non-pregnant as "not". NA, "", "not" and "unknown" fall through
+# to non-reproductive.
 flag_repro <- function(d) {
-  scrotal  <- grepl("scrotal", d$testes %||% "", ignore.case = TRUE) &
-              !grepl("nonscrotal", d$testes %||% "", ignore.case = TRUE)
-  preg     <- grepl("pregnant", d$pregnancyStatus %||% "", ignore.case = TRUE)
-  lact     <- grepl("enlarged", d$nipples %||% "", ignore.case = TRUE)
-  vag_open <- grepl("open|plugged|perforate", d$vagina %||% "", ignore.case = TRUE)
+  n <- nrow(d)
+  lv <- function(x) tolower(trimws(as.character(x %||% rep(NA_character_, n))))
+  scrotal <- lv(d$testes) %in% "scrotal"
+  preg    <- lv(d$pregnancyStatus) %in% "pregnant"
+  lact    <- lv(d$nipples) %in% "enlarged"
+  vag_rec <- lv(d$vagina) %in% c("swollen", "plugged", "both")
   d$repro <- dplyr::case_when(
     scrotal             ~ "breeding male",
     preg                ~ "pregnant female",
-    lact | vag_open     ~ "lactating/receptive female",
+    lact | vag_rec      ~ "lactating/receptive female",
     TRUE                ~ "non-reproductive"
   )
   d
