@@ -145,7 +145,7 @@ two national indexes (`data/site_index.rds`, `data/species_ranges.rds`) power th
 maps — so the app runs **entirely from the bundle, instantly, with no `neonUtilities` dependency at
 runtime.** `neonUtilities` is optional: it's loaded lazily only for the live-fetch toggle, which
 appears only where the package is installed (set `SMT_LIVE=0` to force bundle-only). A GitHub Action
-prepares a refreshed candidate **late on the first Saturday night of each month** (~11 pm Arizona
+prepares a refreshed candidate **on the first Saturday morning of each month** (~6 am Arizona
 time), verifies it, and opens or updates a review PR. Production changes only after an intentional
 merge; the approach is documented in
 [docs/data-bundling-pattern.md](docs/data-bundling-pattern.md).

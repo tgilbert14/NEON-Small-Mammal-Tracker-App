@@ -9,10 +9,10 @@ name: Propose NEON data refresh
 
 on:
   schedule:
-    # Every Sunday 06:00 UTC == Saturday 23:00 America/Phoenix (Arizona, no DST).
-    # Cron can't express "first Saturday of the month", so we fire every Saturday
-    # night and let the `gate` job below proceed only on the first one.
-    - cron: "0 6 * * 0"
+    # Every Saturday 13:17 UTC == 06:17 America/Phoenix (no DST), clear of the
+    # UTC-midnight edge. Cron cannot say "Nth Saturday of the month", so it fires
+    # weekly and the gate job's shared calendar block picks the refresh week.
+    - cron: "17 13 * * 6"
   workflow_dispatch:
     inputs:
       skip_download:
@@ -28,7 +28,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Gate: only the FIRST Saturday night (Arizona time) runs the heavy refresh.
+  # Gate: only the first-Saturday run (Arizona date of the scheduled Saturday) runs the heavy refresh.
   # Manual runs (workflow_dispatch) always proceed.
   gate:
     runs-on: ubuntu-22.04
@@ -36,20 +36,70 @@ jobs:
       run: ${{ steps.check.outputs.run }}
     steps:
       - id: check
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REFRESH_WEEK: "1"
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Manual run — proceeding."
-            echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          # Shared NEON-suite calendar gate. Keep this block byte-identical in every
+          # repo; only the REFRESH_WEEK value above it differs. The cron fires every
+          # Saturday 13:17 UTC (06:17 America/Phoenix, no DST). GitHub can start a
+          # scheduled run hours late, so the gate judges the Saturday the run was
+          # scheduled for, not the wall clock: it steps back to the most recent Phoenix
+          # Saturday (today, on a Saturday) and proceeds only when that Saturday falls in
+          # week REFRESH_WEEK of its month (week 1 = days 1-7, week 2 = days 8-14).
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] || [ "$EVENT_NAME" = "pull_request" ]; then
+            echo "Calendar gate: $EVENT_NAME run, proceeding." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          dow=$(TZ='America/Phoenix' date +%u)    # 6 = Saturday
-          day=$(TZ='America/Phoenix' date +%-d)   # day-of-month, no leading zero
-          if [ "$dow" = "6" ] && [ "$day" -le 7 ]; then
-            echo "First Saturday in Arizona (day $day) — proceeding."
+          now=$(date -u +%s)
+          started=$(TZ='America/Phoenix' date -d "@$now" '+%F %H:%M')
+          dow=$(TZ='America/Phoenix' date -d "@$now" +%u)   # 1 = Monday ... 6 = Saturday, 7 = Sunday
+          lag_days=$(( (dow + 1) % 7 ))                     # whole days since the most recent Saturday
+          saturday_at=$(( now - lag_days * 86400 ))         # Phoenix has no DST, so a day is 86400 s
+          saturday=$(TZ='America/Phoenix' date -d "@$saturday_at" +%F)
+          saturday_week=$(( ($(TZ='America/Phoenix' date -d "@$saturday_at" +%-d) + 6) / 7 ))
+          today_week=$(( ($(TZ='America/Phoenix' date -d "@$now" +%-d) + 6) / 7 ))
+          if [ "$saturday_week" = "$REFRESH_WEEK" ]; then
+            echo "Calendar gate: run for Saturday $saturday (week $saturday_week) started $started Phoenix, proceeding." | tee -a "$GITHUB_STEP_SUMMARY"
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Not the first Saturday in Arizona (dow=$dow day=$day) — skipping."
+            echo "SKIPPED_BY_CALENDAR: run for Saturday $saturday is week $saturday_week, not week $REFRESH_WEEK (started $started Phoenix)." | tee -a "$GITHUB_STEP_SUMMARY"
+            if [ "$today_week" = "$REFRESH_WEEK" ]; then
+              echo "::warning title=Refresh skipped in its refresh week::Saturday $saturday is week $saturday_week, but this run started $started Phoenix, inside week $REFRESH_WEEK. Confirm the week-$REFRESH_WEEK Saturday run proceeds."
+            fi
             echo "run=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Probe a NEON data endpoint with the token
+        if: steps.check.outputs.run == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        shell: bash
+        env:
+          NEON_TOKEN: ${{ secrets.NEON_TOKEN }}
+          PROBE_URL: https://data.neonscience.org/api/v0/data/DP1.10072.001/SRER/2023-11
+        run: |
+          # Shared NEON-suite token probe. Keep this block byte-identical in every repo;
+          # only PROBE_URL differs. NEON data endpoints refuse anonymous requests, so a
+          # missing or rejected token fails here, named, before any download starts.
+          set -euo pipefail
+          if [ -z "${NEON_TOKEN:-}" ]; then
+            echo "::error title=Missing NEON token::Set the NEON_TOKEN repository secret; NEON data endpoints refuse anonymous requests."
+            echo "NEON token probe: the NEON_TOKEN secret is missing." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          body=$(mktemp)
+          code=$(curl -sS --retry 3 --retry-all-errors --max-time 60 -o "$body" -w '%{http_code}' \
+            -H "X-API-Token: $NEON_TOKEN" "$PROBE_URL") || code=000
+          files=$(jq -r '.data.files | length' "$body" 2>/dev/null) || files=0
+          rm -f "$body"
+          if [ "$code" != "200" ] || ! [ "$files" -ge 1 ] 2>/dev/null; then
+            echo "::error title=NEON token rejected::HTTP $code with $files files from $PROBE_URL; check or rotate the NEON_TOKEN secret."
+            echo "NEON token probe: HTTP $code, $files files from $PROBE_URL." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "NEON token probe: HTTP 200, $files files from $PROBE_URL." | tee -a "$GITHUB_STEP_SUMMARY"
 
   build_candidate:
     needs: gate
