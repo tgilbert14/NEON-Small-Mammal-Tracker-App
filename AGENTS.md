@@ -5,15 +5,16 @@ product used by the separate Driver Response Atlas. Treat scientific definitions
 bundles, manifests, and the watched `main` branch as release-critical.
 
 This repository is worked by more than one agent — ChatGPT/Codex via this file and
-Claude Code via `CLAUDE.md`. The tool-neutral source of truth is
-`docs/neonize-playbook.md`, `.claude/agents/LESSONS.md`, `docs/BUILD-TEST-HANDOFF.md`,
+Claude Code via `CLAUDE.md`. The tool-neutral source of truth is the suite playbook
+(canonical home `../NEON-Driver-Cascade/docs/neonize-playbook.md`; the local
+`docs/neonize-playbook.md` is only a pointer), `.claude/agents/LESSONS.md`, `docs/BUILD-TEST-HANDOFF.md`,
 and `docs/project-status.md`; read those first and keep tool-specific notes to this
 file. Close every session with a dated `BUILD-TEST-HANDOFF.md` entry tagged with your
 tool (`[Codex]` / `[Claude]`) and a one-line next action, so the other agent can pick up
-cold. See `docs/neonize-playbook.md` §8.
+cold. See the canonical playbook §8 (https://github.com/tgilbert14/NEON-Driver-Cascade/blob/master/docs/neonize-playbook.md).
 
 Before coding: plan, question, and challenge the work, and always surface at least one
-improvement you notice — see `docs/neonize-playbook.md` §9.
+improvement you notice; see the canonical playbook §9.
 
 ## Required reading
 
@@ -98,7 +99,8 @@ artifact; do not flail:
    head to go fully green before merge.
 4. If the gate still flaps after a faithful promotion, that is a determinism
    regression (a non-canonical `Built`/`locale` field), not something to brute-force —
-   see the byte-reproducibility recipe in `docs/neonize-playbook.md` §6.
+   see the byte-reproducibility recipe in the canonical playbook §6
+   (`../NEON-Driver-Cascade/docs/neonize-playbook.md`).
 
 One PR per change — do not open separate "closeout/receipt" PRs; fold evidence into
 the feature PR or the handoff. A cover/art change is a coordinated multi-file commit
