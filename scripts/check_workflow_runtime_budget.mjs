@@ -31,6 +31,20 @@ function timeoutMinutes(path, jobName) {
   return Number(match[1]);
 }
 
+// A job timeout that follows a dispatch input:
+//   timeout-minutes: ${{ github.event.inputs.X == 'true' && LONG || DEFAULT }}
+// Returns { fallback: DEFAULT, extended: LONG }; a plain number is both.
+function conditionalTimeoutMinutes(path, jobName) {
+  const block = jobBlock(path, jobName);
+  const plain = block.match(/^    timeout-minutes:\s*(\d+)\s*$/m);
+  if (plain) return { fallback: Number(plain[1]), extended: Number(plain[1]) };
+  const cond = block.match(
+    /^    timeout-minutes:\s*\$\{\{\s*github\.event\.inputs\.[A-Za-z0-9_]+\s*==\s*'true'\s*&&\s*(\d+)\s*\|\|\s*(\d+)\s*\}\}\s*$/m,
+  );
+  if (!cond) fail(`${path} jobs.${jobName} lacks an explicit or input-conditional timeout`);
+  return { fallback: Number(cond[2]), extended: Number(cond[1]) };
+}
+
 function dependencySteps(path, jobName) {
   const block = jobBlock(path, jobName);
   return block
@@ -67,8 +81,12 @@ if (ciBudget !== 100 || regenerationBudget !== 100 || ciBudget !== regenerationB
     `CI and manual regeneration must share the 100-minute cold-build budget; got ${ciBudget}/${regenerationBudget}`,
   );
 }
-if (timeoutMinutes(refresh, "build_candidate") < 100) {
+const refreshBudget = conditionalTimeoutMinutes(refresh, "build_candidate");
+if (refreshBudget.fallback < 100) {
   fail(`${refresh} jobs.build_candidate must retain at least a 100-minute cold-build budget`);
+}
+if (refreshBudget.extended < refreshBudget.fallback || refreshBudget.extended > 360) {
+  fail(`${refresh} jobs.build_candidate extended timeout must lie between its default and the 360-minute hosted-runner limit`);
 }
 
 requireCachedClosure(ci, "contracts", SHARED_CACHE_VERSION);
