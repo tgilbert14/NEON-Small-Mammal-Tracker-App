@@ -232,7 +232,7 @@ function smtSaveCard() {
   // §2.15: never fail silently when the CDN-only capture lib didn't load (blocked
   // wifi / ad-blocker). The user tapped "Save card" — tell them why nothing happened.
   if (typeof htmlToImage === "undefined") {
-    var _m = "A file the export needs didn't load — check your network or ad-blocker, then reload.";
+    var _m = "A file the export needs did not load. Check your network or ad-blocker, then reload.";
     if (typeof Swal !== "undefined") Swal.fire({ icon: "error", title: "Couldn't save the card",
       text: _m, confirmButtonColor: "#1f78c4" });
     else window.alert(_m);
