@@ -33,6 +33,12 @@ showNotification <- function(ui, ...) {
 }
 
 source("server.R")
+# ui.R helpers (footer suite directory and provenance) are checked directly
+ui_env <- new.env()
+suppressPackageStartupMessages(sys.source("ui.R", envir = ui_env))
+html_of <- function(x) paste(as.character(x), collapse = "")
+TEST_META <- list(product = "DP1.10072.001", release = "RELEASE-2099",
+                  doi = "https://doi.org/10.48443/test-0000", data_through = "2099-09-30")
 
 passed <- 0L
 check <- function(ok, label) {
@@ -80,6 +86,28 @@ shiny::testServer(server, {
   check(!grepl("onclick", pop, fixed = TRUE) && grepl("data-smt-value='SRER'", pop, fixed = TRUE),
         "the site popup carries its payload in data attributes, not onclick")
 
+  # item 1: the species banner's denominator is the Individuals card, and the
+  # named species is a species-level row (never a genus-only "sp.")
+  ban <- html_of(output$speciesBarInsight$html)
+  tot <- community_stats(rv$data, rv$lb)$individuals
+  check(grepl(sprintf(" of %s)", fmt_int(tot)), ban, fixed = TRUE),
+        "species banner share is out of the Individuals card count")
+  named <- sub("^.*<i>([^<]+)</i>.*$", "\\1", ban)
+  check(nrow(species_level_only(data.frame(scientificName = named))) == 1,
+        sprintf("species banner names a species-level row (%s)", named))
+
+  # item 8: About renders cleanly without bundle metadata, and shows the
+  # citation with a linked DOI when it is present
+  about0 <- html_of(output$aboutPanel$html)
+  check(!grepl("neon-citation", about0, fixed = TRUE) && !grepl(">NA<", about0, fixed = TRUE),
+        "About has no citation block and no NA without BUNDLE_META")
+  old_meta <- BUNDLE_META
+  assign("BUNDLE_META", TEST_META, envir = globalenv())
+  about1 <- html_of(neon_citation_tag())
+  assign("BUNDLE_META", old_meta, envir = globalenv())
+  check(grepl('href="https://doi.org/10.48443/test-0000"', about1, fixed = TRUE) &&
+          grepl("RELEASE-2099", about1, fixed = TRUE), "with BUNDLE_META the citation links the DOI")
+
   # (c) clearing the Track-an-individual picker returns the dossier to its prompt
   tag <- rv$lb$tagID[1]
   session$setInputs(indiv = tag)
@@ -99,5 +127,33 @@ shiny::testServer(server, {
   session$setInputs(siteExplore = "<b>x</b>")
   check(grepl("&lt;b&gt;", notes$text[length(notes$text)], fixed = TRUE), "markup in a refused code is escaped")
 })
+
+# item 4: Hurlbert rarefaction on a small fixture
+check(isTRUE(all.equal(hurlbert_rarefy(c(2, 1), 2), 1 + 2 / 3)), "E[S_2] of (2, 1) is 5/3")
+check(isTRUE(all.equal(hurlbert_rarefy(c(5, 3, 2), 10), 3)), "rarefying to the full count returns raw richness")
+check(isTRUE(all.equal(hurlbert_rarefy(c(5, 3, 2), 1), 1)), "a draw of one individual holds one species")
+check(is.na(hurlbert_rarefy(c(5, 3, 2), 11)) && is.na(hurlbert_rarefy(numeric(0), 1)),
+      "n above the pooled count, or no counts, is NA")
+
+# item 7: footer suite directory lists all ten apps, the current one unlinked
+nav <- html_of(ui_env$suite_directory_nav())
+self <- SUITE_APPS[SUITE_APPS$is_self, ]
+check(lengths(regmatches(nav, gregexpr("<li>", nav, fixed = TRUE))) == 10, "footer lists ten suite apps")
+check(lengths(regmatches(nav, gregexpr("<a ", nav, fixed = TRUE))) == 9 &&
+        grepl('aria-current="page"', nav, fixed = TRUE) &&
+        !grepl(self$cover_url, nav, fixed = TRUE), "the current app is marked, not linked")
+check(grepl('aria-label="NEON Explorer Suite"', nav, fixed = TRUE) &&
+        grepl("NEON Cross-Product Response Atlas", nav, fixed = TRUE), "footer nav is named and uses the Atlas name")
+
+# item 8: footer and landing line with and without bundle metadata
+f0 <- html_of(ui_env$footer_provenance(NULL))
+f1 <- html_of(ui_env$footer_provenance(TEST_META))
+check(!grepl("ddl-footer-cite", f0, fixed = TRUE) && !grepl("NA", gsub("NEON|NSF", "", f0)) &&
+        grepl("CC BY 4.0", f0, fixed = TRUE), "footer without BUNDLE_META: licence line only, no NA")
+check(grepl("ddl-footer-cite", f1, fixed = TRUE) && grepl("10.48443/test-0000</a>", f1, fixed = TRUE),
+      "footer with BUNDLE_META: citation with the DOI linked")
+check(is.null(neon_provenance_line(NULL)) &&
+        identical(neon_provenance_line(TEST_META), "NEON RELEASE-2099 \u00B7 data through Sep 2099"),
+      "landing line reads NEON <release> \u00B7 data through <Mon YYYY>, NULL without metadata")
 
 cat(sprintf("\nAll %d server contract tests passed.\n", passed))

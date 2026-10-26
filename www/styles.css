@@ -122,8 +122,6 @@ body {
   border-radius: 8px; padding: 7px 9px; margin-top: 4px; }
 .env-source .bi { margin-top: 1px; flex: none; }
 .env-source code { background: rgba(0,0,0,.06); padding: 0 4px; border-radius: 4px; }
-.env-demo { background: #fff8e6; border: 1px solid #f3e0a6; color: #6b5a13; }
-.env-demo .bi { color: var(--gold, #e0b43a); }
 .env-real { background: #eef6f0; border: 1px solid #cfe6d6; color: #245c39; }
 .env-real .bi { color: var(--pine, #5fb56a); }
 
@@ -162,12 +160,6 @@ body {
   color: var(--muted);
 }
 .ec-eyebrow .bi { font-size: 12px; color: var(--ec-rail); }
-.ec-demo {
-  margin-left: auto; font-size: 9px; font-weight: 700; letter-spacing: .5px;
-  text-transform: uppercase; color: var(--gold-ink);
-  background: rgba(201, 163, 0, .12); border: 1px solid rgba(201, 163, 0, .32);
-  border-radius: 20px; padding: 1px 8px;
-}
 
 .ec-hero { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .ec-hero-text { flex: 1 1 auto; min-width: 0; font-size: 15px; line-height: 1.35;
@@ -222,9 +214,6 @@ body {
 [data-bs-theme="dark"] .ec-dir.ec-sgn-pos b { color: #5fcf86; }
 [data-bs-theme="dark"] .ec-rvalue.ec-sgn-neg,
 [data-bs-theme="dark"] .ec-dir.ec-sgn-neg b { color: #ff7a8a; }  /* cardinal too dark on navy */
-[data-bs-theme="dark"] .ec-demo {
-  color: var(--gold-ink); background: rgba(232, 197, 82, .12); border-color: rgba(232, 197, 82, .32);
-}
 
 /* ---- narrow / mobile (~380px): stack the hero, let the r-value own its row ---- */
 @media (max-width: 560px) {
@@ -1008,6 +997,20 @@ a.recent-chip:hover, a.recent-chip:focus-visible {
 .ddl-footer strong { color: var(--ink); }
 .ddl-footer a { color: var(--pine); font-weight: 700; text-decoration: none; }
 .ddl-footer a:hover { text-decoration: underline; }
+/* suite directory (from SUITE_APPS) + NEON citation */
+.suite-dir { margin: 14px auto 6px; max-width: 920px; }
+.suite-dir-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font-size: 12.5px; }
+.suite-dir-list a, .suite-dir-self { display: inline-block; padding: 6px 2px; min-height: 24px; }
+.ddl-footer .suite-dir-list a { font-weight: 600; }
+.suite-dir-self { color: var(--ink); font-weight: 700; }
+.ddl-footer-cite { font-size: 12px; max-width: 760px; margin: 8px auto 4px; line-height: 1.5; }
+.neon-citation { font-size: 12.5px; }
+.smt-poster-release { margin-top: 6px; }
+/* scope chip on card headers whose scope differs (site vs all sites) */
+.scope-chip { flex: 0 0 auto; font-size: 10.5px; font-weight: 600; line-height: 1; letter-spacing: .02em;
+  padding: 3px 7px; border-radius: 999px; border: 1px solid rgba(255,255,255,.45); color: #fff; white-space: nowrap; }
+.scope-chip.scope-network { background: rgba(255,255,255,.14); }
+.scope-site-code:empty::before { content: "\2026"; }
 .custom-cta { display: inline-flex; align-items: center; gap: 8px; background: #fffdf6; border: 1.5px solid var(--gold); color: var(--pine); font-weight: 700; font-size: 14px; padding: 9px 16px; border-radius: 10px; text-decoration: none; margin-top: 6px; transition: .15s; }
 .custom-cta:hover { background: var(--gold); color: var(--pine); }
 .custom-cta .hand { font-size: 17px; }
@@ -1486,9 +1489,9 @@ svg.smt-pin-lines {
   border-radius: 9px; font-size: 13px; line-height: 1.4; border-left: 4px solid;
 }
 .qc-flag .qc-flag-ic { flex: 0 0 auto; margin-top: 1px; }
-.qc-flag.high { background: #fdecea; border-color: var(--terra); color: #7a1d12; }
-.qc-flag.warn { background: #fff6e0; border-color: var(--gold); color: #6b5300; }
-.qc-flag.info { background: #eef3fb; border-color: var(--sky); color: #243a52; }
+.qc-flag.high, .qc-flag-high { background: #fdecea; border-color: var(--terra); color: #7a1d12; }
+.qc-flag.warn, .qc-flag-warn { background: #fff6e0; border-color: var(--gold); color: #6b5300; }
+.qc-flag.info, .qc-flag-info { background: #eef3fb; border-color: var(--sky); color: #243a52; }
 .qc-flag.clean { background: #e8f5ec; border-color: var(--green); color: #1a5e2e; }
 .qc-section-h { font-size: 13px; font-weight: 700; color: var(--ink); margin: 14px 0 6px; }
 .qc-cap-note { color: var(--muted); font-size: 12px; margin: 4px 0 8px; }
@@ -1504,9 +1507,9 @@ svg.smt-pin-lines {
 
 /* dark theme: deepen the card surfaces (flag chips stay vivid, they're meant to pop) */
 [data-bs-theme="dark"] .qc-card { background: linear-gradient(162deg, #1c2941 0%, #0e1d40 100%); }
-[data-bs-theme="dark"] .qc-flag.high { background: #3a1c19; color: #f3b6ad; }
-[data-bs-theme="dark"] .qc-flag.warn  { background: rgba(255,210,74,.12);  color: #ffd24a; }
-[data-bs-theme="dark"] .qc-flag.info  { background: rgba(67,184,232,.12);  color: #8fd2f2; }
+[data-bs-theme="dark"] .qc-flag.high, [data-bs-theme="dark"] .qc-flag-high { background: #3a1c19; color: #f3b6ad; }
+[data-bs-theme="dark"] .qc-flag.warn, [data-bs-theme="dark"] .qc-flag-warn { background: rgba(255,210,74,.12);  color: #ffd24a; }
+[data-bs-theme="dark"] .qc-flag.info, [data-bs-theme="dark"] .qc-flag-info { background: rgba(67,184,232,.12);  color: #8fd2f2; }
 [data-bs-theme="dark"] .qc-flag.clean { background: rgba(45,212,191,.12);  color: #7fe6d8; }
 
 /* ====================================================================== *
@@ -1621,3 +1624,15 @@ html:not([data-bs-theme="dark"]) .picker-tour a { color: var(--pine2); }
 
 /* ---- pin-card PNG capture: no shadow or pulse in the snapshot ---------- */
 .smt-capturing .smt-pin { box-shadow: none !important; animation: none !important; }
+
+/* NEON change-log notes (site modal, Size Lab, About) */
+.neon-notes { margin-top: 12px; font-size: 13px; }
+.neon-notes > summary { cursor: pointer; font-weight: 700; color: var(--pine); }
+.neon-notes-n { color: var(--muted); font-weight: 400; }
+.neon-notes-list { margin: 8px 0 0; padding-left: 18px; }
+.neon-notes-list li { margin-bottom: 8px; line-height: 1.45; }
+.neon-notes-date { display: block; font-size: 11.5px; color: var(--muted); }
+.neon-notes-res > summary { cursor: pointer; font-size: 12px; color: var(--pine); }
+.neon-notes-res p { margin: 4px 0 0; font-size: 12.5px; }
+.about-codebook { margin-top: 12px; }
+.about-codebook > summary { cursor: pointer; font-weight: 700; color: var(--pine); }

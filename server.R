@@ -2,6 +2,50 @@
 # NEON Small Mammal Tracker — server.R
 # ===========================================================================
 
+# ---- pure helpers (top level so scripts/test_server.R can call them) -------
+
+# Hurlbert (1971) rarefied richness E[S_n]: the expected number of species in a
+# random draw of n individuals without replacement from per-species counts.
+# E[S_n] = sum_i (1 - C(N - N_i, n) / C(N, n)); lchoose keeps large N stable.
+# Returns NA when n is missing, < 1 or larger than the pooled count.
+hurlbert_rarefy <- function(counts, n) {
+  counts <- counts[is.finite(counts) & counts > 0]
+  N <- sum(counts)
+  if (!length(counts) || !is.finite(n) || n < 1 || n > N) return(NA_real_)
+  n <- floor(n)
+  sum(1 - exp(lchoose(N - counts, n) - lchoose(N, n)))
+}
+
+# "Dipodomys merriami" -> "D. merriami"; genus-only or one-word names stay whole
+short_binomial <- function(x) {
+  x <- as.character(x)
+  parts <- strsplit(x, " ", fixed = TRUE)
+  vapply(seq_along(x), function(i) {
+    w <- parts[[i]]
+    if (is.na(x[i]) || length(w) < 2 || grepl("^sp\\.?$", w[2])) return(x[i])
+    paste0(substr(w[1], 1, 1), ". ", paste(w[-1], collapse = " "))
+  }, character(1))
+}
+
+# NEON change-log entries (neon_site_notes() / neon_product_notes(), global.R)
+# as a compact list: date, NEON's own issue text, and its resolution inside a
+# details element. Every string is NEON's, escaped by htmltools. NULL when there
+# are no entries, so no empty box renders.
+neon_notes_ui <- function(notes, title, class = "neon-notes") {
+  if (is.null(notes) || !is.data.frame(notes) || !nrow(notes)) return(NULL)
+  txt <- function(x) if (length(x) != 1L || is.na(x) || !nzchar(trimws(x))) NULL else trimws(x)
+  tags$details(class = class,
+    tags$summary(title, tags$span(class = "neon-notes-n", sprintf(" (%d)", nrow(notes)))),
+    tags$ul(class = "neon-notes-list",
+      lapply(seq_len(nrow(notes)), function(i) {
+        res <- txt(notes$resolution[i])
+        tags$li(
+          if (!is.na(notes$date[i])) tags$span(class = "neon-notes-date", format(notes$date[i], "%d %b %Y")),
+          tags$span(class = "neon-notes-issue", txt(notes$issue[i]) %||% "(no issue text)"),
+          if (!is.null(res)) tags$details(class = "neon-notes-res", tags$summary("Resolution"), tags$p(res)))
+      })))
+}
+
 server <- function(input, output, session) {
 
   # is the dark theme active? Driven by the sidebar input_dark_mode("colorMode").
@@ -59,7 +103,7 @@ server <- function(input, output, session) {
   }
 
   # shown on individual-only views when nobody is selected yet
-  PICK_MSG <- "Pick an individual first.<br>Open the <b>Hall of Fame</b> and tap a row,<br>or hit \U201CSurprise me\U201D in the Track-an-individual picker."
+  HR_PICK_MSG <- "Pick an animal under Tracking above<br>to map where it was caught."
 
   # Append the current site + year-range as a small top-right caption on a plot
   # (uses add_annotations so it never clobbers a plot's own annotations).
@@ -108,8 +152,7 @@ server <- function(input, output, session) {
   env_sel <- reactive({
     layer <- input$envLayer %||% "none"
     if (is.null(rv$env) || layer == "none" || !layer %in% names(ENV_LAYERS)) return(NULL)
-    list(layer = layer, lag = as.integer(input$envLag %||% 0),
-         env = rv$env, demo = identical(attr(rv$env, "source"), "demo"))
+    list(layer = layer, lag = as.integer(input$envLag %||% 0), env = rv$env)
   })
 
   # Mode-aware species -> color map, shared by every categorical plot. Reading
@@ -140,15 +183,11 @@ server <- function(input, output, session) {
     }
   }, ignoreNULL = FALSE)
 
-  # provenance badge under the picker: real NEON vs the illustrative demo series
+  # provenance badge under the picker (the overlay is always bundled NEON data)
   output$envSourceNote <- renderUI({
     if (is.null(rv$env)) return(NULL)
-    if (identical(attr(rv$env, "source"), "demo"))
-      div(class = "env-source env-demo", bs_icon("info-circle-fill"),
-          tags$span(HTML(" <b>Demo overlay</b>, an illustrative monthly series, <b>not</b> NEON data. Run <code>scripts/refresh_env_data.R</code> to bundle the real product.")))
-    else
-      div(class = "env-source env-real", bs_icon("patch-check-fill"),
-          tags$span(" Live from co-located NEON sensors at this site."))
+    div(class = "env-source env-real", bs_icon("patch-check-fill"),
+        tags$span(" Live from co-located NEON sensors at this site."))
   })
 
   # Shared honesty p-value for the env dredge (circular-shift null over the full
@@ -175,8 +214,7 @@ server <- function(input, output, session) {
       ca <- env_corr_all(d, rv$env)
       if (is.null(ca) || !nrow(ca)) return(NULL)
       w  <- ca[1, ]
-      es <- list(layer = w$layer, lag = as.integer(w$lag), env = rv$env,
-                 demo = identical(attr(rv$env, "source"), "demo"))
+      es <- list(layer = w$layer, lag = as.integer(w$lag), env = rv$env)
     }
     sc <- env_corr_scan(d, es$env, es$layer)
     if (is.null(sc)) return(NULL)
@@ -207,8 +245,7 @@ server <- function(input, output, session) {
       # sign/strength) so the banner echoes the warm/blue/green family below.
       style = sprintf("--ec-driver-hue:%s;", ENV_LAYERS[[es$layer]]$color %||% "#8a97a8"),
       div(class = "ec-eyebrow",
-        bs_icon("graph-up-arrow"), tags$span("environmental tracking"),
-        if (es$demo) tags$span(class = "ec-demo", "demo overlay") else NULL),
+        bs_icon("graph-up-arrow"), tags$span("environmental tracking")),
       div(class = "ec-hero",
         div(class = "ec-hero-text",
           tags$span(class = "ec-strength", slabel), " link with ",
@@ -238,11 +275,11 @@ server <- function(input, output, session) {
   # The monthly scan above deseasonalizes monthly catch vs monthly precip, so it
   # CANNOT see "a big summer monsoon -> next year's seed-eater boom" — the
   # monsoon is averaged out of the annual cycle it subtracts. This card uses the
-  # Driver Cascade's method: aggregate the driver by SEASON (monsoon Jul-Sep,
+  # NEON Cross-Product Response Atlas's method: aggregate the driver by SEASON (monsoon Jul-Sep,
   # winter Oct-Mar, spring temp) into one value per year and correlate at the
   # prior's year-lag. Same rules as ann_env_seasonal so the app + cascade agree.
   # Per-site annual n is tiny (6-10 yrs) — SUGGESTIVE, not a verdict; the pooled
-  # cross-site test lives in the Driver Cascade app.
+  # cross-site test lives in the NEON Cross-Product Response Atlas.
   output$seasonalDriver <- renderUI({
     d <- rv$data; if (is.null(d) || is.null(rv$env) || !"ym" %in% names(d)) return(NULL)
     ac <- d %>% dplyr::filter(!is.na(.data$ym)) %>%
@@ -260,7 +297,7 @@ server <- function(input, output, session) {
                    tags$span("seasonal climate \U00B7 the cascade read"),
                    info_pop("The seasonal read",
                      p("A single annual rain total blends two seasons that feed different things: the ", tags$b("summer monsoon"), " (Jul-Sep) grows the C4-grass seed crop desert granivores cash in the ", tags$b("next"), " year, while ", tags$b("winter rain"), " (Oct-Mar) feeds spring forbs. The month-to-month overlay above mixes them into one number."),
-                     p("Here we aggregate the driver by season and correlate it against this site's yearly catch rate at the prior's lag, the way the Driver Cascade does. ", tags$b("Per-site n is only a handful of years"), ", so this is suggestive, not significant. The honest test pools many sites in the Driver Cascade app.")))
+                     p("Here we aggregate the driver by season and correlate it against this site's yearly catch rate at the prior's lag, the way the NEON Cross-Product Response Atlas does. ", tags$b("Per-site n is only a handful of years"), ", so this is suggestive, not significant. The honest test pools many sites in the Driver Cascade app.")))
     if (is.null(links) || !nrow(links)) {
       return(div(class = "ec ec-seasonal rail-weak", eyebrow,
         div(class = "ec-hero", div(class = "ec-hero-text",
@@ -300,7 +337,7 @@ server <- function(input, output, session) {
         else "Splitting the year by season recovers the driver a single annual total blends away."),
       div(class = "ec-seasonal-caveat", bs_icon("info-circle"),
         HTML(" One site, a handful of years, so suggestive not settled. The cross-site test that pools many sites is in the "),
-        tags$a(href = "https://tgilbert14.github.io/NEON-Driver-Cascade/", target = "_blank", "Driver Cascade app"), "."))
+        tags$a(href = "https://tgilbert14.github.io/NEON-Driver-Cascade/", target = "_blank", "NEON Cross-Product Response Atlas"), "."))
   })
 
   # Response scatter: monthly catch-per-effort vs the (lagged) driver, with fit.
@@ -369,7 +406,6 @@ server <- function(input, output, session) {
     # "left of 0 = inverse" caption) is the authoritative direction cue — colour
     # never carries the direction call alone, so it survives colour-blindness.
     ca$ccol <- mapply(ec_corr_color, ca$layer, ca$r, MoreArgs = list(dark = is_dark()))
-    demo <- identical(attr(env, "source"), "demo")
     n_drv <- nrow(ca)
     # Bars are clickable (source = "driverRank", customdata = the layer key): a
     # click overlays that driver on the abundance plot below — the ranking IS the
@@ -383,8 +419,6 @@ server <- function(input, output, session) {
                               " · n=", n, "<br><i>tap to overlay below</i><extra></extra>")) %>%
       plotly_theme(legend = FALSE) %>%
       plotly::layout(
-        title = list(text = if (demo) "Demo overlays · illustrative" else "",
-                     font = list(size = 11, color = "#9a7a00"), x = 0.02),
         xaxis = list(title = "deseasonalized correlation with catch-per-effort (r) · left of 0 = inverse",
                      range = c(-1, 1), zeroline = TRUE, zerolinecolor = "rgba(31,42,48,0.35)"),
         yaxis = list(title = ""),
@@ -403,7 +437,7 @@ server <- function(input, output, session) {
       plotly::event_register("plotly_click")
   })
 
-  # state -> site cascading picker (Arizona default, so SRER is the default site)
+  # state -> site cascading picker; the startup state is AZ, so SRER is the startup site
   updateSelectInput(session, "stateSel", choices = state_choices(), selected = "AZ")
   observeEvent(input$stateSel, {
     sites <- sites_in_state(input$stateSel)
@@ -457,6 +491,8 @@ server <- function(input, output, session) {
     rv$env   <- load_site_env(mode_chr(d$siteID))
     # compact context shown on each plot, e.g. "JORN · 2022–2024"
     y1 <- format(safe_date_min(d$date), "%Y"); y2 <- format(safe_date_max(d$date), "%Y")
+    # scope chips on site cards name the loaded site (code is from the bundle)
+    shinyjs::html(selector = ".scope-site-code", html = htmltools::htmlEscape(mode_chr(d$siteID)))
     rv$ctx <- paste0(mode_chr(d$siteID), " · ", if (is.na(y1)) "" else if (y1 == y2) y1 else paste0(y1, "–", y2))
 
     # reveal UI
@@ -772,7 +808,8 @@ server <- function(input, output, session) {
           div(class = "si-h", "Ecological family"),
           div(class = "si-row si-fam",
             tags$span(class = "si-dot", style = sprintf("background:%s", dash(row$group_color[1]))),
-            dash(row$group_label[1])))))
+            dash(row$group_label[1]))),
+        neon_notes_ui(neon_site_notes(code), "NEON notes for this site", class = "neon-notes si-sec")))
   }
 
   # The choice popup is bound directly to each marker (add_site_markers /
@@ -1358,7 +1395,12 @@ server <- function(input, output, session) {
     if (is.null(d) || sum(d$is_capture) == 0) return(NULL)
     cs <- community_stats(d)
     hn <- hill_numbers(d)
-    sp <- utils::head(species_summary(d), 5)
+    sp_all <- species_summary(d)
+    sp <- utils::head(sp_all, 5)
+    # per-species distinct ear-tagged individuals, species-level rows only (the
+    # same rows richness counts) -> the input to rarefied richness
+    sp_lvl <- species_level_only(sp_all)
+    sp_counts <- if (!is.null(sp_lvl) && nrow(sp_lvl)) sp_lvl$individuals[sp_lvl$individuals > 0] else numeric(0)
     yrs <- range(d$year[is.finite(d$year)])
     # detection-corrected read so the cross-site comparison carries the
     # correction the app computes everywhere else: per-site mean p̂ (how well
@@ -1369,7 +1411,7 @@ server <- function(input, output, session) {
     cc <- tryCatch(closed_capture_series(d), error = function(e) NULL)
     nhat_pm <- if (!is.null(cc) && !is.null(cc$series) && nrow(cc$series) > 0)
                  round(mean(cc$series$N, na.rm = TRUE)) else NA_real_
-    res <- list(site = site, label = site_label(site), cs = cs, hn = hn, sp = sp,
+    res <- list(site = site, label = site_label(site), cs = cs, hn = hn, sp = sp, sp_counts = sp_counts,
                 p_hat = if (!is.null(cc)) cc$mean_p else NA_real_,
                 detect = if (!is.null(cc)) cc$mean_detect else NA_real_,
                 nhat_pm = nhat_pm,
@@ -1400,13 +1442,24 @@ server <- function(input, output, session) {
     det_mismatch <- is.na(pa_p) || is.na(pb_p) ||
       (max(pa_p, pb_p) / max(min(pa_p, pb_p), 1e-9)) >= 1.25
 
+    # Raw richness rises with the number of animals caught. When one site has
+    # 2x or more the individuals, the raw count is not compared as a winner;
+    # Hurlbert rarefied richness E[S_n] at the smaller site's count is.
+    ia <- pa$cs$individuals; ib <- pb$cs$individuals
+    size_mismatch <- !is.finite(ia) || !is.finite(ib) || min(ia, ib) <= 0 ||
+      max(ia, ib) / min(ia, ib) >= 2
+    # n = the smaller site's Individuals count (capped at each site's pooled
+    # species-level count, which rarefaction cannot exceed)
+    n_rare <- suppressWarnings(min(ia, ib, sum(pa$sp_counts), sum(pb$sp_counts)))
+    ra <- hurlbert_rarefy(pa$sp_counts, n_rare); rb <- hurlbert_rarefy(pb$sp_counts, n_rare)
+
     # winner-aware metric row: higher value gets a subtle highlight. `gate=TRUE`
     # rows (raw counts) drop the highlight when detection differs materially, and
     # carry a clickable ⓘ that opens the detection-vs-abundance explainer modal.
     row <- function(lab, va, vb, fmt = function(x) format(x, big.mark = ","),
-                    higher = TRUE, tip = NULL, gate = FALSE) {
+                    higher = TRUE, tip = NULL, gate = FALSE, highlight = TRUE) {
       suppress <- gate && det_mismatch
-      hl <- if (suppress || is.na(va) || is.na(vb) || va == vb) c("", "")
+      hl <- if (!highlight || suppress || is.na(va) || is.na(vb) || va == vb) c("", "")
             else if ((va > vb) == higher) c("cmp-win", "") else c("", "cmp-win")
       afford <- if (suppress)
         tags$button(type = "button", class = "cmp-det-flag",
@@ -1434,12 +1487,17 @@ server <- function(input, output, session) {
         tags$tbody(
           row("Captures", pa$cs$total_captures, pb$cs$total_captures, gate = TRUE),
           row("Individuals", pa$cs$individuals, pb$cs$individuals, gate = TRUE),
-          row("Species (richness)", pa$cs$species, pb$cs$species),
+          row("Species (richness)", pa$cs$species, pb$cs$species, highlight = !size_mismatch,
+              tip = if (size_mismatch) "Raw richness rises with the number of animals caught. One site has 2x or more the individuals, so compare the rarefied row below."),
+          row(sprintf("Rarefied richness at n = %s", format(n_rare, big.mark = ",")), ra, rb,
+              fmt = function(x) if (is.na(x)) "—" else format(round(x, 1), nsmall = 1),
+              tip = "Hurlbert's E[S_n]: the species count expected if both sites had caught the same number of individuals, set to the smaller site's Individuals count. Species-level IDs only."),
           row("Effective common species", pa$hn$q1, pb$hn$q1, fmt = function(x) format(x, nsmall = 1),
               tip = "Hill q1 = exp(Shannon): the effective number of common species. Higher = more diverse."),
           row("Evenness (0–1)", pa$hn$even, pb$hn$even, fmt = function(x) format(x, nsmall = 2),
               tip = "How evenly captures spread across species. Near 1 = even; low = a few species dominate."),
-          row("Recapture rate", pa$cs$recap_rate, pb$cs$recap_rate, fmt = function(x) paste0(x, "%")),
+          row("Recapture rate", pa$cs$recap_rate, pb$cs$recap_rate, fmt = function(x) paste0(x, "%"),
+              highlight = FALSE, tip = "Depends on grid design and trap nights, so it is not a quality score."),
           row("Trap-nights (effort)", pa$cs$trap_nights, pb$cs$trap_nights, gate = TRUE),
           # the detection-corrected read — the apples-to-apples cross-site numbers:
           # how completely each biome's traps catch what's present, and the mean
@@ -1453,7 +1511,10 @@ server <- function(input, output, session) {
         div(class = "cmp-col", div(class = "cmp-col-h", "Top species · ", pa$site), sp_list(pa)),
         div(class = "cmp-col", div(class = "cmp-col-h", "Top species · ", pb$site), sp_list(pb))),
       div(class = "compare-foot", bs_icon("info-circle"),
-        " Higher value highlighted per row. Diversity uses Hill numbers over distinct individuals; richness is the raw species count.",
+        paste0(" The higher value is highlighted on each row except recapture rate (never)",
+          if (size_mismatch) ", raw richness (one site has 2x or more the individuals, so the rarefied row is the comparison)",
+          if (det_mismatch) ", and captures, individuals and trap-nights (detection differs between these sites)",
+          ". Diversity uses Hill numbers over distinct individuals; raw richness is the species count."),
         if (det_mismatch) tagList(" These two sites' detection differs",
           tags$a(href = "#", class = "cmp-why",
                  onclick = "Shiny.setInputValue('cmpDetWhy', Math.random(), {priority:'event'}); return false;",
@@ -1596,11 +1657,17 @@ server <- function(input, output, session) {
   output$speciesBarInsight <- renderUI({
     d <- rv$data; req(d)
     sp <- species_summary(d); if (is.null(sp) || nrow(sp) == 0) return(NULL)
-    tot <- sum(sp$individuals, na.rm = TRUE)
+    # Denominator = the Individuals card (distinct ear-tagged animals among
+    # captures), so the banner's share and the card agree. Summing per-species
+    # counts would double-count an animal recorded under two names.
+    tot <- community_stats(d, rv$lb)$individuals
     # species_summary is sorted by CAPTURES; pick the row with the most
     # INDIVIDUALS, since the banner's claim is a share "of individuals"
-    # (in a re-trap-heavy system most-trapped != most-abundant).
-    dom <- sp[which.max(sp$individuals), ]
+    # (in a re-trap-heavy system most-trapped != most-abundant). Species-level
+    # rows only: a genus-only "sp." row is not a species.
+    sp_lvl <- species_level_only(sp)
+    if (is.null(sp_lvl) || nrow(sp_lvl) == 0 || !is.finite(tot) || tot <= 0) return(NULL)
+    dom <- sp_lvl[which.max(sp_lvl$individuals), ]
     share <- if (tot > 0) round(100 * dom$individuals / tot) else 0
     insight_banner("collection", tone = "navy",
       HTML(sprintf("The <b><i>%s</i></b> is the most abundant here: <span class='ci-hero'>%s%%</span> of individuals (%s of %s).",
@@ -1767,8 +1834,11 @@ server <- function(input, output, session) {
   })
 
   # ---- bio repository links ----------------------------------------------
+  # Dossier charts show only once an animal is picked
+  observe({ shinyjs::toggle("dossierBody", condition = !is.null(rv$tag)) })
+
   output$bioLinks <- renderUI({
-    tag <- rv$tag; if (is.null(tag)) return(note_plot(PICK_MSG, "\U0001F50D"))  # sidebar links stay hidden until a pick
+    tag <- rv$tag; if (is.null(tag)) return(NULL)  # no placeholder above the tabs until a pick
     sp <- rv$lb$scientificName[rv$lb$tagID == tag][1]
     if (is.na(sp)) return(NULL)
     parts <- strsplit(sp, " ")[[1]]
@@ -1924,7 +1994,7 @@ server <- function(input, output, session) {
 
   # ---- measurements through time -----------------------------------------
   output$measPlot <- renderPlotly({
-    tag <- rv$tag; if (is.null(tag)) return(note_plot(PICK_MSG, "\U0001F50D"))
+    tag <- rv$tag; req(tag)  # body is hidden until a pick; dossierHero carries the prompt
     df <- ind_rows()
     if (!any(is.finite(df$weight)) && !any(is.finite(df$hindfootLength)))
       return(note_plot("No weight or hind-foot<br>measurements recorded for this animal", "\U0001F4CF"))
@@ -1996,7 +2066,7 @@ server <- function(input, output, session) {
 
   # ---- chonk gauge --------------------------------------------------------
   output$chonkGauge <- renderPlotly({
-    tag <- rv$tag; if (is.null(tag)) return(note_plot(PICK_MSG, "\U0001F50D"))
+    tag <- rv$tag; req(tag)  # body is hidden until a pick; dossierHero carries the prompt
     row <- rv$lb[rv$lb$tagID == tag, ]
     pct <- row$chonk_pct[1]
     if (is.na(pct))
@@ -2031,7 +2101,7 @@ server <- function(input, output, session) {
 
   # ---- body-size morphospace scatter (the honest "girth index") ----------
   output$morphoPlot <- renderPlotly({
-    tag <- rv$tag; if (is.null(tag)) return(note_plot(PICK_MSG, "\U0001F50D"))
+    tag <- rv$tag; req(tag)  # body is hidden until a pick; dossierHero carries the prompt
     d <- rv$data
     sp <- rv$lb$scientificName[rv$lb$tagID == tag][1]
     meas <- dplyr::filter(d, !is.na(.data$weight), !is.na(.data$hindfootLength),
@@ -2325,6 +2395,12 @@ server <- function(input, output, session) {
       annotations = ann, shapes = shapes, hovermode = "closest")
   })
 
+  # NEON's own change-log entries for the loaded site, beside the QC cards
+  output$siteNeonNotes <- renderUI({
+    d <- rv$data; req(d)
+    neon_notes_ui(neon_site_notes(mode_chr(d$siteID)), "NEON notes for this site")
+  })
+
   # ---- the QC history card (the downloadable per-rodent "field record") ----
   output$qcHistoryCard <- renderUI({
     tag <- rv$tag
@@ -2354,7 +2430,9 @@ server <- function(input, output, session) {
         span(class = "qc-flag-ic", bs_icon("check-circle-fill")),
         span(HTML("<b>No QC flags.</b> This individual's capture history is internally consistent: measurements, sex, life stage and movement all hold together.")))
     else tagList(lapply(flags, function(f)
-      div(class = paste("qc-flag", f$level),
+      # level classes: the legacy pair (.qc-flag.high) and the suite standard
+      # (.qc-flag-high / -warn / -info) share one look in styles.css
+      div(class = paste("qc-flag", f$level, paste0("qc-flag-", f$level)),
         span(class = "qc-flag-ic", bs_icon(flag_ic[[f$level]] %||% "info-circle-fill")),
         span(HTML(f$text)))))
 
@@ -2463,7 +2541,7 @@ server <- function(input, output, session) {
 
   # ---- trap-grid heatmap --------------------------------------------------
   output$trapHeat <- renderPlotly({
-    tag <- rv$tag; if (is.null(tag)) return(note_plot(PICK_MSG, "\U0001F50D"))
+    tag <- rv$tag; if (is.null(tag)) return(note_plot(HR_PICK_MSG, "\U0001F50D"))
     g <- trap_grid_long(rv$data, tag)
     if (sum(g$captures) == 0)
       return(note_plot("No mapped trap coordinates<br>for this animal", "\U0001F5FA️"))
@@ -2515,7 +2593,7 @@ server <- function(input, output, session) {
 
   # ---- capture replay (animated path) ------------------------------------
   output$trapReplay <- renderPlotly({
-    tag <- rv$tag; if (is.null(tag)) return(note_plot(PICK_MSG, "\U0001F50D"))
+    tag <- rv$tag; if (is.null(tag)) return(note_plot(HR_PICK_MSG, "\U0001F50D"))
     df <- ind_rows() %>% dplyr::filter(!is.na(.data$tx), !is.na(.data$ty))
     if (nrow(df) == 0) return(note_plot("No mapped trap coordinates<br>to replay", "▶️"))
     df$step <- seq_len(nrow(df))
@@ -2731,7 +2809,9 @@ server <- function(input, output, session) {
     s <- species_summary(d) %>% dplyr::arrange(dplyr::desc(.data$individuals)) %>%
       dplyr::slice_head(n = 14) %>% dplyr::arrange(.data$individuals)
     if (nrow(s) == 0) return(note_plot("No identified captures", "\U0001F9EC"))
-    s$label <- paste0(s$emoji, " ", s$scientificName)
+    # phone widths: "D. merriami", no emoji, no " indiv" suffix, no x title
+    narrow <- isTRUE(session$clientData$output_speciesBar_width < 500)
+    s$label <- make.unique(if (narrow) short_binomial(s$scientificName) else paste0(s$emoji, " ", s$scientificName), sep = " ")
     # captures per ear-tagged animal (trap-happiness); NA for a species seen only untagged
     s$recaps_per <- ifelse(s$individuals > 0,
                            round((s$captures - s$untagged_captures) / pmax(s$individuals, 1), 1), NA_real_)
@@ -2749,17 +2829,21 @@ server <- function(input, output, session) {
       orientation = "h",
       marker = list(color = ~col),
       customdata = ~scientificName, source = "speciesBar",
-      text = ~paste0(format(individuals, big.mark = ","), " indiv"), textposition = "outside",
+      text = ~paste0(format(individuals, big.mark = ","), if (narrow) "" else " indiv"),
+      textposition = if (narrow) "auto" else "outside", cliponaxis = FALSE,
       hovertext = ~hover,
       # mode-aware: #6b7a85 is 4.42:1 on white (under the 4.5:1 gate) AND near-invisible
       # on the dark navy panel. Light twin #63727d = 4.96:1; dark uses a light slate.
       textfont = list(color = if (is_dark()) "#9fb0c4" else "#63727d", size = 11),
+      # inside a bar ("auto" on phones) the muted grey loses contrast; use white
+      insidetextfont = list(color = "#ffffff", size = 11),
       hovertemplate = "<b>%{y}</b><br>%{hovertext}<br><span style='color:#cfe0f5'>tap for the full species breakdown</span><extra></extra>")
     # event_register LAST, on the final piped object, so no downstream step can drop
     # the click registration the observer at ~1486 reads (source="speciesBar").
     plotly_theme(p, legend = FALSE) %>%
-      plotly::layout(xaxis = list(title = "individuals (abundance)"), yaxis = list(title = ""),
-                     showlegend = FALSE, margin = list(l = 180, t = 44)) %>%
+      plotly::layout(xaxis = if (narrow) list(title = "", nticks = 3) else list(title = "individuals (abundance)"),
+                     yaxis = list(title = ""), showlegend = FALSE,
+                     margin = list(l = if (narrow) 90 else 180, r = 60, t = 44)) %>%
       ctx_anno() %>%
       plotly::event_register("plotly_click")
   })
@@ -2951,7 +3035,6 @@ server <- function(input, output, session) {
       if (!is.null(clim) && nrow(clim)) {
         meta <- ENV_LAYERS[[es$layer]]
         nm <- meta$label; if (es$lag) nm <- sprintf("%s · lag %d mo", nm, es$lag)
-        if (es$demo) nm <- paste0(nm, " (demo)")
         p <- p %>% add_trace(x = month.abb[clim$mon], y = clim$value, yaxis = "y2",
           type = "scatter", mode = "lines", fill = "tozeroy", name = nm, legendgroup = "env",
           line = list(color = meta$color, width = 1.6, shape = "spline"),
@@ -3061,8 +3144,11 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
 
   # ---- minimum known lifespan (a right-censored FLOOR, not a lifespan) -----
-  # Longest age-at-last-capture among animals first caught young; muted tone so a
-  # tentative floor never reads as a confident "good" finding. Captive AnAge
+  # Longest age-at-last-capture (career span plus a conservative age at first
+  # capture). Animals first caught as adults are included: their age at first
+  # capture takes the ~90-day adult floor (min_known_lifespan, R/helpers.R), so
+  # the value stays a lower bound. Muted tone so a tentative floor never reads
+  # as a confident "good" finding. Captive AnAge
   # maxima shown for scale (always several times the wild value).
   output$lifespanBanner <- renderUI({
     lb <- rv$lb
@@ -3081,9 +3167,9 @@ server <- function(input, output, session) {
                paste0("<span class='lsp-cap'>captive max ~", ml$captive_max_yr, " yr</span>")),
       "</div>", collapse = "")
     insight_banner("hourglass-split", tone = "muted", HTML(paste0(
-      "<b>Longest we confirmed an individual alive</b>: how old the single longest-tracked animal ",
-      "was when last caught (caught 3+ times; NEON keeps a tag for the animal's life, so these are real ",
-      "recapture spans). A <b>floor</b>, not a lifespan: animals still alive, or that left the trapping ",
+      "<b>Longest confirmed span, plus a conservative age-at-first-capture</b>: the single longest-tracked ",
+      "animal's recapture span (caught 3+ times; NEON keeps a tag for the animal's life, so the span is real), ",
+      "plus a conservative estimate of its age when first caught. A <b>floor</b>, not a lifespan: animals still alive, or that left the trapping ",
       "grid, aren't counted (absence isn't death), the record only spans the years sampled here, and ",
       "species we trap more often reach higher floors just from more chances, so read each as its own ",
       "floor, not a ranking. The captive maxima shown for scale run several times these wild figures.",
@@ -3166,7 +3252,7 @@ server <- function(input, output, session) {
     es <- env_sel()
     if (!is.null(es))
       p <- add_env_overlay(p, es$env, es$layer, es$lag, yaxis = "y3",
-                           xlim = range(mn$date, na.rm = TRUE), demo = es$demo)
+                           xlim = range(mn$date, na.rm = TRUE))
     max_tn <- max(mn$trap_nights, na.rm = TRUE)
     for (i in seq_along(plots)) {
       pl <- plots[i]; dd <- mn[mn$plotID == pl, ]
@@ -3326,8 +3412,7 @@ server <- function(input, output, session) {
       ca <- env_corr_all(rv$data, rv$env)
       if (!is.null(ca) && nrow(ca) && !is.na(ca$r[1]) && abs(ca$r[1]) >= 0.2) {
         w <- ca[1, ]
-        return(list(layer = w$layer, lag = as.integer(w$lag), env = rv$env,
-                    demo = identical(attr(rv$env, "source"), "demo"), auto = TRUE))
+        return(list(layer = w$layer, lag = as.integer(w$lag), env = rv$env, auto = TRUE))
       }
     }
     NULL
@@ -3393,7 +3478,7 @@ server <- function(input, output, session) {
     p <- plot_ly()
     if (!is.null(es))   # env area first → soft context behind the abundance band
       p <- add_env_overlay(p, es$env, es$layer, es$lag, yaxis = "y2",
-                           xlim = range(s$date, na.rm = TRUE), demo = es$demo,
+                           xlim = range(s$date, na.rm = TRUE),
                            conv = conv, unit_label = ulab)
     p <- p %>%
       add_trace(data = s, x = ~date, y = ~hi, type = "scatter", mode = "lines",
@@ -3533,14 +3618,18 @@ server <- function(input, output, session) {
       ms <- mnka_series(d)
       validate(need(!is.null(ms) && nrow(ms) > 0, "No estimable monthly series for this site."))
       site_m <- ms %>% dplyr::group_by(.data$ym) %>%
+        # CPUE first, from the column values: once `captures` and `trap_nights`
+        # are reassigned below, later expressions would see the summed (and
+        # rounded) values instead (suite lint L13).
         dplyr::summarise(
+          cpue_per100tn = round(100 * sum(.data$captures, na.rm = TRUE) /
+                                  sum(.data$trap_nights, na.rm = TRUE), 1),
           mnka        = sum(.data$mnka, na.rm = TRUE),
           captures    = sum(.data$captures, na.rm = TRUE),
           trap_nights = round(sum(.data$trap_nights, na.rm = TRUE), 1),
-          cpue_per100tn = round(100 * sum(.data$captures, na.rm = TRUE) /
-                                  sum(.data$trap_nights, na.rm = TRUE), 1),
           n_plots     = dplyr::n_distinct(.data$plotID),
-          .groups = "drop")
+          .groups = "drop") %>%
+        dplyr::relocate("cpue_per100tn", .after = "trap_nights")
       cc <- tryCatch(detect_cc(), error = function(e) NULL)
       if (!is.null(cc) && !is.null(cc$series) && nrow(cc$series) > 0) {
         dc <- cc$series %>% dplyr::transmute(.data$ym,
@@ -3563,10 +3652,7 @@ server <- function(input, output, session) {
   #     convention, so a downstream analyst can read the two CSVs above without
   #     guessing. The weight ~23% / hindfoot ~28% NA is unmeasured recaptures &
   #     empty-trap rows, NOT data error — stated here in the metadata, once.
-  output$dlCodebookCsv <- downloadHandler(
-    filename = function() sprintf("NEON-SmallMammal_codebook_%s.csv",
-                                  format(Sys.Date(), "%Y%m%d")),
-    content = function(file) {
+  build_codebook <- function() {
       # Captures rows are built by iterating the EXACT keep-vector the captures
       # CSV emits (CAPTURE_COLS), so the dictionary can never drift from the file.
       cap <- data.frame(
@@ -3605,11 +3691,19 @@ server <- function(input, output, session) {
         units  = "license",
         note   = "Source: NEON DP1.10072.001, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); aggregated and derived by this app.",
         stringsAsFactors = FALSE, row.names = NULL)
-      cb <- rbind(lic, cap, ser)
-      utils::write.csv(cb, file, row.names = FALSE, na = "")
-    },
+      rbind(lic, cap, ser)
+  }
+  output$dlCodebookCsv <- downloadHandler(
+    filename = function() sprintf("NEON-SmallMammal_codebook_%s.csv",
+                                  format(Sys.Date(), "%Y%m%d")),
+    content = function(file) utils::write.csv(build_codebook(), file, row.names = FALSE, na = ""),
     contentType = "text/csv"
   )
+  # the same codebook, readable in the About tab (one source: build_codebook)
+  output$codebookTbl <- DT::renderDT({
+    DT::datatable(build_codebook(), rownames = FALSE, class = "compact stripe",
+                  options = list(pageLength = 10, scrollX = TRUE, dom = "ftip"))
+  })
 
   # ---- about --------------------------------------------------------------
   output$aboutPanel <- renderUI({
@@ -3657,27 +3751,29 @@ server <- function(input, output, session) {
                          class = "smt-clear-btn")),
         p(class = "caveat", style = "margin-top:10px", bs_icon("info-circle"),
           " A blank measurement (weight ~23%, hind foot ~28% of rows) is an ", tags$b("unmeasured recapture or empty-trap row"),
-          ", not an error; recaptures are often not re-weighed. The codebook states each column's units and this NA convention.")),
+          ", not an error; recaptures are often not re-weighed. The codebook states each column's units and this NA convention."),
+        tags$details(class = "about-codebook", tags$summary("Read the codebook"), DT::DTOutput("codebookTbl"))),
       div(class = "about-card about-suite-card",
         h4(bs_icon("stars"), " Explore the NEON Explorer Suite"),
-        p("Small Mammals is one part of a ten-app ecology suite. Open a companion cover page to follow the cascade from environmental conditions through plants and animal communities."),
+        p(sprintf("Small Mammals is one of %d apps in the NEON Explorer Suite. ", nrow(SUITE_APPS)), "Open a companion cover page to follow the cascade from environmental conditions through plants and animal communities."),
+        # one registry (SUITE_APPS, global.R) feeds this grid and the footer
         div(class = "suite-app-grid",
-          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-Driver-Cascade/", target = "_blank", rel = "noopener", "Driver Cascade"),
-          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-Breeding-Birds/", target = "_blank", rel = "noopener", "Breeding Birds"),
-          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-Ground-Beetle-Tracker/", target = "_blank", rel = "noopener", "Ground Beetles"),
-          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-Plant-Diversity/", target = "_blank", rel = "noopener", "Plant Diversity"),
-          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-Plant-Phenology-Explorer/", target = "_blank", rel = "noopener", "Plant Phenology"),
-          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-Vegetation-Structure-Explorer/", target = "_blank", rel = "noopener", "Vegetation Structure"),
-          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-WaterChemistry-Analyte-Viewer-App/", target = "_blank", rel = "noopener", "Water Chemistry"),
-          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-Mosquito-Pulse/", target = "_blank", rel = "noopener", "Mosquito Pulse"),
-          tags$a(class = "suite-app-link", href = "https://tgilbert14.github.io/NEON-My-Little-Inverts/", target = "_blank", rel = "noopener", "My Little Inverts"))),
+          lapply(which(!SUITE_APPS$is_self), function(k)
+            tags$a(class = "suite-app-link", href = SUITE_APPS$cover_url[k], target = "_blank",
+                   rel = "noopener", SUITE_APPS$name[k])))),
       div(class = "about-card",
         h4(bs_icon("exclamation-diamond"), " Caveats"),
         p("NEON keeps a tag on one animal for life and doesn't recycle tag numbers (a number is unique within a site), so a multi-year capture career is a real long-lived individual, not a tag mix-up; we flag only the rare history that can't be one animal (e.g. the same tag at two plots on a single day). A trap that caught nothing means \"not detected,\" not \"absent.\" This is a data-exploration toy, not an authoritative population analysis, but the metrics are built to be defensible."),
         p("Reviewed for scientific soundness with input from a wildlife-monitoring methods audit (Peig & Green 2009; Krebs 1966; Gotelli & Colwell 2001; NEON DP1.10072.001 User Guide)."),
         p(bs_icon("envelope"), " ", tags$a(href = "mailto:desertdatalabs@gmail.com", "desertdatalabs@gmail.com"),
           " · ", tags$a(href = "https://data.neonscience.org/data-products/DP1.10072.001",
-                        target = "_blank", "NEON data product"))),
+                        target = "_blank", "NEON data product")),
+        # source note: the NEON citation (DOI linked) when bundle metadata exists
+        neon_citation_tag(),
+        p(class = "caveat", "NEON data are licensed ",
+          tags$a(href = "https://creativecommons.org/licenses/by/4.0/", target = "_blank", rel = "noopener", "CC BY 4.0"),
+          "; this app aggregates and derives from them."),
+        neon_notes_ui(neon_product_notes(), "NEON notes for this data product")),
       div(class = "about-card",
         h4(bs_icon("award"), " Data attribution & license"),
         p(class = "caveat",

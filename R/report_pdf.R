@@ -343,6 +343,10 @@ render_report_pdf <- function(file, d, label, is_demo = FALSE, cc = NULL) {
   y <- draw_para(paste("Reproductive condition is scored from field-collected fields and is most reliable",
     "for adults. These are counts of distinct individuals, not rates; a window spanning seasons mixes cohorts."),
     y, 8.5, PG$muted)
+  # the methods block (and the data-source lines under it) needs ~2.4 in; a
+  # site with many species fills page 2, so start a fresh page instead of
+  # drawing past the footer
+  if (y + 2.4 > PG$ch - 0.5) { new_page(2, label); y <- 0.5 }
   y <- draw_h4("Methods: detection-corrected abundance", y)
   p_txt <- if (!is.null(cc) && !is.null(cc$series) && nrow(cc$series) > 0 && !is.na(cc$mean_p))
     sprintf("~%.0f%% per-night capture probability of ear-tagged animals (Model M0), across %d of %d estimable bouts.",
@@ -354,6 +358,15 @@ render_report_pdf <- function(file, d, label, is_demo = FALSE, cc = NULL) {
     "(Krebs 1999); the monthly value is the mean per estimable grid. These are MNKA over N-hat for ear-tagged animals;",
     "Schnabel assumes equal catchability, so trap-happy desert sites read high, and untagged captures are counted as fully detected."),
     y, 9)
+  # data source: the NEON citation and the last collection date, only when the
+  # refresh bot wrote data/bundle_meta.json (nothing printed otherwise)
+  cite <- neon_citation_text()
+  thru <- neon_data_through()
+  if (!is.null(cite) || !is.na(thru)) {
+    y <- draw_h4("Data source", y)
+    if (!is.na(thru)) y <- draw_para(sprintf("Data through %s.", format(thru, "%b %Y")), y, 9, gapAfter = 0.04)
+    if (!is.null(cite)) y <- draw_para(cite, y, 8.5, PG$muted)
+  }
 
   # ---------- PAGE 3 (notable + charts) ----------
   new_page(3, label, footer_full = TRUE); y <- 0.5
@@ -414,8 +427,9 @@ render_compare_pdf <- function(file, dA, labelA, dB, labelB) {
   grid.text(ascii(codeB), x = unit(cbx, "npc"), y = gy(y), just = c("left", "top"), gp = gpar(fontface = "bold", fontsize = 10, col = PG$navy))
   grid.lines(x = unit(c(0, 1), "npc"), y = gy(y + 0.19), gp = gpar(col = PG$line, lwd = 1))
   y <- y + 0.30
-  mrow <- function(lab, va, vb, fmt = function(x) format(round(x), big.mark = ","), higher = TRUE) {
-    tie <- is.na(va) || is.na(vb) || va == vb
+  mrow <- function(lab, va, vb, fmt = function(x) format(round(x), big.mark = ","), higher = TRUE,
+                   highlight = TRUE) {
+    tie <- !highlight || is.na(va) || is.na(vb) || va == vb
     aw <- !tie && ((va > vb) == higher); bw <- !tie && !aw && !(va == vb)
     list(lab = lab, sa = fmt(va), sb = fmt(vb), fa = if (aw) 2 else 1, fb = if (bw) 2 else 1)
   }
@@ -425,7 +439,9 @@ render_compare_pdf <- function(file, dA, labelA, dB, labelB) {
     mrow("Species (richness)", A$cs$species, B$cs$species),
     mrow("Effective common species (Hill q1)", A$hn$q1, B$hn$q1, fmt = function(x) format(round(x, 1), nsmall = 1)),
     mrow("Evenness (0-1)", A$hn$even, B$hn$even, fmt = function(x) format(round(x, 2), nsmall = 2)),
-    mrow("Recapture rate", A$cs$recap_rate, B$cs$recap_rate, fmt = function(x) paste0(round(x, 1), "%")),
+    # depends on grid design and trap nights, so never bolded as a winner
+    mrow("Recapture rate", A$cs$recap_rate, B$cs$recap_rate, fmt = function(x) paste0(round(x, 1), "%"),
+         highlight = FALSE),
     mrow("Trap-nights (effort)", A$cs$trap_nights, B$cs$trap_nights))
   for (i in seq_along(rows)) {
     r <- rows[[i]]
@@ -475,4 +491,41 @@ render_compare_pdf <- function(file, dA, labelA, dB, labelB) {
     popViewport()
   }
   invisible(file)
+}
+
+# ---- shared provenance helpers (PDF, footer, About, landing) ---------------
+# Sourced into the global environment by global.R, so ui.R and server.R both
+# see them. Each returns NULL when data/bundle_meta.json is absent, so nothing
+# empty or "NA" ever renders.
+
+# "NEON RELEASE-2026 · data through Sep 2026" (either half alone if the other
+# is missing), or NULL.
+neon_provenance_line <- function(meta = BUNDLE_META) {
+  if (is.null(meta)) return(NULL)
+  rel <- .meta_chr(meta, "release")
+  thru <- neon_data_through(meta)
+  parts <- c(if (!is.na(rel)) paste("NEON", rel),
+             if (!is.na(thru)) paste("data through", format(thru, "%b %Y")))
+  if (!length(parts)) NULL else paste(parts, collapse = " \u00B7 ")
+}
+
+# The citation as HTML: the DOI and the CC BY 4.0 licence become links; every
+# other character is escaped. NULL without metadata.
+neon_citation_tag <- function(meta = BUNDLE_META, class = "neon-citation") {
+  txt <- neon_citation_text(meta)
+  if (is.null(txt)) return(NULL)
+  doi <- .meta_chr(meta, "doi")
+  doi_href <- if (grepl("^https?://", doi)) doi else paste0("https://doi.org/", sub("^doi:\\s*", "", doi))
+  lic <- "CC BY 4.0"
+  esc <- function(x) htmltools::htmlEscape(x)
+  link <- function(href, label) sprintf("<a href=\"%s\" target=\"_blank\" rel=\"noopener\">%s</a>",
+                                        esc(href), esc(label))
+  lic_link <- function(x) gsub(esc(lic), link("https://creativecommons.org/licenses/by/4.0/", lic),
+                               esc(x), fixed = TRUE)
+  at <- regexpr(doi, txt, fixed = TRUE)
+  html <- if (at > 0)
+    paste0(lic_link(substr(txt, 1, at - 1)), link(doi_href, doi),
+           lic_link(substr(txt, at + nchar(doi), nchar(txt))))
+  else lic_link(txt)
+  htmltools::tags$p(class = class, htmltools::HTML(html))
 }

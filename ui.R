@@ -7,9 +7,49 @@
 # `spin()` and `info_pop()` now live in global.R so server.R can use them too.
 
 # a card header with the title on the left and an info popover pushed right
-card_head <- function(icon, title, ...)
+card_head <- function(icon, title, ..., scope = NULL)
   bslib::card_header(class = "with-info", bsicons::bs_icon(icon),
-                     tags$span(class = "ch-title", " ", title), ...)
+                     tags$span(class = "ch-title", " ", title),
+                     if (!is.null(scope)) scope_chip(scope), ...)
+
+# Scope chip for a card header whose scope differs from its neighbours: "site"
+# reads "This site · <code>" (the server fills .scope-site-code on each load),
+# "network" reads "All <n> sites" from the bundled site index.
+scope_chip <- function(scope = c("site", "network")) {
+  scope <- match.arg(scope)
+  if (scope == "network") {
+    n <- if (exists("SITE_INDEX") && !is.null(SITE_INDEX)) nrow(SITE_INDEX) else NA_integer_
+    return(tags$span(class = "scope-chip scope-network",
+                     if (is.na(n)) "All sites" else sprintf("All %d sites", n)))
+  }
+  tags$span(class = "scope-chip scope-site", "This site \u00B7 ",
+            tags$span(class = "scope-site-code"))
+}
+
+# Footer suite directory, built from SUITE_APPS (global.R). The current app is
+# marked and not linked; the others open their cover pages.
+suite_directory_nav <- function(apps = SUITE_APPS) {
+  if (is.null(apps) || !nrow(apps)) return(NULL)
+  tags$nav(class = "suite-dir", `aria-label` = "NEON Explorer Suite",
+    tags$ul(class = "suite-dir-list",
+      lapply(seq_len(nrow(apps)), function(i) {
+        tags$li(if (isTRUE(apps$is_self[i]))
+          tags$span(class = "suite-dir-self", `aria-current` = "page", apps$name[i])
+        else
+          tags$a(href = apps$cover_url[i], target = "_blank", rel = "noopener", apps$name[i]))
+      })))
+}
+
+# Footer data line: the NEON citation (DOI linked) when bundle metadata exists,
+# and the product/licence line always.
+footer_provenance <- function(meta = BUNDLE_META) {
+  tagList(
+    neon_citation_tag(meta, class = "ddl-footer-cite"),
+    p(style = "font-size:12px",
+      "Data: NEON Small Mammal Box Trapping (DP1.10072.001), licensed ",
+      tags$a(href = "https://creativecommons.org/licenses/by/4.0/", target = "_blank", rel = "noopener", "CC BY 4.0"),
+      ". Not affiliated with NEON, Battelle, or the NSF. An educational data-exploration tool."))
+}
 
 # one rarity-tier badge (used in the visible legend + popovers)
 tier_badge <- function(label) {
@@ -40,7 +80,7 @@ small_mammal_poster <- function(show_cta = TRUE) {
           tags$a(
             class = "smt-poster-suite-link",
             href = "https://tgilbert14.github.io/NEON-Driver-Cascade/",
-            "Whole suite: ", tags$strong("Driver Cascade"),
+            "Whole suite: ", tags$strong("NEON Cross-Product Response Atlas"),
             tags$span(`aria-hidden` = "true", " ↗")
           )
         )
@@ -55,7 +95,10 @@ small_mammal_poster <- function(show_cta = TRUE) {
                onclick = "window.setTimeout(function(){var target=document.getElementById('site-picker-start');if(target){target.focus({preventScroll:true});}},0)",
                "Meet the mammals", tags$span(`aria-hidden` = "true", " ↓")),
       p(class = "smt-poster-note",
-        "Public NEON DP1.10072.001 · sampled capture records—not total population or measured landscape effects")
+        "Public NEON DP1.10072.001 · sampled capture records—not total population or measured landscape effects"),
+      # "NEON <release> · data through <Mon YYYY>", only when bundle metadata exists
+      local({ pl <- neon_provenance_line()
+              if (!is.null(pl)) p(class = "smt-poster-note smt-poster-release", pl) })
     ),
     tags$figure(class = "smt-poster-art",
       tags$picture(
@@ -395,7 +438,7 @@ ui <- bslib::page_fillable(
           uiOutput("envSourceNote")
         )),
         card(full_screen = TRUE,
-          card_head("incognito", "Detection-corrected abundance",
+          card_head("incognito", "Detection-corrected abundance", scope = "site",
             info_pop("Detection-corrected abundance", placement = "left",
               p("Traps miss animals. On NEON's ", tags$b("multi-night bouts"), " (pathogen grids run ~3 nights in a row), the ", tags$b("recaptures"), ", animals caught more than once in the same bout, tell us how many we ", tags$em("didn't"), " catch, so we can estimate the true number present."),
               p("The ", tags$span(style="color:#0C234B;font-weight:700", "navy line + band"), " is the estimated abundance N̂ per sampled grid with a 95% interval; the ", tags$span(style="color:#6b7a89;font-weight:700", "grey line"), " is MNKA (minimum known alive) per grid. The gap between them ", tags$em("is"), " the detection correction. Each month is the ", tags$b("mean per estimable grid"), " (two bouts on one plot in a month are averaged first), so the line does not rise just because more grids were trapped; the line breaks where the usual nights per bout (the most common k that month) change."),
@@ -420,11 +463,11 @@ ui <- bslib::page_fillable(
           uiOutput("detectNote")),
         layout_columns(col_widths = c(7, 5),
           card(full_screen = TRUE,
-            card_head("people-fill", "MNKA & catch-per-effort, by plot",
+            card_head("people-fill", "MNKA & catch-per-effort, by plot", scope = "site",
               info_pop("MNKA & CPUE",
                 p(tags$b("MNKA"), " (Minimum Number Known Alive) counts how many individuals were ", tags$em("known"), " to be alive each month: caught that month, or before ", tags$em("and"), " after. A transparent abundance index (Krebs 1966)."),
                 p("The dotted grey line (", tags$b("right axis"), ") is ", tags$b("catch per effort"), ": captures per 100 ", tags$b("trap-nights"), ". A trap-night is one trap set out for one night, computed from ", tags$em("this site's own data"), " (the actual traps set × the nights they ran), so a smaller grid or fewer nights doesn't skew it, and it does ", tags$em("not"), " assume a fixed 100-trap grid. Sprung or disturbed traps count as half a trap-night (Nelson & Clark 1973)."),
-                p("It's a relative-abundance ", tags$b("index"), " for comparing sites and trends, not a population estimate (it doesn't correct for detectability; that's what the detection-corrected abundance tab is for)."))),
+                p("It's a relative-abundance ", tags$b("index"), " for following trends at this site. It is not a population estimate and not a fair comparison between sites, because how easily animals are caught differs by habitat. The detection-corrected abundance card is the place to compare sites."))),
             uiOutput("mnkaInsight"),
             spin(plotlyOutput("mnkaPlot", height = "440px")),
             chart_caption(tags$b("MNKA"), " (minimum number known alive, left axis) counts individuals known alive each month per plot — caught that month, or before ", tags$b("and"), " after (Krebs 1966). The dotted line is the site-total ", tags$b("catch per 100 trap-nights"), " (right axis), a separate effort-normalised index on its own scale. Marker size tracks that month's trap-effort; shaded bands mark stretches with no sampling. Both are transparent ", tags$b("indices"), ", ", tags$b("not"), " detection-corrected abundance — read each on its own axis and don't infer a trend across an unsampled gap.")),
@@ -462,7 +505,7 @@ ui <- bslib::page_fillable(
                tagList(spin(plotlyOutput("ageDonut", height = "300px"), img = "rat1.gif"),
                  chart_caption("Share of ", tags$b("distinct individuals"), " by modal life stage (juvenile / subadult / adult). Centre number = total handled individuals. “Unknown” is animals never staged — kept as its own slice so it reads as staging coverage, not a silent drop. Denominator is distinct individuals, matching the sex donut and diversity card; it shows the ", tags$b("handled"), " age structure, ", tags$b("not"), " a corrected population age distribution.")))),
         card(full_screen = TRUE,
-          card_head("diagram-3-fill", "Diversity profile · effective number of species",
+          card_head("diagram-3-fill", "Diversity profile · effective number of species", scope = "site",
             info_pop("Hill numbers",
               p("Three views of diversity, all in the same intuitive unit, an ", tags$b("effective number of species"), ", indexed by ", tags$em("q"), ", how much rare species count:"),
               tags$ul(
@@ -579,7 +622,8 @@ ui <- bslib::page_fillable(
                 " Every individual on the map, as a table. Pick a row to open its QC history card."),
             DT::DTOutput("bodyScatterTbl"))),
           chart_caption("Each dot is one individual placed at its ", tags$b("mean hind-foot length"), " (mm) and ", tags$b("mean body weight"), " (g), pooled across that animal's captures; colour encodes species. Sub-pixel jitter fans apart animals that round to the same whole-millimetre foot so each stays tappable — the hover and pin card report the true measured means. n is the individuals here with both a weight and a hind-foot reading (the SVG samples 1,500 when more; the table twin lists all). The adult size–mass fit line draws only under “Adults only” and only when n ≥ 15 and |r| ≥ 0.3. A ", tags$b("data-quality map"), " of handled animals, ", tags$b("not"), " a body-condition index.")),
-        uiOutput("qcHistoryCard")
+        uiOutput("qcHistoryCard"),
+        uiOutput("siteNeonNotes")
       ),
 
       nav_panel(
@@ -707,7 +751,7 @@ ui <- bslib::page_fillable(
         # (a) FIND A SPECIES -------------------------------------------------
         conditionalPanel("input.searchMode == 'taxon'",
           card(
-            card_head("search", "Find a species across the network"),
+            card_head("search", "Find a species across the network", scope = "network"),
             div(class = "search-controls",
               selectizeInput("searchTaxon", "Species",
                 choices = NULL, width = "100%",
@@ -721,7 +765,7 @@ ui <- bslib::page_fillable(
         # (b) FIND SITES (threshold query) -----------------------------------
         conditionalPanel("input.searchMode == 'threshold'",
           card(
-            card_head("funnel", "Find sites by a threshold"),
+            card_head("funnel", "Find sites by a threshold", scope = "network"),
             div(class = "search-controls",
               radioButtons("threshKind", "Query", inline = TRUE,
                 choiceNames = list("Species recorded at more than N sites",
@@ -745,6 +789,9 @@ ui <- bslib::page_fillable(
         value = "dossier",
         uiOutput("dossierHero"),
         uiOutput("tradingCardWrap"),
+        # the charts stay hidden until an animal is picked (server toggles
+        # #dossierBody); dossierHero carries the empty-state prompt
+        hidden(div(id = "dossierBody",
         layout_columns(col_widths = c(7, 5),
           card(full_screen = TRUE,
             card_head("graph-up", "Measurements through time",
@@ -775,6 +822,7 @@ ui <- bslib::page_fillable(
                info_pop("Capture history", p("Every individual capture event for this animal: date, plot, trap cell, measurements, and field notes. Use the search box to filter."))),
              spin(DT::DTOutput("capHistory")),
              chart_caption("One row per ", tags$b("capture event"), " for this animal — date, plot, trap cell, recapture flag, weight, hind foot, sex, life stage, fate, and field remarks, exactly as recorded. Blank measurement cells are fields left unrecorded at that handling, not zeros. It is this individual's ", tags$b("full handling record, not a movement track"), ": rows are trap re-encounters, so a long gap between dates is time undetected, not time absent."))
+        ))
       ),
 
       nav_panel(
@@ -797,7 +845,7 @@ ui <- bslib::page_fillable(
     p(style = "margin-top:12px",
       HTML("Built by <strong>Desert Data Labs</strong> · Tucson, AZ · feedback or bug reports → "),
       tags$a(href = "mailto:desertdatalabs@gmail.com?subject=NEON%20Small%20Mammal%20Tracker", "desertdatalabs@gmail.com")),
-    p(style = "font-size:12px",
-      "Data: NEON Small Mammal Box Trapping (DP1.10072.001). Not affiliated with NEON, Battelle, or the NSF. An educational data-exploration tool.")
+    suite_directory_nav(),
+    footer_provenance()
   )
 )
