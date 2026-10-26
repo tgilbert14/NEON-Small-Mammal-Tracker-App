@@ -34,6 +34,9 @@ synthetic_ppn <- function(d) {
 
 # ---- item 4: determinism -----------------------------------------------------
 bart <- readRDS("data/sites/BART.rds")
+# Model a raw mam_pertrapnight table: the schema-2 bundles already carry the
+# joined per-plot-night fields, which the producer adds itself.
+bart <- bart[, setdiff(names(bart), PERPLOTNIGHT_FIELDS), drop = FALSE]
 ppn  <- synthetic_ppn(bart)
 md5s <- character()
 for (seed in 1:3) {
@@ -94,8 +97,16 @@ for (f in list.files("data/sites", pattern = "\\.rds$", full.names = TRUE)) {
   tot <- tot + c(sum(grepl(EMAIL_RX, sc$data$remarks, perl = TRUE)), sc$rows, b0, a0,
                  sum(is.na(d$remarks) != is.na(sc$data$remarks)))
 }
-check(tot[["email_rows"]] == 212L && tot[["emails_left"]] == 0L,
-      "212 remark rows carried email addresses and none remain after the scrub")
+# The committed bundles were scrubbed by the producer (RELEASE-2026 refresh), so
+# none may carry an address now; a fixture with addresses checks the scrub itself.
+fx <- data.frame(remarks = c("Recorder: a.b@field-ops.org, handler: c_d@neoninc.org",
+                             "trap accidentally double set", NA, "no address here",
+                             "two: x@y.com and z@w.co"), stringsAsFactors = FALSE)
+fs <- scrub_remarks(fx)
+check(tot[["emails_left"]] == 0L && fs$rows == 2L && fs$matches == 4L &&
+        !any(grepl(EMAIL_RX, fs$data$remarks, perl = TRUE)) && is.na(fs$data$remarks[3]) &&
+        identical(fs$data$remarks[2], fx$remarks[2]),
+      "no committed bundle carries an email address; the scrub replaces every address and leaves other remarks alone")
 check(tot[["before"]] > 0L && tot[["before"]] == tot[["after"]],
       sprintf("double-trap markers preserved through the scrub (%d before, %d after)", tot[["before"]], tot[["after"]]))
 check(tot[["na_changed"]] == 0L, "scrub leaves NA remarks NA")

@@ -119,15 +119,8 @@ jobs:
       - name: Run provenance and allowlist contracts
         run: Rscript --vanilla scripts/test_provenance.R
 
-      # TODO(lead): remove this guard at integration, once scripts/test_server.R lands.
       - name: Run server contracts
-        run: |
-          set -euo pipefail
-          if [ -f scripts/test_server.R ]; then
-            Rscript --vanilla scripts/test_server.R
-          else
-            echo "scripts/test_server.R not present yet; skipped."
-          fi
+        run: Rscript --vanilla scripts/test_server.R
 
       # The committed indexes must be what the committed bundles produce. Rebuild
       # them in a scratch copy (about a minute) and compare as canonical objects:

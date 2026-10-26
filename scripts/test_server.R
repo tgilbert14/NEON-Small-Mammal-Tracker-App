@@ -98,9 +98,16 @@ shiny::testServer(server, {
 
   # item 8: About renders cleanly without bundle metadata, and shows the
   # citation with a linked DOI when it is present
-  about0 <- html_of(output$aboutPanel$html)
+  meta_now <- BUNDLE_META
+  assign("BUNDLE_META", NULL, envir = globalenv())
+  about0 <- html_of(neon_citation_tag())
+  assign("BUNDLE_META", meta_now, envir = globalenv())
   check(!grepl("neon-citation", about0, fixed = TRUE) && !grepl(">NA<", about0, fixed = TRUE),
-        "About has no citation block and no NA without BUNDLE_META")
+        "without BUNDLE_META the citation renders nothing and no NA")
+  aboutp <- html_of(output$aboutPanel$html)
+  check(!grepl(">NA<", aboutp, fixed = TRUE) &&
+          (is.null(meta_now) || grepl("10.48443", aboutp, fixed = TRUE)),
+        "About shows the citation when the bundle metadata is present, and never NA")
   old_meta <- BUNDLE_META
   assign("BUNDLE_META", TEST_META, envir = globalenv())
   about1 <- html_of(neon_citation_tag())
