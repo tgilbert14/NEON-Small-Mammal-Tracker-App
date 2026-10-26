@@ -35,7 +35,7 @@ PG$ch <- PG$h - 2 * PG$margin      # 9.5in content height
 # Drop emoji / non-Latin1 and map the few typographic glyphs so a base-pdf()
 # fallback never boxes; harmless under cairo_pdf.
 ascii <- function(x) {
-  x <- gsub("—|–", "-", x)   # em/en dash
+  x <- gsub("\u2014|\u2013", "-", x)   # em/en dash
   x <- gsub("·", " | ", x)         # middot
   x <- gsub("≈", "~", x)           # almost-equal
   x <- gsub("±", "+/-", x)         # plus-minus

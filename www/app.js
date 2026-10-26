@@ -1,3 +1,4 @@
+// NEON explorer suite chrome, canonical copy. Sibling apps copy this file; baseline from tgilbert14/NEON-Small-Mammal-Tracker-App@c1a229d.
 /* =========================================================================
    app.js — count-up stat counters + celebratory confetti
    ========================================================================= */
@@ -168,7 +169,7 @@ function smtPushStored() {
     } catch (e) {}
     if (!target) return;            // cold start -> splash stays (don't latch; allow a later retry)
     done = true;
-    try { smtLoadStart(target + " — loading…"); } catch (e) {}
+    try { smtLoadStart(target + " · loading…"); } catch (e) {}
     Shiny.setInputValue("siteExplore", target, { priority: "event" });
   }
   // Fire after the first flush settles (DOM rendered, observers bound). jQuery
@@ -211,7 +212,7 @@ function smtLoadStart(label) {
   clearTimeout(smtSafetyTimer);
   smtSafetyTimer = setTimeout(function () {  // safety net so it can never stick
     var note = document.querySelector(".load-note");
-    if (note) note.textContent = "Still working — a large site or a slow NEON Portal can take a bit. You can close this and try again.";
+    if (note) note.textContent = "Still working. A large site or a slow NEON Portal can take a bit. You can close this and try again.";
     setTimeout(smtLoadDone, 5000);
   }, 90000);
 }
@@ -261,13 +262,13 @@ function smtTour() {
   var D = window.driver.js.driver;
   var steps = [
     { element: ".picker-mode", popover: { title: "Two ways in", side: "bottom",
-        description: "Explore <b>by site</b> — tap a dot for its card — or switch to <b>by species</b> to map where one animal turns up across the country." } },
+        description: "Explore <b>by site</b> (tap a dot for its card) or switch to <b>by species</b> to map where one animal turns up across the country." } },
     { element: ".picker-map-wrap", popover: { title: "The national map", side: "top",
-        description: "Every NEON site is a dot — <b>bigger</b> = more animals caught, <b>color</b> = the family of the most-common species there. Tap any dot to see its card, then choose <b>Explore</b> or <b>About</b>." } },
+        description: "Every NEON site is a dot: <b>bigger</b> = more animals caught, <b>color</b> = the family of the most-common species there. Tap any dot to see its card, then choose <b>Explore</b> or <b>About</b>." } },
     { element: ".select-panel", popover: { title: "Or pick by name", side: "top",
         description: "Prefer a list? Pick a <b>state</b> and <b>site</b> here, set the <b>date window</b>, then tap <b>Explore this site</b>." } },
     { element: "#compareBtn", popover: { title: "Compare two sites", side: "top",
-        description: "Put two sites head-to-head — species, diversity, and abundance, side by side." } }
+        description: "Put two sites side by side: species, diversity, and abundance." } }
   ].filter(function (s) { return document.querySelector(s.element); });
   if (!steps.length) return;
   var d = D({ showProgress: true, allowClose: true, steps: steps, popoverClass: "driverjs-theme",
