@@ -474,4 +474,202 @@ check(sa8$sobs == 2L && sa8$f1 == 0L && sa8$f2 == 1L && cs8$species == 2L &&
         hn8$n_ind == 2L && hn8$q0 == 1,
       "Chao1 f1/f2 and Hill abundance ignore placeholders; richness keeps a placeholder-only species")
 
+# ==== 2026-10-22 science finish ==============================================
+source(file.path(root, "R", "seasonal_env.R"), chdir = TRUE)
+sf_raw <- function(dates, tags, stage = "adult", sp = "Species alpha", plot = "TEST_S01",
+                   coord = NULL, extra = list()) {
+  n <- length(dates)
+  df <- data.frame(collectDate = dates, nightuid = paste0("N", seq_len(n)), plotID = plot,
+                   trapCoordinate = if (is.null(coord)) sprintf("A%d", ((seq_len(n) - 1) %% 10) + 1) else coord,
+                   trapStatus = "5 - capture", tagID = tags, remarks = NA_character_, siteID = "TEST",
+                   scientificName = sp, lifeStage = stage, recapture = "N", fate = "released",
+                   stringsAsFactors = FALSE)
+  for (k in names(extra)) df[[k]] <- extra[[k]]
+  df
+}
+
+# item 1: first_stage is the stage at the earliest capture, not the modal stage
+fs <- clean_mam(sf_raw(c("2021-08-10", "2021-06-01", "2021-09-01", "2021-07-01"), "F1",
+                       stage = c("adult", "juvenile", "adult", "adult")))
+fl <- build_leaderboard(fs)
+check(fl$first_stage == "juvenile" && fl$lifeStage == "adult" && fl$age_offset_days == 30 &&
+        !fl$age_is_minimum,
+      "leaderboard first_stage is the earliest capture's stage (unsorted rows, modal stage adult)")
+
+# item 2: stage regression tiers
+sr <- function(st) individual_qc_flags(qc_hist(st), qc_row)
+lv <- function(fl, code) vapply(Filter(function(f) identical(f$code, code), fl), `[[`, "", "level")
+f_as <- sr(c("adult", "subadult", "adult")); f_aj <- sr(c("adult", "juvenile", "juvenile"))
+f_2x <- sr(c("adult", "subadult", "subadult"))
+f_two <- individual_qc_flags(transform(rbind(qc_hist(c("adult", "subadult", "adult")),
+                                             qc_hist(c("subadult", "subadult", "subadult"))[1, ]),
+                                       date = as.Date(c("2020-03-01", "2020-04-01", "2020-05-01", "2020-06-01"))), qc_row)
+check(identical(lv(f_as, "stage_regression"), "warn") && identical(lv(f_2x, "stage_regression"), "warn") &&
+        identical(lv(f_aj, "stage_regression"), "high") && identical(lv(f_two, "stage_regression"), "high") &&
+        grepl("field judgment", f_as[[1]]$text) &&
+        any(grepl("An animal cannot get younger, so one of these records is wrong.", vapply(f_aj, `[[`, "", "text"), fixed = TRUE)) &&
+        !any(grepl("biologically impossible", c(vapply(f_aj, `[[`, "", "text"), vapply(f_as, `[[`, "", "text")))),
+      "stage regression: one adult-to-subadult step is warn; two levels or two regressions are high")
+
+# item 3: weight jump skips reproductive pairs, exact tokens only
+wj <- function(w, preg = NA, nip = NA) {
+  h <- qc_hist(c("adult", "adult", "adult"))[1:2, ]
+  h$date <- as.Date(c("2020-03-01", "2020-03-11")); h$weight <- w
+  h$pregnancyStatus <- preg; h$nipples <- nip; h
+}
+has_wj <- function(h) length(lv(individual_qc_flags(h, qc_row), "weight_jump")) > 0
+check(has_wj(wj(c(20, 28))) && !has_wj(wj(c(20, 28), preg = c("not", "pregnant"))) &&
+        !has_wj(wj(c(20, 28), nip = c("enlarged", "nonenlarged"))) &&
+        has_wj(wj(c(20, 28), nip = c("nonenlarged", "nonenlarged"))) &&
+        has_wj(wj(c(20, 28), preg = c("not pregnant", "not pregnant"))) &&
+        !has_wj(wj(c(30, 20), preg = c("pregnant", "not"))) &&
+        has_wj(wj(c(30, 20), preg = c("not", "pregnant"))),
+      "adult weight jump: gain with a reproductive capture or loss after pregnancy is skipped (exact tokens)")
+
+# item 4: cf./aff. genus and family are not species-level; cf. species is
+qf <- data.frame(scientificName = c("A b", "A c", "D e", "F g", "H i", "J sp."),
+                 taxonRank = c("species", "species", "species", "species", "species", "genus"),
+                 identificationQualifier = c(NA, "cf. species", "cf. genus", "cf. family", "aff. genus", NA),
+                 stringsAsFactors = FALSE)
+check(identical(species_level_only(qf)$scientificName, c("A b", "A c")) &&
+        identical(species_confirmed_only(qf)$scientificName, "A b") &&
+        identical(species_level_only(qf[, 1:2])$scientificName, c("A b", "A c", "D e", "F g", "H i")),
+      "species_level_only drops cf./aff. genus and cf. family; species_confirmed_only also drops cf. species")
+cq <- clean_mam(sf_raw(c("2021-06-01", "2021-06-02", "2021-06-03"), c("Q1", "Q2", "Q3"),
+                       sp = c("A b", "A c", "D e"),
+                       extra = list(identificationQualifier = c(NA, "cf. species", "cf. genus"))))
+cqs <- community_stats(cq)
+check(cqs$species == 2L && cqs$species_confirmed == 1L,
+      "community_stats: species counts cf. species, species_confirmed does not")
+
+# item 5: seeded shuffles, reproducible, RNG untouched, k = 1 works
+acc <- clean_mam(sf_raw(sprintf("2021-%02d-01", 1:8), sprintf("S%d", 1:8),
+                        sp = c("A a", "A b", "A a", "A c", "A b", "A d", "A a", "A e")))
+set.seed(99); before <- .Random.seed
+a1 <- species_accum(acc); a2 <- species_accum(acc)
+check(identical(a1$curve, a2$curve) && identical(.Random.seed, before) &&
+        a1$curve$richness[8] == 5 && all(a1$curve$lo <= a1$curve$richness),
+      "species_accum band is reproducible and leaves the session RNG state unchanged")
+rm(".Random.seed", envir = .GlobalEnv)
+a3 <- species_accum(acc)
+check(!exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE),
+      "species_accum does not create an RNG state when none existed")
+a_k1 <- species_accum(clean_mam(sf_raw("2021-06-01", "S1")))
+check(nrow(a_k1$curve) == 1L && a_k1$curve$richness == 1 && a_k1$sobs == 1L,
+      "species_accum works with a single bout (k = 1)")
+
+# item 16: Chao1 interval at f2 = 0 (hand computed). Species A has 3 marked
+# animals, B, C, D one each: sobs 4, f1 3, f2 0, Chao1 = 4 + 3*2/2 = 7.
+# var = 3*2/2 + 3*(2*3-1)^2/4 - 3^4/(4*7) = 3 + 18.75 - 2.892857 = 18.857143
+# K = exp(1.96*sqrt(log(1 + 18.857143/9))) = 8.0317; lo = 4 + 3/K = 4.37,
+# hi = 4 + 3K = 28.10 -> chao_lo 4, chao_hi 29 (the old form gave 26).
+c0 <- clean_mam(sf_raw(sprintf("2021-06-%02d", 1:6), sprintf("C%d", 1:6),
+                       sp = c("A a", "A a", "A a", "B b", "C c", "D d")))
+s0 <- species_accum(c0)
+Kh <- exp(1.96 * sqrt(log(1 + (3 + 18.75 - 81 / 28) / 9)))
+check(s0$f1 == 3L && s0$f2 == 0L && s0$chao1 == 7 && s0$chao_lo == round(4 + 3 / Kh) &&
+        s0$chao_hi == ceiling(4 + 3 * Kh) && s0$chao_hi == 29 && s0$unstable,
+      "Chao1 f2 = 0 interval uses the bias-corrected variance (hand-computed 4 to 29)")
+
+# item 6: multi-species ID counts species-level names; cross-genus is warn
+ms <- clean_mam(sf_raw(c("2021-06-01", "2021-06-02", "2021-06-03", "2021-06-04"),
+                       c("M1", "M1", "M2", "M2"), sp = c("A a", "A sp.", "A a", "B b")))
+mlb <- build_leaderboard(ms)
+check(mlb$n_species_ids[mlb$tagID == "M1"] == 1L && !mlb$id_uncertain[mlb$tagID == "M1"] &&
+        mlb$n_species_ids[mlb$tagID == "M2"] == 2L && mlb$n_genus_ids[mlb$tagID == "M2"] == 2L,
+      "n_species_ids ignores genus-only names; n_genus_ids counts genera")
+mrow <- function(ng) data.frame(tagID = "T1", spatial_conflict = FALSE, career_days = 61,
+                                id_uncertain = TRUE, n_genus_ids = ng, stringsAsFactors = FALSE)
+check(identical(lv(individual_qc_flags(qc_hist("adult"), mrow(2L)), "multi_species_id"), "warn") &&
+        identical(lv(individual_qc_flags(qc_hist("adult"), mrow(1L)), "multi_species_id"), "info"),
+      "multi-species flag: cross-genus is warn, within-genus stays info")
+
+# item 7: QC report, alias, per-capture column
+qd <- clean_mam(sf_raw(sprintf("2021-%02d-01", c(3, 4, 5, 6, 7, 3, 4)),
+                       c("Q1", "Q1", "Q1", "Q2", "Q2", "Q3", "Q3"),
+                       stage = c("adult", "juvenile", "adult", "adult", "adult", "adult", "adult"),
+                       extra = list(weight = c(20, 20, 21, 20, 21, 20, 200),
+                                    sex = c("F", "F", "F", "M", "F", "F", "F"))))
+qr <- site_qc_report(qd)
+check(identical(names(qr), c("flag", "level", "tagID", "date", "plotID", "scientificName",
+                             "measure", "value", "rule")) &&
+        all(qr$level %in% c("high", "warn", "info")) &&
+        any(qr$flag == "stage_regression" & qr$tagID == "Q1" & qr$level == "high") &&
+        any(qr$flag == "sex_flip" & qr$tagID == "Q2") &&
+        any(qr$flag == "measurement_outlier" & qr$tagID == "Q3" & qr$value == "200") &&
+        identical(mammal_qc, individual_qc_flags),
+      "site_qc_report: one row per flagged record, levels high/warn/info, three sources")
+qh <- individual_history(qd, "Q1")
+qh <- capture_qc_flags(qh, individual_qc_flags(qh, build_leaderboard(qd)[1, ]), qd)
+qh3 <- individual_history(qd, "Q3")
+qh3 <- capture_qc_flags(qh3, list(), qd)
+check(identical(qh$qc_flags, c("stage_regression (high)", "stage_regression (high)", "")) &&
+        identical(qh3$qc_flags, c("", "measurement_outlier_weight (warn)")) &&
+        all(c("pregnancyStatus", "nipples") %in% names(qh)),
+      "capture_qc_flags writes per-capture flags; history carries reproductive columns")
+
+# item 8: observed statistic is the unrounded best |r| of the same scan
+if (!exists("ENV_LAYERS")) ENV_LAYERS <- list(precip = list(col = "precip_mm", label = "Precipitation",
+                                                            unit = "mm/mo", color = "#2f7fb5"))
+cd <- seq(as.Date("2016-01-01"), by = "month", length.out = 36)
+set.seed(5); yv <- rnorm(36); xv <- 0.5 * yv + rnorm(36)
+ev_fx <- data.frame(date = cd, precip_mm = xv)
+for (nm in setdiff(vapply(ENV_LAYERS, `[[`, "", "col"), "precip_mm")) ev_fx[[nm]] <- NA_real_
+st <- .Random.seed
+ep <- env_corr_pvalue(NULL, ev_fx, max_lag = 0, nperm = 50, series = data.frame(date = cd, cpue = yv))
+ds <- function(v) v - as.numeric(tapply(v, as.integer(format(cd, "%m")), mean)[as.character(as.integer(format(cd, "%m")))])
+check(abs(ep$r_obs - stats::cor(ds(yv), ds(xv))) < 1e-12 && ep$r_obs != round(ep$r_obs, 2) &&
+        is.finite(ep$p) && identical(.Random.seed, st),
+      "env_corr_pvalue compares the null with the unrounded observed r and restores the RNG")
+
+# item 9: month-adjusted annual index
+ai_d <- clean_mam(sf_raw(c("2020-05-01", "2020-06-01", "2021-05-01", "2021-05-01"),
+                         c("Y1", NA, "Y2", "Y3"),
+                         coord = c("A1", "A1", "A1", "A2")))
+ai_d$trap_effort[] <- 1
+ai <- annual_cpue_index(ai_d, min_months = 1, min_trap_nights = 1)
+# plot-months: 2020-05 100, 2020-06 0, 2021-05 100. Month means: May 100, Jun 0.
+check(identical(ai$year, c(2020L, 2021L)) && all(ai$index == 0) && identical(ai$value, ai$index) &&
+        identical(ai$n_months, c(2L, 1L)) && identical(ai$trap_nights, c(2, 2)) &&
+        nrow(annual_cpue_index(ai_d, ok_only = TRUE)) == 0L,
+      "annual_cpue_index removes the calendar-month effect and gates ok years")
+
+# item 10: seasonal verdict
+v1 <- seasonal_verdict(0.8, 0.01, 7); v2 <- seasonal_verdict(0.4, 0.01, 7)
+v3 <- seasonal_verdict(0.9, 0.01, 5); v4 <- seasonal_verdict(0.9, NA, 8); v5 <- seasonal_verdict(0.9, 0.05, 8)
+check(v1$rail == "rail-strong" && v1$can_claim && !v1$few_years && v2$rail == "rail-mod" &&
+        v3$rail == "rail-weak" && !v3$can_claim && v3$few_years &&
+        v4$rail == "rail-weak" && !v4$can_claim && v5$rail == "rail-weak",
+      "seasonal_verdict gates on n >= 6 and p < 0.05 before the strength rail")
+
+# item 11: MNKA edges and gap breaks
+mnd <- clean_mam(sf_raw(c("2021-01-01", "2021-02-01", "2021-03-01", "2021-09-01"), c("E1", "E1", "E2", "E2")))
+mn <- mnka_series(mnd)
+gb <- insert_gap_breaks(mn, max_gap_months = 2)
+check(identical(mn$edge, c(TRUE, FALSE, FALSE, TRUE)) && !any(mn$incomplete_grid) &&
+        nrow(gb) == 5L && is.na(gb$mnka[4]) && gb$date[4] == as.Date("2021-04-01") &&
+        gb$plotID[4] == "TEST_S01",
+      "mnka_series marks first and last months; insert_gap_breaks splits a 6-month gap")
+
+# item 12 / 15: n_clamped, gridCompletion plumbing (made-up tokens via options)
+check(is.numeric(srer$cc$n_clamped) && srer$cc$n_clamped == sum(srer$b$status == "detection near-complete") &&
+        srer$cc$n_incomplete == 0L && !any(srer$b$incomplete_grid),
+      "closed_capture_series reports n_clamped; no gridCompletion field leaves bouts unchanged")
+gk <- k_fixture("6 - trap set and empty")
+check(expect_error(mnka_series(transform(gk, gridCompletion = "zzz"))),
+      "an unknown gridCompletion token fails closed (constants are empty)")
+old_opt <- options(smt.grid_complete_tokens = "test-complete", smt.grid_incomplete_tokens = "test-partial")
+gk$gridCompletion <- ifelse(gk$date == as.Date("2021-07-02"), "test-partial", "test-complete")
+gb2 <- bout_closed_capture(gk); gm <- mnka_series(gk); gs <- closed_capture_series(gk, gb2)
+gk$gridCompletion <- "test-complete"
+gb3 <- bout_closed_capture(gk)
+options(old_opt)
+check(identical(mam_grid_complete(c("TEST-complete", "test-partial", NA, " "),
+                                  complete = "test-complete", incomplete = "test-partial"),
+                c(TRUE, FALSE, NA, NA)) &&
+        gb2$status == "incomplete grid" && gb2$incomplete_grid && is.na(gb2$N) &&
+        all(gm$incomplete_grid) && gs$n_incomplete == 1L && gs$n_estimable == 0 &&
+        gb3$status == ke$status && gb3$N == ke$N && !gb3$incomplete_grid,
+      "gridCompletion: a night mapped incomplete holds its bout out and marks the plot-month")
+
 cat(sprintf("\nAll %d helper contract tests passed.\n", passed))
