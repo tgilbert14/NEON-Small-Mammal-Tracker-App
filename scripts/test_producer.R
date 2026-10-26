@@ -213,9 +213,13 @@ sub <- tibble(startDateTime = c("2024-02-01 00:00:00", "2024-02-01 00:30:00", "2
 check(env_ns$precip_monthly(sub)$n_days == 2L, "sub-daily rows count a day valid when any interval has a value")
 e1 <- readRDS("data/env/SRER.rds")
 ce <- env_ns$canonical_env(e1[sample(nrow(e1)), ])
+dim_of <- function(ym) { d0 <- as.Date(paste0(ym, "-01")); as.integer(format(seq(d0, by = "month", length.out = 2)[2] - 1, "%d")) }
+kept <- !is.na(ce$precip_mm)
+dims <- vapply(ce$ym[kept], dim_of, integer(1))
 check(identical(names(ce)[1:5], c("siteID", "ym", "date", "precip_mm", "precip_mm_n_days")) &&
-        !is.unsorted(ce$ym) && all(is.na(ce$precip_mm_n_days)),
-      "env bundles sort by ym, carry precip_mm_n_days (NA for history months) in fixed column order")
+        !is.unsorted(ce$ym) && all(!is.na(ce$precip_mm_n_days[kept])) &&
+        all(ce$precip_mm_n_days[kept] >= 0.9 * dims),
+      "env bundles sort by ym in fixed column order, and every kept precipitation month has >= 90% valid days")
 ea <- file.path(tmp, "ea.rds"); eb <- file.path(tmp, "eb.rds")
 saveRDS(env_ns$canonical_env(e1[sample(nrow(e1)), ]), ea, compress = "xz")
 saveRDS(env_ns$canonical_env(e1[sample(nrow(e1)), ]), eb, compress = "xz")
