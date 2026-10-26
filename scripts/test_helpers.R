@@ -327,15 +327,18 @@ harv <- reg_site("HARV")
 h3 <- harv$b[harv$b$boutID == "HARV_001#3", ]
 check(nrow(h3) == 1L && near(h3$N, 42.67, 0.10),
       sprintf("HARV_001#3 N-hat on real tags is about 43 (was about 116), got %.1f", h3$N))
-check(near(est_sum(harv), 7713, 0.02) && near(harv$cc$mean_detect, 0.815, 0.005) &&
-        near(harv$cc$mean_p, 0.434, 0.005) && harv$cc$n_unmarked_total > 0 && harv$cc$n_bouts == 372L &&
+# Recorded on the RELEASE-2026 schema-2 bundles (refresh run 40346798927): bouts on
+# grids NEON marks incomplete (gridCompletion) are held out of the estimates.
+check(near(est_sum(harv), 7050, 0.02) && near(harv$cc$mean_detect, 0.827, 0.005) &&
+        near(harv$cc$mean_p, 0.450, 0.005) && harv$cc$n_unmarked_total > 0 && harv$cc$n_bouts == 372L &&
+        harv$cc$n_incomplete == 5L &&
         sum(harv$b$sumC == 0 & harv$b$n_unmarked == 0 & harv$b$n_unmarked_recap == 0) == 15L,
       "HARV sum of bout N-hat, completeness and pooled p-hat match the recorded values")
 srer <- reg_site("SRER")
 check(sum(mam_is_placeholder_tag(srer$d$tagID)) == 413L &&
         sum(mam_tag_present(srer$d$tagID)) == 9962L &&
-        near(est_sum(srer), 5277, 0.02) && near(srer$cc$mean_detect, 0.862, 0.005) &&
-        near(srer$cc$mean_p, 0.491, 0.005) && srer$cc$n_bouts == 229L &&
+        near(est_sum(srer), 4669, 0.02) && near(srer$cc$mean_detect, 0.857, 0.005) &&
+        near(srer$cc$mean_p, 0.494, 0.005) && srer$cc$n_bouts == 229L && srer$cc$n_incomplete == 9L &&
         community_stats(srer$d)$individuals == 3563L,
       "SRER placeholder count, trapped-night bouts, real-tag estimates and ear-tagged individuals match the recorded values")
 abby <- reg_site("ABBY")
@@ -652,9 +655,12 @@ check(identical(mn$edge, c(TRUE, FALSE, FALSE, TRUE)) && !any(mn$incomplete_grid
       "mnka_series marks first and last months; insert_gap_breaks splits a 6-month gap")
 
 # item 12 / 15: n_clamped, gridCompletion plumbing (made-up tokens via options)
+srer_nogc <- srer$d; srer_nogc$gridCompletion <- NULL
+b_nogc <- bout_closed_capture(srer_nogc)
 check(is.numeric(srer$cc$n_clamped) && srer$cc$n_clamped == sum(srer$b$status == "detection near-complete") &&
-        srer$cc$n_incomplete == 0L && !any(srer$b$incomplete_grid),
-      "closed_capture_series reports n_clamped; no gridCompletion field leaves bouts unchanged")
+        srer$cc$n_incomplete == sum(srer$b$status == "incomplete grid") &&
+        !any(b_nogc$incomplete_grid) && !any(b_nogc$status == "incomplete grid"),
+      "closed_capture_series reports n_clamped and n_incomplete; without the gridCompletion field no bout is held out")
 gk <- k_fixture("6 - trap set and empty")
 check(expect_error(mnka_series(transform(gk, gridCompletion = "zzz"))),
       "an unknown gridCompletion token fails closed (constants are empty)")

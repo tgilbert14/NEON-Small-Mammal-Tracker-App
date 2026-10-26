@@ -89,9 +89,11 @@ if (length(missing_sites) || length(extra_sites)) {
                paste(missing_sites, collapse = ","),
                                paste(extra_sites, collapse = ",")))
 } else pass(sprintf("site set matches the %d expected sites", length(EXPECTED_SITES)))
-SCHEMA2_COLS <- c("gridCompletion", "samplingImpractical", "mammalGridSamplingType", "eventID")
+# The per-plot-night fields RELEASE-2026 publishes (mammalGridSamplingType and
+# trapsSet are absent from that release, so the producer carries only these).
+SCHEMA2_COLS <- c("gridCompletion", "samplingImpractical", "eventID")
 EMAIL_RE <- "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+[.][A-Za-z]{2,}"
-bundle_max_date <- c(); bundle_schema2 <- c(); email_hits <- c()
+bundle_max_date <- c(); bundle_schema2 <- c(); email_hits <- c(); grid_tokens <- character()
 {
   loaded_ok <- 0L; with_rows <- 0L; schema_ok <- 0L
   for (f in site_files) {
@@ -108,6 +110,8 @@ bundle_max_date <- c(); bundle_schema2 <- c(); email_hits <- c()
         bundle_max_date[code] <- if (any(!is.na(ds))) as.character(max(ds, na.rm = TRUE)) else NA_character_
       }
       bundle_schema2[code] <- sum(SCHEMA2_COLS %in% names(obj))
+      if ("gridCompletion" %in% names(obj))
+        grid_tokens <- union(grid_tokens, unique(as.character(obj$gridCompletion)))
       if ("remarks" %in% names(obj))
         email_hits[code] <- sum(grepl(EMAIL_RE, as.character(obj$remarks), perl = TRUE))
     }
@@ -333,6 +337,16 @@ oracle_ok <- tryCatch({
 }, error = function(e) { note(sprintf("could not load R/helpers.R: %s", conditionMessage(e))); FALSE })
 site_index <- tryCatch(as.data.frame(readRDS("data/site_index.rds")), error = function(e) NULL)
 
+# Every gridCompletion value in the bundles must map through the app's own
+# vocabulary, so a new NEON token fails this refresh instead of the running app
+# (mnka_series and bout_closed_capture stop on an unknown token).
+if (oracle_ok && length(grid_tokens)) {
+  gm <- tryCatch(mam_grid_complete(grid_tokens), error = function(e) e)
+  expect(!inherits(gm, "error"),
+         sprintf("every gridCompletion value maps to complete or incomplete (%d distinct)%s", length(grid_tokens),
+                 if (inherits(gm, "error")) paste0(": ", conditionMessage(gm)) else ""))
+}
+
 # The six NEON trapStatus tokens, by their leading code (literal table).
 ORACLE_STATUS_WEIGHT <- c("1" = 0, "2" = 0.5, "3" = 0.5, "4" = 1, "5" = 1, "6" = 1)
 oracle_placeholder <- function(tag) {
@@ -456,7 +470,7 @@ if (oracle_ok) for (code in ORACLE_SITES) {
 # candidate with data/bundle_meta.json and data/neon_issue_log.json. Once that
 # candidate lands on main, flip REQUIRE_PROVENANCE to TRUE so absence fails.
 SECTION <- "7 provenance"
-REQUIRE_PROVENANCE <- FALSE
+REQUIRE_PROVENANCE <- TRUE
 absent <- function(msg) if (REQUIRE_PROVENANCE) note(msg) else info(msg)
 META_KEYS <- c("product", "release", "doi", "release_generated", "bundle_schema",
                "data_from", "data_through", "sites", "previous_data_through", "advanced")

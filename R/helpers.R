@@ -274,9 +274,19 @@ MAM_REVIEWED_MULTI_TRAP_MARKERS <- c(
 # read as complete. Tests pass made-up tokens through the options
 # smt.grid_complete_tokens / smt.grid_incomplete_tokens; production reads the
 # constants.
-# TODO(refresh): fill both vectors from the first bundle that carries the field.
-MAM_GRID_COMPLETE_TOKENS <- character(0)
-MAM_GRID_INCOMPLETE_TOKENS <- character(0)
+# Vocabulary as published in RELEASE-2026 (all 46 bundles, refresh run
+# 40346798927, 2026-10-26). A night is incomplete when grid setting or capture
+# processing is "not complete"; a fully set grid that caught nothing is complete.
+# NA (no value: nights NEON did not backfill because samplingImpractical was set)
+# stays NA and is never read as incomplete.
+MAM_GRID_COMPLETE_TOKENS <- c(
+  "setting complete, processing complete",
+  "setting complete, no small mammals captured",
+  "setting complete, no targeted or opportunistic small mammals captured")
+MAM_GRID_INCOMPLETE_TOKENS <- c(
+  "setting complete, processing not complete",
+  "setting not complete, processing complete",
+  "setting not complete, no small mammals captured")
 mam_grid_complete <- function(x,
     complete = getOption("smt.grid_complete_tokens", MAM_GRID_COMPLETE_TOKENS),
     incomplete = getOption("smt.grid_incomplete_tokens", MAM_GRID_INCOMPLETE_TOKENS)) {
