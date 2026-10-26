@@ -2134,26 +2134,30 @@ site_insights <- function(d, lb = NULL, cs = NULL) {
 # where rows is a tibble(rank, name, metric, sub).
 # ---------------------------------------------------------------------------
 stat_breakdown <- function(d, lb, which) {
+  # NEON values go into HTML rows and sentences: escape them (defense in depth;
+  # today they are controlled vocabularies, but a bad upstream record must not
+  # become markup).
+  esc <- function(x) htmltools::htmlEscape(as.character(x))
   pack <- function(title, subtitle, insight, rows, icon = "\U0001F4CA")
     list(title = title, subtitle = subtitle, insight = insight, icon = icon, rows = rows)
 
   if (which == "species") {
     s <- species_summary(d)
     rows <- tibble::tibble(rank = seq_len(nrow(s)),
-      name = paste0(s$emoji, "  <i>", s$scientificName, "</i>",
-                    ifelse(is.na(s$nickname), "", paste0(" <span class='dim'>· ", s$nickname, "</span>"))),
+      name = paste0(s$emoji, "  <i>", esc(s$scientificName), "</i>",
+                    ifelse(is.na(s$nickname), "", paste0(" <span class='dim'>· ", esc(s$nickname), "</span>"))),
       metric = paste0(fmt_int(s$captures), " caps"),
       sub = paste0(fmt_int(s$individuals), " ear-tagged individuals",
                    ifelse(s$untagged_captures > 0,
                           paste0(" · ", fmt_int(s$untagged_captures), " untagged captures"), "")))
     return(pack("Species, ranked by abundance", "Every species caught here, most common first",
-      if (nrow(s)) sprintf("The <b><i>%s</i></b> dominates; the bottom of the list is where the rare finds hide.", s$scientificName[1]) else "",
+      if (nrow(s)) sprintf("The <b><i>%s</i></b> dominates; the bottom of the list is where the rare finds hide.", esc(s$scientificName[1])) else "",
       rows, "\U0001F9EC"))
   }
   if (which == "individuals") {
     v <- utils::head(lb, 25)
     rows <- tibble::tibble(rank = v$rank, tag = v$tagID,
-      name = paste0(v$emoji, "  <b>", v$short, "</b> <span class='dim'>· ", v$scientificName, "</span>"),
+      name = paste0(v$emoji, "  <b>", esc(v$short), "</b> <span class='dim'>· ", esc(v$scientificName), "</span>"),
       metric = paste0(v$captures, " caps"),
       sub = paste0(ifelse(v$career_days > 0, paste0(v$career_days, "d career"), "single capture")))
     return(pack("Most-caught individuals", "Tap any animal to open its full dossier",
@@ -2170,7 +2174,7 @@ stat_breakdown <- function(d, lb, which) {
       name = paste0("\U0001F4CD ", cby$plotID), metric = paste0(fmt_int(cby$caps), " caps"),
       sub = paste0(fmt_int(cby$inds), " individuals"))
     return(pack("Captures by plot", "Where the action was across the site's trapping grids",
-      if (nrow(cby)) sprintf("Plot <b>%s</b> was the busiest with %s captures.", cby$plotID[1], fmt_int(cby$caps[1])) else "",
+      if (nrow(cby)) sprintf("Plot <b>%s</b> was the busiest with %s captures.", esc(cby$plotID[1]), fmt_int(cby$caps[1])) else "",
       rows, "\U0001F3AF"))
   }
   if (which == "recapture") {
@@ -2180,7 +2184,7 @@ stat_breakdown <- function(d, lb, which) {
         rate = round(100 * mean(.data$recapture %in% c("Y", "y")), 0), .groups = "drop") %>%
       dplyr::filter(.data$caps >= 5) %>% dplyr::arrange(dplyr::desc(.data$rate))
     rows <- tibble::tibble(rank = seq_len(nrow(rc)),
-      name = paste0("<i>", rc$scientificName, "</i>"), metric = paste0(rc$rate, "%"),
+      name = paste0("<i>", esc(rc$scientificName), "</i>"), metric = paste0(rc$rate, "%"),
       sub = paste0(fmt_int(rc$caps), " captures"))
     return(pack("Recapture rate by species", "Which species stick around and get re-caught",
       "A high recapture rate means resident animals that survive and return to traps.", rows, "\U0001F501"))
@@ -2201,7 +2205,7 @@ stat_breakdown <- function(d, lb, which) {
     v <- lb[lb$captures >= 10, ]
     if (nrow(v) == 0) v <- utils::head(lb, 10)
     rows <- tibble::tibble(rank = seq_len(nrow(v)), tag = v$tagID,
-      name = paste0(v$emoji, "  <b>", v$short, "</b> <span class='dim'>· ", v$scientificName, "</span>"),
+      name = paste0(v$emoji, "  <b>", esc(v$short), "</b> <span class='dim'>· ", esc(v$scientificName), "</span>"),
       metric = paste0(v$captures, " caps"),
       sub = paste0(rarity_tier(v$captures)))
     return(pack("The Legends · caught 10+ times", "Tap any legend to open its dossier",
