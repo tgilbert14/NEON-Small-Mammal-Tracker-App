@@ -10,3 +10,7 @@
 !.env.example
 .Renviron
 .Renviron.*
+
+# deploy records and editor state
+rsconnect/
+.vs/
