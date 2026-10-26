@@ -529,4 +529,3 @@ if (length(failed)) {
                length(failed)), call. = FALSE)
 }
 cat("\nBundle verification PASSED: safe to deploy.\n")
-
