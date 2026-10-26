@@ -169,8 +169,20 @@ species_choices <- function() {
   lapply(split_lab, as.list)
 }
 
-# Read a bundled site's full record, or NULL if not bundled (or unreadable).
+# Site-code allowlist. A code reaches file.path() only when it is exactly four
+# upper-case letters and, once the site index is loaded, one of its sites. This
+# refuses path-shaped input such as "../site_index" before any file is opened.
+is_valid_site_code <- function(site, index = SITE_INDEX) {
+  if (!is.character(site) || length(site) != 1L || is.na(site)) return(FALSE)
+  if (!grepl("^[A-Z]{4}$", site)) return(FALSE)
+  if (!is.null(index) && "site" %in% names(index)) return(site %in% index$site)
+  TRUE
+}
+
+# Read a bundled site's full record, or NULL if not bundled, unreadable, or the
+# code is not an allowlisted site.
 load_site_bundle <- function(site) {
+  if (!is_valid_site_code(site)) return(NULL)
   read_bundle(file.path(SITE_DIR, paste0(site, ".rds")))
 }
 
@@ -221,39 +233,16 @@ env_layer_choices <- function(env) {
   c(base, stats::setNames(names(ENV_LAYERS)[have], labs))
 }
 
-# The illustrative demo overlay. We can't run a live NEON download in every
-# build, so a small, clearly-labeled monthly series for the demo sites ships as
-# plain CSV (data-sample/env_demo.csv). It is NOT NEON data — every plot that
-# uses it is badged "demo · illustrative". Real per-site overlays come from
-# scripts/refresh_env_data.R writing data/env/<SITE>.rds, which always wins.
-ENV_DEMO <- local({
-  f <- "data-sample/env_demo.csv"
-  if (!file.exists(f)) return(NULL)
-  d <- tryCatch(utils::read.csv(f, stringsAsFactors = FALSE), error = function(e) NULL)
-  if (is.null(d) || !nrow(d)) return(NULL)
-  tibble::as_tibble(d)
-})
-
-# Load a site's monthly environmental overlay table, or NULL. Real bundle first
-# (data/env/<SITE>.rds → source "neon"), then the illustrative demo fallback
-# (source "demo"). The source is carried as an attribute so the UI can badge it.
+# Load a site's monthly environmental overlay table (data/env/<SITE>.rds), or
+# NULL. The synthetic demo overlay is retired: a site without a real NEON
+# overlay bundle has no overlay. The "source" attribute stays "neon" so callers
+# that badge the source keep working.
 load_site_env <- function(site) {
-  if (is.null(site) || site == "") return(NULL)
-  f <- file.path(ENV_DIR, paste0(site, ".rds"))
-  e <- read_bundle(f)
-  if (!is.null(e)) {
-    attr(e, "source") <- "neon"
-    return(e)
-  }
-  if (!is.null(ENV_DEMO) && "siteID" %in% names(ENV_DEMO)) {
-    e <- ENV_DEMO[ENV_DEMO$siteID == site, , drop = FALSE]
-    if (nrow(e)) {
-      e$date <- as.Date(e$date)
-      attr(e, "source") <- "demo"
-      return(tibble::as_tibble(e))
-    }
-  }
-  NULL
+  if (!is_valid_site_code(site)) return(NULL)
+  e <- read_bundle(file.path(ENV_DIR, paste0(site, ".rds")))
+  if (is.null(e)) return(NULL)
+  attr(e, "source") <- "neon"
+  e
 }
 
 # Demo = the JORN bundle if present, else the small committed sample.
@@ -273,6 +262,182 @@ filter_window <- function(d, start_date, end_date) {
   hi <- format(as.Date(end_date), "%Y-%m-%d")
   d[!is.na(ds) & ds >= lo & ds <= hi, , drop = FALSE]
 }
+
+# ---- NEON provenance (written by the refresh bot) ---------------------------
+# data/bundle_meta.json names the NEON release, DOI and data window behind the
+# bundles; data/neon_issue_log.json carries NEON's change-log entries for the
+# product. Both are optional at runtime: when a file is absent or unreadable the
+# accessors return NULL / NA / an empty table and the UI shows nothing.
+read_json_safely <- function(path, simplify = TRUE) {
+  if (!file.exists(path)) return(NULL)
+  tryCatch(jsonlite::fromJSON(path, simplifyVector = simplify),
+           error = function(e) {
+             warning(sprintf("could not read %s: %s", path, conditionMessage(e)))
+             NULL
+           })
+}
+
+BUNDLE_META <- local({
+  m <- read_json_safely("data/bundle_meta.json", simplify = FALSE)
+  if (is.list(m) && length(m)) m else NULL
+})
+
+NEON_ISSUE_LOG <- local({
+  x <- read_json_safely("data/neon_issue_log.json", simplify = TRUE)
+  if (is.data.frame(x) && nrow(x)) x else NULL
+})
+
+.meta_chr <- function(meta, key) {
+  v <- meta[[key]]
+  if (is.null(v) || length(v) != 1L || is.na(v)) return(NA_character_)
+  v <- trimws(as.character(v))
+  if (nzchar(v)) v else NA_character_
+}
+
+# The NEON citation line for the bundled release, or NULL without metadata.
+neon_citation_text <- function(meta = BUNDLE_META) {
+  if (is.null(meta)) return(NULL)
+  release <- .meta_chr(meta, "release")
+  doi <- .meta_chr(meta, "doi")
+  if (is.na(release) || is.na(doi)) return(NULL)
+  sprintf(paste0(
+    "NEON (National Ecological Observatory Network). Small mammal box trapping ",
+    "(%s), %s. %s. Dataset accessed from https://data.neonscience.org. ",
+    "Licensed CC BY 4.0."),
+    .meta_chr(meta, "product") %|na|% "DP1.10072.001", release, doi)
+}
+`%|na|%` <- function(a, b) if (length(a) != 1L || is.na(a)) b else a
+
+# Last collection date covered by the bundles (Date), or NA.
+neon_data_through <- function(meta = BUNDLE_META) {
+  if (is.null(meta)) return(as.Date(NA))
+  v <- .meta_chr(meta, "data_through")
+  if (is.na(v)) return(as.Date(NA))
+  out <- suppressWarnings(as.Date(substr(v, 1, 10)))
+  if (length(out) != 1L) as.Date(NA) else out
+}
+
+.issue_rows <- function(log, keep) {
+  empty <- data.frame(date = as.Date(character()), id = character(),
+                      issue = character(), resolution = character(),
+                      stringsAsFactors = FALSE)
+  if (is.null(log) || !nrow(log) || !any(keep)) return(empty)
+  col <- function(k) if (k %in% names(log)) as.character(log[[k]]) else rep(NA_character_, nrow(log))
+  out <- data.frame(
+    date = suppressWarnings(as.Date(substr(col("issueDate"), 1, 10))),
+    id = col("id"), issue = col("issue"), resolution = col("resolution"),
+    stringsAsFactors = FALSE)[keep, , drop = FALSE]
+  out <- out[order(out$date, decreasing = TRUE, na.last = TRUE), , drop = FALSE]
+  rownames(out) <- NULL
+  out
+}
+
+.issue_is_all <- function(loc) {
+  !is.na(loc) & tolower(trimws(loc)) == "all"
+}
+
+# NEON change-log entries that name this site: its code anywhere in
+# locationAffected (a comma list or free text), or its NEON domain code. Entries
+# marked "All" belong to neon_product_notes(), not here.
+neon_site_notes <- function(site, log = NEON_ISSUE_LOG, sites = neon_sites) {
+  if (is.null(log) || !nrow(log) || !"locationAffected" %in% names(log) ||
+      !is.character(site) || length(site) != 1L || !grepl("^[A-Z]{4}$", site))
+    return(.issue_rows(NULL, logical(0)))
+  loc <- as.character(log$locationAffected)
+  dom <- if (!is.null(sites) && all(c("site", "domain") %in% names(sites)))
+    sites$domain[match(site, sites$site)] else NA_character_
+  hit_site <- grepl(sprintf("\\b%s\\b", site), loc, perl = TRUE)
+  hit_dom <- if (!is.na(dom)) grepl(sprintf("\\b%s\\b", dom), loc, perl = TRUE) else FALSE
+  keep <- !is.na(loc) & !.issue_is_all(loc) & (hit_site | hit_dom)
+  .issue_rows(log, keep)
+}
+
+# NEON change-log entries that apply to every site ("All").
+neon_product_notes <- function(log = NEON_ISSUE_LOG) {
+  if (is.null(log) || !nrow(log) || !"locationAffected" %in% names(log))
+    return(.issue_rows(NULL, logical(0)))
+  .issue_rows(log, .issue_is_all(as.character(log$locationAffected)))
+}
+
+# ---- NEON explorer suite registry --------------------------------------------
+# The ten Shiny explorers, in suite order. is_self marks this app.
+SUITE_APPS <- data.frame(
+  key = c("small-mammal", "plant-diversity", "breeding-birds", "phenology",
+          "veg-structure", "ground-beetle", "water-chem", "mosquito", "inverts", "atlas"),
+  name = c("Small Mammal Tracker", "Plant Diversity Explorer", "Breeding Bird Explorer",
+           "Plant Phenology Explorer", "Vegetation Structure Explorer",
+           "Ground Beetle Tracker", "Water Chemistry Analyte Viewer", "Mosquito Pulse",
+           "My Little Inverts", "NEON Cross-Product Response Atlas"),
+  app_url = c(
+    "https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/",
+    "https://019ee109-30ae-006e-cb3b-143afeac57e3.share.connect.posit.cloud/",
+    "https://019ee116-75d9-5940-8ccd-9b8c7afabce4.share.connect.posit.cloud/",
+    "https://019ee118-bf17-1622-bd5d-e59cab3b36a7.share.connect.posit.cloud/",
+    "https://019ee110-8fd3-abae-aee3-02ea8e4274c8.share.connect.posit.cloud/",
+    "https://019ec8ff-2a4b-e0e9-871d-07a047a571d3.share.connect.posit.cloud/",
+    "https://019ebf59-b2ff-a20a-cb35-6d227ca6261a.share.connect.posit.cloud/",
+    "https://019ef0b1-0099-c999-1edc-4d47826044cc.share.connect.posit.cloud/",
+    "https://019ef4fb-c6c4-7ddf-2667-7e1021b2ef10.share.connect.posit.cloud/",
+    "https://019ee1cf-a484-44eb-a181-cd495df24b3b.share.connect.posit.cloud/"),
+  cover_url = c(
+    "https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/",
+    "https://tgilbert14.github.io/NEON-Plant-Diversity/",
+    "https://tgilbert14.github.io/NEON-Breeding-Birds/",
+    "https://tgilbert14.github.io/NEON-Plant-Phenology-Explorer/",
+    "https://tgilbert14.github.io/NEON-Vegetation-Structure-Explorer/",
+    "https://tgilbert14.github.io/NEON-Ground-Beetle-Tracker/",
+    "https://tgilbert14.github.io/NEON-WaterChemistry-Analyte-Viewer-App/",
+    "https://tgilbert14.github.io/NEON-Mosquito-Pulse/",
+    "https://tgilbert14.github.io/NEON-My-Little-Inverts/",
+    "https://tgilbert14.github.io/NEON-Driver-Cascade/"),
+  stringsAsFactors = FALSE)
+SUITE_APPS$is_self <- SUITE_APPS$key == "small-mammal"
+
+# ---- build digest: which revision is this worker serving? --------------------
+# Published as <meta name="ddl-build"> so the post-deploy smoke can prove the
+# live app runs the merged tree. Canonical text = one "<path>\t<md5>" line per
+# file, sorted by path (C order), joined by "\n" with no trailing newline.
+#   "m-" + md5(text from manifest.json's files map)  when manifest.json is readable
+#   "f-" + md5(text from tools::md5sum over the runtime files)  otherwise
+# scripts/post_deploy_smoke.sh computes both from the pushed tree and accepts
+# either, so the check holds whether or not Connect ships manifest.json.
+RUNTIME_FILE_GLOBS <- function(root = ".") {
+  rel <- function(dir, ...) {
+    f <- list.files(file.path(root, dir), full.names = FALSE, ...)
+    if (length(f)) file.path(dir, f) else character()
+  }
+  out <- c("global.R", "ui.R", "server.R",
+           rel("R", pattern = "\\.R$"),
+           rel("www", recursive = TRUE, all.files = FALSE),
+           rel("data", pattern = "\\.rds$", recursive = TRUE),
+           rel("data", pattern = "\\.json$"),
+           rel("data-sample", recursive = TRUE))
+  out <- unique(out[file.exists(file.path(root, out))])
+  sort(out, method = "radix")
+}
+
+.md5_text <- function(txt) {
+  tf <- tempfile()
+  on.exit(unlink(tf), add = TRUE)
+  writeBin(charToRaw(enc2utf8(txt)), tf)
+  unname(tools::md5sum(tf))
+}
+
+build_digest <- function(manifest = "manifest.json", root = ".") {
+  man <- if (file.exists(manifest))
+    tryCatch(jsonlite::fromJSON(manifest, simplifyVector = FALSE), error = function(e) NULL)
+  files <- if (is.list(man)) man$files else NULL
+  if (is.list(files) && length(files)) {
+    paths <- sort(names(files), method = "radix")
+    sums <- vapply(paths, function(p) tolower(as.character(files[[p]]$checksum %||% "")),
+                   character(1))
+    return(paste0("m-", .md5_text(paste(sprintf("%s\t%s", paths, sums), collapse = "\n"))))
+  }
+  paths <- RUNTIME_FILE_GLOBS(root)
+  sums <- tolower(unname(tools::md5sum(file.path(root, paths))))
+  paste0("f-", .md5_text(paste(sprintf("%s\t%s", paths, sums), collapse = "\n")))
+}
+BUILD_DIGEST <- tryCatch(build_digest(), error = function(e) "unknown")
 
 # ---- live NEON fetch ------------------------------------------------------
 # Wrapped so the server can call it uniformly; dates are coerced to YYYY-MM,

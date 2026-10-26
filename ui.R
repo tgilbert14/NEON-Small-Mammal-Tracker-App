@@ -92,6 +92,7 @@ ui <- bslib::page_fillable(
     # app UI successfully; the public smoke rejects host error pages and requires
     # this exact marker instead of treating HTTP 200 as a healthy Shiny app.
     tags$meta(name = "ddl-app-ready", content = "small-mammal-tracker-v1"),
+    tags$meta(name = "ddl-build", content = BUILD_DIGEST),
     tags$link(rel = "preconnect", href = "https://fonts.googleapis.com"),
     tags$link(rel = "preconnect", href = "https://fonts.gstatic.com", crossorigin = NA),
     # Rubik = house font; Jura = tag/specimen-ID face (.podium-id, map tag labels).
