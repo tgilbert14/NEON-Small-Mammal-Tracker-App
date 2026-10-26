@@ -116,6 +116,51 @@ jobs:
       - name: Run scientific helper contracts
         run: Rscript --vanilla scripts/test_helpers.R
 
+      # TODO(lead): remove this guard at integration, once scripts/test_server.R lands.
+      - name: Run server contracts
+        run: |
+          set -euo pipefail
+          if [ -f scripts/test_server.R ]; then
+            Rscript --vanilla scripts/test_server.R
+          else
+            echo "scripts/test_server.R not present yet; skipped."
+          fi
+
+      # The committed indexes must be what the committed bundles produce. Rebuild
+      # them in a scratch copy (about a minute) and compare as canonical objects:
+      # columns and rows sorted, all.equal. A bundle change without an index
+      # rebuild, or an index edited by hand, fails here on every PR.
+      - name: Rebuild indexes in a scratch copy and fail on drift
+        run: |
+          set -euo pipefail
+          src="$GITHUB_WORKSPACE"
+          work="$RUNNER_TEMP/index-drift"
+          mkdir -p "$work"
+          (cd "$src" && tar --exclude=.git -cf - .) | (cd "$work" && tar -xf -)
+          (cd "$work" && Rscript --vanilla scripts/build_site_index.R > /dev/null && Rscript --vanilla scripts/build_search_index.R > /dev/null)
+          Rscript --vanilla - "$src" "$work" <<'RS'
+          args <- commandArgs(trailingOnly = TRUE)
+          canon <- function(x) {
+            x <- as.data.frame(x, stringsAsFactors = FALSE)
+            x <- x[, sort(names(x)), drop = FALSE]
+            x <- x[do.call(order, unname(as.list(x))), , drop = FALSE]
+            rownames(x) <- NULL
+            x
+          }
+          bad <- 0L
+          for (f in c("data/site_index.rds", "data/search_index.rds", "data/species_ranges.rds")) {
+            committed <- canon(readRDS(file.path(args[1], f)))
+            rebuilt <- canon(readRDS(file.path(args[2], f)))
+            eq <- all.equal(committed, rebuilt, check.attributes = FALSE)
+            if (isTRUE(eq)) cat(sprintf("index ok: %s (%d rows)\n", f, nrow(rebuilt))) else {
+              bad <- bad + 1L
+              cat(sprintf("::error title=Index drift::%s differs from a rebuild: %s\n", f,
+                          paste(utils::head(eq, 5L), collapse = "; ")))
+            }
+          }
+          if (bad) stop(sprintf("%d committed index file(s) drifted from their bundles", bad), call. = FALSE)
+          RS
+
       - name: Regenerate a pinned-runtime manifest candidate
         id: manifest
         run: |
