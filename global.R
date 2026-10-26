@@ -539,8 +539,8 @@ spin <- function(x, img = "rat-72.gif")
 info_pop <- function(title, ..., placement = "auto") {
   aria <- paste0("About: ", if (is.character(title) && length(title) == 1) title else "more information")
   bslib::popover(
-    tags$span(class = "info-dot", tabindex = "0", role = "button", `aria-label` = aria,
-              bsicons::bs_icon("info-circle")),
+    tags$button(type = "button", class = "info-dot", `aria-label` = aria,
+                bsicons::bs_icon("info-circle")),
     ..., title = title, placement = placement)
 }
 
