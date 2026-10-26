@@ -488,7 +488,7 @@ ui <- bslib::page_fillable(
           card_head("rulers", "Body measurements by species (adults)",
             info_pop("Measurements by species",
               p("The field measurements NEON records, summarised per species: the ", tags$b("median"), " with the ", tags$b("5th–95th-percentile range"), " (a typical-adult envelope) and the number of records (", tags$b("n"), ")."),
-              p("A small ", tags$span(class = "mz-flag", "⚠"), " marks a measure that contains an ", tags$b("extreme value"), " beyond that range, likely a data-entry error (e.g. a 357 g kangaroo rat). The value is ", tags$b("kept in the data"), " for your QC but is excluded from the median and the range; hover the ⚠ for the raw min–max."),
+              p("A small ", tags$span(class = "mz-flag", "⚠"), " marks a measure that contains an ", tags$b("extreme value"), " beyond that range, likely a data-entry error (e.g. a 357 g kangaroo rat). The value is ", tags$b("kept in the data"), " for your QC but is excluded from the median and the range; hover or select the ⚠ for the raw min–max."),
               p(tags$b("Adults only"), ": juveniles and subadults are much lighter and shorter, so pooling growth stages would inflate the range and pull the median; restricting to staged adults gives an honest \"typical adult size.\""),
               p(tags$b("Weight"), " and ", tags$b("hindfoot length"), " are taken at nearly every handling; ", tags$b("tail"), " and ", tags$b("ear"), " are measured far less often, so those cells are blank (", tags$b("—"), ") for species with fewer than 3 records."),
               p(tags$em("Median + percentile range, not a \"mode\": for a continuous measurement the median and spread are the honest summary. A species' mean weight and the \"heaviest species\" call shown elsewhere need ≥8 staged adults, or they're withheld as too noisy. Counts confirmed species-level IDs only.")))),
@@ -787,7 +787,7 @@ ui <- bslib::page_fillable(
     p(style = "margin-top:12px",
       HTML("Built by <strong>Desert Data Labs</strong> · Tucson, AZ · feedback or bug reports → "),
       tags$a(href = "mailto:desertdatalabs@gmail.com?subject=NEON%20Small%20Mammal%20Tracker", "desertdatalabs@gmail.com")),
-    p(style = "font-size:12px;opacity:.85",
+    p(style = "font-size:12px",
       "Data: NEON Small Mammal Box Trapping (DP1.10072.001). Not affiliated with NEON, Battelle, or the NSF. An educational data-exploration tool.")
   )
 )

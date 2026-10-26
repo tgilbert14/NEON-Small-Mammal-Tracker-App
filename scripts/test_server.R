@@ -70,6 +70,16 @@ shiny::testServer(server, {
   check(identical(last_selected("site"), wa[1]), sprintf("same-state pick selects %s in the site select", wa[1]))
   check(identical(mode_chr(rv$data$siteID), wa[1]), "the same-state site loaded")
 
+  # the label (report card, exports) carries the loaded data's own span
+  span <- fmt_range(safe_date_min(rv$data$date), safe_date_max(rv$data$date))
+  check(endsWith(rv$label, span) && identical(rv$site_name, site_label(wa[1])),
+        "the label ends with the loaded data span, the hero name is the site alone")
+  check(grepl(gsub("[^A-Za-z0-9]+", "-", format(safe_date_max(rv$data$date), "%b %Y")),
+              export_slug(), fixed = TRUE), "export filenames carry the data span")
+  pop <- as.character(site_popup_html(SITE_INDEX[SITE_INDEX$site == "SRER", , drop = FALSE]))
+  check(!grepl("onclick", pop, fixed = TRUE) && grepl("data-smt-value='SRER'", pop, fixed = TRUE),
+        "the site popup carries its payload in data attributes, not onclick")
+
   # (c) clearing the Track-an-individual picker returns the dossier to its prompt
   tag <- rv$lb$tagID[1]
   session$setInputs(indiv = tag)

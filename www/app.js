@@ -414,8 +414,10 @@ document.addEventListener("click", function (e) {
   if (el.tagName === "A") e.preventDefault();
   var v = el.getAttribute("data-smt-value") || "";
   if (el.hasAttribute("data-smt-nonce")) v = v + "||" + Math.random();
+  var loading = el.getAttribute("data-smt-loading");
+  if (loading) { try { smtLoadStart(loading); } catch (err) {} }
   Shiny.setInputValue(el.getAttribute("data-smt-input"), v, { priority: "event" });
-});
+}, true);   // capture phase: Leaflet popups stop click propagation in the bubble phase
 
 // ---- browser Back and Forward ----------------------------------------------
 // Site loads push ?site=XXXX onto the history. On Back/Forward, tell the server
