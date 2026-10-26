@@ -30,14 +30,14 @@ function webpSize(path) {
 
 requireContract(ui.includes("small_mammal_poster <- function"), "Living Poster helper is missing");
 requireContract(/title = "NEON Small Mammal Tracker"/.test(ui) && /lang = "en"/.test(ui) && !/window_title/.test(ui), "document title/lang missing");
-requireContract(ui.includes('`aria-label` = "Who moves after dark?"') && ui.includes('tags$span("Who moves"), tags$em("after dark?")'), "approved hook or accessible name drifted");
+requireContract(ui.includes('`aria-label` = "Who moves after dark?"') && ui.includes('tags$span("Who moves"), " ", tags$em("after dark?")'), "approved hook or accessible name drifted");
 requireContract(ui.includes("Meet the tiny lives reshaping the landscape."), "approved one-line promise drifted");
 requireContract(ui.includes("Meet the mammals"), "approved CTA drifted");
 requireContract(ui.includes('href = "#site-picker-start"') && ui.includes('id = "site-picker-start"'), "CTA no longer lands on the site picker");
 requireContract(ui.includes('`aria-labelledby` = "smt-poster-title"') && ui.includes('h1(id = "smt-poster-title"'), "poster heading is not named semantically");
 requireContract(ui.includes("Desert Data Labs") && ui.includes("Whole suite: ") && ui.includes("https://tgilbert14.github.io/NEON-Driver-Cascade/"), "shared DDL/Driver topline is incomplete");
 requireContract(ui.includes("NEON Small Mammal Tracker · unofficial"), "app eyebrow or unofficial boundary missing");
-requireContract(ui.includes("Public NEON DP1.10072.001 · sampled capture records—not total population or measured landscape effects"), "first-frame scientific boundary missing");
+requireContract(ui.includes("Public NEON DP1.10072.001 · capture records from sampled trapping grids"), "first-frame scientific boundary missing");
 requireContract(!ui.includes("Editorial illustration—not a field photograph or data record."), "in-app poster must omit the redundant visible illustration badge");
 requireContract(ui.includes("Editorial screenprint of a small nocturnal mouse") && ui.includes("oversized metal box live trap beneath a starry sky."), "art alt text drifted");
 requireContract(ui.includes('asset_url("assets/small-mammal-living-poster.png")'), "PNG fallback is not cache-busted");

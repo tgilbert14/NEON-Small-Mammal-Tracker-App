@@ -1,3 +1,4 @@
+// NEON explorer suite chrome, canonical copy. Sibling apps copy this file; baseline from tgilbert14/NEON-Small-Mammal-Tracker-App@c1a229d.
 /* =========================================================================
    pincards.js — tap-to-pin cards + export-with-pins for the Size Lab scatter.
 
@@ -356,7 +357,7 @@
         job = singlePng(node);
       }
       job.then(function (url) { downloadUrl(url, name); toastDone("Saved ✓"); })
-        .catch(function () { toastDone("Render failed — try again", true); })
+        .catch(function () { toastDone("Render failed. Try again.", true); })
         .then(function () {
           clearTimeout(slow);
           node.classList.remove("smt-capturing");
@@ -379,7 +380,7 @@
     var site = "";
     if (lab) {
       var codes = (lab.textContent.match(/\b[A-Z]{4}\b/g) || []).filter(function (c) { return c !== "NEON"; });
-      site = lab.getAttribute("data-site") || codes[0] || lab.textContent.trim().split(/[\s—·-]/)[0] || "";
+      site = lab.getAttribute("data-site") || codes[0] || lab.textContent.trim().split(/[\s\u2014·-]/)[0] || "";
     }
     // reduce a range like "Jan 2022 – Dec 2024" to its bounding years
     var yrs = "";
