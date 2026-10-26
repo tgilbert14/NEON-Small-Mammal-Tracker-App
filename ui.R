@@ -106,29 +106,38 @@ ui <- bslib::page_fillable(
     # jsdelivr URL in data-cdn; the tiny loader below swaps it in IF the local
     # asset 404s (e.g. www/ file missing from the deploy). Local-first keeps head
     # load order so the www/*.js that call Swal/confetti/driver see the globals.
+    # Each CDN copy carries its SRI hash in data-sri (sha384 of the pinned CDN
+    # file, checked byte-identical to the vendored copy); the fallback only loads a
+    # CDN file it can verify, so confetti (a jsDelivr-generated .min file, whose
+    # bytes change with the minifier) has no CDN fallback.
     tags$script(htmltools::HTML(paste0(
-      "(function(){function fb(el){var u=el.getAttribute('data-cdn');if(!u)return;",
-      "if(el.tagName==='LINK'){var l=document.createElement('link');l.rel='stylesheet';l.href=u;document.head.appendChild(l);}",
-      "else{var s=document.createElement('script');s.src=u;s.async=false;document.head.appendChild(s);}}",
+      "(function(){function fb(el){var u=el.getAttribute('data-cdn'),h=el.getAttribute('data-sri');if(!u||!h)return;",
+      "if(el.tagName==='LINK'){var l=document.createElement('link');l.rel='stylesheet';l.integrity=h;l.crossOrigin='anonymous';l.href=u;document.head.appendChild(l);}",
+      "else{var s=document.createElement('script');s.integrity=h;s.crossOrigin='anonymous';s.src=u;s.async=false;document.head.appendChild(s);}}",
       "window.__vendorFallback=fb;})();"))),
     tags$link(rel = "stylesheet", href = "vendor/sweetalert2-11.10.0.min.css",
       onerror = "window.__vendorFallback(this)",
-      `data-cdn` = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.min.css"),
+      `data-cdn` = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.min.css",
+      `data-sri` = "sha384-QeY5AQZQxuccpv3R7xMnhIyrxSmzwsqI9A8hFrcDhljKd7rfQHZgnTh8gpCM5kWu"),
     tags$script(src = "vendor/sweetalert2-11.10.0.all.min.js",
       onerror = "window.__vendorFallback(this)",
-      `data-cdn` = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js"),
+      `data-cdn` = "https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js",
+      `data-sri` = "sha384-5VBAkNWNEnA0Y+L5aWNg6fHumW6MdNSl4unYF6X6pHsXjltAvKa6VxLur8ZAQlzu"),
     tags$script(src = "vendor/confetti-1.9.2.browser.min.js",
       onerror = "window.__vendorFallback(this)",
       `data-cdn` = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"),
     tags$link(rel = "stylesheet", href = "vendor/driver-1.3.1.css",
       onerror = "window.__vendorFallback(this)",
-      `data-cdn` = "https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css"),
+      `data-cdn` = "https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css",
+      `data-sri` = "sha384-eyrYgcjChmzD338JTHFZssgJHOqqOZbajet8yZpCw8ESroLDi28BarMEKCImNGHC"),
     tags$script(src = "vendor/driver-1.3.1.iife.js",
       onerror = "window.__vendorFallback(this)",
-      `data-cdn` = "https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"),
+      `data-cdn` = "https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js",
+      `data-sri` = "sha384-BhR06AMz62Xn0o53z8itVS1vw4JslNckRFgOTa6/Dob0Agdmbbh8Dr9sDO2h18TO"),
     tags$script(src = "vendor/html-to-image-1.11.11.js",
       onerror = "window.__vendorFallback(this)",
-      `data-cdn` = "https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"),
+      `data-cdn` = "https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js",
+      `data-sri` = "sha384-UbfRVKN3/elS1r7JcK2FhmPP+KlJ4CvYwbyYD7tH+uTkbT9bNJr9eJeQ0FoFbAgz"),
     tags$link(rel = "stylesheet", href = asset_url("styles.css")),
     tags$script(src = asset_url("app.js")),
     tags$script(src = asset_url("pincards.js")),
