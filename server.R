@@ -731,7 +731,7 @@ server <- function(input, output, session) {
     # detection completeness: one understated labelled number, present only where
     # this site has an estimable closed-capture bout (mean_p), so a raw cross-site
     # count is read against how well the traps actually detect here (per-night p̂
-    # ~0.43 at HARV vs ~0.66 at JORN on real-tag marks; the chip reads data/site_index.rds,
+    # ~0.45 at HARV vs ~0.66 at JORN on real-tag marks; the chip reads data/site_index.rds,
     # which keeps the pre-2026-10-18 estimator until the refresh workflow rebuilds it).
     # Absent, not "–", where unavailable.
     det_line <- if (!is.na(row$mean_p[1]))
@@ -800,7 +800,7 @@ server <- function(input, output, session) {
           div(class = "si-row si-star", "Most caught: ", star),
           # detection completeness — present only where an estimable closed-capture
           # bout exists. Qualifies the raw counts above (per-night p̂ ~0.66 at JORN,
-          # ~0.43 at HARV), with the detail on hover, not always-on text.
+          # ~0.45 at HARV), with the detail on hover, not always-on text.
           if (!is.na(row$mean_p[1]))
             div(class = "si-row si-det",
               title = "Mean per-night detection probability across this site’s estimable closed-capture bouts. Full breakdown on the Population tab’s detection card.",
@@ -1407,7 +1407,7 @@ server <- function(input, output, session) {
     # detection-corrected read so the cross-site comparison carries the
     # correction the app computes everywhere else: per-site mean p̂ (how well
     # this biome's traps catch what's present) + the mean monthly N̂ across
-    # estimable grids. The p̂ spread (HARV ~0.43 temperate vs JORN ~0.66 desert,
+    # estimable grids. The p̂ spread (HARV ~0.45 temperate vs JORN ~0.66 desert,
     # about 1.5x; docs/audit-fixes/2026-10-18-closed-capture-before-after.md) is what makes a raw cross-site count a detection statement,
     # not a density one — so we surface it AND gate the winner-highlight on it.
     cc <- tryCatch(closed_capture_series(d), error = function(e) NULL)
@@ -1536,7 +1536,7 @@ server <- function(input, output, session) {
       # Numbers from docs/audit-fixes/2026-10-18-closed-capture-before-after.md (HARV vs JORN,
       # real-tag marks); rerun scripts/measure_closed_capture.R before changing them.
       tags$p("Detection differs across biomes: closed-canopy temperate sites (e.g. HARV) catch about ",
-        tags$b("~81%"), " of the animals present per bout (mean per-night p̂ ≈ 0.43), while open deserts (e.g. JORN) catch about ",
+        tags$b("~83%"), " of the animals present per bout (mean per-night p̂ ≈ 0.45), while open deserts (e.g. JORN) catch about ",
         tags$b("~96%"), " (mean p̂ ≈ 0.66), so per-night detection runs roughly 1.5x higher in the desert. These are MNKA over N-hat for ear-tagged animals; Schnabel assumes equal catchability, so trap-happy desert sites read high, and untagged captures are counted as fully detected. An uncorrected count undercounts temperate sites more than deserts."),
       tags$p("That's why the green winner-highlight is ", tags$b("suppressed"),
         " on captures / individuals / trap-nights when these two sites' detection differs materially: “more captures” there would be a trapability statement, not an abundance one."),

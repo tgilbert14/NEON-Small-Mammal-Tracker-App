@@ -38,8 +38,8 @@ was recomputed from the bundled `.rds` files, not taken from the README.
   cascade's CPUE is the right call (`mnka_series()`).
 - **Detection differs across sites, so a raw count is closest to honest at deserts.** Mean
   per-bout detection completeness (MNKA / N̂, Schnabel/Chapman on real ear tags): site median **0.86**, range **0.47
-  (LAJA) to 0.96 (SERC, JORN)** over 45 estimable sites. Temperate **HARV catches about 81%** of the animals present per bout
-  (pooled per-night p̂ 0.43); desert **JORN catches about 96%** (p̂ 0.66), so per-night detection is roughly 1.5x higher at JORN. These are model estimates under closure and equal catchability. An uncorrected count undercounts
+  (LAJA) to 0.96 (SERC, JORN)** over 45 estimable sites. Temperate **HARV catches about 83%** of the animals present per bout
+  (pooled per-night p̂ 0.45); desert **JORN catches about 96%** (p̂ 0.66), so per-night detection is roughly 1.5x higher at JORN. These are model estimates under closure and equal catchability. An uncorrected count undercounts
   temperate sites more than deserts (`closed_capture_series()`).
   2026-10-18: earlier figures counted NEON SOP C.8 placeholder IDs and dead animals as marked individuals; recomputed with real-tag marks. Source: `docs/audit-fixes/2026-10-18-closed-capture-before-after.md`.
   The picker map's detection chips read `mean_p` from `data/site_index.rds`, which the refresh
