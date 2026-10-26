@@ -116,6 +116,9 @@ jobs:
       - name: Run scientific helper contracts
         run: Rscript --vanilla scripts/test_helpers.R
 
+      - name: Run provenance and allowlist contracts
+        run: Rscript --vanilla scripts/test_provenance.R
+
       # TODO(lead): remove this guard at integration, once scripts/test_server.R lands.
       - name: Run server contracts
         run: |

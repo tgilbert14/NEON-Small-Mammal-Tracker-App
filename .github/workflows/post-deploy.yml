@@ -34,7 +34,9 @@ jobs:
       - name: Wait for Connect Cloud and verify semantic markers
         id: smoke
         env:
-          SMOKE_MAX_ATTEMPTS: "9"
+          # About 20 minutes of polling: a Connect rebuild that restores packages
+          # can take that long before the new revision serves.
+          SMOKE_MAX_ATTEMPTS: "30"
           SMOKE_SLEEP_BASE: "20"
           SMOKE_REQUIRE_BUILD: "1"
           SMOKE_REPO_ROOT: ${{ github.workspace }}
