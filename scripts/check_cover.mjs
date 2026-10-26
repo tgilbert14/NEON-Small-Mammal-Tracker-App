@@ -146,4 +146,30 @@ requireContract(statSync("docs/og-image.png").size < 1_300_000, "social image ex
 requireContract(/Who moves[\s\S]*after dark\?/.test(socialSource) && /Meet the tiny lives reshaping the landscape\./.test(socialSource), "social-card source copy drifted");
 requireContract(/small-mammal-living-poster\.png/.test(socialSource), "social-card source lost the approved art");
 
+// Suite copy voice: no em dashes in anything a visitor or a link preview shows.
+// Checks visible text (style, script and comments removed), <title>, og:title,
+// twitter:title and every meta description, for the character and its entities.
+const EM_DASH = /—|&mdash;|&#8212;|&#x2014;/i;
+const visibleText = html
+  .replace(/<!--[\s\S]*?-->/g, " ")
+  .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+  .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+  .replace(/<[^>]+>/g, " ");
+const metaContent = (re) => [...html.matchAll(re)].map((m) => m[1]);
+const titleText = (html.match(/<title>([\s\S]*?)<\/title>/i) || [, ""])[1];
+const emDashSurfaces = {
+  "visible text": [visibleText],
+  "<title>": [titleText],
+  "og:title": metaContent(/<meta[^>]+property="og:title"[^>]+content="([^"]*)"/gi),
+  "twitter:title": metaContent(/<meta[^>]+name="twitter:title"[^>]+content="([^"]*)"/gi),
+  "meta descriptions": metaContent(/<meta[^>]+(?:name|property)="(?:description|og:description|twitter:description)"[^>]+content="([^"]*)"/gi),
+};
+for (const [surface, values] of Object.entries(emDashSurfaces)) {
+  for (const value of values) {
+    const hit = value.match(new RegExp(`.{0,40}(?:${EM_DASH.source}).{0,40}`, "i"));
+    requireContract(!hit, `em dash in ${surface}: "${hit ? hit[0].trim() : ""}"`);
+  }
+}
+requireContract(titleText === "NEON Small Mammal Tracker · Who moves after dark?", "cover <title> drifted");
+
 console.log("Cover contract passed: Suite Living Poster V1 frame, approved screenprint, one hook/promise/CTA, honesty boundary, metadata, responsive media, and accessibility.");
