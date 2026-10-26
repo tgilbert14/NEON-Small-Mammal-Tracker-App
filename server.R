@@ -403,15 +403,18 @@ server <- function(input, output, session) {
       plotly::event_register("plotly_click")
   })
 
-  # state -> site cascading picker (Arizona default so the demo lines up)
-  updateSelectInput(session, "stateSel", choices = state_choices(), selected = "NM")
+  # state -> site cascading picker (Arizona default, so SRER is the default site)
+  updateSelectInput(session, "stateSel", choices = state_choices(), selected = "AZ")
   observeEvent(input$stateSel, {
     sites <- sites_in_state(input$stateSel)
     # if a picker-map click is mid-flight, keep its site selected through the
-    # cascade instead of snapping to the first site in the state
-    sel <- if (!is.null(rv$pendingSite) && rv$pendingSite %in% sites) rv$pendingSite
+    # cascade instead of snapping to the first site in the state. Clear the
+    # pending site only when this state consumed it: a late startup state event
+    # must not drop a deep link's site (WREF used to land on ABBY).
+    consumed <- !is.null(rv$pendingSite) && rv$pendingSite %in% sites
+    sel <- if (consumed) rv$pendingSite
            else if (length(sites)) sites[[1]] else NULL
-    rv$pendingSite <- NULL
+    if (consumed) rv$pendingSite <- NULL
     updateSelectInput(session, "site", choices = sites, selected = sel)
   }, ignoreNULL = TRUE)
 
@@ -526,7 +529,10 @@ server <- function(input, output, session) {
     # refresh happen in one reliable client call. updateQueryString fires on load,
     # not per reactive tick.
     if (!is_demo && !is.null(site_code) && nzchar(site_code)) {
-      updateQueryString(paste0("?site=", site_code), mode = "replace")
+      # push (not replace) so the browser Back button returns to the previous
+      # site or the picker; a load that came from Back/Forward leaves history as is
+      if (!isTRUE(from_history))
+        updateQueryString(paste0("?site=", site_code), mode = "push")
       shinyjs::runjs(sprintf("if(window.smtSaveSite) smtSaveSite(%s);",
                              jsonlite::toJSON(site_code, auto_unbox = TRUE)))
     }
@@ -541,12 +547,34 @@ server <- function(input, output, session) {
   # session cache: re-loading a site + window you already fetched is instant
   fetch_cache <- new.env(parent = emptyenv())
 
+  # Site-code allowlist: a code reaches a loader only when it is four capital
+  # letters AND a site in the bundled index. Anything else (a typo'd deep link,
+  # "../site_index", a lowercase code) is refused before any file is read.
+  site_code_ok <- function(code) {
+    is.character(code) && length(code) == 1 && !is.na(code) &&
+      grepl("^[A-Z]{4}$", code) &&
+      !is.null(SITE_INDEX) && code %in% SITE_INDEX$site
+  }
+  refuse_site <- function(code) {
+    shown <- if (is.character(code) && length(code) >= 1) substr(code[1], 1, 40) else "that"
+    showNotification(HTML(sprintf("No NEON site called %s here. Pick one on the map.",
+                                  htmltools::htmlEscape(shown))),
+                     type = "warning", duration = 6)
+    session$sendCustomMessage("loadDone", list())
+    invisible(NULL)
+  }
+
+  # Back/Forward: a load that came from the browser history must not push a new
+  # history entry (that would make Back loop on the same site).
+  from_history <- FALSE
+
   # THE single load path — used by the Load button AND the national site-picker map.
   # Takes the site explicitly (don't re-read input$site) so a map click can't race the
   # state->site cascade. ingest() dismisses the loading overlay; we dismiss it on every
   # early-return path too.
   load_site <- function(site, s0, e0, prov = FALSE) {
     if (is.null(site) || site == "") { session$sendCustomMessage("loadDone", list()); return(invisible()) }
+    if (!site_code_ok(site)) return(refuse_site(site))
 
     # double-tap / re-select guard: if this exact site+window+prov is already
     # the loaded dataset, don't re-run the multi-second ingest — just dismiss
@@ -611,6 +639,7 @@ server <- function(input, output, session) {
   # (year_min -> today), the friendliest default from a fresh map tap.
   load_site_full <- function(code) {
     if (is.null(code) || code == "") return(invisible())
+    if (!site_code_ok(code)) return(refuse_site(code))
     row <- if (!is.null(SITE_INDEX)) SITE_INDEX[SITE_INDEX$site == code, ] else NULL
     nm  <- if (!is.null(row) && nrow(row)) row$name[1] else code
     y1  <- if (!is.null(row) && nrow(row) && !is.na(row$year_min[1])) row$year_min[1] else 2013L
@@ -623,7 +652,19 @@ server <- function(input, output, session) {
     if (have_dr) { s0 <- dr[1]; e0 <- dr[2] }
     else { s0 <- as.Date(sprintf("%d-01-01", y1)); e0 <- Sys.Date() }
     st  <- if (!is.null(row) && nrow(row)) row$state[1] else NULL
-    if (!is.null(st) && !is.na(st)) { rv$pendingSite <- code; updateSelectInput(session, "stateSel", selected = st) }
+    if (!is.null(st) && !is.na(st)) {
+      if (!identical(isolate(input$stateSel), st)) {
+        # a different state: the stateSel observer selects the site from
+        # rv$pendingSite once the new state's choices arrive
+        rv$pendingSite <- code
+        updateSelectInput(session, "stateSel", selected = st)
+      } else {
+        # same state: stateSel does not change, so its observer never runs.
+        # Set the site select directly so the panel's Explore loads this site.
+        rv$pendingSite <- NULL
+        updateSelectInput(session, "site", choices = sites_in_state(st), selected = code)
+      }
+    }
     # keep the landing control in sync with the window we actually loaded
     updateDateRangeInput(session, "dateRange", start = s0, end = e0)
     session$sendCustomMessage("smtLoadStart", list(label = sprintf("%s · %s", code, nm)))
@@ -937,7 +978,8 @@ server <- function(input, output, session) {
   })
 
   # "Change site" (in the hero band) -> back to the picker-map landing
-  observeEvent(input$changeSite, {
+  observeEvent(input$changeSite, go_picker(push = TRUE))
+  go_picker <- function(push = TRUE) {
     # carry-state: stash the view the user is leaving so the NEXT site lands back
     # on the same tab / leaderboard category / env layer (ingest honours these
     # where the new site supports them). The dossier tab is intentionally NOT
@@ -948,11 +990,27 @@ server <- function(input, output, session) {
     rv$pendingEnvLayer  <- input$envLayer %||% NULL
     rv$data <- NULL; rv$lb <- NULL; rv$lb_view <- NULL; rv$tag <- NULL; rv$label <- NULL; rv$env <- NULL
     shinyjs::hide("mainTabsWrap"); shinyjs::hide("indivPickerWrap"); shinyjs::hide("envPickerWrap"); shinyjs::show("splash")
-    # clear the deep link so the splash carries no stale ?site= in the address bar
-    updateQueryString("?", mode = "replace")
+    # clear the deep link so the splash carries no stale ?site= in the address
+    # bar; push it so Back from the picker returns to the site just left
+    if (push) updateQueryString("?", mode = "push")
     # the picker map was hidden while a site was loaded; nudge it to recompute
     # size now that it's visible again, so it never paints blank/grey on return
     session$sendCustomMessage("kickMaps", list())
+  }
+
+  # Browser Back/Forward (www/app.js popstate -> input$smtHistory). A URL with
+  # ?site=XXXX loads that site through the map's path; a URL without it returns
+  # to the picker. Neither pushes a new history entry.
+  observeEvent(input$smtHistory, {
+    code <- input$smtHistory$site %||% ""
+    if (!nzchar(code)) {
+      if (!is.null(rv$data)) go_picker(push = FALSE)
+      return()
+    }
+    from_history <<- TRUE
+    on.exit(from_history <<- FALSE, add = TRUE)
+    removeModal()
+    load_site_full(code)
   })
 
   # (v2 flow: the Jornada demo path was removed — users pick a real site on the
@@ -988,9 +1046,11 @@ server <- function(input, output, session) {
   }
 
   observeEvent(input$indiv, {
-    if (!is.null(input$indiv) && input$indiv != "" && !identical(input$indiv, rv$tag))
-      pick_individual(input$indiv)
-  }, ignoreInit = TRUE)
+    # clearing the picker returns the dossier to its pick prompt instead of
+    # leaving the previous animal on screen
+    if (is.null(input$indiv) || input$indiv == "") { rv$tag <- NULL; return() }
+    if (!identical(input$indiv, rv$tag)) pick_individual(input$indiv)
+  }, ignoreInit = TRUE, ignoreNULL = FALSE)
 
   # inline trap-grid picker: change who's tracked WITHOUT leaving Home Range
   observeEvent(input$indivHR, {
@@ -1132,7 +1192,7 @@ server <- function(input, output, session) {
       radius = picker_radius(idx$captures), stroke = TRUE, color = "#ffffff", weight = 1.5,
       opacity = 1, fillColor = ~group_color, fillOpacity = 0.85, label = labs,
       popup = pops, popupOptions = leaflet::popupOptions(maxWidth = 300, minWidth = 230,
-        autoPan = TRUE, autoPanPadding = c(40, 55), keepInView = TRUE,
+        autoPan = TRUE, autoPanPadding = c(40, 55), keepInView = FALSE,
         closeButton = TRUE, closeOnClick = FALSE, className = "pm-pop-card"),
       labelOptions = picker_label_opts, options = leaflet::markerOptions(riseOnHover = TRUE))
     # Family is also encoded by the dominant-family EMOJI sitting on each dot, so
@@ -1154,7 +1214,7 @@ server <- function(input, output, session) {
         textOnly = TRUE, opacity = 1,
         style = list("font-size" = "13px", "pointer-events" = "none",
                      "text-shadow" = "0 1px 2px rgba(0,0,0,.45)")),
-      options = leaflet::markerOptions(interactive = FALSE))
+      options = leaflet::markerOptions(interactive = FALSE, keyboard = FALSE))
   }
 
   # add one species' range markers (by-species mode): size = that species' local
@@ -1180,7 +1240,7 @@ server <- function(input, output, session) {
       radius = picker_radius(r$individuals), stroke = TRUE, color = "#ffffff", weight = 1.5,
       opacity = 1, fillColor = col, fillOpacity = 0.85, label = labs,
       popup = pops, popupOptions = leaflet::popupOptions(maxWidth = 300, minWidth = 230,
-        autoPan = TRUE, autoPanPadding = c(40, 55), keepInView = TRUE,
+        autoPan = TRUE, autoPanPadding = c(40, 55), keepInView = FALSE,
         closeButton = TRUE, closeOnClick = FALSE, className = "pm-pop-card"),
       labelOptions = picker_label_opts, options = leaflet::markerOptions(riseOnHover = TRUE))
     # same emoji-on-dot treatment as the by-site map (sized by `individuals` here)

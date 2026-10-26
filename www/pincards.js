@@ -382,11 +382,9 @@
     var el = e.target.closest(".smt-open");
     if (el) openChip(el);
   });
-  document.addEventListener("keydown", function (e) {
-    if (e.key !== "Enter" && e.key !== " ") return;
-    var el = e.target.closest && e.target.closest(".smt-open");
-    if (el) { e.preventDefault(); openChip(el); }
-  });
+  /* Enter / Space on the chip (role=button, tabindex=0) is handled by the one
+     delegated keydown handler in app.js, which clicks it; a second handler here
+     opened the card twice. */
 
   document.addEventListener("DOMContentLoaded", function () {
     var mo = new MutationObserver(scanSoon);
