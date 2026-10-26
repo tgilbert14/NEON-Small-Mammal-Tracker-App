@@ -1638,3 +1638,8 @@ html:not([data-bs-theme="dark"]) .picker-tour a { color: var(--pine2); }
 .neon-notes-res p { margin: 4px 0 0; font-size: 12.5px; }
 .about-codebook { margin-top: 12px; }
 .about-codebook > summary { cursor: pointer; font-weight: 700; color: var(--pine); }
+
+/* Phones: the poster's Atlas link drops its long prefix instead of wrapping into tiny lines. */
+@media (max-width: 400px) {
+  .atlas-name-long { display: none; }
+}

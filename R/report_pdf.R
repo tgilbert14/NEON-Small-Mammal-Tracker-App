@@ -445,8 +445,10 @@ render_compare_pdf <- function(file, dA, labelA, dB, labelB) {
     list(lab = lab, sa = fmt(va), sb = fmt(vb), fa = if (aw) 2 else 1, fb = if (bw) 2 else 1)
   }
   rows <- list(
-    mrow("Captures", A$cs$total_captures, B$cs$total_captures),
-    mrow("Individuals (ear-tagged)", A$cs$individuals, B$cs$individuals),
+    # raw counts mix how detectable animals are with how many there are (the PDF
+    # carries no p-hat to gate on), so they are never bolded as a winner
+    mrow("Captures", A$cs$total_captures, B$cs$total_captures, highlight = FALSE),
+    mrow("Individuals (ear-tagged)", A$cs$individuals, B$cs$individuals, highlight = FALSE),
     mrow("Species (richness)", A$cs$species, B$cs$species, highlight = !size_mismatch),
     mrow(sprintf("Rarefied richness at n = %s", format(n_rare, big.mark = ",")), ra, rb,
          fmt = function(x) if (is.na(x)) "-" else format(round(x, 1), nsmall = 1)),
@@ -455,7 +457,7 @@ render_compare_pdf <- function(file, dA, labelA, dB, labelB) {
     # depends on grid design and trap nights, so never bolded as a winner
     mrow("Recapture rate", A$cs$recap_rate, B$cs$recap_rate, fmt = function(x) paste0(round(x, 1), "%"),
          highlight = FALSE),
-    mrow("Trap-nights (effort)", A$cs$trap_nights, B$cs$trap_nights))
+    mrow("Trap-nights (effort)", A$cs$trap_nights, B$cs$trap_nights, highlight = FALSE))
   for (i in seq_along(rows)) {
     r <- rows[[i]]
     if (i %% 2 == 0)
@@ -469,7 +471,7 @@ render_compare_pdf <- function(file, dA, labelA, dB, labelB) {
     y <- y + 0.24
   }
   y <- y + 0.05
-  foot <- paste0("Higher value per row in bold navy, except recapture rate (never)",
+  foot <- paste0("Higher value per row in bold navy, except captures, individuals, trap-nights and recapture rate (never: they depend on detection, grid design and effort)",
     if (size_mismatch) " and raw richness (one site has 2x or more the individuals; read the rarefied row)",
     ". Diversity is Hill numbers over distinct ear-tagged individuals.")
   y <- draw_para(foot, y, 8, PG$muted, gapAfter = 0.2)

@@ -80,7 +80,7 @@ small_mammal_poster <- function(show_cta = TRUE) {
           tags$a(
             class = "smt-poster-suite-link",
             href = "https://tgilbert14.github.io/NEON-Driver-Cascade/",
-            "Whole suite: ", tags$strong("NEON Cross-Product Response Atlas"),
+            "Whole suite: ", tags$strong(tags$span(class = "atlas-name-long", "NEON Cross-Product "), "Response Atlas"),
             tags$span(`aria-hidden` = "true", " ↗")
           )
         )

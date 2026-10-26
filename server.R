@@ -327,9 +327,14 @@ server <- function(input, output, session) {
           tags$span(class = "ec-meta", title = "p after accounting for testing several seasons",
                     HTML(sprintf("season-corrected p = %.2f", L$p_adj))))),
       div(class = "ec-seasonal-note",
-        if (vd$can_claim && is.finite(mr))
+        # raw p gates the claim (seasonal_verdict); a season-corrected p of 0.05 or
+        # more, after testing several seasons, softens "recovers" to "suggests"
+        if (vd$can_claim && is.finite(mr) && !(is.finite(L$p_adj) && L$p_adj >= 0.05))
           HTML(sprintf("The month-to-month overlay shows only about <b>r %+.2f</b> for plain rain. Splitting the year by season recovers the desert driver a single annual total blends away.", mr))
-        else if (vd$can_claim) "Splitting the year by season recovers the driver a single annual total blends away."
+        else if (vd$can_claim && is.finite(mr))
+          HTML(sprintf("The month-to-month overlay shows only about <b>r %+.2f</b> for plain rain. Splitting the year by season suggests a desert driver a single annual total blends away; with several seasons tested, it is not settled.", mr))
+        else if (vd$can_claim && !(is.finite(L$p_adj) && L$p_adj >= 0.05)) "Splitting the year by season recovers the driver a single annual total blends away."
+        else if (vd$can_claim) "Splitting the year by season suggests a driver a single annual total blends away; with several seasons tested, it is not settled."
         else sprintf("By season the link reads r %+.2f over %d years, which these few years cannot tell from chance.", L$r, L$n)),
       div(class = "ec-seasonal-note", "The yearly catch rate is adjusted for which months were trapped."),
       div(class = "ec-seasonal-caveat", bs_icon("info-circle"),
