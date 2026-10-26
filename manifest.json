@@ -3103,6 +3103,9 @@
     "data-sample/jorn_2017_2021.rds": {
       "checksum": "f0421a06c558a7774fcd33f10fd033ef"
     },
+    "data/bundle_meta.json": {
+      "checksum": "659f00196f6967192edbb83fd17f5abd"
+    },
     "data/env/ABBY.rds": {
       "checksum": "7ab41721cc285cd950c65775f7c43658"
     },
@@ -3241,11 +3244,14 @@
     "data/env/YELL.rds": {
       "checksum": "9de0dabb81e00707f29c52bd00084785"
     },
+    "data/neon_issue_log.json": {
+      "checksum": "ad230be35107eeb51a3395f417b2e5e7"
+    },
     "data/search_index.rds": {
-      "checksum": "5a5730890fbb262ffc72e4cfc4f03f24"
+      "checksum": "9184cf6e8a1bc0dc27478bc2fa9532de"
     },
     "data/site_index.rds": {
-      "checksum": "4e008765b6fd045fbb1496dfc262116b"
+      "checksum": "1606bb4c184315763f776733b390f16b"
     },
     "data/sites/ABBY.rds": {
       "checksum": "130efb8119f557302c627086ab5db57d"
@@ -3386,31 +3392,31 @@
       "checksum": "d71c0a318c89e8ac6e70058c92847510"
     },
     "data/species_ranges.rds": {
-      "checksum": "ba876047b08e5476c01a0b2c1540836c"
+      "checksum": "3ea32adb6be028dc1dff5d1a2a1f9371"
     },
     "global.R": {
-      "checksum": "09f8805af826ebdf447ef34bfb075726"
+      "checksum": "89ed82111dd64ad388f72a4b4312aec7"
     },
     "R/helpers.R": {
-      "checksum": "60ba3981260b008aec667cff231f2023"
+      "checksum": "fc4726e5c1139f1f4e9b67c5f517341a"
     },
     "R/report_pdf.R": {
-      "checksum": "88e2c3bbb6e285b2165694e1a024f658"
+      "checksum": "aca36a20ee6985f79d29279e73202442"
     },
     "R/seasonal_env.R": {
-      "checksum": "dac63e6aa78b665e297bfc608b7e86b0"
+      "checksum": "264bfbb278c777b997a932fa979083a1"
     },
     "R/site_metadata.R": {
       "checksum": "9336d112293f9e6daadf0cb5aa5657f4"
     },
     "server.R": {
-      "checksum": "71040d2ca97479907c88ccbde42fd663"
+      "checksum": "5391b704bdc54d227da74772e1149748"
     },
     "ui.R": {
-      "checksum": "59118d107160633eed26c09f3773e03f"
+      "checksum": "40c88e57c57a0f0374e1786038c0fd33"
     },
     "www/app.js": {
-      "checksum": "4fab7f639eafc7839bd929dafcd32fb0"
+      "checksum": "e4e115424b3545e752540c4f2d27cac2"
     },
     "www/assets/small-mammal-living-poster-840.webp": {
       "checksum": "e78e20a1ffd7915e15deb8e8047dbc72"
@@ -3422,13 +3428,13 @@
       "checksum": "eef94d4022f688e42fe2791cf38195b5"
     },
     "www/confirm.js": {
-      "checksum": "4746f2c20f51574be644c763d2a4ed48"
+      "checksum": "1322c9f6e528fbe9c586cf9128688d6c"
     },
     "www/images/nyan-cat.gif": {
       "checksum": "7d5d665f92c09858439458678bc879a4"
     },
     "www/pincards.js": {
-      "checksum": "00a8641e1e4ae7320ff979af9425178a"
+      "checksum": "355c00ee4b44b8b1744a52613ccd283d"
     },
     "www/rat-57.gif": {
       "checksum": "47a1c733a34701e1c0c8d1aa288888cf"
@@ -3440,7 +3446,7 @@
       "checksum": "03caa0fdc9353ecf3495715d7e5f11f5"
     },
     "www/styles.css": {
-      "checksum": "3649840101086fbc7264011193595240"
+      "checksum": "f27d476311cafefff704897fde4cf0e8"
     },
     "www/vendor/confetti-1.9.2.browser.min.js": {
       "checksum": "9ffc3c59368462a9486359dfc5ed6ba8"
