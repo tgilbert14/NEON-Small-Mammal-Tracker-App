@@ -403,15 +403,18 @@ server <- function(input, output, session) {
       plotly::event_register("plotly_click")
   })
 
-  # state -> site cascading picker (Arizona default so the demo lines up)
-  updateSelectInput(session, "stateSel", choices = state_choices(), selected = "NM")
+  # state -> site cascading picker (Arizona default, so SRER is the default site)
+  updateSelectInput(session, "stateSel", choices = state_choices(), selected = "AZ")
   observeEvent(input$stateSel, {
     sites <- sites_in_state(input$stateSel)
     # if a picker-map click is mid-flight, keep its site selected through the
-    # cascade instead of snapping to the first site in the state
-    sel <- if (!is.null(rv$pendingSite) && rv$pendingSite %in% sites) rv$pendingSite
+    # cascade instead of snapping to the first site in the state. Clear the
+    # pending site only when this state consumed it: a late startup state event
+    # must not drop a deep link's site (WREF used to land on ABBY).
+    consumed <- !is.null(rv$pendingSite) && rv$pendingSite %in% sites
+    sel <- if (consumed) rv$pendingSite
            else if (length(sites)) sites[[1]] else NULL
-    rv$pendingSite <- NULL
+    if (consumed) rv$pendingSite <- NULL
     updateSelectInput(session, "site", choices = sites, selected = sel)
   }, ignoreNULL = TRUE)
 
@@ -443,7 +446,12 @@ server <- function(input, output, session) {
     # plots now read the mode-aware species_pal() reactive; keep rv$pal populated
     # (mode-aware at build) for any non-reactive consumer / back-compat.
     rv$pal   <- make_species_pal(d, dark = is_dark())
-    rv$label <- label
+    # rv$site_name is the site alone (the hero shows it next to the data span);
+    # rv$label adds the LOADED data's own span, not the requested window, so the
+    # report card, the exports and the toast all name the dates actually shown.
+    span_lab <- fmt_range(safe_date_min(d$date), safe_date_max(d$date))
+    rv$site_name <- label
+    rv$label <- if (nzchar(span_lab)) paste(label, "·", span_lab) else label
     rv$tag   <- NULL
     # co-located environmental overlay for THIS site (precip/temp/soil/phenology)
     rv$env   <- load_site_env(mode_chr(d$siteID))
@@ -526,7 +534,10 @@ server <- function(input, output, session) {
     # refresh happen in one reliable client call. updateQueryString fires on load,
     # not per reactive tick.
     if (!is_demo && !is.null(site_code) && nzchar(site_code)) {
-      updateQueryString(paste0("?site=", site_code), mode = "replace")
+      # push (not replace) so the browser Back button returns to the previous
+      # site or the picker; a load that came from Back/Forward leaves history as is
+      if (!isTRUE(from_history))
+        updateQueryString(paste0("?site=", site_code), mode = "push")
       shinyjs::runjs(sprintf("if(window.smtSaveSite) smtSaveSite(%s);",
                              jsonlite::toJSON(site_code, auto_unbox = TRUE)))
     }
@@ -541,12 +552,34 @@ server <- function(input, output, session) {
   # session cache: re-loading a site + window you already fetched is instant
   fetch_cache <- new.env(parent = emptyenv())
 
+  # Site-code allowlist: a code reaches a loader only when it is four capital
+  # letters AND a site in the bundled index. Anything else (a typo'd deep link,
+  # "../site_index", a lowercase code) is refused before any file is read.
+  site_code_ok <- function(code) {
+    is.character(code) && length(code) == 1 && !is.na(code) &&
+      grepl("^[A-Z]{4}$", code) &&
+      !is.null(SITE_INDEX) && code %in% SITE_INDEX$site
+  }
+  refuse_site <- function(code) {
+    shown <- if (is.character(code) && length(code) >= 1) substr(code[1], 1, 40) else "that"
+    showNotification(HTML(sprintf("No NEON site called %s here. Pick one on the map.",
+                                  htmltools::htmlEscape(shown))),
+                     type = "warning", duration = 6)
+    session$sendCustomMessage("loadDone", list())
+    invisible(NULL)
+  }
+
+  # Back/Forward: a load that came from the browser history must not push a new
+  # history entry (that would make Back loop on the same site).
+  from_history <- FALSE
+
   # THE single load path — used by the Load button AND the national site-picker map.
   # Takes the site explicitly (don't re-read input$site) so a map click can't race the
   # state->site cascade. ingest() dismisses the loading overlay; we dismiss it on every
   # early-return path too.
   load_site <- function(site, s0, e0, prov = FALSE) {
     if (is.null(site) || site == "") { session$sendCustomMessage("loadDone", list()); return(invisible()) }
+    if (!site_code_ok(site)) return(refuse_site(site))
 
     # double-tap / re-select guard: if this exact site+window+prov is already
     # the loaded dataset, don't re-run the multi-second ingest — just dismiss
@@ -565,7 +598,7 @@ server <- function(input, output, session) {
       if (!is.null(bundle)) {
         d0 <- filter_window(bundle, s0, e0)
         if (sum(!is.na(d0$tagID)) > 0)
-          return(ingest(d0, sprintf("%s · %s", site_label(site), fmt_range(s0, e0))))
+          return(ingest(d0, site_label(site)))
         # Window had no captures, but the site IS bundled — its records just fall
         # outside this window (e.g. GUAN/LAJA predate the default range). Show the
         # full bundled record INSTANTLY rather than dropping to a slow live fetch.
@@ -574,7 +607,7 @@ server <- function(input, output, session) {
             "No captures at %s in %s–%s, so showing its full bundled record instead.",
             site_label(site), format(as.Date(s0), "%Y"), format(as.Date(e0), "%Y")),
             type = "message", duration = 6)
-          return(ingest(bundle, sprintf("%s · full record", site_label(site))))
+          return(ingest(bundle, site_label(site)))
         }
         # bundle truly empty -> fall through to live (if enabled)
       }
@@ -596,8 +629,7 @@ server <- function(input, output, session) {
                                              type = "error", duration = 8); NULL })
     if (is.null(res)) { session$sendCustomMessage("loadDone", list()); return(invisible()) }
     fetch_cache[[key]] <- res
-    ingest(res, sprintf("%s · %s%s", site_label(site), fmt_range(s0, e0),
-                        if (prov) " · incl. provisional" else ""))
+    ingest(res, sprintf("%s%s", site_label(site), if (prov) " · incl. provisional" else ""))
   }
 
   observeEvent(input$loadBtn,
@@ -611,6 +643,7 @@ server <- function(input, output, session) {
   # (year_min -> today), the friendliest default from a fresh map tap.
   load_site_full <- function(code) {
     if (is.null(code) || code == "") return(invisible())
+    if (!site_code_ok(code)) return(refuse_site(code))
     row <- if (!is.null(SITE_INDEX)) SITE_INDEX[SITE_INDEX$site == code, ] else NULL
     nm  <- if (!is.null(row) && nrow(row)) row$name[1] else code
     y1  <- if (!is.null(row) && nrow(row) && !is.na(row$year_min[1])) row$year_min[1] else 2013L
@@ -623,7 +656,19 @@ server <- function(input, output, session) {
     if (have_dr) { s0 <- dr[1]; e0 <- dr[2] }
     else { s0 <- as.Date(sprintf("%d-01-01", y1)); e0 <- Sys.Date() }
     st  <- if (!is.null(row) && nrow(row)) row$state[1] else NULL
-    if (!is.null(st) && !is.na(st)) { rv$pendingSite <- code; updateSelectInput(session, "stateSel", selected = st) }
+    if (!is.null(st) && !is.na(st)) {
+      if (!identical(isolate(input$stateSel), st)) {
+        # a different state: the stateSel observer selects the site from
+        # rv$pendingSite once the new state's choices arrive
+        rv$pendingSite <- code
+        updateSelectInput(session, "stateSel", selected = st)
+      } else {
+        # same state: stateSel does not change, so its observer never runs.
+        # Set the site select directly so the panel's Explore loads this site.
+        rv$pendingSite <- NULL
+        updateSelectInput(session, "site", choices = sites_in_state(st), selected = code)
+      }
+    }
     # keep the landing control in sync with the window we actually loaded
     updateDateRangeInput(session, "dateRange", start = s0, end = e0)
     session$sendCustomMessage("smtLoadStart", list(label = sprintf("%s · %s", code, nm)))
@@ -635,14 +680,16 @@ server <- function(input, output, session) {
   # "About this site" (an instant info card). Both built from SITE_INDEX by the
   # clicked code, so they're identical in by-site and by-species mode.
   site_popup_html <- function(row) {
-    code <- row$site[1]
-    where <- paste(stats::na.omit(c(
+    # every NEON-derived value is escaped before it goes into the markup
+    esc <- function(x) htmltools::htmlEscape(as.character(x), attribute = TRUE)
+    code <- esc(row$site[1])
+    where <- esc(paste(stats::na.omit(c(
       as.character(row$state[1]),
       if (!is.na(row$domain[1])) paste("NEON", row$domain[1]) else NA,
-      as.character(row$bio[1]))), collapse = " · ")
+      as.character(row$bio[1]))), collapse = " · "))
     sp_line <- if (!is.na(row$top_species[1]))
-      sprintf("<div class='pm-pop-sp'>Most caught: <i>%s</i>%s</div>", row$top_species[1],
-              if (!is.na(row$nickname[1])) sprintf(" (%s)", row$nickname[1]) else "") else ""
+      sprintf("<div class='pm-pop-sp'>Most caught: <i>%s</i>%s</div>", esc(row$top_species[1]),
+              if (!is.na(row$nickname[1])) sprintf(" (%s)", esc(row$nickname[1])) else "") else ""
     # detection completeness: one understated labelled number, present only where
     # this site has an estimable closed-capture bout (mean_p), so a raw cross-site
     # count is read against how well the traps actually detect here (per-night p̂
@@ -661,13 +708,13 @@ server <- function(input, output, session) {
          <div class='pm-pop-n'><b>%s</b> captures &middot; <b>%s</b> individuals &middot; <b>%s</b> species</div>
          %s%s%s
          <div class='sp-actions'>
-           <button type='button' class='sp-btn sp-go' onclick=\"smtLoadStart('%s \\u2014 loading\\u2026');Shiny.setInputValue('siteExplore','%s',{priority:'event'});\">Explore this site &rarr;</button>
-           <button type='button' class='sp-btn sp-info' onclick=\"Shiny.setInputValue('siteInfo','%s',{priority:'event'});\">About this site</button>
+           <button type='button' class='sp-btn sp-go' data-smt-input='siteExplore' data-smt-value='%s' data-smt-loading='%s &middot; loading&hellip;'>Explore this site &rarr;</button>
+           <button type='button' class='sp-btn sp-info' data-smt-input='siteInfo' data-smt-value='%s'>About this site</button>
          </div>
        </div>",
-      row$emoji[1], row$name[1], code, where,
+      esc(row$emoji[1]), esc(row$name[1]), code, where,
       format(row$captures[1], big.mark = ","), format(row$individuals[1], big.mark = ","),
-      row$species[1], sp_line, det_line, yrs, row$name[1], code, code))
+      esc(row$species[1]), sp_line, det_line, yrs, code, esc(row$name[1]), code))
   }
 
   site_info_modal <- function(code) {
@@ -681,21 +728,21 @@ server <- function(input, output, session) {
     yrs <- if (!is.na(row$year_min[1]) && !is.na(row$year_max[1]))
       sprintf("%d–%d", row$year_min[1], row$year_max[1]) else "—"
     star <- if (!is.na(row$top_species[1]))
-      HTML(sprintf("<i>%s</i>%s%s", row$top_species[1],
-        if (!is.na(row$nickname[1])) sprintf(" (%s)", row$nickname[1]) else "",
+      HTML(sprintf("<i>%s</i>%s%s", htmltools::htmlEscape(row$top_species[1]),
+        if (!is.na(row$nickname[1])) sprintf(" (%s)", htmltools::htmlEscape(row$nickname[1])) else "",
         if (!is.na(row$top_caps[1])) sprintf(" · %s captures", format(row$top_caps[1], big.mark = ",")) else ""))
       else "—"
     stat <- function(v, lab) div(class = "si-stat",
       div(class = "si-stat-n", if (is.na(v)) "—" else format(v, big.mark = ",")),
       div(class = "si-stat-l", lab))
     modalDialog(
-      title = HTML(sprintf("%s %s <span class='si-code'>(%s)</span>", row$emoji[1], row$name[1], code)),
+      title = tagList(row$emoji[1], " ", row$name[1], " ", tags$span(class = "si-code", sprintf("(%s)", code))),
       easyClose = TRUE, size = "m",
       footer = tagList(
         modalButton("Close"),
         tags$button(type = "button", class = "btn btn-primary",
-          onclick = sprintf("smtLoadStart('%s \\u00b7 loading\\u2026');Shiny.setInputValue('siteExplore','%s',{priority:'event'});",
-                            gsub("'", "\\\\'", row$name[1]), code),
+          `data-smt-input` = "siteExplore", `data-smt-value` = code,
+          `data-smt-loading` = sprintf("%s · loading…", row$name[1]),
           HTML("Explore this site&rsquo;s data &rarr;"))),
       div(class = "site-info",
         div(class = "si-sec",
@@ -767,9 +814,8 @@ server <- function(input, output, session) {
       actionLink(paste0("recent_", code),
         tagList(span(class = "rc-code", code)),
         class = "recent-chip", title = nm,
-        onclick = sprintf(
-          "smtLoadStart('%s \\u00b7 loading\\u2026');Shiny.setInputValue('recentPick','%s',{priority:'event'});",
-          gsub("'", "\\\\'", nm), code))
+        `data-smt-input` = "recentPick", `data-smt-value` = code,
+        `data-smt-loading` = sprintf("%s · loading…", nm))
     })
     div(class = "recents-strip",
       tags$span(class = "recents-label", bs_icon("clock-history"), " Recently viewed:"),
@@ -789,7 +835,8 @@ server <- function(input, output, session) {
   # Overview. Reuses the exact map-click path (load_site_full), so the sidebar
   # state/site selectors sync and the load is identical everywhere.
   search_go_btn <- function(code)
-    sprintf("<button type='button' class='sp-btn sp-go search-go' onclick=\"Shiny.setInputValue('searchGoSite','%s',{priority:'event'});\">Go to this site &rarr;</button>", code)
+    sprintf("<button type='button' class='sp-btn sp-go search-go' data-smt-input='searchGoSite' data-smt-value='%s'>Go to this site &rarr;</button>",
+            htmltools::htmlEscape(code, attribute = TRUE))
   observeEvent(input$searchGoSite, {
     code <- input$searchGoSite
     if (is.null(code) || code == "") return()
@@ -821,7 +868,7 @@ server <- function(input, output, session) {
       bsicons::bs_icon("search"), sprintf(" No bundled site has %s recorded.", sci)))
     div(class = "search-cap",
       bsicons::bs_icon("geo-alt-fill"),
-      HTML(sprintf(" <b>%s</b> trapped at <b>%d</b> of %d sites. ", sci, n, n_sites_total)),
+      HTML(sprintf(" <b>%s</b> trapped at <b>%d</b> of %d sites. ", htmltools::htmlEscape(sci), n, n_sites_total)),
       tags$span(class = "muted",
         "The number is MNKA, a within-site index of how many were known alive at once, not a population and not a cross-site ranking."))
   })
@@ -840,7 +887,7 @@ server <- function(input, output, session) {
                   ifelse(r$year_min == r$year_max, as.character(r$year_min),
                          sprintf("%d–%d", r$year_min, r$year_max)))
     df <- data.frame(
-      Site        = sprintf("%s (%s)", r$name, r$site),
+      Site        = htmltools::htmlEscape(sprintf("%s (%s)", r$name, r$site)),
       State       = ifelse(is.na(r$state), "—", r$state),
       `Peak MNKA` = r$mnka,
       Individuals = r$individuals,
@@ -912,9 +959,9 @@ server <- function(input, output, session) {
       d <- q$data
       df <- data.frame(
         Species     = ifelse(is.na(d$nickname),
-                             sprintf("%s <i>%s</i>", d$emoji, d$scientificName),
-                             sprintf("%s <i>%s</i> (%s)", d$emoji, d$scientificName, d$nickname)),
-        Group       = d$group_label,
+                             sprintf("%s <i>%s</i>", d$emoji, htmltools::htmlEscape(d$scientificName)),
+                             sprintf("%s <i>%s</i> (%s)", d$emoji, htmltools::htmlEscape(d$scientificName), htmltools::htmlEscape(d$nickname))),
+        Group       = htmltools::htmlEscape(d$group_label),
         Sites       = d$sites,
         Individuals = d$individuals,
         `Peak MNKA` = d$peak_mnka,
@@ -924,7 +971,7 @@ server <- function(input, output, session) {
     } else {
       d <- q$data
       df <- data.frame(
-        Site        = sprintf("%s (%s)", d$name, d$site),
+        Site        = htmltools::htmlEscape(sprintf("%s (%s)", d$name, d$site)),
         State       = ifelse(is.na(d$state), "—", d$state),
         Species     = d$species,
         Individuals = d$individuals,
@@ -937,7 +984,8 @@ server <- function(input, output, session) {
   })
 
   # "Change site" (in the hero band) -> back to the picker-map landing
-  observeEvent(input$changeSite, {
+  observeEvent(input$changeSite, go_picker(push = TRUE))
+  go_picker <- function(push = TRUE) {
     # carry-state: stash the view the user is leaving so the NEXT site lands back
     # on the same tab / leaderboard category / env layer (ingest honours these
     # where the new site supports them). The dossier tab is intentionally NOT
@@ -948,11 +996,27 @@ server <- function(input, output, session) {
     rv$pendingEnvLayer  <- input$envLayer %||% NULL
     rv$data <- NULL; rv$lb <- NULL; rv$lb_view <- NULL; rv$tag <- NULL; rv$label <- NULL; rv$env <- NULL
     shinyjs::hide("mainTabsWrap"); shinyjs::hide("indivPickerWrap"); shinyjs::hide("envPickerWrap"); shinyjs::show("splash")
-    # clear the deep link so the splash carries no stale ?site= in the address bar
-    updateQueryString("?", mode = "replace")
+    # clear the deep link so the splash carries no stale ?site= in the address
+    # bar; push it so Back from the picker returns to the site just left
+    if (push) updateQueryString("?", mode = "push")
     # the picker map was hidden while a site was loaded; nudge it to recompute
     # size now that it's visible again, so it never paints blank/grey on return
     session$sendCustomMessage("kickMaps", list())
+  }
+
+  # Browser Back/Forward (www/app.js popstate -> input$smtHistory). A URL with
+  # ?site=XXXX loads that site through the map's path; a URL without it returns
+  # to the picker. Neither pushes a new history entry.
+  observeEvent(input$smtHistory, {
+    code <- input$smtHistory$site %||% ""
+    if (!nzchar(code)) {
+      if (!is.null(rv$data)) go_picker(push = FALSE)
+      return()
+    }
+    from_history <<- TRUE
+    on.exit(from_history <<- FALSE, add = TRUE)
+    removeModal()
+    load_site_full(code)
   })
 
   # (v2 flow: the Jornada demo path was removed — users pick a real site on the
@@ -988,9 +1052,11 @@ server <- function(input, output, session) {
   }
 
   observeEvent(input$indiv, {
-    if (!is.null(input$indiv) && input$indiv != "" && !identical(input$indiv, rv$tag))
-      pick_individual(input$indiv)
-  }, ignoreInit = TRUE)
+    # clearing the picker returns the dossier to its pick prompt instead of
+    # leaving the previous animal on screen
+    if (is.null(input$indiv) || input$indiv == "") { rv$tag <- NULL; return() }
+    if (!identical(input$indiv, rv$tag)) pick_individual(input$indiv)
+  }, ignoreInit = TRUE, ignoreNULL = FALSE)
 
   # inline trap-grid picker: change who's tracked WITHOUT leaving Home Range
   observeEvent(input$indivHR, {
@@ -1122,7 +1188,7 @@ server <- function(input, output, session) {
       "<div class='pm-pop'><div class='pm-pop-t'>%s %s</div>
        <div class='pm-pop-s'>%s · %s</div>
        <div class='pm-pop-hint'>Tap for site options</div></div>",
-      idx$emoji[i], idx$site[i], idx$name[i], idx$state[i])))
+      htmltools::htmlEscape(idx$emoji[i]), htmltools::htmlEscape(idx$site[i]), htmltools::htmlEscape(idx$name[i]), htmltools::htmlEscape(idx$state[i]))))
     # Bind the choice popup to each marker so a CLICK opens it client-side — no
     # leafletProxy round-trip (which fails once the picker map has been hidden and
     # re-shown via "change site"). This is what makes site selection work again.
@@ -1132,7 +1198,7 @@ server <- function(input, output, session) {
       radius = picker_radius(idx$captures), stroke = TRUE, color = "#ffffff", weight = 1.5,
       opacity = 1, fillColor = ~group_color, fillOpacity = 0.85, label = labs,
       popup = pops, popupOptions = leaflet::popupOptions(maxWidth = 300, minWidth = 230,
-        autoPan = TRUE, autoPanPadding = c(40, 55), keepInView = TRUE,
+        autoPan = TRUE, autoPanPadding = c(40, 55), keepInView = FALSE,
         closeButton = TRUE, closeOnClick = FALSE, className = "pm-pop-card"),
       labelOptions = picker_label_opts, options = leaflet::markerOptions(riseOnHover = TRUE))
     # Family is also encoded by the dominant-family EMOJI sitting on each dot, so
@@ -1154,7 +1220,7 @@ server <- function(input, output, session) {
         textOnly = TRUE, opacity = 1,
         style = list("font-size" = "13px", "pointer-events" = "none",
                      "text-shadow" = "0 1px 2px rgba(0,0,0,.45)")),
-      options = leaflet::markerOptions(interactive = FALSE))
+      options = leaflet::markerOptions(interactive = FALSE, keyboard = FALSE))
   }
 
   # add one species' range markers (by-species mode): size = that species' local
@@ -1168,7 +1234,7 @@ server <- function(input, output, session) {
        <div class='pm-pop-s'>%s, %s</div>
        <div class='pm-pop-n'><b>%s</b> individuals · <b>%s</b> captures here</div>
        <div class='pm-pop-hint'>Tap for site options</div></div>",
-      r$emoji[i], r$site[i], r$name[i], r$state[i],
+      htmltools::htmlEscape(r$emoji[i]), htmltools::htmlEscape(r$site[i]), htmltools::htmlEscape(r$name[i]), htmltools::htmlEscape(r$state[i]),
       format(r$individuals[i], big.mark = ","), format(r$captures[i], big.mark = ","))))
     # native popups (built from the full SITE_INDEX row) so a click opens the
     # choice card client-side — same robustness as the by-site markers
@@ -1180,7 +1246,7 @@ server <- function(input, output, session) {
       radius = picker_radius(r$individuals), stroke = TRUE, color = "#ffffff", weight = 1.5,
       opacity = 1, fillColor = col, fillOpacity = 0.85, label = labs,
       popup = pops, popupOptions = leaflet::popupOptions(maxWidth = 300, minWidth = 230,
-        autoPan = TRUE, autoPanPadding = c(40, 55), keepInView = TRUE,
+        autoPan = TRUE, autoPanPadding = c(40, 55), keepInView = FALSE,
         closeButton = TRUE, closeOnClick = FALSE, className = "pm-pop-card"),
       labelOptions = picker_label_opts, options = leaflet::markerOptions(riseOnHover = TRUE))
     # same emoji-on-dot treatment as the by-site map (sized by `individuals` here)
@@ -1272,7 +1338,7 @@ server <- function(input, output, session) {
   # side-by-side comparison report (PDF) for the two picked sites — reads the
   # live cmpA/cmpB selection, so it works whether or not Compare was pressed.
   output$compareReport <- downloadHandler(
-    filename = function() sprintf("NEON-compare_%s-vs-%s.pdf", input$cmpA %||% "A", input$cmpB %||% "B"),
+    filename = function() sprintf("NEON-compare_%s-vs-%s.pdf", gsub("[^A-Za-z0-9]+", "", input$cmpA %||% "A"), gsub("[^A-Za-z0-9]+", "", input$cmpB %||% "B")),
     content = function(file) {
       a <- input$cmpA; b <- input$cmpB
       validate(need(!is.null(a) && !is.null(b) && !identical(a, b), "Pick two different sites to compare."))
@@ -1343,7 +1409,9 @@ server <- function(input, output, session) {
       hl <- if (suppress || is.na(va) || is.na(vb) || va == vb) c("", "")
             else if ((va > vb) == higher) c("cmp-win", "") else c("", "cmp-win")
       afford <- if (suppress)
-        tags$span(class = "cmp-det-flag", onclick = "Shiny.setInputValue('cmpDetWhy', Math.random(), {priority:'event'})",
+        tags$button(type = "button", class = "cmp-det-flag",
+                  `data-smt-input` = "cmpDetWhy", `data-smt-nonce` = "1",
+                  `aria-label` = sprintf("Why %s is not compared as a winner", lab),
                   title = "Reflects detection as well as abundance. Why isn't this a winner?",
                   bs_icon("info-circle"))
       else if (!is.null(tip)) info_pop(lab, p(tip))
@@ -1442,7 +1510,7 @@ server <- function(input, output, session) {
 
     div(
       div(class = "hero-site",
-        bs_icon("broadcast-pin"), span(class = "hero-site-label", `data-site` = mode_chr(d$siteID), rv$label),
+        bs_icon("broadcast-pin"), span(class = "hero-site-label", `data-site` = mode_chr(d$siteID), rv$site_name %||% rv$label),
         if (isTRUE(rv$is_demo)) span(class = "demo-pill", bs_icon("stars"), " DEMO"),
         span(class = "hero-site-range", fmt_range(cs$date_min, cs$date_max)),
         actionLink("changeSite", tagList(bs_icon("arrow-left-circle"), " change site"),
@@ -1478,8 +1546,9 @@ server <- function(input, output, session) {
     rank_items <- lapply(seq_len(nrow(rows)), function(i) {
       clickable <- has_tag && !is.na(rows$tag[i])
       tags$li(class = paste("rank-row", if (clickable) "rank-click" else ""),
-        onclick = if (clickable) sprintf(
-          "Shiny.setInputValue('modalPick','%s',{priority:'event'})", rows$tag[i]),
+        `data-smt-input` = if (clickable) "modalPick",
+        `data-smt-value` = if (clickable) rows$tag[i],
+        role = if (clickable) "button", tabindex = if (clickable) "0",
         span(class = paste("rank-num", if (rows$rank[i] <= 3) "top" else ""),
              paste0("#", rows$rank[i])),
         span(class = "rank-name", HTML(rows$name[i]),
@@ -1666,7 +1735,7 @@ server <- function(input, output, session) {
       "")
     insight_banner("trophy-fill", tone = "gold",
       HTML(sprintf("The <b>%s</b> animal at this site is <span class='ci-hero'>%s</span> (<i>%s</i>), with %s.",
-        lab, lead$short, lead$scientificName, val)))
+        lab, htmltools::htmlEscape(lead$short), htmltools::htmlEscape(lead$scientificName), htmltools::htmlEscape(val))))
   })
 
   # top-3 podium (olympic layout: 2nd · 1st-raised · 3rd), clickable to dossiers
@@ -1686,7 +1755,8 @@ server <- function(input, output, session) {
       r <- top[i, ]; rm <- rarity_meta(r$rarity)
       div(class = paste0("podium-card podium-", i, if (r$rarity == "Legendary") " is-legendary" else ""),
         style = sprintf("--rc:%s", rm$color),
-        onclick = sprintf("Shiny.setInputValue('modalPick','%s',{priority:'event'})", r$tagID),
+        `data-smt-input` = "modalPick", `data-smt-value` = r$tagID,
+        role = "button", tabindex = "0",
         div(class = "podium-medal", c("\U0001F947", "\U0001F948", "\U0001F949")[i]),
         div(class = "podium-emoji", r$emoji),
         div(class = "podium-id", r$short),
@@ -2383,8 +2453,11 @@ server <- function(input, output, session) {
       Plot = ir$plotID, Trap = ir$trapCoordinate, Recap = ir$recapture,
       `Weight (g)` = wcell, `Hind foot (mm)` = ir$hindfootLength,
       Sex = ir$sex, `Life stage` = ir$lifeStage, Fate = ir$fate,
-      Remarks = htmltools::htmlEscape(ifelse(is.na(ir$remarks), "", ir$remarks)))
-    DT::datatable(df, rownames = FALSE, selection = "none", escape = FALSE,
+      Remarks = ifelse(is.na(ir$remarks), "", ir$remarks))
+    # escape every column except the weight cell, which carries the intentional
+    # QC flag markup (its values are numbers built above)
+    DT::datatable(df, rownames = FALSE, selection = "none",
+      escape = setdiff(names(df), "Weight (g)"),
       class = "compact stripe hover", options = list(pageLength = 10, dom = "tip", scrollX = TRUE))
   })
 
@@ -2497,7 +2570,7 @@ server <- function(input, output, session) {
     r <- input$rad_size %||% 1
 
     txt <- sprintf("<b><i>%s</i></b><br/>Plot %s · <b>%d</b> captures",
-                   geo$scientificName, geo$plotID, geo$count)
+                   htmltools::htmlEscape(geo$scientificName), htmltools::htmlEscape(geo$plotID), geo$count)
     # per-plot capture totals for a clean top-of-stack label
     plot_tot <- geo %>% dplyr::group_by(.data$plotID) %>%
       dplyr::summarise(lat = mean(.data$lat), lng = mean(.data$lng),
@@ -2625,7 +2698,7 @@ server <- function(input, output, session) {
       frac <- if (maxw > 0) e$n_movers[i] / maxw else 1   # width+opacity carry weight (not hue) — CVD-safe
       proxy %>% addPolylines(lng = a$lng, lat = a$lat, group = "flow",
         weight = 1.8 + 5.5 * frac, opacity = 0.30 + 0.45 * frac, color = "#15b8a6",
-        label = htmltools::HTML(sprintf("%s &harr; %s<br/><b>%d</b> individuals moved between", e$plot_a[i], e$plot_b[i], e$n_movers[i])))
+        label = htmltools::HTML(sprintf("%s &harr; %s<br/><b>%d</b> individuals moved between", htmltools::htmlEscape(e$plot_a[i]), htmltools::htmlEscape(e$plot_b[i]), e$n_movers[i])))
     }
   }, ignoreNULL = FALSE)
 
@@ -2645,7 +2718,7 @@ server <- function(input, output, session) {
       a <- arc_xy(ra$lng, ra$lat, rb$lng, rb$lat)
       proxy %>% addPolylines(lng = a$lng, lat = a$lat, group = "flowSel",
         weight = 4, opacity = 0.95, color = "#e0b43a",
-        label = htmltools::HTML(sprintf("selected: %s &rarr; %s", pl[j], pl[j + 1])))
+        label = htmltools::HTML(sprintf("selected: %s &rarr; %s", htmltools::htmlEscape(pl[j]), htmltools::htmlEscape(pl[j + 1]))))
     }
   }, ignoreNULL = FALSE)
 
@@ -2916,15 +2989,22 @@ server <- function(input, output, session) {
     # tooltip for field QC — but it's excluded from the median and the p5–p95 range.
     cell <- function(med, lo, hi, n, nflag, rmin, rmax, unit, sp, meas, min_n = 3) {
       warn <- ifelse(!is.na(nflag) & nflag > 0,
-        sprintf(" <span class='mz-flag' style='cursor:pointer' onclick=\"Shiny.setInputValue('showOutliers','%s||%s||'+Math.random(),{priority:'event'})\" title='%s value(s) beyond the plausible adult range (raw %s–%s %s). Click to inspect &amp; verify. Kept in the data but excluded from the median and the 5th–95th-percentile range.'>&#9888;</span>",
-                sp, meas, format(nflag, big.mark = ","), rmin, rmax, unit),
+        # a real button: keyboard reachable, named for what it opens; the payload
+        # rides in data attributes (www/app.js delegated handler), not an onclick
+        sprintf(" <button type='button' class='mz-flag' data-smt-input='showOutliers' data-smt-value='%s||%s' data-smt-nonce='1' aria-label='Inspect %s flagged %s values' title='%s value(s) beyond the plausible adult range (raw %s–%s %s). Click to inspect &amp; verify. Kept in the data but excluded from the median and the 5th–95th-percentile range.'>&#9888;</button>",
+                htmltools::htmlEscape(sp, attribute = TRUE), meas,
+                format(nflag, big.mark = ","),
+                c(weight = "weight", hindfoot = "hind-foot length", tail = "tail length",
+                  ear = "ear length")[[meas]],
+                format(nflag, big.mark = ","),
+                htmltools::htmlEscape(rmin, attribute = TRUE), htmltools::htmlEscape(rmax, attribute = TRUE), unit),
         "")
       ifelse(is.na(med) | n < min_n, "<span class='muted'>—</span>",
         sprintf("<b>%s</b> <span class='mz-rng'>[%s–%s]</span> <span class='mz-n'>n=%s</span>%s",
                 med, lo, hi, format(n, big.mark = ","), warn))
     }
     df <- tibble::tibble(
-      Species = sprintf("<span class='ind-cell'><span class='ind-emoji'>%s</span><span class='ind-id'><i>%s</i></span></span>", m$emoji, m$scientificName),
+      Species = sprintf("<span class='ind-cell'><span class='ind-emoji'>%s</span><span class='ind-id'><i>%s</i></span></span>", m$emoji, htmltools::htmlEscape(m$scientificName)),
       Indiv = m$n_ind,
       `Weight (g)`    = cell(m$w_med,  m$w_lo,  m$w_hi,  m$w_n,  m$w_nflag,  m$w_min,  m$w_max,  "g",  m$scientificName, "weight"),
       `Hindfoot (mm)` = cell(m$hf_med, m$hf_lo, m$hf_hi, m$hf_n, m$hf_nflag, m$hf_min, m$hf_max, "mm", m$scientificName, "hindfoot"),
@@ -2960,7 +3040,7 @@ server <- function(input, output, session) {
           tags$tr(
             tags$td(tags$a(href = "#", class = "qc-drill",
               style = "cursor:pointer;color:#1f78c4;font-weight:600;text-decoration:none;",
-              onclick = sprintf("Shiny.setInputValue('qcDrillTag','%s',{priority:'event'});return false;", fc$tag[i]),
+              `data-smt-input` = "qcDrillTag", `data-smt-value` = fc$tag[i],
               title = "Open this animal's dossier to evaluate the record",
               fc$short[i], HTML("&nbsp;"), bsicons::bs_icon("box-arrow-up-right"))),
             tags$td(format(fc$date[i], "%Y-%m-%d")),
@@ -3368,7 +3448,7 @@ server <- function(input, output, session) {
   # off / mis-paginated, especially on mobile.
   output$reportPdf <- downloadHandler(
     filename = function() {
-      slug <- gsub("(^-|-$)", "", gsub("[^A-Za-z0-9]+", "-", rv$label %||% "site"))
+      slug <- export_slug()
       sprintf("NEON-SmallMammal-ReportCard_%s_%s.pdf", slug, format(Sys.Date(), "%Y%m%d"))
     },
     content = function(file) {

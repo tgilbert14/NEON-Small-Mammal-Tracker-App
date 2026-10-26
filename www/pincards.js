@@ -283,14 +283,54 @@
     return !(n.classList && HIDE.some(function (c) { return n.classList.contains(c); }));
   }
   var saving = false;
+  /* Safari / every iOS browser (all WebKit): html-to-image re-serialises the
+     whole plotly SVG through a foreignObject, which WebKit rasterises very
+     slowly on a big scatter. There we draw the chart with Plotly.toImage, render
+     only the pin layer with html-to-image, and composite both on a canvas. */
+  function isWebKit() {
+    var ua = navigator.userAgent || "";
+    return /iPad|iPhone|iPod/.test(ua) ||
+      (/Safari\//.test(ua) && !/Chrome\/|Chromium\/|Edg\/|OPR\/|Android/.test(ua));
+  }
+  function loadImg(src) {
+    return new Promise(function (res, rej) {
+      var im = new Image(); im.onload = function () { res(im); }; im.onerror = rej; im.src = src;
+    });
+  }
+  function compositePng(node, gd) {
+    var scale = 2;
+    var nr = node.getBoundingClientRect(), gr = gd.getBoundingClientRect();
+    var plotPng = Plotly.toImage(gd, { format: "png", scale: scale,
+      width: Math.round(gr.width), height: Math.round(gr.height) });
+    // the pin layer: everything in the box except the chart itself (and the chrome)
+    var pinsPng = htmlToImage.toPng(node, { pixelRatio: scale, cacheBust: true, skipFonts: true,
+      filter: function (n) {
+        return chromeFilter(n) && !(n.classList && n.classList.contains("js-plotly-plot"));
+      } });
+    return Promise.all([plotPng, pinsPng]).then(function (urls) {
+      return Promise.all([loadImg(urls[0]), loadImg(urls[1])]);
+    }).then(function (imgs) {
+      var c = document.createElement("canvas");
+      c.width = Math.round(nr.width * scale); c.height = Math.round(nr.height * scale);
+      var ctx = c.getContext("2d");
+      ctx.fillStyle = bgColor(); ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(imgs[0], Math.round((gr.left - nr.left) * scale), Math.round((gr.top - nr.top) * scale),
+                    Math.round(gr.width * scale), Math.round(gr.height * scale));
+      ctx.drawImage(imgs[1], 0, 0, c.width, c.height);
+      return c.toDataURL("image/png");
+    });
+  }
+  function singlePng(node) {
+    return htmlToImage.toPng(node, { pixelRatio: 2, backgroundColor: bgColor(), cacheBust: true, skipFonts: true, filter: chromeFilter });
+  }
   function snap(node, name, beforeEl) {
     if (saving) return;
     if (!node) return;
     // §2.15: a CDN-only capture lib is `undefined` on blocked school/corp wifi or
-    // behind an ad-blocker. NEVER return silently — the user tapped "Download" and
+    // behind an ad-blocker. NEVER return silently: the user tapped "Download" and
     // deserves to know why nothing happened, not a dead button.
     if (typeof htmlToImage === "undefined") {
-      toastDone("Download needs a file that didn't load — check your network or ad-blocker, then reload.", true);
+      toastDone("Download needs a file that did not load. Check your network or ad-blocker, then reload.", true);
       return;
     }
     saving = true;
@@ -299,12 +339,29 @@
     var gd = node.querySelector ? node.querySelector(".js-plotly-plot") : null;
     if (gd && window.Plotly && Plotly.Plots) { try { Plotly.Plots.resize(gd); } catch (e) {} }
     node.querySelectorAll(".smt-pin.smt-pulse").forEach(function (p) { p.classList.remove("smt-pulse"); });
+    // smt-capturing drops the pin shadow and pulse (WebKit paints the smtPulse
+    // box-shadow as a smear in the snapshot); removed when the capture ends
+    node.classList.add("smt-capturing");
     toastStart("Rendering image…");
+    var slow = setTimeout(function () {
+      if (typeof Swal !== "undefined" && Swal.isVisible && Swal.isVisible() && Swal.update)
+        Swal.update({ title: "Still drawing. Large charts can take up to a minute in Safari." });
+    }, 5000);
     setTimeout(function () {
-      htmlToImage.toPng(node, { pixelRatio: 2, backgroundColor: bgColor(), cacheBust: true, skipFonts: true, filter: chromeFilter })
-        .then(function (url) { downloadUrl(url, name); toastDone("Saved ✓"); })
+      var job;
+      if (gd && isWebKit() && window.Plotly && Plotly.toImage) {
+        // fast path; any failure falls back to the single full capture
+        job = compositePng(node, gd).catch(function () { return singlePng(node); });
+      } else {
+        job = singlePng(node);
+      }
+      job.then(function (url) { downloadUrl(url, name); toastDone("Saved ✓"); })
         .catch(function () { toastDone("Render failed — try again", true); })
-        .then(function () { saving = false; });
+        .then(function () {
+          clearTimeout(slow);
+          node.classList.remove("smt-capturing");
+          saving = false;
+        });
     }, 90);
   }
   /* §1.13: a deterministic, self-describing filename. Scrape the SITE code + year
@@ -382,11 +439,9 @@
     var el = e.target.closest(".smt-open");
     if (el) openChip(el);
   });
-  document.addEventListener("keydown", function (e) {
-    if (e.key !== "Enter" && e.key !== " ") return;
-    var el = e.target.closest && e.target.closest(".smt-open");
-    if (el) { e.preventDefault(); openChip(el); }
-  });
+  /* Enter / Space on the chip (role=button, tabindex=0) is handled by the one
+     delegated keydown handler in app.js, which clicks it; a second handler here
+     opened the card twice. */
 
   document.addEventListener("DOMContentLoaded", function () {
     var mo = new MutationObserver(scanSoon);

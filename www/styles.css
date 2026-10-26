@@ -848,7 +848,8 @@ a.recent-chip:hover, a.recent-chip:focus-visible {
 .compare-foot .bi { color: var(--gold-ink); }
 /* clickable ⓘ that replaces the winner-highlight on detection-sensitive raw
    rows when the two sites' detection differs — signals "ask why", not "winner" */
-.cmp-det-flag { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; padding: 6px; margin: -6px 0 -6px 2px; color: var(--gold-ink); cursor: pointer; }
+.cmp-det-flag { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; padding: 6px; margin: -6px 0 -6px 2px; color: var(--gold-ink); cursor: pointer; background: none; border: 0; font: inherit; }
+.cmp-det-flag:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
 .cmp-det-flag:hover { color: var(--cardinal); }
 .compare-foot .cmp-why { color: var(--pine); font-weight: 600; text-decoration: none; cursor: pointer; }
 .compare-foot .cmp-why:hover { text-decoration: underline; }
@@ -971,6 +972,7 @@ a.recent-chip:hover, a.recent-chip:focus-visible {
    grows its tap area with padding+negative-margin so the visual size is unchanged. */
 .info-dot { display: inline-flex; align-items: center; justify-content: center;
   min-width: 24px; min-height: 24px; margin-left: auto; border-radius: 50%;
+  background: none; border: 0; padding: 0; font: inherit; /* ready for a <button> trigger */
   color: rgba(255,255,255,.85); cursor: pointer; transition: .15s; font-size: 14px; flex: none; }
 .card-header .info-dot:hover { color: #fff; background: rgba(255,255,255,.2); }
 .info-dot:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; color: #fff; }
@@ -1271,6 +1273,9 @@ a.recent-chip:hover, a.recent-chip:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .mascot-spin .mascot, .mascot-spin .mascot-ear-l, .mascot-spin .mascot-ear-r, .mascot-spin .mascot-eyes { animation:none !important; }
   .mascot-cheer { display:none; }
+  /* a still, half-strength full bar instead of the sliding sweep (!important:
+     the base .load-bar::after rule comes later in this file) */
+  .load-bar::after { animation: none !important; left: 0 !important; width: 100% !important; opacity: .5; }
 }
 .load-title { font-weight: 800; color: var(--pine); font-size: 20px; margin-top: 6px; }
 .load-site { color: var(--pine); font-weight: 700; font-size: 14px; margin: 2px 0 18px; }
@@ -1300,6 +1305,10 @@ table.dataTable tbody tr:active { background: #dfe8f4 !important; }
 .mz-n { color: var(--muted); font-size: 10px; opacity: .85; margin-left: 2px; }
 /* amber "possible data error" flag — same verify-treatment as .ds-warn, inline */
 .mz-flag { color: #c9871f; font-weight: 700; cursor: help; margin-left: 4px; }
+/* the flag inside a table cell is a real button (opens the QC inspector) */
+button.mz-flag { background: none; border: 0; padding: 0 4px; min-width: 24px; min-height: 24px;
+  font: inherit; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+button.mz-flag:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
 
 /* minimum-known-lifespan banner list (lsp- prefix; .ls- is the meet-locals card) */
 .lsp-list { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-top: 9px; }
@@ -1584,3 +1593,31 @@ svg.smt-pin-lines {
   .stat-card::before, .home-btn::before, .local-card::before { animation: none !important; }
   .stat-card:hover, .home-btn:hover, .local-card:hover, .podium-card:hover { transform: none; }
 }
+
+/* ---- contrast (light theme only; the dark tokens already pass) -----------
+   WCAG ratios, text on #ffffff / on --bg #eef3fb:
+   kicker #85630f 5.54 / 4.97 (was #9a7314 4.34 / 3.90)
+   --pine2 #1a5f9c 6.64 / 5.96 (was --pine 4.62 / 4.15, --sky 3.59 / 3.22) */
+html:not([data-bs-theme="dark"]) .picker-start-kicker { color: #85630f; }
+html:not([data-bs-theme="dark"]) .picker-legend .pl-label,
+html:not([data-bs-theme="dark"]) .select-panel .sp-head,
+html:not([data-bs-theme="dark"]) .picker-tour a { color: var(--pine2); }
+
+/* ---- phones: 16px inputs so iOS does not zoom on focus ---------------- */
+@media (max-width: 560px) {
+  .select-panel .input-daterange .form-control,
+  .select-panel .selectize-input,
+  .select-panel .selectize-input input,
+  .indiv-picker-wrap .selectize-input input { font-size: 16px; }
+}
+
+/* ---- phones: hero links get a 44px tap target ------------------------- */
+@media (max-width: 576px) {
+  .hero-change, .hero-report {
+    display: inline-flex; align-items: center; min-height: 44px;
+    padding: 0 10px; font-size: 14px;
+  }
+}
+
+/* ---- pin-card PNG capture: no shadow or pulse in the snapshot ---------- */
+.smt-capturing .smt-pin { box-shadow: none !important; animation: none !important; }
