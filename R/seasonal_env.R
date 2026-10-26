@@ -70,8 +70,8 @@ seasonal_aggregates <- function(env) {
 # which seasonal driver leads, so the expected driver is not a search). seed 1 = stable.
 .seas_simple_p <- function(m, r, nperm = 2000) {
   if (nrow(m) < 6 || !is.finite(r)) return(NA_real_)
-  set.seed(1L)
-  perm <- replicate(nperm, suppressWarnings(stats::cor(m$x, sample(m$y))))
+  # seeded, and the session RNG is restored afterwards (.with_seed, helpers.R)
+  perm <- .with_seed(1L, replicate(nperm, suppressWarnings(stats::cor(m$x, sample(m$y)))))
   round(mean(abs(perm) >= abs(r) - 1e-9, na.rm = TRUE), 3)
 }
 
@@ -88,9 +88,8 @@ seasonal_aggregates <- function(env) {
     }, numeric(1))
     if (all(is.na(rs))) NA_real_ else max(rs, na.rm = TRUE)
   }
-  set.seed(7L)
-  perm_max <- replicate(nperm, { k <- sample.int(ny - 1L, 1L)
-    a2 <- ann; a2$value <- y[((seq_len(ny) - 1L + k) %% ny) + 1L]; scan_max(a2) })
+  perm_max <- .with_seed(7L, replicate(nperm, { k <- sample.int(ny - 1L, 1L)
+    a2 <- ann; a2$value <- y[((seq_len(ny) - 1L + k) %% ny) + 1L]; scan_max(a2) }))
   round(mean(perm_max >= abs(observed_r) - 1e-9, na.rm = TRUE), 3)
 }
 
@@ -144,4 +143,64 @@ seasonal_driver_links <- function(env, response, biome = NULL,
   })
   out <- do.call(rbind, Filter(Negate(is.null), rows)); if (is.null(out) || !nrow(out)) return(NULL)
   out[order(!out$expected, -abs(out$r)), , drop = FALSE]
+}
+
+# ---- month-adjusted annual response index ---------------------------------
+# Pooled CPUE over whichever months a year happened to sample mixes a sampling
+# calendar effect into the year-to-year signal (a year trapped only in a
+# high-catch month looks like a boom). This index removes it: per plot-month
+# CPUE (100 x captures / trap-nights, trapped plot-months only), minus the
+# site's long-run mean CPUE for that calendar month (the mean over all
+# plot-months of that month), then the anomalies averaged within each year.
+# Returns one row per year: year, value (= index, so it drops straight into
+# seasonal_driver_links()'s `response`), index (CPUE units above or below the
+# usual for those months), n_months (distinct calendar months sampled),
+# trap_nights, ok (n_months >= 3 and trap_nights >= 300). ok_only = TRUE keeps
+# only the ok years. Captures and effort are the same as the server's pooled
+# read: is_capture rows over trap_effort.
+annual_cpue_index <- function(d, ok_only = FALSE, min_months = 3L, min_trap_nights = 300) {
+  empty <- data.frame(year = integer(), value = numeric(), index = numeric(),
+                      n_months = integer(), trap_nights = numeric(), ok = logical())
+  if (is.null(d) || !nrow(d) || !all(c("ym", "plotID", "is_capture", "trap_effort") %in% names(d)))
+    return(empty)
+  e <- suppressWarnings(as.numeric(d$trap_effort))
+  pm <- stats::aggregate(
+    cbind(cap = as.numeric(d$is_capture %in% TRUE), tn = ifelse(is.finite(e), e, 0)) ~ plotID + ym,
+    data = data.frame(plotID = d$plotID, ym = d$ym,
+                      is_capture = d$is_capture, e = e)[!is.na(d$ym) & !is.na(d$plotID), ],
+    FUN = sum)
+  pm <- pm[pm$tn > 0, , drop = FALSE]
+  if (!nrow(pm)) return(empty)
+  pm$cpue <- 100 * pm$cap / pm$tn
+  pm$year <- as.integer(substr(pm$ym, 1, 4))
+  pm$mon  <- as.integer(substr(pm$ym, 6, 7))
+  clim <- tapply(pm$cpue, pm$mon, mean)
+  pm$anom <- pm$cpue - as.numeric(clim[as.character(pm$mon)])
+  yrs <- sort(unique(pm$year))
+  out <- data.frame(
+    year = yrs,
+    index = vapply(yrs, function(y) mean(pm$anom[pm$year == y]), numeric(1)),
+    n_months = vapply(yrs, function(y) length(unique(pm$mon[pm$year == y])), integer(1)),
+    trap_nights = vapply(yrs, function(y) sum(pm$tn[pm$year == y]), numeric(1)))
+  out$value <- out$index
+  out$ok <- out$n_months >= min_months & out$trap_nights >= min_trap_nights
+  out <- out[, c("year", "value", "index", "n_months", "trap_nights", "ok")]
+  if (isTRUE(ok_only)) out <- out[out$ok, , drop = FALSE]
+  rownames(out) <- NULL
+  out
+}
+
+# ---- seasonal verdict gate --------------------------------------------------
+# One rule for how strongly the seasonal card may speak. rail: "rail-weak" when
+# n < 6 years, p is not finite, or p >= 0.05; else "rail-strong" when |r| >= 0.6;
+# else "rail-mod". can_claim: n >= 6 and p < 0.05. few_years: n < 6, so the card
+# can show r without stating a verdict at 3 to 5 years.
+seasonal_verdict <- function(r, p, n) {
+  n_ok <- length(n) == 1 && is.finite(n)
+  p_ok <- length(p) == 1 && is.finite(p)
+  r_ok <- length(r) == 1 && is.finite(r)
+  few <- !n_ok || n < 6
+  claim <- !few && p_ok && p < 0.05
+  rail <- if (!claim) "rail-weak" else if (r_ok && abs(r) >= 0.6) "rail-strong" else "rail-mod"
+  list(rail = rail, can_claim = claim, few_years = few)
 }

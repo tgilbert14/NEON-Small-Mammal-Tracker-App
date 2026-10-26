@@ -24,6 +24,21 @@ mode_chr <- function(x) {
   names(sort(table(x), decreasing = TRUE))[1]
 }
 
+# Evaluate `expr` under a fixed seed, then put the session RNG back exactly as
+# it was (or absent, if it was absent), so a reproducible helper cannot freeze
+# or shift any other randomized output in the same reactive flush.
+.with_seed <- function(seed, expr) {
+  had <- exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+  old <- if (had) get(".Random.seed", envir = .GlobalEnv, inherits = FALSE) else NULL
+  on.exit({
+    if (had) assign(".Random.seed", old, envir = .GlobalEnv)
+    else if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE))
+      rm(".Random.seed", envir = .GlobalEnv)
+  }, add = TRUE)
+  set.seed(seed)
+  force(expr)
+}
+
 safe_mean <- function(x) { x <- x[is.finite(x)]; if (length(x) == 0) NA_real_ else mean(x) }
 safe_max  <- function(x) { x <- x[is.finite(x)]; if (length(x) == 0) NA_real_ else max(x) }
 
@@ -249,6 +264,35 @@ MAM_REVIEWED_MULTI_TRAP_MARKERS <- c(
   "trap accidentally double set",
   "double trap method (two traps set at each location)")
 
+# ---- gridCompletion contract (plumbing only) ------------------------------
+# NEON (2025-11-20) adds a per-night `gridCompletion` field: grid setting is
+# complete when >= 75% of traps were deployed, processing is complete when >= 75%
+# of captures were tagged and identified. Its value list is not known until the
+# first refresh that carries it. mam_grid_complete() maps a token to TRUE
+# (complete), FALSE (incomplete) or NA (missing/blank) and stops on any other
+# non-NA token, naming it, so a new vocabulary fails closed instead of being
+# read as complete. Tests pass made-up tokens through the options
+# smt.grid_complete_tokens / smt.grid_incomplete_tokens; production reads the
+# constants.
+# TODO(refresh): fill both vectors from the first bundle that carries the field.
+MAM_GRID_COMPLETE_TOKENS <- character(0)
+MAM_GRID_INCOMPLETE_TOKENS <- character(0)
+mam_grid_complete <- function(x,
+    complete = getOption("smt.grid_complete_tokens", MAM_GRID_COMPLETE_TOKENS),
+    incomplete = getOption("smt.grid_incomplete_tokens", MAM_GRID_INCOMPLETE_TOKENS)) {
+  tok <- tolower(trimws(as.character(x)))
+  tok[!is.na(tok) & !nzchar(tok)] <- NA_character_
+  out <- rep(NA, length(tok))
+  out[tok %in% tolower(complete)] <- TRUE
+  out[tok %in% tolower(incomplete)] <- FALSE
+  unknown <- !is.na(tok) & is.na(out)
+  if (any(unknown))
+    stop(sprintf("unknown gridCompletion token(s): %s",
+                 paste(utils::head(sort(unique(tok[unknown])), 5L), collapse = ", ")),
+         call. = FALSE)
+  out
+}
+
 mam_require_columns <- function(d, required = MAM_EFFORT_REQUIRED,
                                 label = "mammal bundle") {
   if (!is.data.frame(d))
@@ -468,9 +512,8 @@ clean_mam <- function(data.raw) {
 
 # ---------------------------------------------------------------------------
 # Body-condition / "Chonk" Index
-# Implements the Scaled Mass Index (Peig & Green 2009, Oikos): standardises an
-# individual's mass to a common body length using a species-specific SMA slope,
-# then expresses condition as a percentile within its species.
+# An ADULT weight percentile WITHIN species. NOT a Scaled Mass Index (Peig &
+# Green 2009); see the note inside the function for why the SMI is not used.
 # ---------------------------------------------------------------------------
 compute_condition <- function(d) {
   empty <- tibble::tibble(tagID = character(), scientificName = character(),
@@ -551,7 +594,7 @@ species_scaling <- function(d, min_n = 15, min_r = 0.30) {
 
 chonk_label <- function(pct) {
   dplyr::case_when(
-    is.na(pct)  ~ "—",
+    is.na(pct)  ~ "n/a",
     pct >= 95   ~ "MEGACHONK",
     pct >= 80   ~ "Chonky",
     pct >= 60   ~ "Husky",
@@ -620,11 +663,6 @@ build_leaderboard <- function(d) {
       avg_hf         = round(safe_mean(.data$hindfootLength), 1),
       sex            = mode_chr(.data$sex),
       lifeStage      = mode_chr(.data$lifeStage),
-      # life stage at the EARLIEST capture (not the modal stage) — the age clock
-      # only has a birth anchor if we first met the animal young. NA-safe: drops
-      # undated rows, NA when none are dated.
-      first_stage    = { o <- order(.data$date, na.last = NA)
-                         if (length(o)) .data$lifeStage[o[1]] else NA_character_ },
       roam_m         = roam_radius(.data$tx, .data$ty),
       mdm_m          = max_dist_moved(.data$tx, .data$ty),
       .groups = "drop"
@@ -637,12 +675,32 @@ build_leaderboard <- function(d) {
   # collapses to 1 for EVERY animal, silently disabling the multi-species-tag QC
   # flag (individual_qc_flags #7) and the ambiguous-ID exclusion in
   # min_known_lifespan(). Computed independently here so it can't be re-shadowed.
-  nsp <- base %>%
-    dplyr::filter(!is.na(.data$scientificName)) %>%
+  # Counted on species-level names only (species_level_only drops "X sp." and
+  # "A/B" names), so a genus-only record next to a species record is not read as
+  # a second species. n_genus_ids lets the QC flag tell a cross-genus change
+  # (worth verifying) from a within-genus swap (common, low concern).
+  nsp <- species_level_only(base[!is.na(base$scientificName), , drop = FALSE]) %>%
     dplyr::group_by(.data$tagID) %>%
-    dplyr::summarise(n_species_ids = dplyr::n_distinct(.data$scientificName), .groups = "drop")
+    dplyr::summarise(n_species_ids = dplyr::n_distinct(.data$scientificName),
+                     n_genus_ids = dplyr::n_distinct(genus_of(.data$scientificName)),
+                     .groups = "drop")
   ind <- dplyr::left_join(ind, nsp, by = "tagID")
-  ind$n_species_ids <- dplyr::coalesce(ind$n_species_ids, 0L)   # all-NA-name tags → 0 (matches n_distinct of empty)
+  ind$n_species_ids <- dplyr::coalesce(ind$n_species_ids, 0L)   # no species-level name -> 0
+  ind$n_genus_ids   <- dplyr::coalesce(ind$n_genus_ids, 0L)
+
+  # first_stage: life stage at the EARLIEST dated capture (not the modal stage);
+  # the age clock only has a birth anchor if we first met the animal young.
+  # Computed OUTSIDE the summarise() for the same shadowing reason as
+  # n_species_ids: there `lifeStage = mode_chr(.data$lifeStage)` reassigns the
+  # column, so a later read saw the modal scalar (or NA), never the first stage.
+  # Undated rows are dropped; a tag with no dated row gets NA.
+  fst <- base[!is.na(base$date), c("tagID", "date", "lifeStage"), drop = FALSE]
+  fst <- fst[order(fst$tagID, fst$date), , drop = FALSE]
+  fst <- fst[!duplicated(fst$tagID), , drop = FALSE]
+  ind <- dplyr::left_join(ind,
+                          tibble::tibble(tagID = fst$tagID,
+                                         first_stage = as.character(fst$lifeStage)),
+                          by = "tagID")
 
   cond <- compute_condition(d)
   ind <- dplyr::left_join(ind,
@@ -719,9 +777,14 @@ community_stats <- function(d, lb = NULL) {
     # distinct real ear tags; placeholder IDs are capture events, not animals
     individuals    = dplyr::n_distinct(handled$tagID[mam_tag_marked(handled$tagID)]),
     untagged_captures = sum(mam_is_placeholder_tag(handled$tagID)),
-    # species-level IDs only (excludes genus-only "X sp." / ambiguous "A/B"),
-    # so this matches the richness used by Hill numbers, Chao1, and the map
+    # species-level (incl. cf. species): excludes genus-only "X sp.", ambiguous
+    # "A/B" and cf./aff. genus or family IDs, so this matches the richness used
+    # by Hill numbers, Chao1, and the map
     species        = dplyr::n_distinct(species_level_only(
+                       dplyr::filter(handled, !is.na(.data$scientificName)))$scientificName),
+    # the same list without cf. species / aff. species records: species with at
+    # least one unqualified species-level identification
+    species_confirmed = dplyr::n_distinct(species_confirmed_only(
                        dplyr::filter(handled, !is.na(.data$scientificName)))$scientificName),
     plots          = dplyr::n_distinct(d$plotID[!is.na(d$plotID)]),
     trap_nights    = round(sum(d$trap_effort, na.rm = TRUE)),  # display value (CPUE keeps the precise denominator)
@@ -1033,85 +1096,142 @@ flagged_measure_captures <- function(d, sp, measure) {
 # silently drops a record. Missing columns degrade to NA so a live-fetched table
 # with a different shape can't error the card.
 # ---------------------------------------------------------------------------
+# Columns a per-animal history carries. pregnancyStatus and nipples are read by
+# the weight-jump flag (reproductive females gain and lose mass fast); they sit
+# at the end so the existing column order of the QC CSV is unchanged.
+.HIST_COLS <- c("plotID", "trapCoordinate", "lifeStage", "sex", "scientificName",
+                "weight", "hindfootLength", "tailLength", "earLength", "totalLength",
+                "recapture", "fate", "pregnancyStatus", "nipples")
+.history_rows <- function(h) {
+  h <- h[!is.na(h$date), , drop = FALSE]
+  if (!nrow(h)) return(NULL)
+  for (cc in .HIST_COLS) if (!cc %in% names(h)) h[[cc]] <- NA
+  h[order(h$date), c("date", .HIST_COLS), drop = FALSE]
+}
 individual_history <- function(d, tag) {
   if (is.null(d) || is.null(tag) || length(tag) != 1 || is.na(tag) || tag == "") return(NULL)
-  h <- dplyr::filter(d, .data$tagID == tag, !is.na(.data$date))
-  if (!nrow(h)) return(NULL)
-  need <- c("plotID", "trapCoordinate", "lifeStage", "sex", "scientificName",
-            "weight", "hindfootLength", "tailLength", "earLength", "totalLength",
-            "recapture", "fate")
-  for (cc in need) if (!cc %in% names(h)) h[[cc]] <- NA
-  h[order(h$date), c("date", need), drop = FALSE]
+  .history_rows(d[which(d$tagID == tag), , drop = FALSE])
 }
+
+# exact-token reproductive state, the same tokens flag_repro() uses (never
+# substring matching: "not pregnant" contains "pregnant")
+.tok <- function(x) tolower(trimws(as.character(x)))
+.is_pregnant <- function(x) .tok(x) %in% "pregnant"
+.is_lactating <- function(x) .tok(x) %in% "enlarged"
 
 # ---------------------------------------------------------------------------
 # individual_qc_flags(): the ranked QC signals for one animal's capture history,
-# returned as a list of list(level, text). Ranking follows the Fauna review —
-# the most reliable error signals first (same-tag-two-plots, stage regression,
-# beyond-lifespan span = "high"), the suggestive ones after (sex flip, weight
-# jump = "warn"; hindfoot jitter, species change = "info"). Every flag is phrased
-# as "verify", not "wrong": legitimate causes exist for the lower-ranked ones.
+# returned as a list of list(level, text, code, dates). level is one of "high",
+# "warn", "info"; code is a stable machine name; dates are the capture dates the
+# flag points at (NULL when it is about the whole record). Ranking follows the
+# Fauna review: the most reliable error signals are "high" (same tag at two
+# plots on one day, a two-level or repeated life-stage regression, a span beyond
+# any wild lifespan); suggestive ones are "warn" (sex flip, adult weight jump, a
+# single one-step stage regression, a cross-genus species change); weak ones are
+# "info" (hind-foot spread, a within-genus species change). Every flag is
+# phrased as "verify", not "wrong".
 # `hist` = individual_history(d, tag); `lb_row` = the build_leaderboard() row.
 # ---------------------------------------------------------------------------
 individual_qc_flags <- function(hist, lb_row) {
   flags <- list()
-  add <- function(level, text) flags[[length(flags) + 1L]] <<- list(level = level, text = text)
+  add <- function(level, text, code, dates = NULL)
+    flags[[length(flags) + 1L]] <<- list(level = level, text = text, code = code,
+                                         dates = if (length(dates)) sort(unique(as.Date(dates))) else NULL)
   if (is.null(hist) || !nrow(hist)) return(flags)
   has_row <- !is.null(lb_row) && nrow(lb_row) == 1
   fi <- function(x) format(x, big.mark = ",")
+  col <- function(nm) if (nm %in% names(hist)) hist[[nm]] else rep(NA, nrow(hist))
 
   # Caught once -> there are no recaptures to cross-check, so the consistency
   # checks below never run. Say that, rather than falling through to a green
   # "all consistent" that would over-claim a check that never happened.
   if (nrow(hist) < 2) {
-    add("info", "Caught once, so there are no recaptures to cross-check and the consistency flags below don't apply.")
+    add("info", "Caught once, so there are no recaptures to cross-check and the consistency flags below don't apply.",
+        "caught_once")
     return(flags)
   }
 
   # 1 — same tag, two plots, same day: spatially impossible (highest-confidence).
-  if (has_row && isTRUE(lb_row$spatial_conflict[1]))
-    add("high", "Recorded at two plots on the same day, which is physically impossible for one animal (plots are hundreds of metres apart). Almost always a tag-number mix-up or data-entry error.")
+  if (has_row && isTRUE(lb_row$spatial_conflict[1])) {
+    ok <- !is.na(hist$date) & !is.na(hist$plotID)
+    np <- tapply(hist$plotID[ok], as.character(hist$date[ok]), function(p) length(unique(p)))
+    add("high", "Recorded at two plots on the same day, which is physically impossible for one animal (plots are hundreds of metres apart). Almost always a tag-number mix-up or data-entry error.",
+        "same_day_two_plots", names(np)[np > 1])
+  }
 
   # 2 — life stage moving backward across DISTINCT dates. Collapse same-day rows
   #     to that day's most-advanced stage first, so a same-day (adult, juvenile)
   #     pair (or a two-plot-one-day record) can't be misread as a regression.
+  #     "high" when the stage drops two levels (adult to juvenile) or regresses
+  #     at least twice; a single one-step drop is "warn", because the adult vs
+  #     subadult (and subadult vs juvenile) call is a field judgment.
   ord <- c(juvenile = 1L, subadult = 2L, adult = 3L)
   hs <- data.frame(date = hist$date, st = unname(ord[as.character(hist$lifeStage)]))
   hs <- hs[!is.na(hs$st) & !is.na(hs$date), , drop = FALSE]
   if (nrow(hs) >= 2) {
     per_day <- tapply(hs$st, as.character(hs$date), max)
     per_day <- per_day[order(as.Date(names(per_day)))]
-    if (length(per_day) >= 2 && any(diff(per_day) < 0))
-      add("high", "Life stage moves backward (adult → a younger stage) on a later date, which is biologically impossible; check the staging on the datasheet.")
+    dd <- diff(per_day)
+    if (length(per_day) >= 2 && any(dd < 0)) {
+      ix <- which(dd < 0)
+      dts <- c(names(per_day)[ix], names(per_day)[ix + 1L])
+      if (any(dd <= -2L) || length(ix) >= 2L) {
+        add("high", "Life stage moves backward on a later date (adult then juvenile, or more than one step back). An animal cannot get younger, so one of these records is wrong. Check the staging on the datasheet.",
+            "stage_regression", dts)
+      } else if (per_day[ix + 1L] == 2L) {
+        add("warn", "Life stage is recorded as younger on a later date (for example adult, then subadult). The adult and subadult call is a field judgment, so one of these records is likely mis-staged; check the datasheet.",
+            "stage_regression", dts)
+      } else {
+        add("warn", "Life stage is recorded as younger on a later date (subadult, then juvenile). The subadult and juvenile call is a field judgment, so one of these records is likely mis-staged; check the datasheet.",
+            "stage_regression", dts)
+      }
+    }
   }
 
   # 3 — career span beyond any wild lifespan for these genera (>5 yr).
   if (has_row && isTRUE(lb_row$career_days[1] > 1825))
-    add("high", sprintf("Career span of %s days exceeds any wild lifespan for these species (>5 yr); verify the tag number isn't shared between two animals.", fi(lb_row$career_days[1])))
+    add("high", sprintf("Career span of %s days exceeds any wild lifespan for these species (>5 yr); verify the tag number isn't shared between two animals.", fi(lb_row$career_days[1])),
+        "career_span", range(hist$date, na.rm = TRUE))
 
   # 4 — sex flip across recaptures: field sexing is error-prone, so flag (don't condemn).
-  sx <- unique(hist$sex[hist$sex %in% c("M", "F")])
-  if (length(sx) > 1)
-    add("warn", "Sex was recorded as both M and F across captures. Field sexing is error-prone (especially non-reproductive animals), so this is worth a check, not necessarily an error.")
+  sx_all <- col("sex")
+  sx <- unique(sx_all[sx_all %in% c("M", "F")])
+  if (length(sx) > 1) {
+    tb <- table(sx_all[sx_all %in% c("M", "F")])
+    minority <- if (tb[["M"]] == tb[["F"]]) c("M", "F") else names(tb)[which.min(tb)]
+    add("warn", "Sex was recorded as both M and F across captures. Field sexing is error-prone (especially non-reproductive animals), so this is worth a check, not necessarily an error.",
+        "sex_flip", hist$date[sx_all %in% minority])
+  }
 
   # 5 — implausible weight jump: percent change FROM THE PRIOR capture (a fixed,
   #     reproducible baseline — not pmin, which would inflate the %), over a real
   #     interval of >=1 day and <=30 days, and ONLY when the prior capture was an
   #     adult — a juvenile/subadult can legitimately add >30% mass in under a
   #     month, so the flag would otherwise just relabel normal growth as a typo.
-  ww <- hist[is.finite(hist$weight) & hist$weight > 0, c("date", "weight", "lifeStage"), drop = FALSE]
-  if (nrow(ww) >= 2) {
+  #     Reproduction: a pair is skipped when she gained and either capture is
+  #     reproductive (pregnant, or nipples enlarged), or when the prior capture
+  #     was pregnant and she lost (gave birth). Exact tokens, as flag_repro().
+  wok <- is.finite(hist$weight) & hist$weight > 0
+  if (sum(wok) >= 2) {
+    ww <- data.frame(date = hist$date[wok], weight = hist$weight[wok],
+                     lifeStage = col("lifeStage")[wok],
+                     preg = .is_pregnant(col("pregnancyStatus")[wok]),
+                     lact = .is_lactating(col("nipples")[wok]))
     ww <- ww[order(ww$date), ]
-    prevw <- ww$weight[-nrow(ww)]; nextw <- ww$weight[-1]
+    n <- nrow(ww)
+    prevw <- ww$weight[-n]; nextw <- ww$weight[-1]
     dd <- as.numeric(diff(ww$date))
-    young <- ww$lifeStage[-nrow(ww)] %in% c("juvenile", "subadult")
+    young <- ww$lifeStage[-n] %in% c("juvenile", "subadult")
+    repro <- ww$preg | ww$lact
     pct <- (nextw - prevw) / prevw * 100
-    bad <- which(is.finite(pct) & abs(pct) > 30 & dd >= 1 & dd <= 30 & !young)
+    skip <- (pct > 0 & (repro[-n] | repro[-1])) | (ww$preg[-n] & pct < 0)
+    bad <- which(is.finite(pct) & abs(pct) > 30 & dd >= 1 & dd <= 30 & !young & !skip)
     if (length(bad)) {
       i <- bad[which.max(abs(pct[bad]))]
       add("warn", sprintf("Weight changed %+.0f%% from the prior capture (%.1f → %.1f g) in %d day%s (%s → %s); a swing this fast in an adult can be a transposed digit, so check it against the capture table and reproductive state.",
         pct[i], prevw[i], nextw[i], dd[i], ifelse(dd[i] == 1, "", "s"),
-        format(ww$date[i], "%Y-%m-%d"), format(ww$date[i + 1], "%Y-%m-%d")))
+        format(ww$date[i], "%Y-%m-%d"), format(ww$date[i + 1], "%Y-%m-%d")),
+        "weight_jump", c(ww$date[i], ww$date[i + 1]))
     }
   }
 
@@ -1123,14 +1243,163 @@ individual_qc_flags <- function(hist, lb_row) {
   if (nrow(ad) >= 3) {
     rng <- diff(range(ad$hindfootLength))
     if (rng > 3)
-      add("info", sprintf("Hind-foot length spans %.0f mm across %d adult recaptures. Adult foot length is near-fixed, so a spread this wide usually reflects measurement differences (ruler vs caliper, a different tech, foot flex) rather than growth.", rng, nrow(ad)))
+      add("info", sprintf("Hind-foot length spans %.0f mm across %d adult recaptures. Adult foot length is near-fixed, so a spread this wide usually reflects measurement differences (ruler vs caliper, a different tech, foot flex) rather than growth.", rng, nrow(ad)),
+          "hindfoot_spread",
+          ad$date[ad$hindfootLength %in% range(ad$hindfootLength)])
   }
 
-  # 7 — same tag, more than one species ID: weakest signal (congener swaps are common).
-  if (has_row && isTRUE(lb_row$id_uncertain[1]))
-    add("info", "This tag was recorded under more than one species. Within-genus swaps are common and low-concern; a cross-genus change is worth verifying (NEON reconciles IDs later via its identification history).")
+  # 7 — same tag, more than one species-level ID. A cross-genus change is a
+  #     "warn"; a within-genus swap (common, low concern) stays "info".
+  if (has_row && isTRUE(lb_row$id_uncertain[1])) {
+    sp <- species_level_only(hist[!is.na(hist$scientificName), , drop = FALSE])
+    modal <- mode_chr(sp$scientificName)
+    dts <- sp$date[!is.na(sp$scientificName) & sp$scientificName != modal]
+    ng <- if ("n_genus_ids" %in% names(lb_row)) lb_row$n_genus_ids[1] else NA
+    if (isTRUE(ng > 1))
+      add("warn", "This tag was recorded under species in more than one genus. A cross-genus change is unlikely to be a simple congener swap, so check the datasheet (NEON reconciles IDs later via its identification history).",
+          "multi_species_id", dts)
+    else
+      add("info", "This tag was recorded under more than one species of the same genus. Within-genus swaps are common and low concern (NEON reconciles IDs later via its identification history).",
+          "multi_species_id", dts)
+  }
 
   flags
+}
+
+# Suite-standard name for the per-animal QC flag function.
+mammal_qc <- individual_qc_flags
+
+QC_LEVELS <- c("high", "warn", "info")
+
+# capture_qc_flags(): one `qc_flags` text per capture row for the per-animal QC
+# history CSV. Each flag from individual_qc_flags() is written onto the rows of
+# the dates it points at, as "code (level)", joined with "; ". When `d` (the
+# site's clean_mam() table) is given, adult measurements outside the shared
+# possible-error rule (.is_meas_outlier against the species' adult pool, the
+# rule behind the warning triangle and the Chonk exclusion) are added as
+# "measurement_outlier_<measure> (warn)". Rows with no flag get "".
+# Call: h <- individual_history(d, tag)
+#       h <- capture_qc_flags(h, individual_qc_flags(h, lb_row), d)
+capture_qc_flags <- function(hist, flags, d = NULL) {
+  if (is.null(hist) || !nrow(hist)) return(hist)
+  lab <- vector("list", nrow(hist))
+  for (f in flags) {
+    if (is.null(f$dates) || !length(f$dates)) next
+    hit <- which(hist$date %in% f$dates)
+    for (i in hit) lab[[i]] <- c(lab[[i]], sprintf("%s (%s)", f$code, f$level))
+  }
+  if (!is.null(d)) {
+    adult <- hist$lifeStage %in% "adult"
+    for (ms in names(.MEAS_COL)) {
+      v <- suppressWarnings(as.numeric(hist[[.MEAS_COL[[ms]]]]))
+      for (sp in unique(hist$scientificName[adult & is.finite(v)])) {
+        rows <- which(adult & is.finite(v) & hist$scientificName %in% sp)
+        ref <- species_adult_values(d, sp, ms)
+        out <- rows[.is_meas_outlier(v[rows], ref)]
+        for (i in out) lab[[i]] <- c(lab[[i]], sprintf("measurement_outlier_%s (warn)", ms))
+      }
+    }
+  }
+  hist$qc_flags <- vapply(lab, function(x) paste(unique(x), collapse = "; "), character(1))
+  hist
+}
+
+# site_qc_report(): one row per flagged record across the site, with columns
+# flag, level ("high", "warn", "info"), tagID, date, plotID, scientificName,
+# measure, value, rule. Three sources, each the same rule the app shows:
+#  1. measurement outliers: .is_meas_outlier per species-level species and
+#     measure on adult captures (flagged_measure_captures; the warning triangle
+#     and the Chonk exclusion);
+#  2. cross-grid movers with an identity tell (sex change, species change, or
+#     two plots on one day), the rule of the movers inspector; one row per tag;
+#  3. individual_qc_flags() for every marked tag, one row per implicated date
+#     (date NA for a flag about the whole record). "caught_once" is not a flag
+#     on a record and is left out.
+# History rows are split once by tag, so a site with ~4,700 tags runs in seconds.
+site_qc_report <- function(d, lb = NULL) {
+  empty <- data.frame(flag = character(), level = character(), tagID = character(),
+                      date = as.Date(character()), plotID = character(),
+                      scientificName = character(), measure = character(),
+                      value = character(), rule = character(), stringsAsFactors = FALSE)
+  if (is.null(d) || !nrow(d)) return(empty)
+  out <- list()
+  # 1 — measurement outliers
+  sps <- sort(unique(species_level_only(d[!is.na(d$tagID) & !is.na(d$scientificName) &
+                                          d$lifeStage %in% "adult", , drop = FALSE])$scientificName))
+  for (sp in sps) for (ms in names(.MEAS_COL)) {
+    fm <- flagged_measure_captures(d, sp, ms)
+    if (is.null(fm) || !nrow(fm)) next
+    out[[length(out) + 1L]] <- data.frame(
+      flag = "measurement_outlier", level = "warn", tagID = fm$tag, date = fm$date,
+      plotID = fm$plotID, scientificName = sp, measure = ms, value = as.character(fm$value),
+      rule = sprintf("Adult %s more than 5 x MAD from the median (%.1f) of adult %s; MAD floored at 10%% of the median.",
+                     ms, fm$median[1], sp), stringsAsFactors = FALSE)
+  }
+  # 2 — movers with an identity tell
+  rf <- tryCatch(recapture_edges(d), error = function(e) NULL)
+  if (!is.null(rf) && length(rf$movers)) {
+    h <- d[d$tagID %in% rf$movers & !is.na(d$date) & !is.na(d$plotID) &
+             !is.na(d$decimalLatitude) & !is.na(d$decimalLongitude), , drop = FALSE]
+    for (g in split(h, h$tagID)) {
+      sexes <- unique(g$sex[g$sex %in% c("M", "F")])
+      spp <- unique(g$scientificName[!is.na(g$scientificName)])
+      sameday <- any(tapply(g$plotID, g$date, function(p) length(unique(p))) > 1, na.rm = TRUE)
+      tells <- c(if (length(sexes) > 1) "sex changes", if (length(spp) > 1) "species changes",
+                 if (isTRUE(sameday)) "same day at 2 plots")
+      if (!length(tells)) next
+      out[[length(out) + 1L]] <- data.frame(
+        flag = "mover_identity", level = "warn", tagID = g$tagID[1], date = as.Date(NA),
+        plotID = paste(sort(unique(g$plotID)), collapse = ","),
+        scientificName = mode_chr(g$scientificName), measure = "identity",
+        value = paste(tells, collapse = "; "),
+        rule = "Caught at 2+ grids with a sex change, species change or same-day two-plot record: possibly two animals sharing a tag number.",
+        stringsAsFactors = FALSE)
+    }
+  }
+  # 3 — per-animal flags
+  if (is.null(lb)) lb <- build_leaderboard(d)
+  if (!is.null(lb) && nrow(lb)) {
+    keep <- mam_tag_marked(d$tagID) & !is.na(d$date)
+    cols <- intersect(c("tagID", "date", .HIST_COLS), names(d))
+    base <- as.data.frame(d[keep, cols, drop = FALSE])
+    pieces <- split(base, base$tagID)
+    pieces <- pieces[vapply(pieces, nrow, integer(1)) >= 2L]   # caught once: nothing to cross-check
+    meas_of <- c(same_day_two_plots = "plotID", stage_regression = "lifeStage",
+                 career_span = "career_days", sex_flip = "sex", weight_jump = "weight",
+                 hindfoot_spread = "hindfootLength", multi_species_id = "scientificName")
+    li <- match(names(pieces), lb$tagID)
+    for (k in seq_along(pieces)) {
+      if (is.na(li[k])) next
+      row <- lb[li[k], , drop = FALSE]
+      hist <- .history_rows(pieces[[k]])
+      fl <- individual_qc_flags(hist, row)
+      for (f in fl) {
+        if (identical(f$code, "caught_once")) next
+        dts <- if (length(f$dates)) f$dates else as.Date(NA)
+        mcol <- meas_of[[f$code]]
+        vals <- vapply(seq_along(dts), function(j) {
+          if (mcol == "career_days") return(as.character(row$career_days[1]))
+          r <- hist[!is.na(dts[j]) & hist$date == dts[j], , drop = FALSE]
+          if (!nrow(r)) return(NA_character_)
+          paste(unique(as.character(r[[mcol]])), collapse = ",")
+        }, character(1))
+        pl <- vapply(seq_along(dts), function(j) {
+          r <- hist$plotID[!is.na(dts[j]) & hist$date == dts[j]]
+          if (length(r)) paste(sort(unique(r)), collapse = ",") else NA_character_
+        }, character(1))
+        out[[length(out) + 1L]] <- data.frame(
+          flag = f$code, level = f$level, tagID = row$tagID[1], date = dts, plotID = pl,
+          scientificName = row$scientificName[1], measure = mcol, value = vals,
+          rule = f$text, stringsAsFactors = FALSE)
+      }
+    }
+  }
+  if (!length(out)) return(empty)
+  res <- do.call(rbind, out)
+  stopifnot(all(res$level %in% QC_LEVELS))
+  res <- res[order(match(res$level, QC_LEVELS), res$flag, res$tagID, res$date), , drop = FALSE]
+  rownames(res) <- NULL
+  res
 }
 
 # Quadratic-Bezier arc points between two lon/lat endpoints (a curved connector,
@@ -1184,7 +1453,53 @@ mnka_series <- function(d, scientific_name = NULL) {
     dplyr::mutate(cpue = dplyr::if_else(.data$trap_nights > 0,
                                         round(100 * .data$captures / .data$trap_nights, 1), NA_real_),
                   date = as.Date(paste0(.data$ym, "-01")))
+  # edge: the first and last sampled month of each plot's series. MNKA counts an
+  # animal only between its first and last capture, so these months are biased
+  # low (an animal first caught later, or last caught earlier, is uncounted).
+  out <- out %>% dplyr::group_by(.data$plotID) %>%
+    dplyr::mutate(edge = .data$ym == min(.data$ym) | .data$ym == max(.data$ym)) %>%
+    dplyr::ungroup()
+  # incomplete_grid: TRUE when any trapped night of that plot-month carries a
+  # gridCompletion token mapped FALSE. FALSE when the field is absent.
+  out$incomplete_grid <- FALSE
+  if ("gridCompletion" %in% names(d)) {
+    e <- suppressWarnings(as.numeric(d$trap_effort))
+    tr <- !is.na(d$ym) & !is.na(d$plotID) & is.finite(e) & e > 0
+    g <- mam_grid_complete(d$gridCompletion[tr])
+    bad <- unique(paste(d$plotID[tr], d$ym[tr], sep = "|")[g %in% FALSE])
+    out$incomplete_grid <- paste(out$plotID, out$ym, sep = "|") %in% bad
+  }
   out
+}
+
+# Insert one all-NA row after any gap of more than `max_gap_months` between
+# consecutive sampled months (per `group`, e.g. plotID; NULL = one series), so a
+# plotly line (connectgaps = FALSE, the default) breaks across a seasonal pause
+# instead of drawing a straight bridge. The inserted row has the group value and
+# a date one month after the last sampled month; every column in `value_cols`
+# (and every other column) is NA. Use on mnka_series() output before add_trace.
+insert_gap_breaks <- function(df, max_gap_months = 2L, group = "plotID",
+                              value_cols = c("mnka", "cpue")) {
+  if (is.null(df) || !nrow(df)) return(df)
+  df <- as.data.frame(df)
+  gkey <- if (is.null(group)) rep("all", nrow(df)) else as.character(df[[group]])
+  mi <- function(dt) as.integer(format(dt, "%Y")) * 12L + as.integer(format(dt, "%m"))
+  pieces <- lapply(split(seq_len(nrow(df)), gkey), function(ix) {
+    g <- df[ix[order(df$date[ix])], , drop = FALSE]
+    if (nrow(g) < 2) return(g)
+    jump <- which(diff(mi(g$date)) > max_gap_months)
+    if (!length(jump)) return(g)
+    br <- g[jump, , drop = FALSE]
+    keep <- if (is.null(group)) character(0) else group
+    for (cc in setdiff(names(br), c(keep, "date"))) br[[cc]] <- br[[cc]][NA_integer_]
+    lt <- as.POSIXlt(br$date); lt$mon <- lt$mon + 1L; br$date <- as.Date(lt)
+    if ("ym" %in% names(br)) br$ym <- format(br$date, "%Y-%m")
+    out <- rbind(g, br)
+    out[order(out$date), , drop = FALSE]
+  })
+  res <- do.call(rbind, unname(pieces))
+  rownames(res) <- NULL
+  res
 }
 
 # Keep only confirmed SPECIES-level identifications — drop genus-only "X sp."
@@ -1195,33 +1510,59 @@ mnka_series <- function(d, scientific_name = NULL) {
 # discriminator) with a scientific-name regex as a backstop. Mirrors the filter
 # in build_site_index.R so the map, the stat cards, the diversity profile and the
 # accumulation curve all agree on ONE species list. (Quinn review.)
+#
+# identificationQualifier: NEON marks an uncertain ID with cf. (compare) or
+# aff. (has affinity to) plus the rank the doubt applies to. Tokens seen across
+# the 46 committed bundles: cf. species (45,368 rows), cf. genus (354),
+# cf. variety (219), cf. subspecies (47), aff. species (32), cf. family (29),
+# aff. genus (3), aff. subspecies (1), aff. variety (1). A doubt at genus or
+# family rank means the name is not a species-level ID, so those rows are
+# dropped here. cf./aff. species and below stay species-level; see
+# species_confirmed_only() for the stricter list.
+MAM_ID_QUALIFIER_NOT_SPECIES <- c("cf. genus", "cf. family", "aff. genus")
+MAM_ID_QUALIFIER_SPECIES_DOUBT <- c("cf. species", "aff. species")
+.id_qualifier <- function(h) {
+  if (!"identificationQualifier" %in% names(h)) return(rep(NA_character_, nrow(h)))
+  tolower(trimws(as.character(h$identificationQualifier)))
+}
 species_level_only <- function(h) {
   if (is.null(h) || nrow(h) == 0) return(h)
   rank <- if ("taxonRank" %in% names(h)) h$taxonRank else rep(NA_character_, nrow(h))
   rank_ok <- is.na(rank) | rank %in% c("species", "subspecies", "speciesGroup")
   nm <- ifelse(is.na(h$scientificName), "", as.character(h$scientificName))
   ambiguous <- grepl("\\bsp\\.?$", nm) | grepl("/", nm, fixed = TRUE)
-  h[rank_ok & !ambiguous, , drop = FALSE]
+  coarse_doubt <- .id_qualifier(h) %in% MAM_ID_QUALIFIER_NOT_SPECIES
+  h[rank_ok & !ambiguous & !coarse_doubt, , drop = FALSE]
+}
+
+# species_level_only() minus cf. species / aff. species rows: identifications
+# with no doubt at species rank. Used for community_stats()$species_confirmed.
+species_confirmed_only <- function(h) {
+  h <- species_level_only(h)
+  if (is.null(h) || nrow(h) == 0) return(h)
+  h[!(.id_qualifier(h) %in% MAM_ID_QUALIFIER_SPECIES_DOUBT), , drop = FALSE]
 }
 
 # Sample-based species accumulation over monthly bouts (Gotelli & Colwell 2001),
 # averaged over permutations, + a bias-corrected Chao1 asymptotic richness
 # estimate with a 95% CI (Chao 1987; Chao & Chiu 2016). Counts species-level IDs
 # only; Chao1 is a LOWER BOUND and is flagged unstable when doubletons are scarce.
-species_accum <- function(d, perms = 40) {
+# The band is the mean +/- 1 SD over `perms` random bout orderings drawn with a
+# fixed `seed` (the session RNG is restored afterwards), so it is reproducible.
+species_accum <- function(d, perms = 100, seed = 20261022L) {
   h <- dplyr::filter(d, !is.na(.data$tagID), !is.na(.data$scientificName), !is.na(.data$ym))
   h <- species_level_only(h)                       # drop "X sp." / "A/B" so they aren't phantom species
   if (nrow(h) == 0) return(NULL)
   bouts <- split(h$scientificName, h$ym)
   k <- length(bouts)
-  # deterministic permutation seeds (no Math.random / set.seed dependence on RNG state)
-  # matrix() keeps a one-month window (k = 1) two-dimensional for rowMeans/apply
-  perm_mat <- matrix(nrow = k, vapply(seq_len(perms), function(p) {
-    ord <- order((seq_len(k) * (p * 2 + 1)) %% (k + 1))  # cheap varied orderings
+  # seeded uniform shuffles of the bouts; matrix() keeps a one-month window
+  # (k = 1) two-dimensional for rowMeans/apply
+  perm_mat <- .with_seed(seed, matrix(nrow = k, vapply(seq_len(perms), function(p) {
+    ord <- sample.int(k)
     seen <- character(0); rich <- integer(k)
     for (i in seq_len(k)) { seen <- union(seen, bouts[[ord[i]]]); rich[i] <- length(seen) }
     rich
-  }, integer(k)))
+  }, integer(k))))
   mean_rich <- rowMeans(perm_mat)
   sd_rich   <- apply(perm_mat, 1, stats::sd)
 
@@ -1242,7 +1583,9 @@ species_accum <- function(d, perms = 40) {
     r <- f1 / f2
     varC <- f2 * (0.5 * r^2 + r^3 + 0.25 * r^4)
   } else {
-    varC <- max(0.25 * f1 * (2 * f1 - 1)^2 / (f2 + 1) - f1^4 / (4 * max(chao1, 1)), 0)
+    # bias-corrected form at f2 = 0 (Chao 2005; Chao & Chiu 2016), with no
+    # (n-1)/n factor, matching the f2 > 0 branch above
+    varC <- max(f1 * (f1 - 1) / 2 + f1 * (2 * f1 - 1)^2 / 4 - f1^4 / (4 * max(chao1, 1)), 0)
   }
   if (T_extra > 0 && varC > 0) {
     K  <- exp(1.96 * sqrt(log(1 + varC / T_extra^2)))
@@ -1418,6 +1761,18 @@ bout_closed_capture <- function(d) {
     dplyr::mutate(t = dplyr::row_number()) %>%
     dplyr::ungroup()
 
+  # incomplete_grid per trapped night: any row of that plot-night whose
+  # gridCompletion maps FALSE (absent field: never)
+  if ("gridCompletion" %in% names(d)) {
+    rows <- !is.na(d$plotID) & !is.na(d$date)
+    gn <- tibble::tibble(plotID = d$plotID[rows], date = d$date[rows],
+                         bad = mam_grid_complete(d$gridCompletion[rows]) %in% FALSE) %>%
+      dplyr::group_by(.data$plotID, .data$date) %>%
+      dplyr::summarise(bad = any(.data$bad), .groups = "drop")
+    tn <- dplyr::left_join(tn, gn, by = c("plotID", "date"))
+    tn$bad[is.na(tn$bad)] <- FALSE
+  } else tn$bad <- FALSE
+
   src <- d[keep, , drop = FALSE]
   fate <- if ("fate" %in% names(src)) as.character(src$fate) else rep(NA_character_, nrow(src))
   recap <- if ("recapture" %in% names(src)) as.character(src$recapture) else rep(NA_character_, nrow(src))
@@ -1472,7 +1827,8 @@ bout_closed_capture <- function(d) {
   # bout ym and start come from its first trapped night (tn is date-ordered)
   bmeta <- tn %>% dplyr::group_by(.data$boutID) %>%
     dplyr::summarise(plotID = dplyr::first(.data$plotID), ym = dplyr::first(.data$ym),
-                     start = min(.data$date), .groups = "drop")
+                     start = min(.data$date), incomplete_grid = any(.data$bad),
+                     .groups = "drop")
   cmeta <- cap %>% dplyr::group_by(.data$boutID) %>%
     dplyr::summarise(mnka_marked = dplyr::n_distinct(.data$tagID[!.data$ph]),
                      n_unmarked = sum(.data$ph & !.data$recapY),
@@ -1541,9 +1897,17 @@ bout_closed_capture <- function(d) {
   est$sumR     <- vapply(res, function(z) z$sumR, integer(1))
   est$varN     <- vapply(res, function(z) z$varN, numeric(1))
   est$status   <- vapply(res, function(z) z$status, character(1))
+  # a bout with any night whose grid was not completely set or processed is
+  # held out of estimation (like "insufficient recaptures"): no N, interval or p
+  ig <- est$incomplete_grid %in% TRUE
+  if (any(ig)) {
+    for (v in c("N", "lo", "hi", "p", "varN", "N_marked")) est[[v]][ig] <- NA_real_
+    est$status[ig] <- "incomplete grid"
+  }
   est <- est[, c("boutID", "plotID", "ym", "start", "k", "sumC", "sumR", "num",
                  "mnka", "N", "lo", "hi", "p", "varN", "status",
-                 "N_marked", "mnka_marked", "n_unmarked", "n_unmarked_recap", "n_dead")]
+                 "N_marked", "mnka_marked", "n_unmarked", "n_unmarked_recap", "n_dead",
+                 "incomplete_grid")]
   est[order(est$start), ]
 }
 
@@ -1576,10 +1940,15 @@ closed_capture_series <- function(d, bouts = NULL) {
   n_single <- sum(bouts$status == "single-night", na.rm = TRUE)
   n_unmarked_total <- sum(bouts$n_unmarked, na.rm = TRUE)
   n_dead_total <- sum(bouts$n_dead, na.rm = TRUE)
+  # bouts held out because a night's grid was incomplete (gridCompletion)
+  n_incomplete <- sum(bouts$status == "incomplete grid", na.rm = TRUE)
+  # estimable bouts whose raw estimate fell below MNKA and was clamped to it
+  n_clamped <- sum(est$status == "detection near-complete", na.rm = TRUE)
   if (nrow(est) == 0)
     return(list(series = NULL, n_bouts = nrow(bouts), n_single = n_single,
                 n_estimable = 0, mean_p = NA_real_, mean_detect = NA_real_,
-                n_unmarked_total = n_unmarked_total, n_dead_total = n_dead_total))
+                n_unmarked_total = n_unmarked_total, n_dead_total = n_dead_total,
+                n_clamped = 0L, n_incomplete = n_incomplete))
   pm <- est %>% dplyr::group_by(.data$ym, .data$plotID) %>%
     dplyr::summarise(
       n_bouts = dplyr::n(),
@@ -1641,7 +2010,8 @@ closed_capture_series <- function(d, bouts = NULL) {
        n_estimable = nrow(est),
        mean_p = round(stats::weighted.mean(est$p, est$k * est$N_marked), 3),
        mean_detect = round(stats::weighted.mean(pmin(est$mnka / est$N, 1), est$N), 3),
-       n_unmarked_total = n_unmarked_total, n_dead_total = n_dead_total)
+       n_unmarked_total = n_unmarked_total, n_dead_total = n_dead_total,
+       n_clamped = n_clamped, n_incomplete = n_incomplete)
 }
 
 # Reproductive activity per row (adults): scrotal males / pregnant-or-lactating
@@ -2035,64 +2405,82 @@ env_corr_all <- function(d, env, max_lag = 12) {
 # (many combos) and annual autocorrelation are penalized. seed 11 = stable.
 #
 # Returns list(p, n_search = combos actually evaluated, n_match = observed best n,
-# n_months = length of the shifted series) or NULL. Needs a ~24-month coverage
-# floor for the shift to have room to break alignment (below it the rotation
-# barely moves and the null is meaningless -> p = NA, "too short to test").
-env_corr_pvalue <- function(d, env, max_lag = 12, nperm = 500, min_months = 24) {
-  ca <- env_corr_all(d, env, max_lag)
-  if (is.null(ca) || !nrow(ca)) return(NULL)
-  obs   <- max(abs(ca$r), na.rm = TRUE)
-  best  <- ca[which.max(abs(ca$r)), ]
-  layers <- ca$layer                                 # drivers that actually had overlap
-  m <- .mam_cpue_series(d)
-  if (is.null(m) || nrow(m) < min_months)
-    return(list(p = NA_real_, n_search = length(layers) * (max_lag + 1L),
-                n_match = best$n, n_months = if (is.null(m)) 0L else nrow(m)))
+# n_months = length of the shifted series, r_obs = the unrounded observed best r,
+# layer, lag) or NULL. Needs a ~24-month coverage floor for the shift to have
+# room to break alignment (below it the rotation barely moves and the null is
+# meaningless -> p = NA, "too short to test").
+#
+# The observed statistic is the UNROUNDED best |r| from the same scan the null
+# runs (env_corr_scan() rounds r to 2 dp for display; comparing a rounded
+# observed value with unrounded null values biased p). Each driver x lag pairing
+# is resolved once to fixed (response index, driver value) pairs; the null only
+# rotates the response values over the same months, so each null scan is just
+# the correlations, with results identical to re-merging by date.
+# `series` (data.frame(date, cpue)) replaces the site's monthly CPUE series; it
+# is for calibration runs on synthetic responses.
+env_corr_pvalue <- function(d, env, max_lag = 12, nperm = 500, min_months = 24,
+                            series = NULL, seed = 11L) {
+  if (is.null(env)) return(NULL)
+  m <- if (!is.null(series)) as.data.frame(series)[, c("date", "cpue")] else
+    if (is.null(d)) NULL else .mam_cpue_series(d)
+  if (is.null(m) || nrow(m) < 8) return(NULL)
+  m$date <- as.Date(m$date)
   # deseasonalize the CPUE series once (same rule as env_corr_scan); the driver
-  # side is deseasonalized inside each scan call, so shifting the response alone
-  # is a valid null for the aligned (deseasonalized) correlation.
+  # side is deseasonalized per layer, so shifting the response alone is a valid
+  # null for the aligned (deseasonalized) correlation.
   mon  <- as.integer(format(m$date, "%m"))
   clim <- tapply(m$cpue, mon, mean, na.rm = TRUE)
-  m$cpue <- m$cpue - as.numeric(clim[as.character(mon)])
-  ny <- nrow(m)
-  # scan the driver x lag grid for a GIVEN cpue vector; mirrors env_corr_scan's inner
-  # loop but takes the response as an argument so the null can swap it.
-  scan_best <- function(cpue_vec) {
-    mm <- data.frame(date = m$date, cpue = cpue_vec)
-    best_abs <- NA_real_; nseen <- 0L
-    for (lay in layers) {
-      meta <- ENV_LAYERS[[lay]]
-      ev <- env; ev$date <- as.Date(ev$date)
-      ev$.v <- suppressWarnings(as.numeric(ev[[meta$col]]))
-      ev <- ev[!is.na(ev$.v), c("date", ".v"), drop = FALSE]
-      if (!nrow(ev)) next
-      emo <- as.integer(format(ev$date, "%m"))
-      ecl <- tapply(ev$.v, emo, mean, na.rm = TRUE)
-      ev$.v <- ev$.v - as.numeric(ecl[as.character(emo)])
-      for (lag in 0:max_lag) {
-        e2 <- ev; lt <- as.POSIXlt(e2$date); lt$mon <- lt$mon + lag; e2$date <- as.Date(lt)
-        j <- merge(mm, e2, by = "date")
-        nseen <- nseen + 1L
-        if (nrow(j) >= 8 && stats::sd(j$cpue, na.rm = TRUE) > 0 && stats::sd(j$.v, na.rm = TRUE) > 0) {
-          r <- suppressWarnings(stats::cor(j$cpue, j$.v))
-          if (is.finite(r) && (is.na(best_abs) || abs(r) > best_abs)) best_abs <- abs(r)
-        }
-      }
+  y <- m$cpue - as.numeric(clim[as.character(mon)])
+  ny <- length(y)
+  # resolve every driver x lag pairing to (index into y, driver anomaly)
+  grid <- list(); glayer <- character(0); glag <- integer(0)
+  for (lay in names(ENV_LAYERS)) {
+    meta <- ENV_LAYERS[[lay]]
+    if (!(meta$col %in% names(env))) next
+    ev <- env; ev$date <- as.Date(ev$date)
+    ev$.v <- suppressWarnings(as.numeric(ev[[meta$col]]))
+    ev <- ev[!is.na(ev$.v), c("date", ".v"), drop = FALSE]
+    if (!nrow(ev)) next
+    emo <- as.integer(format(ev$date, "%m"))
+    ecl <- tapply(ev$.v, emo, mean, na.rm = TRUE)
+    ev$.v <- ev$.v - as.numeric(ecl[as.character(emo)])
+    for (lag in 0:max_lag) {
+      lt <- as.POSIXlt(ev$date); lt$mon <- lt$mon + lag; ed <- as.Date(lt)
+      im <- which(m$date %in% ed)
+      x <- ev$.v[match(m$date[im], ed)]
+      grid[[length(grid) + 1L]] <- list(im = im, x = x,
+        ok = length(im) >= 8 && stats::sd(x) > 0)
+      glayer <- c(glayer, lay); glag <- c(glag, lag)
     }
-    list(best = best_abs, nseen = nseen)
   }
-  n_search <- scan_best(m$cpue)$nseen
-  # save/restore the session RNG so reseeding here can't freeze a downstream
-  # randomized output (accum-curve resampling, jitter) sharing this reactive flush.
-  old_seed <- if (exists(".Random.seed", envir = .GlobalEnv)) get(".Random.seed", envir = .GlobalEnv) else NULL
-  on.exit(if (!is.null(old_seed)) assign(".Random.seed", old_seed, envir = .GlobalEnv), add = TRUE)
-  set.seed(11L)
-  perm_best <- replicate(nperm, {
+  if (!length(grid)) return(NULL)
+  scan_r <- function(yv) vapply(grid, function(g) {
+    if (!g$ok) return(NA_real_)
+    yy <- yv[g$im]
+    if (!(stats::sd(yy) > 0)) return(NA_real_)
+    r <- suppressWarnings(stats::cor(yy, g$x))
+    if (is.finite(r)) r else NA_real_
+  }, numeric(1))
+  r0 <- scan_r(y)
+  # a driver is in the search only if its own scan found a usable lag (the
+  # same layers env_corr_all() returns)
+  live <- tapply(is.finite(r0), glayer, any)
+  layers <- names(live)[live]
+  if (!length(layers)) return(NULL)
+  use <- glayer %in% layers
+  grid <- grid[use]; r0 <- r0[use]; glayer <- glayer[use]; glag <- glag[use]
+  b <- which.max(abs(r0))
+  obs <- abs(r0[b])
+  out <- list(p = NA_real_, n_search = length(grid), n_match = length(grid[[b]]$im),
+              n_months = ny, r_obs = r0[b], layer = glayer[b], lag = glag[b])
+  if (ny < min_months) return(out)
+  perm_best <- .with_seed(seed, replicate(nperm, {
     k <- sample.int(ny - 1L, 1L)
-    scan_best(m$cpue[((seq_len(ny) - 1L + k) %% ny) + 1L])$best
-  })
-  p <- mean(perm_best >= obs - 1e-9, na.rm = TRUE)
-  list(p = round(p, 3), n_search = n_search, n_match = best$n, n_months = ny)
+    rr <- scan_r(y[((seq_len(ny) - 1L + k) %% ny) + 1L])
+    if (all(is.na(rr))) NA_real_ else max(abs(rr), na.rm = TRUE)
+  }))
+  out$p <- round(mean(perm_best >= obs - 1e-9, na.rm = TRUE), 3)
+  out
 }
 
 # ---------------------------------------------------------------------------
