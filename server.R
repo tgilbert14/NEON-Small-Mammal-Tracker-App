@@ -46,6 +46,11 @@ neon_notes_ui <- function(notes, title, class = "neon-notes") {
       })))
 }
 
+# Significance gate for the monthly driver dredge (circular-shift null). The
+# null is anti-conservative at 0.05 (docs/audit-fixes/2026-10-22-env-null-calibration.md),
+# so a driver verdict, its rail and the detection auto-overlay need p < 0.02.
+ENV_P_GATE <- 0.02
+
 server <- function(input, output, session) {
 
   # is the dark theme active? Driven by the sidebar input_dark_mode("colorMode").
@@ -225,13 +230,14 @@ server <- function(input, output, session) {
     # visual channels so a strong-but-inverse link never reads as "weak".
     strength <- abs(sc$r)
     pos    <- sc$r >= 0
-    dir    <- if (pos) "more" else "fewer"
-    # HONESTY GATE: |r| alone is best-of-65 (5 drivers x 13 lags) — an upward-
+    dir    <- if (pos) "higher" else "lower"
+    # Significance gate: |r| alone is best-of-65 (5 drivers x 13 lags), an upward-
     # biased dredge. Downgrade the verdict word to "Apparent link" whenever the
-    # circular-shift null can't reject chance (p >= 0.05), however large |r|.
+    # circular-shift null can't reject chance (p >= ENV_P_GATE = 0.02, see the
+    # calibration doc named at ENV_P_GATE), however large |r|.
     pv     <- env_pval()
     p_val  <- if (!is.null(pv)) pv$p else NA_real_
-    sig    <- is.finite(p_val) && p_val < 0.05
+    sig    <- is.finite(p_val) && p_val < ENV_P_GATE
     rail   <- if (sig && strength >= 0.6) "rail-strong"
               else if (sig && strength >= 0.35) "rail-mod" else "rail-weak"
     slabel <- if (!sig) "Apparent"
@@ -268,7 +274,7 @@ server <- function(input, output, session) {
               if (!is.null(pv)) sprintf(" (best of %d)", pv$n_search) else ""))
           else "series too short for a p"),
         tags$span(class = paste("ec-meta ec-dir", if (pos) "ec-sgn-pos" else "ec-sgn-neg"),
-          HTML(sprintf("higher \U2192 <b>%s</b> animals", dir)))))
+          HTML(sprintf("higher \U2192 <b>%s</b> catch rate", dir)))))
   })
 
   # ---- Seasonal climate: the cascade read (the desert fix) -----------------
@@ -282,14 +288,11 @@ server <- function(input, output, session) {
   # cross-site test lives in the NEON Cross-Product Response Atlas.
   output$seasonalDriver <- renderUI({
     d <- rv$data; if (is.null(d) || is.null(rv$env) || !"ym" %in% names(d)) return(NULL)
-    ac <- d %>% dplyr::filter(!is.na(.data$ym)) %>%
-      dplyr::mutate(yr = suppressWarnings(as.integer(substr(.data$ym, 1, 4)))) %>%
-      dplyr::group_by(.data$yr) %>%
-      dplyr::summarise(cap = sum(.data$is_capture),
-                       tn  = sum(.data$trap_effort, na.rm = TRUE), .groups = "drop")
-    ac <- ac[is.finite(ac$yr) & is.finite(ac$tn) & ac$tn > 0, , drop = FALSE]
-    if (nrow(ac) < 3) return(NULL)
-    resp  <- data.frame(year = ac$yr, value = 100 * ac$cap / ac$tn)
+    # yearly catch-rate index adjusted for which months were trapped (monthly
+    # anomalies averaged per year); years with too few months or trap nights
+    # are dropped (annual_cpue_index, R/seasonal_env.R)
+    resp <- annual_cpue_index(d, ok_only = TRUE)
+    if (is.null(resp) || nrow(resp) < 3) return(NULL)
     site_code <- if ("siteID" %in% names(d)) mode_chr(d$siteID) else NULL
     biome <- seasonal_biome(site_code)
     links <- tryCatch(seasonal_driver_links(rv$env, resp, biome = biome), error = function(e) NULL)
@@ -297,20 +300,21 @@ server <- function(input, output, session) {
                    tags$span("seasonal climate \U00B7 the cascade read"),
                    info_pop("The seasonal read",
                      p("A single annual rain total blends two seasons that feed different things: the ", tags$b("summer monsoon"), " (Jul-Sep) grows the C4-grass seed crop desert granivores cash in the ", tags$b("next"), " year, while ", tags$b("winter rain"), " (Oct-Mar) feeds spring forbs. The month-to-month overlay above mixes them into one number."),
-                     p("Here we aggregate the driver by season and correlate it against this site's yearly catch rate at the prior's lag, the way the NEON Cross-Product Response Atlas does. ", tags$b("Per-site n is only a handful of years"), ", so this is suggestive, not significant. The honest test pools many sites in the Driver Cascade app.")))
+                     p("Here we aggregate the driver by season and correlate it against this site's yearly catch rate at the prior's lag, the way the NEON Cross-Product Response Atlas does. ", tags$b("Per-site n is only a handful of years"), ", so this is suggestive, not significant. The test that pools many sites is in the NEON Cross-Product Response Atlas.")))
     if (is.null(links) || !nrow(links)) {
       return(div(class = "ec ec-seasonal rail-weak", eyebrow,
         div(class = "ec-hero", div(class = "ec-hero-text",
           "No co-located seasonal rain record at this site, so the monsoon and winter seasons can't be tested here. That is missing climate data, not a missing signal."))))
     }
     lead <- links[links$expected, , drop = FALSE]; if (!nrow(lead)) lead <- links
-    L <- lead[1, ]; pos <- L$r >= 0; dir <- if (pos) "more" else "fewer"
-    strength <- abs(L$r)
-    rail <- if (strength >= 0.6) "rail-strong" else if (strength >= 0.35) "rail-mod" else "rail-weak"
+    L <- lead[1, ]; pos <- L$r >= 0; dir <- if (pos) "a higher" else "a lower"
+    vd <- seasonal_verdict(L$r, L$p, L$n)
+    rail <- vd$rail
     sub  <- tolower(L$label)
-    lead_txt <- sprintf("%s %s tracks %s animals%s",
-      if (grepl("precip", L$driver)) "A wetter" else "A warmer", sub, dir,
-      if (L$lag >= 1) " the next year" else " the same year")
+    lead_txt <- if (vd$few_years) sprintf("%d years is too few to read a link here.", L$n)
+      else sprintf("A %s %s goes with %s catch rate%s.",
+        if (grepl("precip", L$driver)) "wetter" else "warmer", sub, dir,
+        if (L$lag >= 1) " the next year" else " the same year")
     # env_corr_scan() returns NULL when a site lacks an 8+ month precip overlap
     # (e.g. JORN), so $r is NULL — coerce to a length-1 NA so the is.finite(mr)
     # guard below never sees logical(0) ("argument is of length zero").
@@ -321,8 +325,8 @@ server <- function(input, output, session) {
       style = "margin-top:14px;",
       eyebrow,
       div(class = "ec-hero",
-        div(class = "ec-hero-text", lead_txt, "."),
-        div(class = paste("ec-rvalue", if (pos) "ec-sgn-pos" else "ec-sgn-neg"),
+        div(class = "ec-hero-text", lead_txt),
+        div(class = paste("ec-rvalue", if (vd$few_years) "ec-r-muted" else if (pos) "ec-sgn-pos" else "ec-sgn-neg"),
           bs_icon(if (pos) "arrow-up-right" else "arrow-down-right"),
           HTML(sprintf("r&nbsp;%+.2f", L$r)))),
       div(class = "ec-foot",
@@ -332,9 +336,11 @@ server <- function(input, output, session) {
           tags$span(class = "ec-meta", title = "p after accounting for testing several seasons",
                     HTML(sprintf("season-corrected p = %.2f", L$p_adj))))),
       div(class = "ec-seasonal-note",
-        if (is.finite(mr))
+        if (vd$can_claim && is.finite(mr))
           HTML(sprintf("The month-to-month overlay shows only about <b>r %+.2f</b> for plain rain. Splitting the year by season recovers the desert driver a single annual total blends away.", mr))
-        else "Splitting the year by season recovers the driver a single annual total blends away."),
+        else if (vd$can_claim) "Splitting the year by season recovers the driver a single annual total blends away."
+        else sprintf("By season the link reads r %+.2f over %d years, which these few years cannot tell from chance.", L$r, L$n)),
+      div(class = "ec-seasonal-note", "The yearly catch rate is adjusted for which months were trapped."),
       div(class = "ec-seasonal-caveat", bs_icon("info-circle"),
         HTML(" One site, a handful of years, so suggestive not settled. The cross-site test that pools many sites is in the "),
         tags$a(href = "https://tgilbert14.github.io/NEON-Driver-Cascade/", target = "_blank", "NEON Cross-Product Response Atlas"), "."))
@@ -3387,13 +3393,19 @@ server <- function(input, output, session) {
     }
     lead <- if (!is.na(cc$mean_detect))
       insight_banner("incognito", tone = "navy",
-        HTML(sprintf("Traps caught about <span class='ci-hero'>%s</span> of the animals present per bout: the gap between the navy estimate and the grey known-alive line is everything they missed.",
+        HTML(sprintf("On the estimable multi-night bouts, an equal-catchability (M0) estimate puts the share of animals caught at about <span class='ci-hero'>%s</span>. Trap-shy or trap-happy animals can push the true share lower.",
           paste0(round(100 * cc$mean_detect), "%")))) else NULL
     tagList(lead,
       div(class = "detect-head",
         chip(pct(cc$mean_p),      "per-night detection (p̂)", dcol("#38a8e8")),
-        chip(pct(cc$mean_detect), "of population caught / bout", dcol("#43b8e8")),
+        chip(pct(cc$mean_detect), "caught per estimable bout (M0)", dcol("#43b8e8")),
         chip(cc$n_estimable,      sprintf("estimable bouts (of %d)", cc$n_bouts), dcol("#5fb56a")),
+        # bouts whose raw estimate fell below MNKA and were clamped to it
+        if (is.finite(cc$n_clamped %||% NA_real_) && (cc$n_estimable %||% 0) > 0)
+          chip(cc$n_clamped, sprintf("of %d estimable bouts hit the known-alive floor", cc$n_estimable),
+               dcol("#c9a300")),
+        if ((cc$n_incomplete %||% 0) > 0)
+          chip(cc$n_incomplete, "bouts on grids NEON marks incomplete are held out", dcol("#9aa7b4")),
         if (!is.na(sn_pct))
           chip(paste0(sn_pct, "%"), "single-night (index-only)", dcol("#9aa7b4")),
         # NEON SOP C.8 placeholder IDs: one per untagged capture, never a mark
@@ -3405,11 +3417,15 @@ server <- function(input, output, session) {
   # The driver overlaid on the detection plot: the sidebar pick if any, else the
   # auto best-match (top of the ranking, |r| >= 0.2). Shared so the °F/°C toggle's
   # visibility and the plot agree on what's currently shown.
+  # The auto pick also needs the dredge's circular-shift p < ENV_P_GATE (0.02,
+  # calibrated); otherwise nothing is overlaid and the plot says so.
   detect_overlay <- reactive({
     es <- env_sel()
     if (!is.null(es)) return(c(es, list(auto = FALSE)))
     if (!is.null(rv$env)) {
-      ca <- env_corr_all(rv$data, rv$env)
+      pv <- env_pval()
+      p_ok <- !is.null(pv) && is.finite(pv$p) && pv$p < ENV_P_GATE
+      ca <- if (p_ok) env_corr_all(rv$data, rv$env) else NULL
       if (!is.null(ca) && nrow(ca) && !is.na(ca$r[1]) && abs(ca$r[1]) >= 0.2) {
         w <- ca[1, ]
         return(list(layer = w$layer, lag = as.integer(w$lag), env = rv$env, auto = TRUE))
@@ -3470,7 +3486,8 @@ server <- function(input, output, session) {
     if (!is.null(es)) {
       meta <- ENV_LAYERS[[es$layer]]
       sc <- tryCatch(env_corr_scan(rv$data, rv$env, es$layer), error = function(e) NULL)
-      dirtxt <- if (!is.null(sc) && !is.na(sc$r)) sprintf(" (%s)", if (sc$r < 0) "inverse" else "positive") else ""
+      dirtxt <- if (!is.null(sc) && !is.na(sc$r))
+        sprintf(" (higher goes with a %s catch rate)", if (sc$r < 0) "lower" else "higher") else ""
       lagtxt <- if (es$lag == 0) "same month" else sprintf("lag %d mo", es$lag)
       best_label <- sprintf("%s: %s%s · %s", if (auto) "best match" else "showing",
                             meta$label, dirtxt, lagtxt)
@@ -3507,7 +3524,13 @@ server <- function(input, output, session) {
     # right-anchored ctx note; coloured to match the shaded driver + its y2 axis
     annos <- if (!is.null(best_label)) list(list(text = best_label,
         x = 0, y = 1.12, xref = "paper", yref = "paper", xanchor = "left", yanchor = "bottom",
-        showarrow = FALSE, font = list(color = ENV_LAYERS[[es$layer]]$color, size = 11))) else list()
+        showarrow = FALSE, font = list(color = ENV_LAYERS[[es$layer]]$color, size = 11)))
+      else if (!is.null(rv$env)) {
+        best_label <- "No driver beats chance here."
+        list(list(text = best_label, x = 0, y = 1.12, xref = "paper", yref = "paper",
+                  xanchor = "left", yanchor = "bottom", showarrow = FALSE,
+                  font = list(color = dcol("#63727d"), size = 11)))
+      } else list()
     p <- plotly_theme(p) %>% plotly::layout(
       xaxis = list(title = ""), yaxis = list(title = "animals per sampled grid", rangemode = "tozero"),
       margin = list(l = 50, r = 30, t = if (!is.null(best_label)) 72 else 48, b = 40),

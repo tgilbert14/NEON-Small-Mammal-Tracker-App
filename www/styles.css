@@ -159,6 +159,7 @@ body {
   font-size: 10px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase;
   color: var(--muted);
 }
+.ec-rvalue.ec-r-muted { color: var(--muted); opacity: .7; }
 .ec-eyebrow .bi { font-size: 12px; color: var(--ec-rail); }
 
 .ec-hero { display: flex; align-items: center; justify-content: space-between; gap: 14px; }

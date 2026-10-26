@@ -126,6 +126,34 @@ shiny::testServer(server, {
   }
   session$setInputs(siteExplore = "<b>x</b>")
   check(grepl("&lt;b&gt;", notes$text[length(notes$text)], fixed = TRUE), "markup in a refused code is escaped")
+
+  # ---- phase B: load SRER (cross-state: the AZ state event consumes it) ----
+  session$setInputs(siteExplore = "SRER")
+  session$setInputs(stateSel = "AZ")
+  check(identical(mode_chr(rv$data$siteID), "SRER"), "SRER loaded for the phase B checks")
+
+  # item B1: the seasonal card reads the month-adjusted yearly index and its
+  # rail comes from seasonal_verdict()
+  sea <- html_of(output$seasonalDriver$html)
+  resp <- annual_cpue_index(rv$data, ok_only = TRUE)
+  check(nrow(resp) >= 3 && all(resp$ok), "seasonal response is annual_cpue_index(ok_only = TRUE)")
+  check(grepl("adjusted for which months were trapped", sea, fixed = TRUE),
+        "seasonal card says the yearly rate is month-adjusted")
+  check(!grepl("tracks (more|fewer) animals", sea), "seasonal lead no longer claims more or fewer animals")
+
+  # item B2: the driver gate is p < 0.02, and the detection auto-overlay obeys it
+  check(identical(ENV_P_GATE, 0.02), "monthly driver gate is p < 0.02 (calibrated)")
+  pv <- env_pval()
+  ov <- detect_overlay()
+  if (is.null(pv) || !is.finite(pv$p) || pv$p >= ENV_P_GATE) {
+    check(is.null(ov), sprintf("no auto overlay when the dredge p (%s) is not below 0.02",
+                               if (is.null(pv)) "NA" else format(round(pv$p, 3))))
+  } else {
+    check(isTRUE(ov$auto), "auto overlay present when the dredge p is below 0.02")
+  }
+  en <- html_of(output$envCorrNote$html)
+  if (!is.null(pv) && is.finite(pv$p) && pv$p >= ENV_P_GATE)
+    check(grepl("Apparent", en, fixed = TRUE), "a driver at p >= 0.02 reads as Apparent")
 })
 
 # item 4: Hurlbert rarefaction on a small fixture
