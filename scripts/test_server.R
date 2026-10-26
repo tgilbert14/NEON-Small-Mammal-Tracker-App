@@ -154,6 +154,34 @@ shiny::testServer(server, {
   en <- html_of(output$envCorrNote$html)
   if (!is.null(pv) && is.finite(pv$p) && pv$p >= ENV_P_GATE)
     check(grepl("Apparent", en, fixed = TRUE), "a driver at p >= 0.02 reads as Apparent")
+
+  # item B4: the three QC downloads write non-empty CSVs at SRER
+  csv_rows <- function(path) nrow(utils::read.csv(path, stringsAsFactors = FALSE))
+  check(csv_rows(output$dlQcReportCsv) > 0, "QC report CSV is non-empty at SRER")
+  sp_flag <- NULL
+  for (sp in unique(species_level_only(rv$data)$scientificName)) {
+    fc <- flagged_measure_captures(rv$data, sp, "weight")
+    if (!is.null(fc) && nrow(fc)) { sp_flag <- sp; n_fc <- nrow(fc); break }
+  }
+  check(!is.null(sp_flag), "SRER has a species with a flagged weight")
+  session$setInputs(showOutliers = paste0(sp_flag, "||weight"))
+  check(csv_rows(output$dlOutliersCsv) == n_fc, sprintf("outlier CSV writes exactly the %d rows shown", n_fc))
+  session$setInputs(showMovers = 1)
+  check(csv_rows(output$dlMoversCsv) == nrow(inspect_rows$movers) && nrow(inspect_rows$movers) > 0,
+        "movers CSV writes exactly the rows shown")
+  session$setInputs(indiv = rv$lb$tagID[1])
+  qh <- utils::read.csv(output$qcHistoryCsv, stringsAsFactors = FALSE)
+  check(nrow(qh) > 0 && "qc_flags" %in% names(qh), "QC history CSV carries a qc_flags column")
+
+  # item B5: MNKA lines break across gaps and edge months are hollow
+  mj <- paste(as.character(output$mnkaPlot), collapse = "")
+  mn_s <- mnka_series(rv$data)
+  check(nrow(insert_gap_breaks(mn_s, 2L)) > nrow(mn_s) && grepl("null", mj, fixed = TRUE),
+        "MNKA lines carry gap-break rows (null y) so seasonal gaps are not bridged")
+  check(!any(mn_s$edge) || grepl("circle-open", mj, fixed = TRUE),
+        "edge months draw as hollow markers")
+  check(!any(mn_s$edge) || grepl("edge month: MNKA is biased low here", mj, fixed = TRUE),
+        "edge-month hover says MNKA is biased low")
 })
 
 # item 4: Hurlbert rarefaction on a small fixture
@@ -170,7 +198,7 @@ check(lengths(regmatches(nav, gregexpr("<li>", nav, fixed = TRUE))) == 10, "foot
 check(lengths(regmatches(nav, gregexpr("<a ", nav, fixed = TRUE))) == 9 &&
         grepl('aria-current="page"', nav, fixed = TRUE) &&
         !grepl(self$cover_url, nav, fixed = TRUE), "the current app is marked, not linked")
-check(grepl('aria-label="NEON Explorer Suite"', nav, fixed = TRUE) &&
+check(grepl('aria-label="NEON Explorer Suite directory"', nav, fixed = TRUE) &&
         grepl("NEON Cross-Product Response Atlas", nav, fixed = TRUE), "footer nav is named and uses the Atlas name")
 
 # item 8: footer and landing line with and without bundle metadata

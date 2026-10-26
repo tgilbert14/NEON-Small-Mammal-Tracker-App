@@ -4,17 +4,7 @@
 
 # ---- pure helpers (top level so scripts/test_server.R can call them) -------
 
-# Hurlbert (1971) rarefied richness E[S_n]: the expected number of species in a
-# random draw of n individuals without replacement from per-species counts.
-# E[S_n] = sum_i (1 - C(N - N_i, n) / C(N, n)); lchoose keeps large N stable.
-# Returns NA when n is missing, < 1 or larger than the pooled count.
-hurlbert_rarefy <- function(counts, n) {
-  counts <- counts[is.finite(counts) & counts > 0]
-  N <- sum(counts)
-  if (!length(counts) || !is.finite(n) || n < 1 || n > N) return(NA_real_)
-  n <- floor(n)
-  sum(1 - exp(lchoose(N - counts, n) - lchoose(N, n)))
-}
+# hurlbert_rarefy() lives in R/report_pdf.R (global), shared with the compare PDF.
 
 # "Dipodomys merriami" -> "D. merriami"; genus-only or one-word names stay whole
 short_binomial <- function(x) {
@@ -1592,7 +1582,7 @@ server <- function(input, output, session) {
            tip = sprintf("Distinct ear-tagged animals. NEON logged %s further captures without a lasting tag ID (mostly shrews at eastern sites); those are counted as captures, not individuals. Click for the most-caught individuals.",
                          format(cs$untagged_captures %||% 0L, big.mark = ","))),
         vb(cs$species,        "Species",       "diagram-3-fill",  "#5fb56a", "species",
-           tip = "Distinct species identified. Click for species ranked by abundance."),
+           tip = sprintf("Distinct species identified, %s with a confirmed species-level identification (not cf. or aff.). Click for species ranked by abundance.", fmt_int(cs$species_confirmed %||% cs$species))),
         vb(cs$recap_rate,     "Recapture rate","arrow-repeat",    "#138086", "recapture", pct = TRUE,
            tip = "Share of captures that were re-encounters. Click for recapture rate by species."),
         vb(cs$trap_nights,    "Trap-nights",   "moon-stars-fill", "#5b3a8a", "trapnights",
@@ -1927,7 +1917,7 @@ server <- function(input, output, session) {
       div(class = "ds-left",
         div(class = "ds-emoji", row$emoji[1]),
         glow_badge(paste(rm$icon, row$rarity[1]), rm$color, rm$glow),
-        if (!is.na(row$chonk_tier[1]) && row$chonk_tier[1] != "—")
+        if (!is.na(row$chonk_tier[1]) && row$chonk_tier[1] != "n/a")
           div(class = "ds-chonk", "\U0001F9CA ", row$chonk_tier[1])
       ),
       div(class = "ds-main",
@@ -2509,6 +2499,8 @@ server <- function(input, output, session) {
     content = function(file) {
       tag <- rv$tag; req(tag)
       h <- individual_history(rv$data, tag); req(!is.null(h), nrow(h) > 0)
+      # each row carries the QC flags that implicate it (qc_flags column)
+      h <- capture_qc_flags(h, individual_qc_flags(h, rv$lb[rv$lb$tagID == tag, ]), rv$data)
       out <- data.frame(tagID = tag, short = short_tag(tag), h, stringsAsFactors = FALSE)
       utils::write.csv(out, file, row.names = FALSE, na = "")
     },
@@ -2730,6 +2722,19 @@ server <- function(input, output, session) {
         rf$n_movers, rf$n_tagged, rf$n_movers)))
   })
 
+  # rows the two QC inspectors are showing, so "Download these rows" writes
+  # exactly what the visitor sees
+  inspect_rows <- reactiveValues(outliers = NULL, movers = NULL)
+  inspect_csv <- function(key, stem) downloadHandler(
+    filename = function() sprintf("NEON-SmallMammal_%s_%s_%s.csv", stem, export_slug(), format(Sys.Date(), "%Y%m%d")),
+    content = function(file) {
+      rows <- inspect_rows[[key]]; req(!is.null(rows), nrow(rows) > 0)
+      utils::write.csv(rows, file, row.names = FALSE, na = "")
+    },
+    contentType = "text/csv")
+  output$dlOutliersCsv <- inspect_csv("outliers", "possible-measurement-errors")
+  output$dlMoversCsv <- inspect_csv("movers", "cross-grid-movers")
+
   # QC inspector — list each cross-grid mover's capture history so a user can
   # judge "one real mover" vs "two animals sharing a tag" (a sex/species change
   # across captures, or a same-day two-plot record, is the tell).
@@ -2739,6 +2744,10 @@ server <- function(input, output, session) {
     if (is.null(cap) || !nrow(cap)) {
       showNotification("No cross-grid movers to inspect here.", type = "message"); return()
     }
+    inspect_rows$movers <- data.frame(
+      short = cap$short, date = format(cap$date, "%Y-%m-%d"),
+      plotID = cap$plotID, scientificName = cap$scientificName, sex = cap$sex,
+      lifeStage = cap$lifeStage, stringsAsFactors = FALSE)
     blocks <- lapply(split(cap, factor(cap$short, levels = unique(cap$short))), function(g) {
       sexes <- unique(g$sex[g$sex %in% c("M", "F")])
       spp   <- unique(g$scientificName[!is.na(g$scientificName)])
@@ -2762,7 +2771,9 @@ server <- function(input, output, session) {
     })
     showModal(modalDialog(
       title = tagList(bs_icon("share-fill"), " Individuals caught at 2+ grids"),
-      size = "l", easyClose = TRUE, footer = modalButton("Close"),
+      size = "l", easyClose = TRUE,
+      footer = tagList(downloadButton("dlMoversCsv", "Download these rows (CSV)", class = "smt-clear-btn"),
+                       modalButton("Close")),
       p(class = "inspect-note", HTML("NEON keeps a tag on one animal for life and doesn't reuse numbers, so most of these are <b>real</b> long-distance movers. But a tag whose <b>sex</b> or <b>species</b> changes across captures, or that shows up at two plots on the <b>same day</b>, is more likely two animals sharing a number; those are flagged below for you to verify against the field records.")),
       div(class = "movers-wrap", blocks)
     ))
@@ -3118,9 +3129,15 @@ server <- function(input, output, session) {
     unit <- if (measure == "weight") "g" else "mm"
     mlab <- c(weight = "weight", hindfoot = "hind-foot length",
               tail = "tail length", ear = "ear length")[[measure]]
+    inspect_rows$outliers <- data.frame(
+      tagID = fc$tag, short = fc$short, date = format(fc$date, "%Y-%m-%d"), plotID = fc$plotID,
+      scientificName = sp, measure = measure, value = fc$value, unit = unit, sex = fc$sex,
+      species_adult_median = round(fc$median, 1), stringsAsFactors = FALSE)
     showModal(modalDialog(
       title = tagList(bs_icon("exclamation-triangle-fill"), sprintf(" Possible %s errors · %s", mlab, sp)),
-      size = "m", easyClose = TRUE, footer = modalButton("Close"),
+      size = "m", easyClose = TRUE,
+      footer = tagList(downloadButton("dlOutliersCsv", "Download these rows (CSV)", class = "smt-clear-btn"),
+                       modalButton("Close")),
       p(class = "inspect-note", HTML(sprintf("Adult %s median here is <b>%s %s</b>. The records below fall far outside the plausible adult range (beyond median ± 5×MAD), most likely data-entry errors. They are <b>kept in the data</b> but excluded from the median and the 5th–95th-percentile range; verify them against the field sheets.",
         mlab, round(fc$median[1], 1), unit))),
       tags$table(class = "inspect-tbl",
@@ -3260,29 +3277,42 @@ server <- function(input, output, session) {
       p <- add_env_overlay(p, es$env, es$layer, es$lag, yaxis = "y3",
                            xlim = range(mn$date, na.rm = TRUE))
     max_tn <- max(mn$trap_nights, na.rm = TRUE)
+    # lines break across sampling gaps of more than two months (an all-NA row
+    # per gap), so a seasonal pause is never drawn as a straight bridge
+    mg <- insert_gap_breaks(mn, max_gap_months = 2L)
+    if (!"edge" %in% names(mg)) mg$edge <- FALSE
+    if (!"incomplete_grid" %in% names(mg)) mg$incomplete_grid <- FALSE
     for (i in seq_along(plots)) {
-      pl <- plots[i]; dd <- mn[mn$plotID == pl, ]
+      pl <- plots[i]; dd <- mg[mg$plotID %in% pl, , drop = FALSE]
       # marker size tracks trap-EFFORT: a low-effort month reads as a smaller,
       # more tentative point (MNKA isn't effort-normalized, so this is the only
-      # honest "how hard did we look that month" cue).
+      # "how hard did we look that month" cue). Edge months (first or last of a
+      # run, MNKA biased low) are hollow; months with a grid night NEON marks
+      # incomplete are grey and hollow.
+      edge <- dd$edge %in% TRUE; inc <- dd$incomplete_grid %in% TRUE
       msz <- 4 + 7 * (dd$trap_nights / max_tn)
+      note <- ifelse(inc, "<br>NEON marks a grid night in this month incomplete",
+                ifelse(edge, "<br>edge month: MNKA is biased low here", ""))
       p <- p %>% add_trace(data = dd, x = ~date, y = ~mnka, type = "scatter", mode = "lines+markers",
         name = pl, legendgroup = pl, line = list(color = plot_cols[i], width = 2),
-        marker = list(size = msz, color = plot_cols[i]), customdata = round(dd$trap_nights),
-        hovertemplate = paste0(pl, "<br>%{x|%b %Y}<br>MNKA: %{y} · %{customdata} trap-nights<extra></extra>"))
+        marker = list(size = msz, symbol = ifelse(edge | inc, "circle-open", "circle"),
+                      color = ifelse(inc, dcol("#8a97a8"), plot_cols[i]),
+                      line = list(width = 2, color = ifelse(inc, dcol("#8a97a8"), plot_cols[i]))),
+        customdata = round(dd$trap_nights), text = note,
+        hovertemplate = paste0(pl, "<br>%{x|%b %Y}<br>MNKA: %{y} · %{customdata} trap-nights%{text}<extra></extra>"))
     }
     # site-total CPUE companion line on a secondary axis
     site <- mn %>% dplyr::group_by(.data$date) %>%
       dplyr::summarise(cap = sum(.data$captures), tn = sum(.data$trap_nights), .groups = "drop") %>%
-      dplyr::mutate(cpue = round(100 * .data$cap / .data$tn, 1))
+      dplyr::mutate(cpue = round(100 * .data$cap / .data$tn, 1)) %>%
+      insert_gap_breaks(max_gap_months = 2L, group = NULL, value_cols = "cpue")
     p <- p %>% add_trace(data = site, x = ~date, y = ~cpue, yaxis = "y2", type = "scatter",
       mode = "lines", name = "site total, per 100 trap-nights",
       line = list(color = "rgba(31,42,48,0.55)", width = 2, dash = "dot"),
       hovertemplate = "%{x|%b %Y}<br>%{y} captures per 100 trap-nights<extra></extra>")
     # Shaded "no sampling" bands behind long pauses (>~4 months between sampled
-    # months — e.g. the COVID-2020 hiatus): the line stays continuous (clean) but
-    # a labelled band names the gap, so a bridged segment is never read as a real
-    # trend through months that weren't surveyed.
+    # months, e.g. the COVID-2020 hiatus): the lines already break there, and a
+    # labelled band names the gap.
     sdates <- sort(unique(mn$date))
     gi <- if (length(sdates) > 1) which(as.numeric(diff(sdates)) > 124) else integer(0)
     bands <- lapply(gi, function(k) list(type = "rect", xref = "x", yref = "paper",
@@ -3671,6 +3701,18 @@ server <- function(input, output, session) {
     contentType = "text/csv"
   )
 
+  # (d) site QC report: one row per flagged record (site_qc_report, R/helpers.R)
+  output$dlQcReportCsv <- downloadHandler(
+    filename = function() sprintf("NEON-SmallMammal_qc-report_%s_%s.csv",
+                                  export_slug(), format(Sys.Date(), "%Y%m%d")),
+    content = function(file) {
+      d <- rv$data; req(d)
+      qc <- site_qc_report(d, rv$lb)
+      utils::write.csv(qc, file, row.names = FALSE, na = "")
+    },
+    contentType = "text/csv"
+  )
+
   # (c) column codebook — units + the captures-vs-handled-and-measured NA
   #     convention, so a downstream analyst can read the two CSVs above without
   #     guessing. The weight ~23% / hindfoot ~28% NA is unmeasured recaptures &
@@ -3714,7 +3756,17 @@ server <- function(input, output, session) {
         units  = "license",
         note   = "Source: NEON DP1.10072.001, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); aggregated and derived by this app.",
         stringsAsFactors = FALSE, row.names = NULL)
-      rbind(lic, cap, ser)
+      qcr <- data.frame(
+        file = "qc-report",
+        column = c("flag", "level", "tagID", "date", "plotID", "scientificName", "measure", "value", "rule"),
+        units = c("QC flag name", "high / warn / info", "ear-tag ID", "ISO date (YYYY-MM-DD)", "NEON plot ID",
+                  "Latin binomial", "measured field (weight, hindfoot, tail, ear) where the flag is about a value",
+                  "the flagged value, in the measure's units", "the rule that raised the flag"),
+        note = c("one row per flagged record; a flag means verify against the datasheet, not wrong", "",
+                 "", "blank for a flag about the whole capture record", "", "", "blank when the flag is not about one measurement",
+                 "blank when the flag is not about one measurement", ""),
+        stringsAsFactors = FALSE, row.names = NULL)
+      rbind(lic, cap, ser, qcr)
   }
   output$dlCodebookCsv <- downloadHandler(
     filename = function() sprintf("NEON-SmallMammal_codebook_%s.csv",
@@ -3767,6 +3819,8 @@ server <- function(input, output, session) {
         p("Take this site's records as tidy, analysis-ready CSVs, with every column documented in the codebook so they're reproducible without guessing."),
         div(class = "about-dl",
           downloadButton("dlCapturesCsv", tagList(bs_icon("table"), " Site capture table (CSV)"),
+                         class = "smt-clear-btn"),
+          downloadButton("dlQcReportCsv", tagList(bs_icon("flag"), " QC report (CSV)"),
                          class = "smt-clear-btn"),
           downloadButton("dlSeriesCsv", tagList(bs_icon("graph-up"), " Monthly MNKA / CPUE / N̂ series (CSV)"),
                          class = "smt-clear-btn"),

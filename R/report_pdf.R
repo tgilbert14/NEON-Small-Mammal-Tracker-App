@@ -401,11 +401,22 @@ render_report_pdf <- function(file, d, label, is_demo = FALSE, cc = NULL) {
 # Side-by-side PDF for two sites: a winner-highlighted metric table, species
 # overlap, top species per site, and (if ggplot2) composition charts on page 2.
 render_compare_pdf <- function(file, dA, labelA, dB, labelB) {
-  pack <- function(d) list(
+  pack <- function(d) {
+    sp_all <- species_summary(d); sp_lvl <- species_level_only(sp_all)
+    list(
     cs = community_stats(d), hn = hill_numbers(d),
-    sp = utils::head(species_summary(d), 6),
+    sp = utils::head(sp_all, 6),
+    sp_counts = if (!is.null(sp_lvl) && nrow(sp_lvl)) sp_lvl$individuals[sp_lvl$individuals > 0] else numeric(0),
     all_sp = sort(unique(species_level_only(dplyr::filter(d, !is.na(.data$scientificName)))$scientificName)))
+  }
   A <- pack(dA); B <- pack(dB)
+  # same rules as the in-app compare panel: rarefied richness at the smaller
+  # site's Individuals count, and no winner on raw richness when one site has
+  # 2x or more the individuals
+  ia <- A$cs$individuals; ib <- B$cs$individuals
+  size_mismatch <- !is.finite(ia) || !is.finite(ib) || min(ia, ib) <= 0 || max(ia, ib) / min(ia, ib) >= 2
+  n_rare <- suppressWarnings(min(ia, ib, sum(A$sp_counts), sum(B$sp_counts)))
+  ra <- hurlbert_rarefy(A$sp_counts, n_rare); rb <- hurlbert_rarefy(B$sp_counts, n_rare)
   codeA <- sub("[ ].*$", "", labelA); codeB <- sub("[ ].*$", "", labelB)
   has_gg <- requireNamespace("ggplot2", quietly = TRUE)
 
@@ -436,7 +447,9 @@ render_compare_pdf <- function(file, dA, labelA, dB, labelB) {
   rows <- list(
     mrow("Captures", A$cs$total_captures, B$cs$total_captures),
     mrow("Individuals (ear-tagged)", A$cs$individuals, B$cs$individuals),
-    mrow("Species (richness)", A$cs$species, B$cs$species),
+    mrow("Species (richness)", A$cs$species, B$cs$species, highlight = !size_mismatch),
+    mrow(sprintf("Rarefied richness at n = %s", format(n_rare, big.mark = ",")), ra, rb,
+         fmt = function(x) if (is.na(x)) "-" else format(round(x, 1), nsmall = 1)),
     mrow("Effective common species (Hill q1)", A$hn$q1, B$hn$q1, fmt = function(x) format(round(x, 1), nsmall = 1)),
     mrow("Evenness (0-1)", A$hn$even, B$hn$even, fmt = function(x) format(round(x, 2), nsmall = 2)),
     # depends on grid design and trap nights, so never bolded as a winner
@@ -456,9 +469,10 @@ render_compare_pdf <- function(file, dA, labelA, dB, labelB) {
     y <- y + 0.24
   }
   y <- y + 0.05
-  grid.text("Higher value per row in bold navy. Diversity is Hill numbers over distinct ear-tagged individuals.",
-            x = unit(0, "npc"), y = gy(y), just = c("left", "top"), gp = gpar(fontsize = 8, col = PG$muted))
-  y <- y + 0.34
+  foot <- paste0("Higher value per row in bold navy, except recapture rate (never)",
+    if (size_mismatch) " and raw richness (one site has 2x or more the individuals; read the rarefied row)",
+    ". Diversity is Hill numbers over distinct ear-tagged individuals.")
+  y <- draw_para(foot, y, 8, PG$muted, gapAfter = 0.2)
 
   shared <- intersect(A$all_sp, B$all_sp); onlyA <- setdiff(A$all_sp, B$all_sp); onlyB <- setdiff(B$all_sp, A$all_sp)
   y <- draw_h4("Species overlap", y)
@@ -491,6 +505,19 @@ render_compare_pdf <- function(file, dA, labelA, dB, labelB) {
     popViewport()
   }
   invisible(file)
+}
+
+# ---- shared rarefaction (compare panel and compare PDF) ---------------------
+# Hurlbert (1971) rarefied richness E[S_n]: the expected number of species in a
+# random draw of n individuals without replacement from per-species counts.
+# E[S_n] = sum_i (1 - C(N - N_i, n) / C(N, n)); lchoose keeps large N stable.
+# Returns NA when n is missing, < 1 or larger than the pooled count.
+hurlbert_rarefy <- function(counts, n) {
+  counts <- counts[is.finite(counts) & counts > 0]
+  N <- sum(counts)
+  if (!length(counts) || !is.finite(n) || n < 1 || n > N) return(NA_real_)
+  n <- floor(n)
+  sum(1 - exp(lchoose(N - counts, n) - lchoose(N, n)))
 }
 
 # ---- shared provenance helpers (PDF, footer, About, landing) ---------------

@@ -30,7 +30,7 @@ scope_chip <- function(scope = c("site", "network")) {
 # marked and not linked; the others open their cover pages.
 suite_directory_nav <- function(apps = SUITE_APPS) {
   if (is.null(apps) || !nrow(apps)) return(NULL)
-  tags$nav(class = "suite-dir", `aria-label` = "NEON Explorer Suite",
+  tags$nav(class = "suite-dir", `aria-label` = "NEON Explorer Suite directory",
     tags$ul(class = "suite-dir-list",
       lapply(seq_len(nrow(apps)), function(i) {
         tags$li(if (isTRUE(apps$is_self[i]))
@@ -470,7 +470,7 @@ ui <- bslib::page_fillable(
                 p("It's a relative-abundance ", tags$b("index"), " for following trends at this site. It is not a population estimate and not a fair comparison between sites, because how easily animals are caught differs by habitat. The detection-corrected abundance card is the place to compare sites."))),
             uiOutput("mnkaInsight"),
             spin(plotlyOutput("mnkaPlot", height = "440px")),
-            chart_caption(tags$b("MNKA"), " (minimum number known alive, left axis) counts individuals known alive each month per plot — caught that month, or before ", tags$b("and"), " after (Krebs 1966). The dotted line is the site-total ", tags$b("catch per 100 trap-nights"), " (right axis), a separate effort-normalised index on its own scale. Marker size tracks that month's trap-effort; shaded bands mark stretches with no sampling. Both are transparent ", tags$b("indices"), ", ", tags$b("not"), " detection-corrected abundance — read each on its own axis and don't infer a trend across an unsampled gap.")),
+            chart_caption(tags$b("MNKA"), " (minimum number known alive, left axis) counts individuals known alive each month per plot — caught that month, or before ", tags$b("and"), " after (Krebs 1966). The dotted line is the site-total ", tags$b("catch per 100 trap-nights"), " (right axis), a separate effort-normalised index on its own scale. Marker size tracks that month's trap-effort; lines break across gaps of more than two months and shaded bands mark long stretches with no sampling. Hollow markers are edge months, where MNKA is biased low; grey hollow markers are months with a grid night NEON marks incomplete. Both are transparent ", tags$b("indices"), ", ", tags$b("not"), " detection-corrected abundance — read each on its own axis and don't infer a trend across an unsampled gap.")),
           card(full_screen = TRUE,
             card_head("graph-up", "Species accumulation",
               info_pop("Species accumulation",
