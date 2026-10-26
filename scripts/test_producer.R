@@ -64,8 +64,12 @@ r2 <- join_perplotnight(as.data.frame(bart), part)$report
 check(r2$unmatched == sum(bart$nightuid %in% ppn$nightuid[1:5]) + sum(is.na(bart$nightuid)),
       "nightuids missing from mam_perplotnight count as unmatched")
 dupe <- rbind(ppn, transform(ppn[1, ], gridCompletion = "conflict"))
-check(expect_error(join_perplotnight(as.data.frame(bart), dupe), ppn$nightuid[1]),
-      "conflicting duplicate nightuid stops and names the nightuid")
+jd <- join_perplotnight(as.data.frame(bart), dupe)
+j0 <- join_perplotnight(as.data.frame(bart), ppn)$data
+hit <- !is.na(bart$nightuid) & bart$nightuid == ppn$nightuid[1]
+check(identical(jd$report$conflicts, ppn$nightuid[1]) && all(is.na(jd$data$gridCompletion[hit])) &&
+        identical(jd$data$samplingImpractical[hit], j0$samplingImpractical[hit]),
+      "a conflicting duplicate nightuid becomes NA in the disagreeing field only and is reported")
 check(join_perplotnight(as.data.frame(bart), rbind(ppn, ppn[1, ]))$report$joined == res$report$joined,
       "exact duplicate perplotnight rows collapse without stopping")
 check(expect_error(join_perplotnight(as.data.frame(bart), NULL), "mam_perplotnight"),
@@ -105,7 +109,8 @@ check(isTRUE(check_release(ok_raw)), "pinned release passes")
 bad <- ok_raw; bad$mam_pertrapnight$release[2] <- "PROVISIONAL"
 check(expect_error(check_release(bad, site = "SRER"), "PROVISIONAL"), "a provisional row stops the build")
 bad <- ok_raw; bad[["citation_10072_PROVISIONAL"]] <- "x"
-check(expect_error(check_release(bad), "citation"), "an extra citation element stops the build")
+out <- utils::capture.output(ok <- check_release(bad))
+check(isTRUE(ok) && any(grepl("::warning", out)), "an extra citation element warns; the release column decides")
 
 # ---- item 7: bundle_meta.json writer -------------------------------------------
 m <- bundle_meta("RELEASE-2026", "https://doi.org/10.48443/a83h-tb34", "2026-01-23",

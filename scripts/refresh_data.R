@@ -97,6 +97,10 @@ for (s in sites) {
   cat(sprintf("    perplotnight join: %d rows, %d joined, %d with no matching nightuid; carried [%s]%s\n",
               r$rows, r$joined, r$unmatched, paste(r$carried, collapse = ", "),
               if (length(r$absent)) sprintf("; absent [%s]", paste(r$absent, collapse = ", ")) else ""))
+  if (length(r$conflicts))
+    gh_annotation("warning", "Conflicting per-plot-night rows",
+                  sprintf("%s: %d nightuid(s) with conflicting mam_perplotnight rows; disagreeing fields set to NA: %s",
+                          s, length(r$conflicts), paste(utils::head(r$conflicts, 10), collapse = ", ")))
   cat(sprintf("    gridCompletion: %s\n", fmt_tab(r$gridCompletion)))
   cat(sprintf("    samplingImpractical: %s\n", fmt_tab(r$samplingImpractical)))
   cat(sprintf("    trapsSet vs distinct set traps (status 2-6): %d of %d plot-nights differ (%s)\n",

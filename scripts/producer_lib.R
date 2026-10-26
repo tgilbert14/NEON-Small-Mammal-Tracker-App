@@ -86,16 +86,28 @@ join_perplotnight <- function(trapnight, perplotnight) {
   ppn <- materialize_columns(ppn)
   ppn <- ppn[!is.na(ppn$nightuid), , drop = FALSE]
   ppn <- unique(ppn)
-  dup <- unique(ppn$nightuid[duplicated(ppn$nightuid)])
-  if (length(dup))
-    stop(sprintf("mam_perplotnight has %d nightuid(s) with conflicting rows: %s",
-                 length(dup), paste(utils::head(sort(dup), 10), collapse = ", ")), call. = FALSE)
+  # A nightuid with conflicting rows keeps a carried field only where every row
+  # agrees (ignoring NA); a disagreement becomes NA (unknown) and is reported, so
+  # one bad NEON row cannot stop the whole 46-site build.
+  dup <- sort(unique(ppn$nightuid[duplicated(ppn$nightuid)]))
+  if (length(dup)) {
+    one <- ppn[!duplicated(ppn$nightuid), , drop = FALSE]
+    for (u in dup) {
+      rows <- ppn[ppn$nightuid == u, , drop = FALSE]
+      for (cn in carried) {
+        v <- unique(rows[[cn]][!is.na(rows[[cn]])])
+        one[[cn]][one$nightuid == u] <- if (length(v) == 1L) v else NA
+      }
+    }
+    ppn <- one
+  }
   idx <- match(trapnight$nightuid, ppn$nightuid)
   out <- trapnight
   for (cn in carried) out[[cn]] <- ppn[[cn]][idx]
   list(data = out,
        report = list(rows = nrow(trapnight), joined = sum(!is.na(idx)),
                      unmatched = sum(is.na(idx)), carried = carried,
+                     conflicts = dup,
                      overlap = overlap,
                      absent = setdiff(PERPLOTNIGHT_FIELDS, c(carried, overlap))))
 }
@@ -149,9 +161,13 @@ prepare_site_bundle <- function(trapnight, perplotnight, keep = BUNDLE_KEEP) {
 check_release <- function(raw, pin = NEON_RELEASE_PIN, site = "?") {
   cites <- grep("^citation_10072_", names(raw), value = TRUE)
   want  <- paste0("citation_10072_", pin)
+  # The per-row release column below is the authoritative check; an unexpected
+  # citation element name only warns, so a neonUtilities naming change cannot
+  # stop a correct pull.
   if (!identical(cites, want))
-    stop(sprintf("%s: expected exactly one citation element %s, got [%s].",
-                 site, want, paste(cites, collapse = ", ")), call. = FALSE)
+    gh_annotation("warning", "Unexpected NEON citation elements",
+                  sprintf("%s: expected exactly one citation element %s, got [%s].",
+                          site, want, paste(cites, collapse = ", ")))
   for (tb in c("mam_pertrapnight", "mam_perplotnight")) {
     x <- raw[[tb]]
     if (is.null(x)) next
