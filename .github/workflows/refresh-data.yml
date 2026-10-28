@@ -4,8 +4,10 @@ name: Propose NEON data refresh
 # empty staging directory; the committed known-good bundle is replaced only after
 # the exact 46-site set exists. The validator rebuilds all indexes and the
 # manifest, verifies the complete bundle, and uploads an immutable candidate.
-# Only the final job has write permission, and it publishes to a review branch —
-# never main. Merging the PR is the explicit production/deploy decision.
+# Only publish_candidate has contents write permission, and it publishes to a
+# review branch, never main; it never opens a PR. notify and release_watch can
+# only open or comment on issues. Merging a reviewer-opened PR is the explicit
+# production/deploy decision.
 
 on:
   schedule:
@@ -17,6 +19,10 @@ on:
     inputs:
       skip_download:
         description: "Skip the NEON re-pull; just rebuild the index from committed bundles (fast test)"
+        type: boolean
+        default: false
+      env_precip_full:
+        description: "Also re-pull precipitation (DP1.00044.001) for the whole window and rewrite only precip_mm and precip_mm_n_days in every env bundle (about 100 min, non-fatal)"
         type: boolean
         default: false
 
@@ -105,11 +111,14 @@ jobs:
     needs: gate
     if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-22.04
-    timeout-minutes: 120
+    # 120 minutes normally; 300 when the precipitation-only full rebuild
+    # (about 100 minutes) is requested on top of the mammal pull.
+    timeout-minutes: ${{ github.event.inputs.env_precip_full == 'true' && 300 || 120 }}
     permissions:
       contents: read
+    outputs:
+      newer_release: ${{ steps.productmeta.outputs.newer_release }}
     env:
-      NEON_TOKEN: ${{ secrets.NEON_TOKEN }}
       RSPM: https://packagemanager.posit.co/cran/__linux__/jammy/2026-07-15
       RENV_CONFIG_REPOS_OVERRIDE: https://packagemanager.posit.co/cran/__linux__/jammy/2026-07-15
       OPENBLAS_CORETYPE: Haswell
@@ -157,17 +166,56 @@ jobs:
           install-pandoc: 'false'
           install-quarto: 'false'
 
-      - name: Build the full mammal bundle in an empty staging directory
-        if: ${{ github.event.inputs.skip_download != 'true' }}
+      - name: Require neonUtilities 4.0.1 or newer
+        run: Rscript --vanilla -e 'stopifnot(packageVersion("neonUtilities") >= "4.0.1")'
+
+      # Scheduled runs skip the long mammal pull when the committed bundles are
+      # already stamped with the pinned release and the current bundle schema:
+      # a pinned release cannot change. Dispatch always pulls unless skip_download.
+      - name: Decide whether the mammal pull can change anything
+        id: pullplan
+        shell: bash
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          SKIP_DOWNLOAD: ${{ github.event.inputs.skip_download }}
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/refresh-report"
+          mkdir -p "$report"
+          if [ "${SKIP_DOWNLOAD:-}" = "true" ]; then
+            echo "Freshness: mammal pull skipped (skip_download), not re-measured." > "$report/freshness.txt"
+            echo "- Mammal pull skipped: skip_download is true." >> "$GITHUB_STEP_SUMMARY"
+            echo "pull=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$EVENT_NAME" = "schedule" ] && [ -f data/bundle_meta.json ]; then
+            read -r pin schema < <(Rscript --vanilla -e 'source("scripts/producer_lib.R"); cat(NEON_RELEASE_PIN, BUNDLE_SCHEMA)')
+            have_pin=$(jq -r '.release // empty' data/bundle_meta.json)
+            have_schema=$(jq -r '.bundle_schema // empty' data/bundle_meta.json)
+            if [ "$have_pin" = "$pin" ] && [ "$have_schema" = "$schema" ]; then
+              echo "::notice title=Mammal pull skipped::Committed bundles are $pin, schema $schema; a pinned release cannot change. Indexes still rebuild."
+              echo "- Mammal pull skipped: committed bundles already carry $pin, schema $schema. Indexes still rebuild." >> "$GITHUB_STEP_SUMMARY"
+              echo "Freshness: mammal pull skipped, bundles already carry $pin (schema $schema)." > "$report/freshness.txt"
+              echo "pull=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "pull=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build the full mammal bundle in an empty staging directory
+        if: steps.pullplan.outputs.pull == 'true'
+        timeout-minutes: 110
+        env:
+          NEON_TOKEN: ${{ secrets.NEON_TOKEN }}
           SMT_SITE_OUT_DIR: ${{ runner.temp }}/mammal-sites
+          SMT_REPORT_DIR: ${{ runner.temp }}/refresh-report
         run: |
           set -euo pipefail
           mkdir -p "$SMT_SITE_OUT_DIR"
           Rscript --vanilla scripts/refresh_data.R
 
       - name: Replace the worktree copy only after staging passes
-        if: ${{ github.event.inputs.skip_download != 'true' }}
+        if: steps.pullplan.outputs.pull == 'true'
         env:
           SMT_SITE_OUT_DIR: ${{ runner.temp }}/mammal-sites
         run: |
@@ -175,38 +223,76 @@ jobs:
           rm -f data/sites/*.rds
           cp -- "$SMT_SITE_OUT_DIR"/*.rds data/sites/
 
-      # Environmental overlays (precip / temperature / fruiting) — a LIGHT monthly
-      # TOP-UP: SMT_ENV_RECENT_MONTHS re-pulls only the last ~14 months and merges
-      # into the committed data/env bundle (the full 13-year history is built once,
-      # offline). Time-boxed + non-fatal so it can never stall or block the push.
-      # Non-fatal so a transient env-product hiccup can never block the mammal
-      # candidate, but its outcome is CAPTURED (id + step output) and surfaced loudly
-      # below instead of silently swallowed, so a repeatedly-failing top-up is visible.
+      # Environmental overlays (precip / temperature / phenology): a light monthly
+      # TOP-UP. SMT_ENV_RECENT_MONTHS re-pulls only the last ~14 months and merges
+      # into the committed data/env bundle. Env data is not release-pinned, so this
+      # also runs when a scheduled run skips the mammal pull. Time-boxed and
+      # non-fatal, but its outcome is captured and surfaced loudly below.
       - name: Top up the environmental overlays (recent months)
         id: envtopup
         if: ${{ github.event.inputs.skip_download != 'true' }}
         continue-on-error: true
         timeout-minutes: 40
         env:
+          NEON_TOKEN: ${{ secrets.NEON_TOKEN }}
           SMT_ENV_RECENT_MONTHS: "14"
         run: Rscript --vanilla scripts/refresh_env_data.R
 
       - name: Flag environmental top-up failure (loud, non-fatal)
         if: ${{ github.event.inputs.skip_download != 'true' && steps.envtopup.outcome == 'failure' }}
         run: |
-          echo "::warning title=Env overlay top-up failed::scripts/refresh_env_data.R did not finish (timeout or NEON error). The required mammal candidate can still be reviewed; the env overlays were NOT topped up this run."
+          echo "::warning title=Env overlay top-up failed::scripts/refresh_env_data.R did not finish (timeout, missing token or NEON error). The required mammal candidate can still be reviewed; the env overlays were NOT topped up this run."
 
-      # Rebuild the site index (per-site summary + mean detection p̂ + species
-      # ranges) from the committed bundles — always, so the index stays in lock-step
+      # Precipitation-only full-history rebuild (dispatch input env_precip_full).
+      # Runs after the mammal swap and the normal top-up so a slow precipitation
+      # pull can never block the mammal candidate. History months built before
+      # this change carry precip_mm_n_days NA (coverage unknown) until this mode
+      # runs once; months it cannot rebuild keep NA.
+      - name: Rebuild precipitation for the whole window (optional)
+        id: envprecip
+        if: ${{ github.event.inputs.env_precip_full == 'true' }}
+        continue-on-error: true
+        timeout-minutes: 100
+        env:
+          NEON_TOKEN: ${{ secrets.NEON_TOKEN }}
+          SMT_ENV_PRECIP_FULL: "1"
+        run: Rscript --vanilla scripts/refresh_env_data.R
+
+      - name: Flag precipitation rebuild failure (loud, non-fatal)
+        if: ${{ github.event.inputs.env_precip_full == 'true' && steps.envprecip.outcome == 'failure' }}
+        run: |
+          echo "::warning title=Precipitation rebuild failed::The precipitation-only rebuild did not finish. Bundles it reached carry the rebuilt precip_mm and precip_mm_n_days; the rest are unchanged."
+
+      # Restore committed bytes for every .rds whose content did not change
+      # (row order, serialization header, R version), so review sees real changes only.
+      - name: Restore unchanged bundles (after data steps)
+        env:
+          SMT_ROW_DELTA_DIR: ${{ runner.temp }}/refresh-report
+        run: Rscript --vanilla scripts/restore_unchanged_bundles.R
+
+      # NEON products endpoint (anonymous): issue log and release watch. Runs on
+      # both paths; if the endpoint is down the committed files stay and it warns.
+      - name: Refresh the NEON issue log and watch for a newer release
+        id: productmeta
+        timeout-minutes: 10
+        run: Rscript --vanilla scripts/neon_product_meta.R
+
+      # Rebuild the site index (per-site summary + mean detection p-hat + species
+      # ranges) from the committed bundles, always, so the index stays in lock-step
       # with the data on both the full-pull and skip-download paths.
       - name: Rebuild the site index
         run: Rscript --vanilla scripts/build_site_index.R
 
       # Rebuild the "Search the network" index (data/search_index.rds) from the
-      # committed bundles — must run on BOTH paths so the search tab never goes
+      # committed bundles; must run on BOTH paths so the search tab never goes
       # stale after a refetch.
       - name: Rebuild the search index
         run: Rscript --vanilla scripts/build_search_index.R
+
+      - name: Restore unchanged bundles (after index rebuild)
+        env:
+          SMT_ROW_DELTA_DIR: ${{ runner.temp }}/refresh-report
+        run: Rscript --vanilla scripts/restore_unchanged_bundles.R
 
       # Regenerate the lean manifest.json from the committed runtime files. The
       # per-file checksums must track the refreshed bundles, or Connect Cloud
@@ -241,6 +327,15 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+
+      - name: Upload the refresh report for the notify job
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: small-mammal-refresh-report-${{ github.sha }}
+          path: ${{ runner.temp }}/refresh-report
+          if-no-files-found: error
+          retention-days: 7
+
   publish_candidate:
     needs: [gate, build_candidate]
     if: needs.gate.outputs.run == 'true' && needs.build_candidate.result == 'success'
@@ -248,6 +343,9 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    outputs:
+      published: ${{ steps.publish.outputs.published }}
+      head: ${{ steps.publish.outputs.head }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -261,10 +359,12 @@ jobs:
           path: ${{ runner.temp }}/refresh-candidate
 
       - name: Publish or update the review branch
+        id: publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          echo "published=false" >> "$GITHUB_OUTPUT"
           git fetch --no-tags origin main
           if ! git merge-base --is-ancestor origin/main "$GITHUB_SHA"; then
             echo "Producer revision does not contain current main; refusing stale publication."
@@ -306,6 +406,14 @@ jobs:
             echo "Published branch does not resolve to the validated candidate commit."
             exit 1
           fi
+          echo "published=true" >> "$GITHUB_OUTPUT"
+          echo "head=$published_commit" >> "$GITHUB_OUTPUT"
+          if [ -n "$remote_head" ] && git cat-file -e "${remote_head}^{commit}" 2>/dev/null && \
+             ! git merge-base --is-ancestor "$remote_head" origin/main; then
+            echo "::warning title=Replaced a waiting candidate::$branch moved from ${remote_head} (not merged to main) to ${published_commit}."
+          elif [ -n "$remote_head" ] && ! git cat-file -e "${remote_head}^{commit}" 2>/dev/null; then
+            echo "::warning title=Replaced a waiting candidate::$branch moved from ${remote_head} (object not fetched; could not confirm it was merged) to ${published_commit}."
+          fi
 
           pr_count=$(gh pr list --head "$branch" --base main --state open \
             --json url --jq 'length')
@@ -343,3 +451,118 @@ jobs:
           gh pr comment "$pr_url" \
             --body "Updated from ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}. GitHub will hold the pull_request synchronize checks triggered by this automation update for approval; a repository write user must select **Approve workflows to run**. Do not merge until checks are green on exact head ${published_commit}."
           echo "::notice title=Approve exact-head PR checks::Existing PR updated to $published_commit. A repository write user must select Approve workflows to run, then verify green checks on that exact head."
+
+  # Opens or updates ONE issue when a new candidate head was published. Issues
+  # only: it cannot push, and it never opens a PR.
+  notify:
+    needs: [build_candidate, publish_candidate]
+    if: needs.publish_candidate.outputs.published == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Download the refresh report
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: small-mammal-refresh-report-${{ github.sha }}
+          path: ${{ runner.temp }}/refresh-report
+
+      - name: Open or update the review issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ needs.publish_candidate.outputs.head }}
+          NEWER_RELEASE: ${{ needs.build_candidate.outputs.newer_release }}
+        run: |
+          set -euo pipefail
+          title="Data refresh ready for review: Small Mammal Tracker"
+          report="$RUNNER_TEMP/refresh-report"
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          compare_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...automation/small-mammal-data-refresh"
+          freshness=$(cat "$report/freshness.txt" 2>/dev/null || echo "Freshness: not recorded this run.")
+          delta=$(cat "$report/row_delta.md" 2>/dev/null || echo "Row-delta summary missing from this run.")
+          body_file=$(mktemp)
+          {
+            echo "A validated candidate is waiting on \`automation/small-mammal-data-refresh\`."
+            echo
+            echo "- Compare: ${compare_url}"
+            echo "- Exact head: \`${HEAD_SHA}\`"
+            echo "- Run: ${run_url}"
+            echo "- ${freshness}"
+            if [ -n "${NEWER_RELEASE:-}" ]; then
+              echo "- NEON lists a newer release, ${NEWER_RELEASE}; the bundles stay on the pinned release until the pin is bumped."
+            fi
+            echo
+            echo "${delta}"
+            echo
+            echo "Open a PR from the compare link to review; the workflow never opens one."
+          } > "$body_file"
+          gh label create data-refresh --color 0E8A16 --description "Automated data refresh candidate" --force
+          number=$(gh issue list --state open --search "\"$title\" in:title" --json number,title \
+            --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body-file "$body_file"
+          else
+            gh issue create --title "$title" --label data-refresh --body-file "$body_file"
+          fi
+
+  # Weekly (every trigger) and independent of the calendar gate: anonymous GET of
+  # the NEON products endpoint; opens or updates one issue when NEON lists a
+  # release newer than the pin.
+  release_watch:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            data/bundle_meta.json
+            scripts/producer_lib.R
+          sparse-checkout-cone-mode: false
+
+      - name: Compare NEON releases with the pin
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PRODUCTS_URL: https://data.neonscience.org/api/v0/products/DP1.10072.001
+        run: |
+          set -euo pipefail
+          pin=""
+          if [ -f data/bundle_meta.json ]; then pin=$(jq -r '.release // empty' data/bundle_meta.json); fi
+          if [ -z "$pin" ]; then
+            pin=$(sed -n 's/^NEON_RELEASE_PIN[[:space:]]*<-[[:space:]]*"\([^"]*\)".*/\1/p' scripts/producer_lib.R)
+          fi
+          body=$(mktemp)
+          code=$(curl -sS --retry 3 --retry-all-errors --max-time 60 -o "$body" -w '%{http_code}' "$PRODUCTS_URL") || code=000
+          if [ "$code" != "200" ]; then
+            echo "::warning title=NEON products endpoint down::HTTP $code from $PRODUCTS_URL; release watch skipped this run."
+            exit 0
+          fi
+          pin_year=${pin#RELEASE-}
+          newest=$(jq -r --argjson y "${pin_year%%[!0-9]*}" '[.data.releases[] | select((.release | test("^RELEASE-[0-9]{4}")) and ((.release[8:12] | tonumber) > $y))] | sort_by(.release) | last | if . == null then "" else "\(.release)\t\(.productDoi.url // "")" end' "$body")
+          if [ -z "$newest" ]; then
+            echo "Release watch: $pin is the newest listed release." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          IFS=$'\t' read -r tag doi <<< "$newest"
+          echo "::warning title=Newer NEON release::NEON lists $tag (DOI $doi); bundles are pinned to $pin."
+          title="NEON published a newer data release: Small Mammal Tracker"
+          text="NEON lists **${tag}** for DP1.10072.001 (DOI ${doi:-not listed}). The bundles are pinned to ${pin}. Code change needed: bump NEON_RELEASE_PIN in scripts/producer_lib.R to ${tag}, then dispatch the refresh. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          gh label create neon-release --color 1D76DB --description "NEON published a newer data release" --force
+          number=$(gh issue list --state open --search "\"$title\" in:title" --json number,title \
+            --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+          if [ -z "$number" ]; then
+            gh issue create --title "$title" --label neon-release --body "$text"
+          elif ! gh issue view "$number" --json body,comments --jq '[.body, .comments[].body] | join("\n")' | grep -qF "**${tag}**"; then
+            gh issue comment "$number" --body "$text"
+          else
+            echo "Issue #$number already names $tag; nothing to add."
+          fi

@@ -4,7 +4,9 @@
 #
 # Bundles ONLY what the running app needs: global/ui/server + R/ + www/ + the
 # precomputed indexes (data/*.rds) + the per-site bundles (data/sites/*.rds) +
-# the env overlays + the demo sample. It does NOT bundle scripts/, docs/,
+# the env overlays + the provenance JSON (data/*.json) + data-sample/. Keep this
+# list in step with the runtime-file check in scripts/verify_bundle.R. It does
+# NOT bundle scripts/, docs/,
 # rsconnect/, or the README.
 #
 # neonUtilities is intentionally EXCLUDED — it's referenced dynamically in
@@ -33,9 +35,10 @@ appFiles <- c(
   list.files("R", pattern = "\\.R$", full.names = TRUE),
   list.files("www", recursive = TRUE, full.names = TRUE),
   Sys.glob("data/*.rds"),                                       # precomputed indexes
+  Sys.glob("data/*.json"),          # provenance: bundle_meta.json, neon_issue_log.json
   list.files("data/sites", pattern = "\\.rds$", full.names = TRUE),
   list.files("data/env",   pattern = "\\.rds$", full.names = TRUE),   # env overlays
-  list.files("data-sample", pattern = "\\.rds$", full.names = TRUE)
+  list.files("data-sample", recursive = TRUE, full.names = TRUE)   # demo sample(s)
 )
 appFiles <- unique(appFiles[file.exists(appFiles)])
 

@@ -1,0 +1,222 @@
+[
+  {
+    "id": 3,
+    "issueDate": "2017-08-08",
+    "resolvedDate": "2017-08-08",
+    "dateRangeStart": "2017-08-08",
+    "dateRangeEnd": "2017-08-08",
+    "locationAffected": "All",
+    "issue": "Different data fields: As part of NEON's ongoing construction tasks, the processing pipeline for most data products for NEON's observational systems (terrestrial [TOS] and aquatic [AOS]) has been simplified to use a generic codebase.",
+    "resolution": "Data that were published previously have been reprocessed and republished using the generic code -- replacing data that had been processed using the original algorithms described in Algorithm Theoretical Basis Documents (ATBDs). Consequently, data are in a new format including, in many cases, different data fields. Details of the new processing pipeline can be found in http://data.neonscience.org/api/v0/documents/OS_generic_transitions_vA  and http://data.neonscience.org/api/v0/documents/Nicl_Language_DRAFT."
+  },
+  {
+    "id": 16695,
+    "issueDate": "2020-11-01",
+    "resolvedDate": "2015-03-23",
+    "dateRangeStart": "2013-01-01",
+    "dateRangeEnd": "2015-03-23",
+    "locationAffected": "All",
+    "issue": "Sampling nights reduced: Trapping small mammals for three nights on every grid is highly resource-intensive.",
+    "resolution": "In consultation with the Technical Working Group, sample bout duration was decreased from three nights to one at diversity grids. By maintaining three sampling nights on the remaining three pathogen grids at each site, this design change balanced the sampling of a diversity of land cover classes with the recapture data required for density estimation."
+  },
+  {
+    "id": 16696,
+    "issueDate": "2020-11-01",
+    "resolvedDate": "2015-03-23",
+    "dateRangeStart": "2013-01-01",
+    "dateRangeEnd": "2015-03-23",
+    "locationAffected": "All",
+    "issue": "Samples collected reduced: On days when large numbers of small mammals are captured, collecting and processing samples from all captures requires too much time.",
+    "resolution": "Only ten samples of a given type (e.g., hair, fecal, ear) are collected from priority species when capture rates are high."
+  },
+  {
+    "id": 16697,
+    "issueDate": "2020-11-01",
+    "resolvedDate": "2020-10-14",
+    "dateRangeStart": "2016-03-01",
+    "dateRangeEnd": "2017-05-01",
+    "locationAffected": "GUAN, LAJA",
+    "issue": "Sampling halted in Puerto Rico: Small mammal communities in Puerto Rico are exclusively invasive species of Rattus and Mus. The larger Tomahawk traps required to capture the Rattus spp. risk capturing invasive mongoose (Herpestes auropunctatus). The site host would not permit release of this invasive species once captured, and the IACUC would not permit euthanasia by NEON staff due to risks to staff safety.",
+    "resolution": "Small mammal trapping activities in Puerto Rico have been suspended to prevent unintended capture of invasive mongoose (Herpestes auropunctatus)."
+  },
+  {
+    "id": 16698,
+    "issueDate": "2020-11-01",
+    "resolvedDate": "2019-01-29",
+    "dateRangeStart": "2013-01-01",
+    "dateRangeEnd": "2016-01-29",
+    "locationAffected": "All",
+    "issue": "Ticks are not being recorded on small mammals.",
+    "resolution": "Tick monitoring (presence/absence by lifestage) was added to the data product for the 2016 field season.  Beginning in the 2020 field season, the binned number of total ticks attached to a small mammal was also added to the data product with groupings that include: 1-5, 6-20, >20."
+  },
+  {
+    "id": 16699,
+    "issueDate": "2020-11-01",
+    "resolvedDate": "2019-03-18",
+    "dateRangeStart": "2013-01-01",
+    "dateRangeEnd": "2019-03-18",
+    "locationAffected": "All",
+    "issue": "Hair sample update: Small mammal hair sample weight is below the 5 mg minimum required for stable isotope analyses.",
+    "resolution": "The protocol was updated to require collection of hair samples weighing 5-8 mg instead of < 1 mg."
+  },
+  {
+    "id": 16700,
+    "issueDate": "2020-11-01",
+    "resolvedDate": "2020-02-11",
+    "dateRangeStart": "2013-01-01",
+    "dateRangeEnd": "2018-12-31",
+    "locationAffected": "All",
+    "issue": "No sampling impractical: Bouts of missed sampling are not being recorded in the data.",
+    "resolution": "In 2020, NEON added the quality flag \"samplingImpractical\" to the small mammal `per_plotnight` table to assist users in determining the cause of missing samples.  Sampling Impractical values were backfilled for 2019 records in April 2026 data based on the \"remarks\" in `per_plotnight` or if all 100 traps had \"trapStatus\" = \"1 - trap not set\".  The updates for the 2019 records will be available in RELEASE-2027."
+  },
+  {
+    "id": 17953,
+    "issueDate": "2021-01-06",
+    "resolvedDate": "2021-12-31",
+    "dateRangeStart": "2020-03-23",
+    "dateRangeEnd": "2021-12-31",
+    "locationAffected": "All",
+    "issue": "Safety measures to protect personnel during the COVID-19 pandemic resulted in reduced or canceled sampling activities for extended periods at NEON sites. Data availability may be reduced during this time.",
+    "resolution": "The primary impact of the pandemic on observational data was reduced data collection. Training procedures and data quality reviews were maintained throughout the pandemic, although some previously in-person training was conducted virtually.  Scheduled measurements and sampling that were not carried out due to COVID-19 or any other causes are indicated in data records via the samplingImpractical data field."
+  },
+  {
+    "id": 37804,
+    "issueDate": "2021-11-08",
+    "resolvedDate": "2020-02-01",
+    "dateRangeStart": "2020-02-01",
+    "dateRangeEnd": "2020-02-01",
+    "locationAffected": "HEAL, TOOL, BARR",
+    "issue": "Alaska sampling change: In D18 and D19, the small mammal grids used for 'pathogen' sampling are sampled for 3 nights each bout, and the permafrost is beginning to show very early signs of damage due to the high sampling frequency.",
+    "resolution": "To prevent degradation of the permafrost at small mammal grids in D18 and D19 sites, the field teams will rotate which grids serve as the 'pathogen' grids that are sampled for 3 nights each bout with those serving as diversity grids, which are sampled only 1 night per bout.  This leads to higher frequency pathogen grid sampling every other year at a grid allowing for recovery time between bouts of higher intensity sampling."
+  },
+  {
+    "id": 38405,
+    "issueDate": "2021-12-09",
+    "resolvedDate": "2021-12-31",
+    "dateRangeStart": "2012-01-01",
+    "dateRangeEnd": "2021-12-31",
+    "locationAffected": "All",
+    "issue": "State-level taxa obfuscation: Prior to the 2022 data release, publication of species identifications were obfuscated to a higher taxonomic rank when the taxon was found to be listed as threatened, endangered, or sensitive at the state level where the observation was recorded. Obfuscating state-listed taxa has created challenges for data users studying biodiversity.",
+    "resolution": "The state-level obfuscation routine was removed from the data publication process at all locations excluding sites located in D01 and D20. Data have been reprocessed to remove the obfuscation of state-listed taxa. Federally listed threatened and endangered or sensitive species remain obfuscated at all sites and sensitive species remain redacted at National Park sites."
+  },
+  {
+    "id": 68611,
+    "issueDate": "2022-09-15",
+    "resolvedDate": "2022-10-31",
+    "dateRangeStart": "2020-03-23",
+    "dateRangeEnd": "2022-12-31",
+    "locationAffected": "TOOL",
+    "issue": "Toolik Field Station required a quarantine period prior to starting work in the 2020, 2021, and 2022 field seasons to protect all personnel during the COVID-19 pandemic. This complicated NEON field scheduling logistics, which typically involves repeated travel across the state on short time frames. Consequently, NEON reduced staff traveling to Toolik and was thus unable to complete all planned sampling efforts. Missed data collection events are indicated in data records via the samplingImpractical field.",
+    "resolution": "The quarantine policy at Toolik Field Station ended after the 2022 field season."
+  },
+  {
+    "id": 68612,
+    "issueDate": "2022-09-15",
+    "resolvedDate": "2022-10-31",
+    "dateRangeStart": "2022-06-12",
+    "dateRangeEnd": "2022-10-31",
+    "locationAffected": "YELL",
+    "issue": "Severe flooding destroyed several roads into Yellowstone National Park in June 2022, making the YELL and BLDE sites inaccessible to NEON staff. Observational data collection was halted during this time. Canceled data collection events are indicated in data records via the samplingImpractical field.",
+    "resolution": "Normal operations resumed on October 31, 2022, when the National Park Service opened a newly constructed road from Gardiner, MT to Mammoth, WY with minimal restrictions. For more details about data impacts, see Data Notification https://www.neonscience.org/impact/observatory-blog/data-impacts-neons-yellowstone-sites-yell-blde-due-catastrophic-flooding-0"
+  },
+  {
+    "id": 79010,
+    "issueDate": "2023-05-09",
+    "resolvedDate": "2023-12-31",
+    "dateRangeStart": "2012-01-01",
+    "dateRangeEnd": "2023-04-25",
+    "locationAffected": "D01",
+    "issue": "D01 state-level taxa obfuscation: Prior to the 2024 data release, publication of species identifications were obfuscated to a higher taxonomic rank when the taxon was found to be listed as threatened, endangered, or sensitive by any state within the domain. Obfuscating state-listed taxa across an entire domain has created challenges for data users studying biodiversity.",
+    "resolution": "To reduce the number of records in which taxonomic identifications are obfuscated in D01, the state-level obfuscation routine has been applied to data using site-level granularity as of 25 April 2023. Previously published data have been reprocessed using the more precise obfuscation routine for the 2024 data release and onward. Federally listed threatened and endangered or sensitive species remain obfuscated at all sites."
+  },
+  {
+    "id": 84508,
+    "issueDate": "2023-12-22",
+    "resolvedDate": "2025-12-31",
+    "dateRangeStart": "2012-01-01",
+    "dateRangeEnd": "2025-11-25",
+    "locationAffected": "All",
+    "issue": "Identification history: updates to taxonomic determinations were not previously tracked.",
+    "resolution": "In provisional data, RELEASE-2023, and all subsequent releases, if taxonomic determinations are updated for any records, past determinations are archived in the `mam_identificationHistory` table, where the archived determinations are linked to current records using identificationHistoryID. A separate `mam_voucherIdentificationHistory` was added prior to RELEASE-2026 to track past determinations for the `mam_voucher` table."
+  },
+  {
+    "id": 85604,
+    "issueDate": "2024-01-11",
+    "resolvedDate": "2024-01-01",
+    "dateRangeStart": "2013-01-01",
+    "dateRangeEnd": "2023-08-31",
+    "locationAffected": "Core sites with > 4 bouts HARV, SCBI, OSBS, UNDE, KONZ, ORNL, TALL, WOOD, CPER, CLBJ, NIWO, SRER, ONAQ, WREF, SJER. Gradient sites with very low captures: DSNY, LENO, BARR. Sites sampling > 6 plots: CLBJ, CPER, ORNL, SERC, SJER, TALL, TOOL, BONA and UNDE.",
+    "issue": "Reduced sampling: In the 2013-2023 field season most core sites where conditions allow sampled 6 bouts per year.  All gradient sites sampled 4 bouts per year. Additionally, several sites sampled more than 6 total grids per bout.",
+    "resolution": "Data analyses indicated that 4 bouts of sampling per year is sufficient to characterize the community at most sites, and a low intensity sampling of just 1 bout per year at low-yield sites (e.g., those with low captures, diversity and pathogen infection) is the most effective use of resources.  Similarly, a maximum of 6 plots of sampling per site is sufficient to characterize the community. The Small Mammal Technical Working Group concurred with all sample reductions."
+  },
+  {
+    "id": 92104,
+    "issueDate": "2024-08-19",
+    "resolvedDate": "2024-08-19",
+    "dateRangeStart": "2012-01-01",
+    "dateRangeEnd": "2024-08-01",
+    "locationAffected": "All",
+    "issue": "mammalGridSamplingType field added: Prior to August 2024, there was not a straightforward or reliable method for filtering mammal plots by their status as either pathogen (sampled 3 nights per bout) or diversity (sampled 1 night per bout) grids.",
+    "resolution": "To enhance usability the ‘mammalGridSampleType’ field was added to the per_plotnight_in table to describe if the grid followed the diversity, pathogen, or recapture (early 2014 &2015 data only, 2-3 nights per bout and few blood samples collected) protocol for that sampling bout. Grid sampling type is typically stable from year to year but sometimes switches depending on sampling logistics and capture rates. Three sites in Alaska, TOOL, BARR, and HEAL, switch grid sampling types yearly to decrease sampling impacts on permafrost. This field is currently available in all provisional data and will be present in the 2025 data release."
+  },
+  {
+    "id": 101404,
+    "issueDate": "2025-04-30",
+    "resolvedDate": null,
+    "dateRangeStart": "2024-09-01",
+    "dateRangeEnd": "2026-12-31",
+    "locationAffected": "GRSM",
+    "issue": "Sampling suspended: In the last few years black bear populations at GRSM have steadily increased along with the disturbance of NEON small mammal sampling plots. Bear incidents have increased from about three per year to closer to three per week in the last three years.  This generates a number of staff and animal safety concerns that has made sampling small mammals at GRSM impractical under current conditions.",
+    "resolution": "Small mammal sampling has been suspended for at least 3 years at the GRSM site. Two camera traps have been deployed at four small mammal plots along game trails. Images will be collected from these plots over the next 3 years. After 3 years, we will examine the data to determine if bear activity has decreased. If the cameras suggest that trapping can safely begin, we will run test bouts of sampling at GRSM.  The end date of this issue will be updated yearly until it is determined that regular protocol-frequency sampling at GRSM can be resumed.  Sampling impractical records will be created to document this suspension in the data."
+  },
+  {
+    "id": 106504,
+    "issueDate": "2025-11-20",
+    "resolvedDate": "2025-12-31",
+    "dateRangeStart": "2013-01-01",
+    "dateRangeEnd": "2025-11-13",
+    "locationAffected": "All",
+    "issue": "gridCompletion field added: Prior to November 2025, there was not a straightforward or reliable method for evaluating mammal survey completeness, either in terms of the percentage of traps set or the proportion of captures successfully processed.",
+    "resolution": "To enhance usability, the \"gridCompletion\" field was added to the per_plotnightnight table to describe the grid setting and processing completion status for each unique nightuid. Grid setting is considered complete if 75% or more traps are deployed.  Processing completion is considered complete if 75% or more captured target or opportunistic small mammals have been assigned a tagID and identified to the species or genus rank.  This field has been retrospectively calculated and backfilled for all existing records in the mam_perplotnight table when Sampling Impractical is \"OK\" or blank. Additionally, the fate field in the mam_pertrapnight table was updated to align with the revised list of fate categories for records from 2017 onward. These updates are now available in all provisional datasets and will be formally included in the 2026 data release."
+  },
+  {
+    "id": 110618,
+    "issueDate": "2026-01-29",
+    "resolvedDate": "2025-12-31",
+    "dateRangeStart": "2025-12-31",
+    "dateRangeEnd": "2025-12-31",
+    "locationAffected": "DELA",
+    "issue": "NEON Operations ended at the Dead Lake (DELA) terrestrial site in the fall of 2025, at the request of the site host. Instrument Systems (IS) data collection discontinued as of Oct. 6, 2025, and Observation Systems (OS) data collection discontinued as of Dec 31, 2025. Airborne Observation Platform (AOP) data will continue to be collected. For more details, see  https://www.neonscience.org/impact/observatory-blog/neon-operations-coming-close-dead-lake-alabama-field-site.",
+    "resolution": "All data and samples collected at DELA up until the site decommissioning will remain available on the NEON Data Portal and Biorepository Data Portal for the lifetime of NEON."
+  },
+  {
+    "id": 113804,
+    "issueDate": "2026-06-17",
+    "resolvedDate": "2026-01-01",
+    "dateRangeStart": "2013-01-01",
+    "dateRangeEnd": "2025-12-31",
+    "locationAffected": "All",
+    "issue": "Sample condition fields added: Prior to 2026, only the 'fecalSampleCondition' field existed which made it difficult to track the condition of blood, ear, hair, and voucher samples.",
+    "resolution": "Starting in 2026, sample condition fields were added for each sample type (bloodSampleCondition, earSampleCondition, hairSampleCondition, and voucherSampleCondition).  These fields record if a individual sample is 'OK', meaning no known compromise, 'Lost', 'Cold chain broken (describe in remarks)', 'Rejected (describe in remarks)' or 'Other (describe in remarks)'.  The bloodSampleCondition can also be 'volume too low for pathogen analysis' and the voucherSampleCondition includes the options 'tail' or 'neonate' to describe the voucher.  No data before 2026 has been backfilled.  Please reach out if there are questions about a particular sample collected before 2026."
+  },
+  {
+    "id": 116004,
+    "issueDate": "2026-09-04",
+    "resolvedDate": "2026-12-31",
+    "dateRangeStart": "2014-01-01",
+    "dateRangeEnd": "2026-09-04",
+    "locationAffected": "BLAN, HEAL, KONZ, MOAB, ONAQ, SERC, TEAK",
+    "issue": "Incorrect spatial data: Eighteen mammal grids were found to have incorrect spatial coordinates associated with individual trap locations. Standard mammal grid layouts are configured such that trap locations A1-A10 run north to south and A1-J1 run east to west. In the affected grids, the A1-A10 sequence was incorrectly oriented east to west, resulting in mismatches between trap identifiers and their associated spatial coordinates. This issue does not affect the trap coordinates reported in the mammal data or trap placement in the field. Sampling was conducted using tape-line layouts and correct trap identifiers, ensuring that field observations remain associated with the intended trap locations.\n\nAdditionally, all spatial data included in the tables for this data product are based on trap location E5, which has the correct coordinates under both the standard and incorrect grid layouts. As a result, plot-level spatial data reported in this product are unaffected.\n\nThe primary impact is for users who utilize mammal grid-level spatial data from the associated shapefiles or geoNEON products. For the affected grids, spatial coordinates for individual trap locations are incorrect for all points except A1, J10, and E5.\n\nAffected grids: BLAN_003, HEAL_002, HEAL_010, HEAL_014, HEAL_016, HEAL_031, HEAL_033, HEAL_034, KONZ_006, MOAB_008, ONAQ_003, ONAQ_004, ONAQ_005, ONAQ_019, ONAQ_020, ONAQ_023, SERC_011, and TEAK_004.\n\nSpecial case: TEAK_004. TEAK_004 had a unique layout configuration in which the row containing all \"A\" traps arranged north to south was located in the J position, and all other rows were shifted one position to the west. In addition, trap locations E5 and F5 were transposed. Despite these differences, trap E5 retained the correct spatial coordinates under both layouts.",
+    "resolution": "All eighteen affected grids have been corrected in the Named Locations database, and geoNEON now returns the updated spatial coordinates. The AGOL layers and downloadable shapefiles available through the NEON Spatial Data and Maps webpage will be updated in late January following the NEON data release schedule."
+  },
+  {
+    "id": 116304,
+    "issueDate": "2026-09-30",
+    "resolvedDate": "2026-09-24",
+    "dateRangeStart": "2026-07-21",
+    "dateRangeEnd": "2026-07-22",
+    "locationAffected": "JORN",
+    "issue": "JORN.2026.29 high mortality rate: Small mammal data from the JORN_017 and JORN_018 sampling plots on the collection date of July 22, 2026 (eventID JORN.2026.29) reflect an unusually high mortality rate that could impact subsequent analyses.",
+    "resolution": "The atypical mortality rate on this date was likely the result of an unprecedented combination of warm temperatures, dry conditions and extremely high capture rates at JORN.  After extensive after-action reviews, we implemented numerous protocol updates to ensure animal welfare, including shorter limits on time the animals can spend in traps during hot and dry conditions, setting a maximum number of animals transported back to the point of capture in a single trip, piloting the use of hydrogel under hot, dry conditions, and additional guidance for animal release if stress is observed."
+  }
+]

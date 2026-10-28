@@ -6,14 +6,12 @@ turning 46 field sites of capture records into maps, charts, and individual prof
 
 [![Shiny](https://img.shields.io/badge/built%20with-Shiny-1f9bcf?logo=rstudio)](https://shiny.posit.co/)
 [![R](https://img.shields.io/badge/R-4.5.2-276DC3?logo=r)](https://www.r-project.org/)
-[![Production](https://img.shields.io/badge/production-healthy-1a7f37)](https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/)
 [![Data](https://img.shields.io/badge/data-NEON%20DP1.10072.001-1a7f37)](https://data.neonscience.org/data-products/DP1.10072.001)
 
-**Public status (verified 2026-07-20):** the [Pages landing](https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/)
-and [Posit Connect Cloud app](https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/)
-are healthy on Cover V5 / Suite Living Poster V1. Pages and Connect were released
-from merge `c4c46fce`; Connect deployment #125 published that exact revision and
-completed a bundle-only start with all 91 packages supplied by Connect.
+**Live:** the [Posit Connect Cloud app](https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/)
+and the [Pages cover](https://tgilbert14.github.io/NEON-Small-Mammal-Tracker-App/). After each merge the
+post-deploy smoke waits until Connect serves the merged revision (the `ddl-build` meta) and checks the
+page title and language; `docs/project-status.md` records the last verified state.
 
 Connect's source points at `main`, but automation never writes there directly. Validated monthly
 refreshes are published to `automation/small-mammal-data-refresh` as a review PR; an intentional
@@ -42,8 +40,8 @@ technicians getting to know the species at their site.
 colored by the most-caught mammal family — with a "by site / by species" toggle, an accessible list
 fallback, and a one-tap load. A 30-second guided tour points out the rest.
 
-**Explore by species.** Pick any of 145 species and the map redraws to just the sites where it's
-caught, sized by local abundance — a live national range map.
+**Explore by species.** Pick any species caught at two or more sites and the map redraws to just the sites
+where it's caught, sized by local abundance: a national range map.
 
 **Detection-corrected abundance.** Closed-capture estimates per trapping bout (Schnabel for ≥3
 nights, Chapman for 2) with a per-night detection probability, shown alongside MNKA, gated when
@@ -141,12 +139,14 @@ All records come from NEON data product
 pre-downloaded with [`neonUtilities::loadByProduct()`](https://www.neonscience.org/neonUtilities).
 
 Each site's full record is pre-downloaded into `data/sites/<SITE>.rds` (trimmed and compressed), and
-two national indexes (`data/site_index.rds`, `data/species_ranges.rds`) power the picker and range
-maps — so the app runs **entirely from the bundle, instantly, with no `neonUtilities` dependency at
+three national indexes (`data/site_index.rds`, `data/species_ranges.rds`, `data/search_index.rds`) power
+the picker, the range maps and the network search — so the app runs **entirely from the bundle, instantly, with no `neonUtilities` dependency at
 runtime.** `neonUtilities` is optional: it's loaded lazily only for the live-fetch toggle, which
 appears only where the package is installed (set `SMT_LIVE=0` to force bundle-only). A GitHub Action
-prepares a refreshed candidate **on the first Saturday morning of each month** (~6 am Arizona
-time), verifies it, and opens or updates a review PR. Production changes only after an intentional
+runs every Saturday morning (Arizona time) and proceeds in the first week of each month: it verifies a
+candidate, publishes it to the `automation/small-mammal-data-refresh` review branch and opens or updates one
+`data-refresh` issue. The bundle is pinned to NEON RELEASE-2026, so scheduled runs skip the long pull until
+the pin changes, and a release watch opens a `neon-release` issue when NEON publishes a newer release. Production changes only after an intentional
 merge; the approach is documented in
 [docs/data-bundling-pattern.md](docs/data-bundling-pattern.md).
 
@@ -253,8 +253,10 @@ DEPLOY.md                 deploy & migration runbook (Connect Cloud / shinylive 
 
 Posit Connect Cloud is git-backed and watches `main`, so a reviewed merge can republish the app. The
 refresh workflow follows a producer → validator → restricted-publisher model: it builds in an empty
-stage, verifies the exact 46-site bundle, indexes, manifest and offline app source, then opens or
-updates a review PR. It never pushes to `main`. There are no shinyapps secrets or `deployApp()` step.
+stage, verifies the exact 46-site bundle, indexes, manifest and offline app source, then publishes the
+review branch and opens or updates a `data-refresh` issue; a person opens and merges the PR. It never pushes
+to `main`. No workflow reads shinyapps secrets; the three legacy `SHINYAPPS_*` repository secrets are
+unused and are for the owner to delete.
 
 The Connect manifest is generated under pinned R 4.5.2 with a dated Posit snapshot plus an exact
 eight-package CRAN geospatial closure. The writer verifies the versions and honest repository lanes;

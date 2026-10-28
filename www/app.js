@@ -1,3 +1,4 @@
+// NEON explorer suite chrome, canonical copy. Sibling apps copy this file; baseline from tgilbert14/NEON-Small-Mammal-Tracker-App@c1a229d.
 /* =========================================================================
    app.js — count-up stat counters + celebratory confetti
    ========================================================================= */
@@ -162,11 +163,13 @@ function smtPushStored() {
     var target = "";
     try {
       var u = new URLSearchParams(window.location.search).get("site");
-      target = (u && u.trim()) || (localStorage.getItem("smtLastSite") || "");
+      // NEON site codes are four capital letters: ?site= srer works too. The
+      // server still checks the code against the site index before any load.
+      target = (u && u.trim().toUpperCase()) || (localStorage.getItem("smtLastSite") || "");
     } catch (e) {}
     if (!target) return;            // cold start -> splash stays (don't latch; allow a later retry)
     done = true;
-    try { smtLoadStart(target + " — loading…"); } catch (e) {}
+    try { smtLoadStart(target + " · loading…"); } catch (e) {}
     Shiny.setInputValue("siteExplore", target, { priority: "event" });
   }
   // Fire after the first flush settles (DOM rendered, observers bound). jQuery
@@ -209,7 +212,7 @@ function smtLoadStart(label) {
   clearTimeout(smtSafetyTimer);
   smtSafetyTimer = setTimeout(function () {  // safety net so it can never stick
     var note = document.querySelector(".load-note");
-    if (note) note.textContent = "Still working — a large site or a slow NEON Portal can take a bit. You can close this and try again.";
+    if (note) note.textContent = "Still working. A large site or a slow NEON Portal can take a bit. You can close this and try again.";
     setTimeout(smtLoadDone, 5000);
   }, 90000);
 }
@@ -230,7 +233,7 @@ function smtSaveCard() {
   // §2.15: never fail silently when the CDN-only capture lib didn't load (blocked
   // wifi / ad-blocker). The user tapped "Save card" — tell them why nothing happened.
   if (typeof htmlToImage === "undefined") {
-    var _m = "A file the export needs didn't load — check your network or ad-blocker, then reload.";
+    var _m = "A file the export needs did not load. Check your network or ad-blocker, then reload.";
     if (typeof Swal !== "undefined") Swal.fire({ icon: "error", title: "Couldn't save the card",
       text: _m, confirmButtonColor: "#1f78c4" });
     else window.alert(_m);
@@ -259,13 +262,13 @@ function smtTour() {
   var D = window.driver.js.driver;
   var steps = [
     { element: ".picker-mode", popover: { title: "Two ways in", side: "bottom",
-        description: "Explore <b>by site</b> — tap a dot for its card — or switch to <b>by species</b> to map where one animal turns up across the country." } },
+        description: "Explore <b>by site</b> (tap a dot for its card) or switch to <b>by species</b> to map where one animal turns up across the country." } },
     { element: ".picker-map-wrap", popover: { title: "The national map", side: "top",
-        description: "Every NEON site is a dot — <b>bigger</b> = more animals caught, <b>color</b> = the family of the most-common species there. Tap any dot to see its card, then choose <b>Explore</b> or <b>About</b>." } },
+        description: "Every NEON site is a dot: <b>bigger</b> = more animals caught, <b>color</b> = the family of the most-common species there. Tap any dot to see its card, then choose <b>Explore</b> or <b>About</b>." } },
     { element: ".select-panel", popover: { title: "Or pick by name", side: "top",
         description: "Prefer a list? Pick a <b>state</b> and <b>site</b> here, set the <b>date window</b>, then tap <b>Explore this site</b>." } },
     { element: "#compareBtn", popover: { title: "Compare two sites", side: "top",
-        description: "Put two sites head-to-head — species, diversity, and abundance, side by side." } }
+        description: "Put two sites side by side: species, diversity, and abundance." } }
   ].filter(function (s) { return document.querySelector(s.element); });
   if (!steps.length) return;
   var d = D({ showProgress: true, allowClose: true, steps: steps, popoverClass: "driverjs-theme",
@@ -298,12 +301,17 @@ document.addEventListener("click", function (e) {
 document.addEventListener("keydown", function (e) {
   if (e.key === "Escape") smtClosePopovers();
 });
-// a11y: let Enter / Space activate any div styled as role="button" (the site-open
-// chip, change-site, browse-all and any future custom control) just like a click.
+// a11y: the ONE Enter / Space handler for custom controls. Anything with
+// role="button" that is not a native button (QC chips such as the pin-card
+// "Open QC history card", change-site, browse-all, any future custom control)
+// activates like a click. Native buttons and links already do this themselves.
 document.addEventListener("keydown", function (e) {
   if (e.key !== "Enter" && e.key !== " ") return;
   var el = e.target.closest && e.target.closest('[role="button"]');
-  if (el) { e.preventDefault(); el.click(); }
+  if (!el || el.tagName === "BUTTON" || el.tagName === "INPUT") return;
+  if (e.key === " " && el.tagName === "A") { e.preventDefault(); el.click(); return; }
+  if (el.tagName === "A") return;   // a link already activates on Enter
+  e.preventDefault(); el.click();
 });
 
 // ---- Shiny custom message handlers ---------------------------------------
@@ -360,4 +368,68 @@ whenShinyReady(function () {
 // Re-fit any Leaflet map the moment its tab becomes visible (hidden-init blank fix).
 document.addEventListener("shown.bs.tab", function () {
   setTimeout(function () { try { window.dispatchEvent(new Event("resize")); } catch (e) {} }, 60);
+});
+
+// ---- Leaflet: never re-measure a map whose container is hidden -------------
+// Every resize path (window resize, the kickMaps nudge, a tab show) ends in
+// map.invalidateSize(). On a hidden container (clientWidth 0) that records a
+// zero size and the map later paints grey. Guard it once, on the prototype.
+(function smtGuardInvalidateSize() {
+  var tries = 0;
+  var t = setInterval(function () {
+    if (window.L && L.Map && L.Map.prototype.invalidateSize) {
+      clearInterval(t);
+      if (L.Map.prototype.__smtGuarded) return;
+      var orig = L.Map.prototype.invalidateSize;
+      L.Map.prototype.invalidateSize = function (opts) {
+        var c = this._container;
+        if (c && c.clientWidth === 0) return this;
+        return orig.call(this, opts);
+      };
+      L.Map.prototype.__smtGuarded = true;
+    } else if (++tries > 300) clearInterval(t);
+  }, 100);
+})();
+
+// ---- picker popup: close it before Explore loads the site ------------------
+// The popups are bound to the markers, so leafletProxy clearPopups cannot close
+// them. Close it client-side first (capture phase, before the button's own
+// handler) so a popup never stays open over the loaded site or the next visit.
+document.addEventListener("click", function (e) {
+  var go = e.target.closest && e.target.closest("#pickerMap .sp-go");
+  if (!go || !window.HTMLWidgets) return;
+  try {
+    var w = HTMLWidgets.find("#pickerMap");
+    if (w && w.getMap) w.getMap().closePopup();
+  } catch (err) {}
+}, true);
+
+// ---- delegated Shiny inputs (no inline onclick with data in it) ------------
+// A control carries data-smt-input (the Shiny input id) and data-smt-value (its
+// payload); the payload never passes through a JavaScript string literal, so a
+// quote in a NEON value cannot break out of it. data-smt-nonce appends a random
+// suffix so repeated clicks on the same value still fire.
+document.addEventListener("click", function (e) {
+  var el = e.target.closest && e.target.closest("[data-smt-input]");
+  if (!el || !(window.Shiny && Shiny.setInputValue)) return;
+  if (el.tagName === "A") e.preventDefault();
+  var v = el.getAttribute("data-smt-value") || "";
+  if (el.hasAttribute("data-smt-nonce")) v = v + "||" + Math.random();
+  var loading = el.getAttribute("data-smt-loading");
+  if (loading) { try { smtLoadStart(loading); } catch (err) {} }
+  Shiny.setInputValue(el.getAttribute("data-smt-input"), v, { priority: "event" });
+}, true);   // capture phase: Leaflet popups stop click propagation in the bubble phase
+
+// ---- browser Back and Forward ----------------------------------------------
+// Site loads push ?site=XXXX onto the history. On Back/Forward, tell the server
+// which URL we landed on: a site code loads that site, no code returns to the
+// picker. The server does not push again for these loads.
+window.addEventListener("popstate", function () {
+  if (!(window.Shiny && Shiny.setInputValue)) return;
+  var code = "";
+  try {
+    code = (new URLSearchParams(window.location.search).get("site") || "").trim().toUpperCase();
+  } catch (e) {}
+  if (code) { try { smtLoadStart(code + " · loading…"); } catch (e) {} }
+  Shiny.setInputValue("smtHistory", { site: code, t: Date.now() }, { priority: "event" });
 });

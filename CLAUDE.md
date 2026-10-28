@@ -22,24 +22,26 @@ reconstructs each captured animal's history from its ear-tag and turns ~46 field
 into maps, per-individual profiles, abundance estimates, and diversity reads. It is the **flagship** of the
 DDL **NEON explorer suite** and the reference build every sibling app is measured against.
 
-- **Public state verified 2026-07-18:** the Pages landing works; the Connect app returns `Startup
-  Error`. Draft PR #73 is the release-recovery branch. Do not call production healthy before semantic
-  post-deploy smoke passes.
+- **Live state:** recorded in `docs/project-status.md` with the revision it was checked on. Do not call
+  production healthy before the post-deploy smoke passes on the merged revision (it checks the
+  `ddl-build` digest, the title and `lang`).
 - **Stack:** R / Shiny · `global.R` + `server.R` + `ui.R` + `R/*.R` helpers · per-site `.rds` data bundles
   (no network round-trip at runtime) · Leaflet maps · `manifest.json` for Connect Cloud.
 
 ## The stack + how it deploys (the load-bearing facts)
 
 - **Deploy = reviewed merge to watched `main`.** Connect is git-backed, but refresh automation writes
-  only `automation/small-mammal-data-refresh` and opens/updates a PR. No workflow or agent pushes
-  production directly. No shinyapps secrets. See `DEPLOY.md` and the canonical playbook §6.
+  only `automation/small-mammal-data-refresh` and opens or updates one `data-refresh` issue (never a PR).
+  No workflow or agent pushes production directly. No workflow reads the legacy `SHINYAPPS_*` secrets. See `DEPLOY.md` and the canonical playbook §6.
 - **The terra/GDAL landmine (the #1 publish killer).** Connect compiles native packages from source on
   jammy (**GDAL 3.4.1**); `leaflet → raster → terra`, and terra ≥ 1.8-54 needs GDAL 3.8 → **pin `terra` to
   `1.8-50`** and the seven-package companion closure as real installed CRAN sources. The manifest writer
   verifies actual versions and repository lanes; never rewrite Version/RemoteSha after generation.
-- **Auto-refresh:** `refresh-data.yml` runs monthly (first-Saturday gate, off-peak AZ), rebuilds and
-  validates a candidate, then proposes it on a review branch. A `skip_download` input gates the fetch
-  and bundle replacement for a fast pipeline test.
+- **Auto-refresh:** `refresh-data.yml` runs every Saturday 13:17 UTC and a calendar gate proceeds in the
+  first week of the month. Bundles are pinned to NEON RELEASE-2026, so scheduled runs skip the pull until
+  the pin moves; a `release_watch` job opens a `neon-release` issue when NEON publishes a newer release.
+  A validated candidate goes to the review branch with one `data-refresh` issue. `skip_download` rebuilds
+  indexes and the manifest from committed bundles; `env_precip_full` re-pulls precipitation history.
 - **Hosting migration is complete.** Connect Cloud is the only runtime target; the retired
   shinyapps.io records and deploy script are absent.
 

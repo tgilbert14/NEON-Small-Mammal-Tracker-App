@@ -1,0 +1,12 @@
+{
+  "product": "DP1.10072.001",
+  "release": "RELEASE-2026",
+  "doi": "https://doi.org/10.48443/a83h-tb34",
+  "release_generated": "2026-01-23",
+  "bundle_schema": 2,
+  "data_from": "2013-06-19",
+  "data_through": "2024-11-12",
+  "sites": 46,
+  "previous_data_through": null,
+  "advanced": false
+}

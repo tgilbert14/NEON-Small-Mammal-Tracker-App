@@ -60,7 +60,7 @@ requireContract(/<nav class="cover-nav" aria-label="NEON Explorer Suite">/.test(
 requireContract(count(/class="suite-jump"/g) === 1, "poster needs exactly one Driver suite jump");
 requireContract(/class="suite-jump" href="https:\/\/tgilbert14\.github\.io\/NEON-Driver-Cascade\/"/.test(html), "Driver suite destination missing");
 requireContract(/<div class="poster-grid">[\s\S]*?<div class="poster-copy">[\s\S]*?<figure class="poster-art">/.test(html), "shared copy-and-art frame drifted");
-requireContract(/<h1 aria-label="Who moves after dark\?">\s*<span>Who moves<\/span><em>after dark\?<\/em><\/h1>/.test(html), "approved hook or accessible name drifted");
+requireContract(/<h1>\s*<span>Who moves<\/span> <em>after dark\?<\/em><\/h1>/.test(html), "approved hook drifted (the two spans need a literal space for their accessible name)");
 requireContract(/<p class="promise">Meet the tiny lives reshaping the landscape\.<\/p>/.test(html), "approved one-line promise drifted");
 requireContract(count(/class="button"/g) === 1 && /Meet the mammals/.test(html), "poster needs the one approved CTA");
 requireContract(!/(suite-bridge|feature-card|hero-facts|signal-bar|measure-grid)/.test(html), "poster contains a retired marketing or metric band");
@@ -75,11 +75,12 @@ requireContract(!/<figcaption\b[^>]*class="art-note"/i.test(html) && !/\.art-not
 requireContract(!/(pacific-pocket-mouse-sherman-trap-usgs|small-mammal-field-usgs|Photo source|Cheryl Brehme)/.test(html), "historical documentary media remains live");
 
 // Footer honesty and metadata.
-requireContract(/Explore 46 places/.test(html) && /DP1\.10072\.001/.test(html) && /CC BY 4\.0/.test(html), "scope or data authority missing");
+requireContract(/at 46 field sites/.test(html) && /DP1\.10072\.001/.test(html) && /CC BY 4\.0/.test(html), "scope or data authority missing");
 requireContract(/unofficial and not endorsed by NEON, Battelle, or the NSF/.test(html), "independent-project boundary missing");
 requireContract(/<summary>What am I looking at\?<\/summary>/.test(html), "collapsed honesty note missing");
 requireContract(/sampled plots and trapping nights/.test(html) && /show observed return visits and sampled community patterns/.test(html), "capture/recapture scope is incomplete");
-requireContract(/The tagline is an ecological invitation; these records do not measure landscape effects or ecosystem engineering\./.test(html), "artistic tagline is not separated from measured effects");
+requireContract(!/The tagline is an ecological invitation/.test(html), "retired tagline disclaimer is back");
+requireContract(/NEON, the National Ecological Observatory Network, live-traps small mammals on the same plots every year at 46 field sites\./.test(html), "footer must open with what NEON does");
 requireContract(/"description": "Explore public NEON small-mammal capture and recapture records\."/.test(html), "structured metadata overstates the data");
 requireContract(/href="https:\/\/github\.com\/tgilbert14\/NEON-Small-Mammal-Tracker-App">Source<\/a>/.test(html), "source link missing");
 requireContract(/href="mailto:desertdatalabs@gmail\.com\?subject=NEON%20Small%20Mammal%20Tracker">Feedback<\/a>/.test(html), "feedback link missing");
@@ -145,5 +146,31 @@ requireContract(statSync("docs/og-image.png").size < 1_300_000, "social image ex
 
 requireContract(/Who moves[\s\S]*after dark\?/.test(socialSource) && /Meet the tiny lives reshaping the landscape\./.test(socialSource), "social-card source copy drifted");
 requireContract(/small-mammal-living-poster\.png/.test(socialSource), "social-card source lost the approved art");
+
+// Suite copy voice: no em dashes in anything a visitor or a link preview shows.
+// Checks visible text (style, script and comments removed), <title>, og:title,
+// twitter:title and every meta description, for the character and its entities.
+const EM_DASH = /—|&mdash;|&#8212;|&#x2014;/i;
+const visibleText = html
+  .replace(/<!--[\s\S]*?-->/g, " ")
+  .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+  .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+  .replace(/<[^>]+>/g, " ");
+const metaContent = (re) => [...html.matchAll(re)].map((m) => m[1]);
+const titleText = (html.match(/<title>([\s\S]*?)<\/title>/i) || [, ""])[1];
+const emDashSurfaces = {
+  "visible text": [visibleText],
+  "<title>": [titleText],
+  "og:title": metaContent(/<meta[^>]+property="og:title"[^>]+content="([^"]*)"/gi),
+  "twitter:title": metaContent(/<meta[^>]+name="twitter:title"[^>]+content="([^"]*)"/gi),
+  "meta descriptions": metaContent(/<meta[^>]+(?:name|property)="(?:description|og:description|twitter:description)"[^>]+content="([^"]*)"/gi),
+};
+for (const [surface, values] of Object.entries(emDashSurfaces)) {
+  for (const value of values) {
+    const hit = value.match(new RegExp(`.{0,40}(?:${EM_DASH.source}).{0,40}`, "i"));
+    requireContract(!hit, `em dash in ${surface}: "${hit ? hit[0].trim() : ""}"`);
+  }
+}
+requireContract(titleText === "NEON Small Mammal Tracker · Who moves after dark?", "cover <title> drifted");
 
 console.log("Cover contract passed: Suite Living Poster V1 frame, approved screenprint, one hook/promise/CTA, honesty boundary, metadata, responsive media, and accessibility.");

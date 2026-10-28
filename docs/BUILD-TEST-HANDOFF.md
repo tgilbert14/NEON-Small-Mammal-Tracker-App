@@ -1541,3 +1541,19 @@ Driver implication, and next action.
   taking PR 2's manifest and re-running the checksum refresh), then dispatches `refresh-data.yml`
   with `skip_download=true` so the indexes rebuild on the new estimator, and curls the live page
   for `<title>` and `<html lang="en">`.
+
+### 2026-10-26 - audit finish round (FINISH-LEDGER small-mammal) / [Claude]
+
+- **Scope:** every Small Mammal finding in `neon-suite-audit-2026-10-18-appendix.md`, the cross-cutting list and
+  the ledger items (leaderboard first stage, keepInView, PR #65). Planned and reviewed on Opus 5.5 at max
+  (Fable capped); workers on Opus 5.5 at medium. Status file:
+  `neon-audit-2026-10-18/reports/status/small-mammal.md`.
+- **Route:** one integration branch `finish/small-mammal-2026-10`; full refresh run 40346798927 from it
+  (RELEASE-2026 pin and DOI stamp, gridCompletion/samplingImpractical/eventID joined, remarks scrubbed,
+  rows sorted, issue log, precipitation day coverage rebuilt); a final skip_download run regenerates
+  indexes and manifest; the single PR is `automation/small-mammal-data-refresh` -> `main`.
+- **Checks on the finish tree:** helper 63, server 53, provenance, producer 35, app smoke, cover, landing,
+  handlers, workflow budget; suite lint 0 red, 0 yellow; local browser walk of the picker, Back/Forward and
+  the HARV detection card.
+- **Next action:** Tim merges the finish PR; then `post-deploy.yml` must go green on the merged revision
+  (it waits for the live `ddl-build` digest). Owner items are in `docs/project-status.md`.

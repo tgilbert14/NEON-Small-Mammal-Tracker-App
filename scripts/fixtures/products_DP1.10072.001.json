@@ -1,0 +1,107 @@
+{
+  "data": {
+    "productCode": "DP1.10072.001",
+    "releases": [
+      {
+        "release": "RELEASE-2021",
+        "generationDate": "2021-01-23T02:30:02Z",
+        "url": "https://data.neonscience.org/api/v0/releases/RELEASE-2021",
+        "productDoi": {
+          "generationDate": "2021-01-25T18:14:30Z",
+          "url": "https://doi.org/10.48443/j1g9-2j27"
+        }
+      },
+      {
+        "release": "RELEASE-2022",
+        "generationDate": "2022-01-20T17:39:46Z",
+        "url": "https://data.neonscience.org/api/v0/releases/RELEASE-2022",
+        "productDoi": {
+          "generationDate": "2022-01-21T02:53:07Z",
+          "url": "https://doi.org/10.48443/h3dk-3a71"
+        }
+      },
+      {
+        "release": "RELEASE-2023",
+        "generationDate": "2023-01-27T12:07:53Z",
+        "url": "https://data.neonscience.org/api/v0/releases/RELEASE-2023",
+        "productDoi": {
+          "generationDate": "2023-01-27T15:41:36Z",
+          "url": "https://doi.org/10.48443/p4re-p954"
+        }
+      },
+      {
+        "release": "RELEASE-2024",
+        "generationDate": "2024-01-27T00:04:25Z",
+        "url": "https://data.neonscience.org/api/v0/releases/RELEASE-2024",
+        "productDoi": {
+          "generationDate": "2024-01-27T01:01:53Z",
+          "url": "https://doi.org/10.48443/nvpj-4j94"
+        }
+      },
+      {
+        "release": "RELEASE-2025",
+        "generationDate": "2025-01-29T00:07:30Z",
+        "url": "https://data.neonscience.org/api/v0/releases/RELEASE-2025",
+        "productDoi": {
+          "generationDate": "2025-01-29T01:02:59Z",
+          "url": "https://doi.org/10.48443/yrh2-6058"
+        }
+      },
+      {
+        "release": "RELEASE-2026",
+        "generationDate": "2026-01-23T00:07:49Z",
+        "url": "https://data.neonscience.org/api/v0/releases/RELEASE-2026",
+        "productDoi": {
+          "generationDate": "2026-01-23T01:10:15Z",
+          "url": "https://doi.org/10.48443/a83h-tb34"
+        }
+      }
+    ],
+    "changeLogs": [
+      {
+        "id": 116304,
+        "parentIssueID": null,
+        "issueDate": "2026-09-30T00:00:00Z",
+        "resolvedDate": "2026-09-24T00:00:00Z",
+        "dateRangeStart": "2026-07-21T00:00:00Z",
+        "dateRangeEnd": "2026-07-22T00:00:00Z",
+        "locationAffected": "JORN",
+        "issue": "JORN.2026.29 high mortality rate: Small mammal data from the JORN_017 and JORN_018 sampling plots on the collection date of July 22, 2026 (eventID JORN.2026.29) reflect an unusually high mortality rate that could impact subsequent analyses.",
+        "resolution": "The atypical mortality rate on this date was likely the result of an unprecedented combination of warm temperatures, dry conditions and extremely high capture rates at JORN.  After extensive after-action reviews, we implemented numerous protocol updates to ensure animal welfare, including shorter limits on time the animals can spend in traps during hot and dry conditions, setting a maximum number of animals transported back to the point of capture in a single trip, piloting the use of hydrogel under hot, dry conditions, and additional guidance for animal release if stress is observed."
+      },
+      {
+        "id": 116004,
+        "parentIssueID": null,
+        "issueDate": "2026-09-04T00:00:00Z",
+        "resolvedDate": "2026-12-31T00:00:00Z",
+        "dateRangeStart": "2014-01-01T00:00:00Z",
+        "dateRangeEnd": "2026-09-04T00:00:00Z",
+        "locationAffected": "BLAN, HEAL, KONZ, MOAB, ONAQ, SERC, TEAK",
+        "issue": "Incorrect spatial data: Eighteen mammal grids were found to have incorrect spatial coordinates associated with individual trap locations. Standard mammal grid layouts are configured such that trap locations A1-A10 run north to south and A1-J1 run east to west. In the affected grids, the A1-A10 sequence was incorrectly oriented east to west, resulting in mismatches between trap identifiers and their associated spatial coordinates. This issue does not affect the trap coordinates reported in the mammal data or trap placement in the field. Sampling was conducted using tape-line layouts and correct trap identifiers, ensuring that field observations remain associated with the intended trap locations.\n\nAdditionally, all spatial data included in the tables for this data product are based on trap location E5, which has the correct coordinates under both the standard and incorrect grid layouts. As a result, plot-level spatial data reported in this product are unaffected.\n\nThe primary impact is for users who utilize mammal grid-level spatial data from the associated shapefiles or geoNEON products. For the affected grids, spatial coordinates for individual trap locations are incorrect for all points except A1, J10, and E5.\n\nAffected grids: BLAN_003, HEAL_002, HEAL_010, HEAL_014, HEAL_016, HEAL_031, HEAL_033, HEAL_034, KONZ_006, MOAB_008, ONAQ_003, ONAQ_004, ONAQ_005, ONAQ_019, ONAQ_020, ONAQ_023, SERC_011, and TEAK_004.\n\nSpecial case: TEAK_004. TEAK_004 had a unique layout configuration in which the row containing all \"A\" traps arranged north to south was located in the J position, and all other rows were shifted one position to the west. In addition, trap locations E5 and F5 were transposed. Despite these differences, trap E5 retained the correct spatial coordinates under both layouts.",
+        "resolution": "All eighteen affected grids have been corrected in the Named Locations database, and geoNEON now returns the updated spatial coordinates. The AGOL layers and downloadable shapefiles available through the NEON Spatial Data and Maps webpage will be updated in late January following the NEON data release schedule."
+      },
+      {
+        "id": 113804,
+        "parentIssueID": null,
+        "issueDate": "2026-06-17T00:00:00Z",
+        "resolvedDate": "2026-01-01T00:00:00Z",
+        "dateRangeStart": "2013-01-01T00:00:00Z",
+        "dateRangeEnd": "2025-12-31T00:00:00Z",
+        "locationAffected": "All",
+        "issue": "Sample condition fields added: Prior to 2026, only the 'fecalSampleCondition' field existed which made it difficult to track the condition of blood, ear, hair, and voucher samples.",
+        "resolution": "Starting in 2026, sample condition fields were added for each sample type (bloodSampleCondition, earSampleCondition, hairSampleCondition, and voucherSampleCondition).  These fields record if a individual sample is 'OK', meaning no known compromise, 'Lost', 'Cold chain broken (describe in remarks)', 'Rejected (describe in remarks)' or 'Other (describe in remarks)'.  The bloodSampleCondition can also be 'volume too low for pathogen analysis' and the voucherSampleCondition includes the options 'tail' or 'neonate' to describe the voucher.  No data before 2026 has been backfilled.  Please reach out if there are questions about a particular sample collected before 2026."
+      },
+      {
+        "id": 110618,
+        "parentIssueID": null,
+        "issueDate": "2026-01-29T00:00:00Z",
+        "resolvedDate": "2025-12-31T00:00:00Z",
+        "dateRangeStart": "2025-12-31T00:00:00Z",
+        "dateRangeEnd": "2025-12-31T00:00:00Z",
+        "locationAffected": "DELA",
+        "issue": "NEON Operations ended at the Dead Lake (DELA) terrestrial site in the fall of 2025, at the request of the site host. Instrument Systems (IS) data collection discontinued as of Oct. 6, 2025, and Observation Systems (OS) data collection discontinued as of Dec 31, 2025. Airborne Observation Platform (AOP) data will continue to be collected. For more details, see  https://www.neonscience.org/impact/observatory-blog/neon-operations-coming-close-dead-lake-alabama-field-site.",
+        "resolution": "All data and samples collected at DELA up until the site decommissioning will remain available on the NEON Data Portal and Biorepository Data Portal for the lifetime of NEON."
+      }
+    ]
+  }
+}
