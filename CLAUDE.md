@@ -5,14 +5,15 @@
 > `TG-Data-Apps` repo (and in user scope, so every agent is available here too).
 >
 > **Worked by more than one agent (Claude Code + ChatGPT/Codex).** The tool-neutral source of truth
-> is `docs/neonize-playbook.md`, `.claude/agents/LESSONS.md`, `docs/BUILD-TEST-HANDOFF.md`, and
+> is the suite playbook (canonical home `../NEON-Driver-Cascade/docs/neonize-playbook.md`; the local
+> `docs/neonize-playbook.md` is only a pointer), `.claude/agents/LESSONS.md`, `docs/BUILD-TEST-HANDOFF.md`, and
 > `docs/project-status.md` — read those first; `CLAUDE.md` / `AGENTS.md` only add tool-specific notes
 > on top. Close every session with a dated `BUILD-TEST-HANDOFF.md` entry tagged with your tool
 > (`[Claude]` / `[Codex]`) and a one-line **next action**, so the other agent can pick up cold. See
-> `docs/neonize-playbook.md` §8.
+> canonical playbook §8 (https://github.com/tgilbert14/NEON-Driver-Cascade/blob/master/docs/neonize-playbook.md).
 >
 > **Before you code: plan, question, and challenge the work** — and always name at least one
-> improvement you spot. The how-we-work principles are `docs/neonize-playbook.md` §9.
+> improvement you spot. The how-we-work principles are the canonical playbook §9.
 
 ## What this is
 
@@ -31,7 +32,7 @@ DDL **NEON explorer suite** and the reference build every sibling app is measure
 
 - **Deploy = reviewed merge to watched `main`.** Connect is git-backed, but refresh automation writes
   only `automation/small-mammal-data-refresh` and opens or updates one `data-refresh` issue (never a PR).
-  No workflow or agent pushes production directly. No workflow reads the legacy `SHINYAPPS_*` secrets. See `DEPLOY.md` and `docs/neonize-playbook.md`.
+  No workflow or agent pushes production directly. No workflow reads the legacy `SHINYAPPS_*` secrets. See `DEPLOY.md` and the canonical playbook §6.
 - **The terra/GDAL landmine (the #1 publish killer).** Connect compiles native packages from source on
   jammy (**GDAL 3.4.1**); `leaflet → raster → terra`, and terra ≥ 1.8-54 needs GDAL 3.8 → **pin `terra` to
   `1.8-50`** and the seven-package companion closure as real installed CRAN sources. The manifest writer
@@ -47,7 +48,7 @@ DDL **NEON explorer suite** and the reference build every sibling app is measure
 ## Which agents own what here
 
 - **`neonize`** — the suite methodology: build/upgrade this or a sibling to the gold standard, the QC-flag
-  system, site-picker map contract, auto-refresh CI, suite cohesion. Reads/writes `docs/neonize-playbook.md`.
+  system, site-picker map contract, auto-refresh CI, suite cohesion. Reads/writes the canonical playbook in `NEON-Driver-Cascade`.
 - **`connor`** — Connect Cloud deploy: failed publishes, the terra pin, manifest correctness, redeploy.
 - **`mara`** — the DP1.10072.001 domain expert (small-mammal trapping science: MNKA vs CPUE vs Schnabel/
   Chapman, mark-recapture, tag identity). **`cass`** — the cross-product Driver-Cascade synthesis.
@@ -60,7 +61,7 @@ DDL **NEON explorer suite** and the reference build every sibling app is measure
 - **`.claude/agents/LESSONS.md`** — project-local, one-line lessons for THIS app. Agents read it on cold
   boot and append to it after a durable run. The **canonical, cross-cutting** LESSONS.md lives in
   `TG-Data-Apps`; `curator` promotes recurring lessons up.
-- **`docs/neonize-playbook.md`** — the deep methodology playbook (the real learning surface for the suite);
+- **The suite playbook** (`../NEON-Driver-Cascade/docs/neonize-playbook.md`; the local copy is a pointer) is the deep methodology playbook (the real learning surface for the suite);
   `docs/project-status.md` — current version + open items + what's deferred. Read both before flagging work.
 
 ## Working notes
