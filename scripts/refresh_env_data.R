@@ -8,7 +8,11 @@
 #
 # Output schema (one row per site-month), matching global.R ENV_LAYERS:
 #   siteID, ym ("YYYY-MM"), date (first of month),
-#   precip_mm   (monthly SUM,  DP1.00044.001 weighing-gauge precipitation)
+#   precip_mm   (monthly SUM,  DP1.00044.001 weighing-gauge precipitation; NA when
+#                fewer than 90% of the month's days carry a valid value)
+#   precip_mm_n_days (distinct days with a valid precipitation value that month;
+#                NA = coverage unknown: history months built before 2026-10 carry
+#                NA until SMT_ENV_PRECIP_FULL=1 has run once)
 #   temp_c/min/max (monthly MEAN/MIN/MAX, DP1.00002.001 single-aspirated air temp)
 #   flowering_pct (monthly STATUS yes-share, "Open flowers",  DP1.10055.001)
 #   greenup_pct   (monthly STATUS yes-share, early leaf-out bundle, DP1.10055.001)
@@ -35,14 +39,12 @@ suppressMessages({
   library(tibble)
 })
 
-# NEON API token — set env var NEON_TOKEN to raise the anonymous rate limit.
-# Free account + token: https://data.neonscience.org  (Profile → API token)
-.neon_token <- Sys.getenv("NEON_TOKEN", unset = NA_character_)
-if (!is.na(.neon_token) && nchar(.neon_token) > 10) {
-  cat("Using NEON API token (higher rate limits).\n")
-} else {
-  .neon_token <- NA_character_
-  cat("No NEON_TOKEN set — anonymous rate limits apply.\n")
+# NEON data endpoints refuse anonymous requests, so the token is required.
+# Free account + token: https://data.neonscience.org  (Profile, API token)
+.neon_token <- Sys.getenv("NEON_TOKEN", unset = "")
+if (nchar(.neon_token) < 10) {
+  cat("NEON_TOKEN is missing or shorter than 10 characters; NEON data endpoints refuse anonymous requests.\n")
+  quit(save = "no", status = 1)
 }
 
 source("R/site_metadata.R")  # canonical site list
@@ -68,6 +70,36 @@ if (.recent) {
   start_d <- format(seq(as.Date(paste0(end_d, "-01")),
                         by = sprintf("-%d months", .recent_n), length.out = 2)[2], "%Y-%m")
   cat(sprintf("Recent-refresh mode: last %d months (%s -> %s)\n", .recent_n, start_d, end_d))
+}
+
+# Precipitation-only full-history mode: SMT_ENV_PRECIP_FULL=1 re-pulls
+# DP1.00044.001 for the whole window for every site and rewrites ONLY precip_mm
+# and precip_mm_n_days in the existing bundles, keeping every other column.
+.precip_full <- identical(Sys.getenv("SMT_ENV_PRECIP_FULL", ""), "1")
+if (.precip_full) {
+  .recent <- FALSE
+  cat("Precipitation-only full-history mode.\n")
+}
+
+ENV_COLS <- c("siteID", "ym", "date", "precip_mm", "precip_mm_n_days", "temp_c",
+              "temp_min", "temp_max", "flowering_pct", "flowering_pct_n",
+              "greenup_pct", "greenup_pct_n", "fruiting_pct", "fruiting_pct_n", "source")
+
+# Fixed column order, rows ordered by ym (then siteID), row names reset.
+canonical_env <- function(env) {
+  env <- tibble::as_tibble(env)
+  if (!"precip_mm_n_days" %in% names(env)) env$precip_mm_n_days <- NA_integer_
+  env$precip_mm_n_days <- as.integer(env$precip_mm_n_days)
+  cols <- c(intersect(ENV_COLS, names(env)), sort(setdiff(names(env), ENV_COLS)))
+  env <- env[, cols, drop = FALSE]
+  env <- env[order(env$ym, env$siteID, method = "radix", na.last = TRUE), , drop = FALSE]
+  tibble::as_tibble(as.data.frame(env, stringsAsFactors = FALSE))
+}
+
+save_env <- function(env, f) {
+  tmp <- paste0(f, ".tmp")
+  saveRDS(canonical_env(env), tmp, compress = "xz")
+  file.rename(tmp, f)
 }
 
 # ---- generic helpers ------------------------------------------------------
@@ -132,13 +164,44 @@ pheno_share <- function(pht, name_rx) {
   as.data.frame(mo)
 }
 
+# Monthly precipitation total with day coverage. A day is valid when it has at
+# least one non-NA value (daily table: its one value; sub-daily: any interval).
+# The total is kept only when valid days >= 0.9 x days in that month.
+precip_monthly <- function(tb, col_rx = "[Pp]recipBulk|secPrecipBulk|priPrecipBulk") {
+  if (is.null(tb) || !nrow(tb)) return(NULL)
+  v <- pick_col(tb, col_rx); if (is.null(v)) return(NULL)
+  dc <- intersect(c("startDateTime", "endDateTime", "date", "collectDate", "endDate"), names(tb))
+  if (!length(dc)) return(NULL)
+  day <- substr(as.character(tb[[dc[1]]]), 1, 10)
+  ok <- !is.na(day) & !is.na(v)
+  if (!any(ok)) return(NULL)
+  ym <- substr(day, 1, 7)
+  tot <- tapply(v[ok], ym[ok], sum)
+  nd  <- tapply(day[ok], ym[ok], function(x) length(unique(x)))
+  m <- names(tot)
+  first <- as.Date(paste0(m, "-01"))
+  dim_ <- vapply(seq_along(first), function(i)
+    as.integer(format(seq(first[i], by = "month", length.out = 2)[2] - 1, "%d")), 1L)
+  out <- data.frame(ym = m, value = as.numeric(tot), n_days = as.integer(nd[m]),
+                    stringsAsFactors = FALSE)
+  out$value[out$n_days < 0.9 * dim_] <- NA_real_
+  out
+}
+
+# Precip table from a DP1.00044.001 download: DAILY preferred, else 60/30-min.
+precip_table <- function(pr) {
+  prt <- pick_table(pr, "(WEIPRE|PRIPRE|SECPRE)_daily|wss_daily_precip|.*daily.*[Pp]recip")
+  if (is.null(prt)) prt <- pick_table(pr, "(WEIPRE|PRIPRE|SECPRE)_(60|30)min|.*[Pp]recip")
+  prt
+}
+
 safe_load <- function(dpID, site, timeIndex = NULL) {
   # timeIndex (e.g. 30) restricts a sensor product to ONE averaging interval,
   # so we don't download the high-volume 1-min tables we'd only discard.
   args <- list(dpID = dpID, site = site, startdate = start_d, enddate = end_d,
                package = "basic", check.size = "F")
   if (!is.null(timeIndex)) args$timeIndex <- timeIndex
-  if (!is.na(.neon_token))  args$token     <- .neon_token
+  args$token <- .neon_token
   tryCatch(do.call(loadByProduct, args),
     error = function(e) { cat(sprintf("      ! %s: %s\n", dpID, conditionMessage(e))); NULL })
 }
@@ -163,9 +226,15 @@ build_site_env <- function(site) {
   # SECPRE_* (secondary tipping bucket); prefer the DAILY table, fall back to
   # 60/30-min. Sum to a monthly total (mm). Some arid sites (e.g. JORN) have no
   # precip deployment at all -> stays NA, which the UI handles gracefully.
-  prt <- pick_table(pr, "(WEIPRE|PRIPRE|SECPRE)_daily|wss_daily_precip|.*daily.*[Pp]recip")
-  if (is.null(prt)) prt <- pick_table(pr, "(WEIPRE|PRIPRE|SECPRE)_(60|30)min|.*[Pp]recip")
-  out <- join1(out, monthly(prt, "[Pp]recipBulk|secPrecipBulk|priPrecipBulk", sum), "precip_mm")
+  pm <- precip_monthly(precip_table(pr))
+  if (is.null(pm)) {
+    out$precip_mm <- NA_real_; out$precip_mm_n_days <- NA_integer_
+  } else {
+    j <- dplyr::left_join(out["ym"], pm, by = "ym")
+    out$precip_mm <- j$value
+    # months inside a successful pull with no valid day are 0 days of coverage
+    out$precip_mm_n_days <- ifelse(is.na(j$n_days), 0L, j$n_days)
+  }
 
   # 2) air temperature — single aspirated, 30-min ONLY (timeIndex=30 skips the
   #    high-volume 1-min table we'd discard anyway); keep one tower level
@@ -215,30 +284,63 @@ build_site_env <- function(site) {
 
 # ---- run ------------------------------------------------------------------
 
-cat(sprintf("Refreshing environmental overlays for %d sites (%s → %s) into %s/\n\n",
+cat(sprintf("Refreshing environmental overlays for %d sites (%s to %s) into %s/\n\n",
             length(sites), start_d, end_d, out_dir))
 
+if (.precip_full) {
+  rebuilt <- character()
+  for (s in sites) {
+    f <- file.path(out_dir, paste0(s, ".rds"))
+    if (!file.exists(f)) { cat(sprintf("- %-5s no env bundle; skipped\n", s)); next }
+    prev <- tibble::as_tibble(readRDS(f))
+    pm <- tryCatch(precip_monthly(precip_table(safe_load("DP1.00044.001", s))),
+                   error = function(e) { cat(sprintf("    ERROR %s: %s\n", s, conditionMessage(e))); NULL })
+    if (is.null(pm)) { cat(sprintf("- %-5s no precipitation table; kept as is (coverage unknown)\n", s)); next }
+    j <- dplyr::left_join(prev["ym"], pm, by = "ym")
+    prev$precip_mm <- j$value
+    prev$precip_mm_n_days <- ifelse(is.na(j$n_days), 0L, j$n_days)
+    save_env(prev, f)
+    rebuilt <- c(rebuilt, s)
+    cat(sprintf("- %-5s precipitation rebuilt: %d months, %d with a kept total\n", s, nrow(prev),
+                sum(!is.na(prev$precip_mm))))
+  }
+  cat(sprintf("\nPrecipitation-only mode rebuilt %d/%d sites.\n", length(rebuilt), length(sites)))
+  quit(save = "no", status = 0)
+}
+
+no_new <- character()
 for (s in sites) {
   f <- file.path(out_dir, paste0(s, ".rds"))
   # full build skips a site that's already bundled; top-up mode always refreshes
-  if (file.exists(f) && !.recent) { cat(sprintf("• %-5s skip (exists, %.1f KB)\n", s, file.size(f)/1e3)); next }
-  cat(sprintf("• %-5s building%s…\n", s, if (.recent) " (recent top-up)" else ""))
+  if (file.exists(f) && !.recent) { cat(sprintf("- %-5s skip (exists, %.1f KB)\n", s, file.size(f)/1e3)); next }
+  cat(sprintf("- %-5s building%s\n", s, if (.recent) " (recent top-up)" else ""))
   env <- tryCatch(build_site_env(s), error = function(e) {
     cat(sprintf("    ERROR %s: %s\n", s, conditionMessage(e))); NULL })
-  if (is.null(env) || !nrow(env)) { cat(sprintf("    no env data for %s\n", s)); next }
-  # top-up: merge the freshly-pulled recent months into the existing bundle —
+  if (is.null(env) || !nrow(env)) { cat(sprintf("    no env data for %s\n", s)); no_new <- c(no_new, s); next }
+  # top-up: merge the freshly-pulled recent months into the existing bundle;
   # drop the months we just re-pulled, keep everything older, then append.
+  # Older months without precip_mm_n_days keep NA (coverage unknown).
   if (.recent && file.exists(f)) {
     prev <- tryCatch(tibble::as_tibble(readRDS(f)), error = function(e) NULL)
     if (!is.null(prev) && nrow(prev)) {
+      vals <- c("precip_mm", "temp_c", "temp_min", "temp_max",
+                "flowering_pct", "greenup_pct", "fruiting_pct")
+      has_val <- function(x) rowSums(!is.na(as.data.frame(x)[intersect(vals, names(x))])) > 0
+      added <- setdiff(env$ym[has_val(env)], prev$ym[has_val(prev)])
+      cat(sprintf("    top-up adds %d month(s) with a value%s\n", length(added),
+                  if (length(added)) sprintf(" (%s)", paste(added, collapse = ", ")) else ""))
+      if (!length(added)) no_new <- c(no_new, s)
       prev <- prev[!(prev$ym %in% env$ym), , drop = FALSE]
       env  <- dplyr::bind_rows(prev, env)
-      env  <- env[order(env$ym), , drop = FALSE]
     }
   }
-  saveRDS(tibble::as_tibble(env), f, compress = "xz")
+  save_env(env, f)
   cat(sprintf("    saved %s: %d months, %.1f KB\n", s, nrow(env), file.size(f)/1e3))
 }
+
+if (.recent && length(no_new))
+  cat(sprintf("::warning title=Env top-up added no months::%d of %d sites gained no month with a value this run: %s\n",
+              length(no_new), length(sites), paste(no_new, collapse = " ")))
 
 cat(sprintf("\nDone. Bundle now has %d site env files.\n",
             length(list.files(out_dir, pattern = "\\.rds$"))))

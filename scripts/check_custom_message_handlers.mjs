@@ -1,6 +1,9 @@
 import fs from "node:fs";
 
 const files = ["www/app.js", "www/pincards.js"];
+// Suite rule: a single-file app keeps inline handlers in app.R; scan it when present.
+// This repo has no app.R, so its expected count below is unchanged.
+if (fs.existsSync("app.R")) files.push("app.R");
 // Match both handler shapes so an arrow-function callback can't slip the arity
 // check: `function (payload)`, `(payload) =>`, or a bare `payload =>`.
 const handlerPattern = /Shiny\.addCustomMessageHandler\(\s*["'][^"']+["']\s*,\s*(?:function\s*\(([^)]*)\)|\(([^)]*)\)\s*=>|([A-Za-z_$][\w$]*)\s*=>)/g;

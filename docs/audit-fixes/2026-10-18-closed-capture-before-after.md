@@ -194,3 +194,20 @@ one bout.
 by `refresh-data.yml`; the build scripts now count ear-tagged individuals, but the committed
 indexes keep the old individuals counts until the next refresh. `scripts/verify_bundle.R`
 checks only that each index loads and has rows, so it does not disagree.
+
+## 2026-10-26: bouts on incomplete grids held out (RELEASE-2026 gridCompletion)
+
+The schema-2 bundles (refresh run 40346798927) carry NEON's per-night `gridCompletion`. A bout with any
+night where grid setting or capture processing fell below NEON's 75% line is held out of the estimates
+(status "incomplete grid"), the same way a bout with too few recaptures is. Command:
+`Rscript --vanilla scripts/measure_closed_capture.R` (by-site CSV regenerated).
+
+| Site | estimable bouts | incomplete-grid bouts | sum N-hat over estimable bouts | pooled p-hat | completeness |
+|---|---|---|---|---|---|
+| SRER | 108 -> 100 | 9 | 5,277 -> 4,669 | 0.491 -> 0.494 | 0.862 -> 0.857 |
+| ABBY | 61 -> 61 | 0 | 2,599 -> 2,599 | 0.453 -> 0.453 | 0.875 -> 0.875 |
+| HARV | 150 -> 146 | 5 | 7,713 -> 7,050 | 0.434 -> 0.450 | 0.815 -> 0.827 |
+| JORN | 86 -> 82 | 5 | 2,534 -> 2,331 | 0.656 -> 0.656 | 0.962 -> 0.961 |
+
+The suite-wide completeness median (0.86) and range (LAJA 0.47 to SERC 0.96) do not move. The copy now
+reads HARV about 83% (p-hat 0.45) and JORN about 96% (p-hat 0.66), still roughly 1.5x.

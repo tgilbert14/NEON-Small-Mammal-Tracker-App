@@ -1,16 +1,15 @@
 # Deploy & migration runbook
 
-**Current production state (verified 2026-07-20): HEALTHY.** Pages and
-<https://019ec337-7100-317e-5052-c3bf32ffcb79.share.connect.posit.cloud/> passed
-semantic and visual health on Cover V5 / Suite Living Poster V1. Merge `c4c46fce`
-is the canonical cover release; Connect deployment #125 published that exact
-revision and started bundle-only with all 91 packages supplied by Connect.
+**Production state:** `docs/project-status.md` records the last verified revision. Do not call
+production healthy until the post-deploy smoke passes on the merged revision: it waits for the live
+`ddl-build` meta to match the digest of the pushed tree and checks the page title and language.
 
 The app migrated to Posit Connect Cloud in June 2026. Connect watches `main`, but no automation may
 push there directly. `.github/workflows/refresh-data.yml` builds and verifies an immutable candidate,
-then publishes only `automation/small-mammal-data-refresh` and opens/updates a PR. A human-reviewed
-merge is the explicit production decision. There are no shinyapps secrets or `deploy.R`; the retired
-shinyapps.io target and deployment records are absent.
+then publishes only `automation/small-mammal-data-refresh` and opens or updates one `data-refresh` issue; it
+never opens a PR. A human-reviewed merge is the explicit production decision. There is no `deploy.R` and no
+shinyapps.io deployment record; the three legacy `SHINYAPPS_*` repository secrets are unused and still need
+deleting (owner action, see Retire the old target).
 
 ## The shape of the move
 
@@ -97,10 +96,21 @@ start. If anything fails, stay on Connect Cloud (Option A).
 3. `docs/og-image.png` is an exact 1200×630 social crop; keep `docs/social-card.html` and the
    pinned illustration beside it as its versioned sources.
 
+## Connect content variables
+
+- `CARTO_BASEMAP_KEY`: CARTO's public basemap key (a rate-limited tile identifier, not a credential). Set
+  it in Connect Cloud under the content's Settings > Variables, then republish. Without it the maps fall
+  back to Esri's keyless grey canvas.
+- `SMT_LIVE`: leave unset on Connect. The app is bundle-only there because `neonUtilities` is not in
+  the manifest.
+
 ## Retire the old target
 
 Once Connect Cloud (or shinylive) is live and the landing page points at it:
 - In your **shinyapps.io dashboard**, archive/delete the `RatTrapHistory` application (this is a
   dashboard action — it is not done from this repo).
+- Revoke the shinyapps.io token (Account > Tokens), then delete the `SHINYAPPS_NAME`, `SHINYAPPS_SECRET`
+  and `SHINYAPPS_TOKEN` repository secrets (Settings > Secrets and variables > Actions). No workflow
+  reads them.
 - Then delete the inert `rsconnect/shinyapps.io/` tree from the repo (`deployApp()` /
   `scripts/deploy.R` is no longer the path; `scripts/write_manifest.R` + git is).

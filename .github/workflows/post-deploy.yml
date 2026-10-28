@@ -22,14 +22,24 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.sha }}
-          fetch-depth: 1
+          # Full commit history (blobless: no old .rds payloads) so the refresh-candidate
+          # ancestry check below can run.
+          fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
 
+      # The smoke computes the expected ddl-build digest from this checkout (manifest
+      # and file methods) and waits until the live app reports one of them, so a
+      # pass proves Connect serves this pushed revision, not merely some revision.
       - name: Wait for Connect Cloud and verify semantic markers
         id: smoke
         env:
-          SMOKE_MAX_ATTEMPTS: "9"
+          # About 20 minutes of polling: a Connect rebuild that restores packages
+          # can take that long before the new revision serves.
+          SMOKE_MAX_ATTEMPTS: "30"
           SMOKE_SLEEP_BASE: "20"
+          SMOKE_REQUIRE_BUILD: "1"
+          SMOKE_REPO_ROOT: ${{ github.workspace }}
         run: |
           sleep 45
           bash scripts/post_deploy_smoke.sh \
@@ -66,3 +76,28 @@ jobs:
             run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             gh issue close "$number" --comment "Semantic production health recovered at ${GITHUB_SHA}. Evidence: ${run_url}"
           fi
+
+      # When this push contains the current head of the refresh review branch, the
+      # candidate was merged: close its open review issue and name the merge.
+      - name: Close the merged data-refresh review issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          branch="automation/small-mammal-data-refresh"
+          if ! git fetch --no-tags --quiet --filter=blob:none origin "refs/heads/${branch}:refs/remotes/origin/${branch}"; then
+            echo "No ${branch} branch; nothing to close."
+            exit 0
+          fi
+          head=$(git rev-parse "refs/remotes/origin/${branch}")
+          if ! git merge-base --is-ancestor "$head" "$GITHUB_SHA"; then
+            echo "Refresh candidate ${head} is not in main ${GITHUB_SHA}; leaving its issue open."
+            exit 0
+          fi
+          title="Data refresh ready for review: Small Mammal Tracker"
+          numbers=$(gh issue list --state open --label data-refresh --limit 20 --json number,title \
+            --jq ".[] | select(.title == \"${title}\") | .number")
+          for number in $numbers; do
+            gh issue close "$number" --comment "Refresh candidate ${head} was merged into main at ${GITHUB_SHA}. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          done
